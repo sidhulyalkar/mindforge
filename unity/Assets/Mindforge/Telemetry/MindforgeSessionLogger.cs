@@ -34,6 +34,7 @@ namespace Mindforge.Telemetry
     {
         public string schema = "mindforge.session.v1";
         public string session_id;
+        public string calibration_session_id;
         public string started_utc;
         public string ended_utc;
         public string outcome;
@@ -130,7 +131,13 @@ namespace Mindforge.Telemetry
                 evt.sight_score, evt.guard_score, evt.margin, evt.reason, evt.source_mode);
         }
 
-        private void OnCalibrationStage(string stage) => Add("calibration", stage);
+        private void OnCalibrationStage(string stage)
+        {
+            if (calibration != null && !string.IsNullOrEmpty(calibration.SessionId))
+                _session.calibration_session_id = calibration.SessionId;
+            Add("calibration", stage, _session.calibration_session_id);
+        }
+
         private void OnDegradation(bool degraded) => Add("neural_link", degraded ? "degraded" : "recovered");
         private void OnBossPhase(int phase) => Add("boss_phase", $"phase_{phase}");
         private void OnSignalBreak() => Add("combat", "signal_break");
