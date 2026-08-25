@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Mindforge.Presentation;
 using Mindforge.SoulWisp;
 
 namespace Mindforge.Combat
@@ -13,6 +14,7 @@ namespace Mindforge.Combat
         [SerializeField] private Transform primaryTarget;
         [SerializeField] private LayerMask projectileMask;
         [SerializeField] private HitStopController hitStop;
+        [SerializeField] private CombatPresentationDirector presentation;
 
         private readonly Collider[] _hits = new Collider[96];
         private readonly List<MindforgeProjectile> _captured = new List<MindforgeProjectile>();
@@ -23,18 +25,24 @@ namespace Mindforge.Combat
         private float _lastUse = -999f;
 
         public bool Active => _active;
+        public bool ConcordCast => _active && _concord;
 
         public bool TryActivate()
         {
             if (tuning == null || flux == null || !flux.IsFull || Time.time - _lastUse < tuning.bloomCooldown) return false;
             if (!flux.TryConsumeFull()) return false;
+
             _lastUse = Time.time;
             _active = true;
-            _concord = auras != null && auras.SightActive && auras.GuardActive;
+            // Concord is deliberately sticky after a real Sight+Guard overlap. Do
+            // not regress to instantaneous timer overlap here.
+            _concord = auras != null && auras.ConcordActive;
             _endAt = Time.time + tuning.bloomDuration * (_concord ? 1.15f : 1f);
             _captured.Clear();
             _capturedIds.Clear();
-            hitStop?.Pulse(_concord ? tuning.heavyHitStop : tuning.lightHitStop);
+
+            hitStop?.Pulse(tuning.lightHitStop);
+            presentation?.BloomCharge(_concord);
             return true;
         }
 
@@ -58,20 +66,31 @@ namespace Mindforge.Combat
             _active = false;
             if (primaryTarget == null)
             {
-                foreach (MindforgeProjectile p in _captured) if (p != null) p.ReleaseFromCapture();
+                foreach (MindforgeProjectile p in _captured)
+                    if (p != null) p.ReleaseFromCapture();
+                _captured.Clear();
+                _capturedIds.Clear();
                 return;
             }
+
             float damage = tuning.reflectedDamage * (_concord ? tuning.concordDamageMultiplier : 1f);
             float poise = tuning.reflectedPoise * (_concord ? tuning.concordDamageMultiplier : 1f);
             for (int i = 0; i < _captured.Count; i++)
             {
                 MindforgeProjectile p = _captured[i];
                 if (p == null) continue;
-                p.ReflectTowards(primaryTarget, tuning.bloomReleaseSpeed * (_concord ? 1.18f : 1f), damage, poise, _concord ? 2 : 0);
+                p.ReflectTowards(
+                    primaryTarget,
+                    tuning.bloomReleaseSpeed * (_concord ? 1.18f : 1f),
+                    damage,
+                    poise,
+                    _concord ? 2 : 0);
             }
             _captured.Clear();
             _capturedIds.Clear();
-            hitStop?.Pulse(_concord ? tuning.poiseBreakHitStop : tuning.heavyHitStop);
+
+            presentation?.BloomRelease(_concord);
+            hitStop?.Pulse(_concord ? tuning.twinEclipseHitStop : tuning.heavyHitStop);
         }
     }
 }
