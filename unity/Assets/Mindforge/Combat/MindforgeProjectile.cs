@@ -23,6 +23,11 @@ namespace Mindforge.Combat
         private Vector3 _previousPosition;
         private bool _captured;
         private bool _reflected;
+        private bool _externalPaused;
+        private bool _pauseWasKinematic;
+        private bool _pauseColliderEnabled;
+        private Vector3 _pauseVelocity;
+        private Vector3 _pauseAngularVelocity;
         private Transform _captureAnchor;
         private float _capturePhase;
         private MaterialPropertyBlock _visualBlock;
@@ -35,6 +40,7 @@ namespace Mindforge.Combat
         public bool IsHostileToGuardian => team == CombatTeam.Enemy;
         public Rigidbody Body => _body;
         public bool Captured => _captured;
+        public bool ExternalPaused => _externalPaused;
 
         private void Awake()
         {
@@ -75,6 +81,37 @@ namespace Mindforge.Combat
             ApplyVisualIdentity();
         }
 
+        public void SetExternalPause(bool paused)
+        {
+            if (_externalPaused == paused) return;
+            _externalPaused = paused;
+
+            // Captured projectiles are already kinematic/non-colliding. Their orbit
+            // simply stops while externally paused and resumes with the Bloom.
+            if (_captured) return;
+
+            if (paused)
+            {
+                _pauseWasKinematic = _body.isKinematic;
+                _pauseColliderEnabled = _collider.enabled;
+                _pauseVelocity = _body.velocity;
+                _pauseAngularVelocity = _body.angularVelocity;
+                _body.isKinematic = true;
+                _collider.enabled = false;
+            }
+            else
+            {
+                _body.isKinematic = _pauseWasKinematic;
+                _collider.enabled = _pauseColliderEnabled;
+                if (!_body.isKinematic)
+                {
+                    _body.velocity = _pauseVelocity;
+                    _body.angularVelocity = _pauseAngularVelocity;
+                }
+                _previousPosition = transform.position;
+            }
+        }
+
         private void ApplyVisualIdentity()
         {
             Color color;
@@ -112,7 +149,7 @@ namespace Mindforge.Combat
 
         public void Capture(Transform anchor, float phase)
         {
-            if (_captured) return;
+            if (_captured || _externalPaused) return;
             _captured = true;
             _captureAnchor = anchor;
             _capturePhase = phase;
@@ -126,13 +163,13 @@ namespace Mindforge.Combat
             _captured = false;
             _captureAnchor = null;
             _body.isKinematic = false;
-            _collider.enabled = true;
+            _collider.enabled = !_externalPaused;
             _previousPosition = transform.position;
         }
 
         private void Update()
         {
-            if (!_captured || _captureAnchor == null) return;
+            if (_externalPaused || !_captured || _captureAnchor == null) return;
             _capturePhase += Time.unscaledDeltaTime * 4.5f;
             float radius = 0.65f + 0.16f * Mathf.Sin(_capturePhase * 1.7f);
             transform.position = _captureAnchor.position + new Vector3(Mathf.Cos(_capturePhase), 0.45f, Mathf.Sin(_capturePhase)) * radius;
@@ -140,14 +177,12 @@ namespace Mindforge.Combat
 
         private void FixedUpdate()
         {
-            if (_captured) return;
+            if (_externalPaused || _captured) return;
             Vector3 current = transform.position;
             Vector3 delta = current - _previousPosition;
             float distance = delta.magnitude;
             if (distance > 0.001f && Physics.SphereCast(_previousPosition, 0.08f, delta / distance, out RaycastHit hit, distance, hitMask, QueryTriggerInteraction.Collide))
-            {
                 TryHit(hit.collider, hit.point);
-            }
             _previousPosition = current;
         }
 
@@ -155,7 +190,7 @@ namespace Mindforge.Combat
 
         private void TryHit(Collider other, Vector3 point)
         {
-            if (_captured || other == null) return;
+            if (_externalPaused || _captured || other == null) return;
             CombatantVitals receiver = other.GetComponentInParent<CombatantVitals>();
             if (receiver == null || !receiver.IsAlive || receiver.Team == team) return;
             Vector3 impulse = _body.velocity.sqrMagnitude > 0.01f ? _body.velocity.normalized * 1.5f : Vector3.zero;
