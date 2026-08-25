@@ -5,13 +5,22 @@ on:
   pull_request:
 
 jobs:
-  python:
+  python-and-browser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: python -m pip install -U pip
       - run: pip install -e '.[test]'
       - run: pytest
+      - name: Validate browser combat modules
+        run: |
+          node --check web_demo/core.js
+          node --check web_demo/combat.js
+          node --check web_demo/render.js
+          node --check web_demo/game.js
