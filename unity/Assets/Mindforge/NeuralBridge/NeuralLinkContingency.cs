@@ -9,8 +9,7 @@ namespace Mindforge.Neural
     /// <summary>
     /// Demo-day fairness gate for acquisition silence. It arms only after successful
     /// calibration. A stale neural stream pauses enemy authority and Guardian combat
-    /// actions while still allowing movement/UI. Recovery must remain stable briefly
-    /// before combat resumes, preventing connection flapping from creating bursty play.
+    /// actions while still allowing movement/UI. PARTICIPANT_STOP is terminal.
     /// </summary>
     public sealed class NeuralLinkContingency : MonoBehaviour
     {
@@ -23,44 +22,66 @@ namespace Mindforge.Neural
 
         private bool _armed;
         private bool _degraded;
+        private bool _participantStopped;
         private Coroutine _recovery;
 
         public bool Degraded => _degraded;
+        public bool ParticipantStopped => _participantStopped;
         public event Action<bool> DegradationStateChanged;
 
         private void OnEnable()
         {
-            if (receiver != null) receiver.ConnectionStateChanged += OnConnectionChanged;
-            SetWarning(false);
+            if (receiver != null)
+            {
+                receiver.ConnectionStateChanged += OnConnectionChanged;
+                receiver.EventReceived += OnNeuralAuthority;
+            }
+            SetWarning(false, false);
         }
 
         private void OnDisable()
         {
-            if (receiver != null) receiver.ConnectionStateChanged -= OnConnectionChanged;
+            if (receiver != null)
+            {
+                receiver.ConnectionStateChanged -= OnConnectionChanged;
+                receiver.EventReceived -= OnNeuralAuthority;
+            }
             if (_recovery != null) StopCoroutine(_recovery);
             _recovery = null;
         }
 
         public void ArmForCombat()
         {
+            if (_participantStopped) return;
             _armed = true;
-            if (receiver != null && !receiver.IsConnected) EnterDegraded();
+            if (receiver != null && !receiver.IsConnected) EnterDegraded(false);
         }
 
         public void Disarm()
         {
+            if (_participantStopped) return;
             _armed = false;
             ExitDegraded();
         }
 
+        private void OnNeuralAuthority(NeuralEvent evt)
+        {
+            if (evt == null || !evt.IsParticipantStop) return;
+            _participantStopped = true;
+            _armed = true;
+            if (_recovery != null) StopCoroutine(_recovery);
+            _recovery = null;
+            EnterDegraded(true);
+        }
+
         private void OnConnectionChanged(bool connected)
         {
-            if (!_armed) return;
+            if (!_armed || _participantStopped) return;
             if (!connected)
             {
                 if (_recovery != null) StopCoroutine(_recovery);
                 _recovery = null;
-                EnterDegraded();
+                EnterDegraded(false);
             }
             else if (_degraded && _recovery == null)
             {
@@ -72,34 +93,35 @@ namespace Mindforge.Neural
         {
             yield return new WaitForSecondsRealtime(Mathf.Max(0.1f, stableRecoverySeconds));
             _recovery = null;
-            if (receiver != null && receiver.IsConnected) ExitDegraded();
+            if (!_participantStopped && receiver != null && receiver.IsConnected) ExitDegraded();
         }
 
-        private void EnterDegraded()
+        private void EnterDegraded(bool participantStop)
         {
-            if (_degraded) return;
+            bool changed = !_degraded;
             _degraded = true;
             bossDirector?.SetExternalPause(true);
             guardianInput?.SetCombatActionsEnabled(false);
             Shader.SetGlobalFloat("_MindforgeNeuralLinkDegraded", 1f);
-            SetWarning(true);
-            DegradationStateChanged?.Invoke(true);
+            SetWarning(true, participantStop || _participantStopped);
+            if (changed) DegradationStateChanged?.Invoke(true);
         }
 
         private void ExitDegraded()
         {
-            if (!_degraded) return;
+            if (!_degraded || _participantStopped) return;
             _degraded = false;
             bossDirector?.SetExternalPause(false);
             guardianInput?.SetCombatActionsEnabled(true);
             Shader.SetGlobalFloat("_MindforgeNeuralLinkDegraded", 0f);
-            SetWarning(false);
+            SetWarning(false, false);
             DegradationStateChanged?.Invoke(false);
         }
 
-        private void SetWarning(bool visible)
+        private void SetWarning(bool visible, bool participantStop)
         {
-            if (warningText != null) warningText.text = visible ? "NEURAL LINK UNSTABLE" : string.Empty;
+            if (warningText != null)
+                warningText.text = visible ? (participantStop ? "PARTICIPANT STOP · COMBAT SAFE" : "NEURAL LINK UNSTABLE") : string.Empty;
             if (warningGroup == null) return;
             warningGroup.alpha = visible ? 1f : 0f;
             warningGroup.interactable = false;
