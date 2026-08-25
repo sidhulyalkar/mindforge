@@ -35,6 +35,16 @@ def test_stale_link_is_fairly_paused_not_free_damage():
     assert "echo?.SetExternalPause(paused)" in boss
     assert "_externalPaused" in echo
     assert "stableRecoverySeconds = 0.75f" in gate
+    assert "desaturationVeil" in gate and "degradedVeilAlpha" in gate
+
+
+def test_participant_stop_is_terminal_even_if_connection_recovers():
+    gate = text(UNITY / "NeuralBridge" / "NeuralLinkContingency.cs")
+    assert "evt.IsParticipantStop" in gate
+    assert "_participantStopped = true" in gate
+    assert "if (!_armed || _participantStopped) return;" in gate
+    assert "if (!_degraded || _participantStopped) return;" in gate
+    assert "PARTICIPANT STOP · COMBAT SAFE" in gate
 
 
 def test_photodiode_patch_is_phase_locked_and_qualification_only():
@@ -51,12 +61,15 @@ def test_telemetry_is_derived_only_checkpointed_and_finalized():
     logger = text(UNITY / "Telemetry" / "MindforgeSessionLogger.cs")
     plotter = text(ROOT / "tools" / "plot_session_report.py")
     assert "mindforge.session.v1" in logger
+    assert "calibration_session_id" in logger
     assert "partial.json" in logger
-    assert "File.Move(temp, path)" in logger
+    assert "File.Replace(temp, path, null)" in logger
     assert "EvidenceReceived" in logger and "EventReceived" in logger
     assert "raw EEG" in logger
     assert "does not claim to measure cognitive fatigue" in plotter
+    assert "DECODER_EVENTS" in plotter
     assert "suspected-artifact" in plotter
+    assert "median inter-selection" in plotter
 
 
 def test_calibration_status_preserves_runtime_sequence_order_and_liveness():
