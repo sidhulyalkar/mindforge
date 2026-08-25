@@ -8,14 +8,15 @@ namespace Mindforge.Neural
 {
     /// <summary>
     /// Demo-day fairness gate for acquisition silence. It arms only after successful
-    /// calibration. A stale neural stream pauses enemy authority and Guardian combat
-    /// actions while still allowing movement/UI. PARTICIPANT_STOP is terminal.
+    /// calibration. A stale neural stream pauses both enemy and player combat authority
+    /// while still allowing ordinary movement/UI. PARTICIPANT_STOP is terminal.
     /// </summary>
     public sealed class NeuralLinkContingency : MonoBehaviour
     {
         [SerializeField] private UdpNeuralReceiver receiver;
         [SerializeField] private FracturedSignalDirector bossDirector;
         [SerializeField] private GuardianCombatInput guardianInput;
+        [SerializeField] private GravityBloomAbility gravityBloom;
         [SerializeField] private CanvasGroup warningGroup;
         [SerializeField] private Text warningText;
         [Tooltip("Neutral gray fullscreen veil. Keep it outside the VEP-core renderers.")]
@@ -105,6 +106,8 @@ namespace Mindforge.Neural
             _degraded = true;
             bossDirector?.SetExternalPause(true);
             guardianInput?.SetCombatActionsEnabled(false);
+            gravityBloom?.SetExternalPause(true);
+            SetProjectilePause(true);
             Shader.SetGlobalFloat("_MindforgeNeuralLinkDegraded", 1f);
             SetPresentation(true, participantStop || _participantStopped);
             if (changed) DegradationStateChanged?.Invoke(true);
@@ -114,11 +117,22 @@ namespace Mindforge.Neural
         {
             if (!_degraded || _participantStopped) return;
             _degraded = false;
+            SetProjectilePause(false);
+            gravityBloom?.SetExternalPause(false);
             bossDirector?.SetExternalPause(false);
             guardianInput?.SetCombatActionsEnabled(true);
             Shader.SetGlobalFloat("_MindforgeNeuralLinkDegraded", 0f);
             SetPresentation(false, false);
             DegradationStateChanged?.Invoke(false);
+        }
+
+        private static void SetProjectilePause(bool paused)
+        {
+            // Link transitions are rare. A one-shot scene scan is preferable to a
+            // permanent per-frame registry/branch in every projectile update path.
+            MindforgeProjectile[] projectiles = FindObjectsOfType<MindforgeProjectile>();
+            foreach (MindforgeProjectile projectile in projectiles)
+                projectile?.SetExternalPause(paused);
         }
 
         private void SetPresentation(bool visible, bool participantStop)
