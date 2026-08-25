@@ -10,6 +10,7 @@ Create `MindforgeNeuralRuntime` with:
   - port `19742`
   - max queue age ~`0.75 s`
   - stale connection threshold ~`2.5 s`
+  - bounded queue / bounded drain per frame
 - `DualAuraCombatDirector`
   - receiver → `UdpNeuralReceiver`
   - buffs → Guardian `AuraBuffController`
@@ -48,7 +49,8 @@ Assign it to:
 
 - `SoulWispController`;
 - projectile prefabs;
-- `NeuralAuraFeedback`.
+- `NeuralAuraFeedback`;
+- `FracturedSignalTelegraph`.
 
 The exact Sight blue / Guard green must not be reused by enemy fire or generic player ordnance.
 
@@ -95,7 +97,7 @@ Assign:
 
 VEP core materials should ignore the `_MindforgeAmbientDim` shader global.
 
-## 6. Boss
+## 6. Boss encounter
 
 Fractured Signal root:
 
@@ -103,10 +105,31 @@ Fractured Signal root:
 - `PoiseSystem`
 - `FracturedSignalDirector`
 - `SignalBreakReward`
+- optional `FracturedSignalTelegraph`
 
-Wire `FracturedSignalDirector.soulWisp` to the player's Wisp so Signal Break calls `RestStimuli`.
+Wire:
 
-Wire `SignalBreakReward.presentation` to the same `CombatPresentationDirector` so poise collapse also triggers audio/ambient rest.
+- `FracturedSignalDirector.soulWisp` → player's Wisp;
+- `FracturedSignalDirector.playerFlux` → player's FluxMeter;
+- `FracturedSignalDirector.telegraph` → hostile-colored telegraph component;
+- `FracturedSignalDirector.echoPrefab` → configured Echo prefab;
+- `SignalBreakReward.presentation` → shared `CombatPresentationDirector`.
+
+### Echo prefab
+
+Echo prefab should contain:
+
+- `FracturedEchoNode`
+- `CombatantVitals`
+- optional `PoiseSystem`
+- hostile projectile prefab reference
+- angular/fractured visual mesh
+
+Destroying an Echo rewards Flux and should be visually readable without using Sight blue or Guard green.
+
+### Telegraph object
+
+Provide enough `LineRenderer` rays for the largest Phase III fan and one radial `LineRenderer` ring. Telegraph materials should use unlit/additive crimson or orange and should never be confused with the smooth neural targets.
 
 `PoiseSystem.breakDuration` and `signalBreakVisualRestSeconds` should remain intentionally aligned for the competition build unless experiment data justifies separating them.
 
@@ -160,7 +183,35 @@ Physical checklist:
 - Twin Eclipse;
 - resume after rest.
 
-## 10. Demo provenance
+## 10. Transport stress rehearsal
+
+With neurOS `UnicornMock` active, inject:
+
+- LSL delivery jitter;
+- dropped chunks;
+- 2 s source silence;
+- recovery.
+
+Simultaneously trigger:
+
+- Counter Pulse;
+- Rift Cleave;
+- Signal Break;
+- Twin Eclipse;
+- high particle load.
+
+Watch the spectator HUD transport counters and verify:
+
+```text
+queue stays bounded
+old packets are discarded
+no burst of conflicting aura selections
+PARTICIPANT_STOP survives
+BCI loss/recovery is visible
+controller combat never blocks
+```
+
+## 11. Demo provenance
 
 Every judge-facing run must visibly identify one of:
 
@@ -171,3 +222,16 @@ LIVE
 ```
 
 A Phantom Unicorn run is useful engineering evidence but must never be presented as observed human BCI performance.
+
+## 12. Promotion gate
+
+Do not call the Unity vertical slice qualified until all of these are observed:
+
+1. Unity 2022.3 Editor imports and compiles the full project;
+2. scene/prefab references are serialized correctly;
+3. controller-only fight completes end-to-end;
+4. Phantom Unicorn reaches Unity through the full LSL → Python → UDP path;
+5. forced render stalls do not burst stale neural authority;
+6. physical VEP timing is measured;
+7. physical Unicorn acquisition is verified;
+8. stationary, moving, movement, and full-combat human sessions are completed.
