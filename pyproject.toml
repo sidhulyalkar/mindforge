@@ -12,6 +12,8 @@ dependencies = ["numpy>=1.26", "scipy>=1.11"]
 [project.optional-dependencies]
 test = ["pytest>=8.0"]
 lsl = ["pylsl>=1.16"]
+report = ["matplotlib>=3.8"]
+demo = ["pylsl>=1.16", "matplotlib>=3.8"]
 
 [tool.setuptools]
 package-dir = {"" = "neuro"}
