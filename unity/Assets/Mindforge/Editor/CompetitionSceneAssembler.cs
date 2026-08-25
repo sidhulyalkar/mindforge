@@ -262,7 +262,23 @@ namespace Mindforge.Editor
         }
 
         private static Renderer CreateShell(string name, Transform parent, Material material)
-            => CreatePrimitive(name, PrimitiveType.Sphere, parent, Vector3.zero, Vector3.one * 0.42f, material, false).GetComponent<Renderer>();
+        {
+            GameObject go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            LineRenderer line = go.AddComponent<LineRenderer>();
+            line.sharedMaterial = material;
+            line.useWorldSpace = false;
+            line.loop = true;
+            line.widthMultiplier = 0.045f;
+            line.positionCount = 48;
+            const float radius = 0.43f;
+            for (int i = 0; i < line.positionCount; i++)
+            {
+                float angle = i / (float)line.positionCount * Mathf.PI * 2f;
+                line.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f));
+            }
+            return line;
+        }
 
         private static void ConfigureFeedbackShell(NeuralAuraFeedback feedback, string field, Transform root, Renderer renderer)
         {

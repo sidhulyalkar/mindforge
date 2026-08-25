@@ -6,7 +6,7 @@
 
 ### Reproducible Unity project
 
-Mindforge is pinned to Unity `2022.3.76f1` and URP 14.0.11. From Unity Hub, open the repository's `unity/` directory.
+Mindforge is pinned to Unity `2022.3.76f1` and URP `14.0.11`. From Unity Hub, open the repository's `unity/` directory.
 
 After package import, run:
 
@@ -25,32 +25,56 @@ Unity -batchmode -nographics -projectPath unity \
 
 A successful validation writes `experiments/reports/unity-gate1-latest.json`.
 
-### Golden path
+### Golden path with neurOS Phantom
 
-1. Start neurOS Phantom Unicorn in strong-responder mode.
-2. Start `tools/run_unity_calibrated_decoder.py --source-mode simulation`.
-3. Launch the Unity scene.
-4. Observe REST -> SIGHT -> GUARD calibration.
-5. Require `CALIBRATION_READY` before combat input or arena authority unlocks.
-6. Complete Phase I -> II -> III -> victory or defeat.
-7. Verify a final `mindforge.session.v1` JSON exists.
-8. Generate the PNG/PDF report with `tools/plot_session_report.py`.
+Start the synthetic source from the neurOS `feat/ssvep-phantom-unicorn` branch:
+
+```bash
+python examples/mindforge_phantom_unicorn.py --no-stdin
+```
+
+Then, from Mindforge:
+
+```bash
+python tools/run_unity_calibrated_decoder.py \
+  --stream-name UnicornMock \
+  --source-mode simulation
+```
+
+For simulation only, the Mindforge calibration runner drives neurOS Phantom on localhost UDP `19744` so REST/SIGHT/GUARD presentation labels and synthetic source state stay synchronized. `live` and `replay` source modes never send Phantom commands.
+
+Golden-path order:
+
+1. launch Unity scene;
+2. observe REST -> SIGHT -> GUARD calibration;
+3. require `CALIBRATION_READY` before arena/combat authority unlocks;
+4. complete Phase I -> II -> III -> victory or defeat;
+5. verify final `mindforge.session.v1` JSON;
+6. generate PNG/PDF using `tools/plot_session_report.py`.
 
 ### Torture tests
 
-- **F6:** intentional ~50 ms Unity main-thread stall.
-- **F7:** intentional ~120 ms Unity main-thread stall.
-- neurOS Phantom `x`: two-second source silence.
-- neurOS Phantom contamination controls: jaw/controller/motion/saturation.
+Unity-side:
+
+- **F6:** intentional ~50 ms main-thread stall;
+- **F7:** intentional ~120 ms main-thread stall.
+
+Phantom-side, from Mindforge:
+
+```bash
+python tools/phantom_control.py silence:2.5
+python tools/phantom_control.py j c m --delay 0.4
+python tools/phantom_control.py gain:0.55
+```
 
 Pass conditions:
 
 - neural queue remains bounded;
 - no burst of stale gameplay authority after a stall;
 - calibration rejection remains in Awakening and can retry;
-- source silence enters a neutral `NEURAL LINK UNSTABLE` pause;
+- source silence enters neutral `NEURAL LINK UNSTABLE`;
 - existing projectiles and active Gravity Bloom suspend coherently;
-- recovery must stay stable before combat resumes;
+- recovery remains stable before combat resumes;
 - participant stop remains terminal;
 - telemetry survives interruption.
 
@@ -60,8 +84,8 @@ The software target is a 120 Hz VSync-bound display, but software timing is not 
 
 ### Photodiode instrument
 
-- **F10:** show/hide qualification square.
-- **F11:** switch square between Sight 10 Hz and Guard 12 Hz source clocks.
+- **F10:** show/hide qualification square;
+- **F11:** switch square between Sight 10 Hz and Guard 12 Hz source clocks;
 - **F12:** export Unity-side phase-edge timestamps for comparison with scope data.
 
 During human sessions the qualification square must be disabled or physically occluded by the photodiode because an exposed patch is itself an additional visual stimulus.
@@ -76,7 +100,7 @@ Measure both 10 Hz and 12 Hz under:
 6. Twin Eclipse / worst presentation load;
 7. F6/F7 forced stalls.
 
-A software `DisplayTimingMonitor` health flag and edge CSV are diagnostics only. Promotion requires the oscilloscope/photodiode trace from the actual target display.
+The `DisplayTimingMonitor` health flag and Unity edge CSV are software diagnostics only. Promotion requires an oscilloscope/photodiode trace from the actual target display. If a deliberately forced F6/F7 stall produces a visible physical timing error, record it as expected fault behavior rather than hiding it; the normal gameplay workload must remain within the qualified timing envelope.
 
 ## Gate 3 — Unicorn wet lab
 

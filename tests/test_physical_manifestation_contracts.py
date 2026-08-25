@@ -13,9 +13,12 @@ def read(path: Path) -> str:
 def test_unity_is_a_pinned_urp_project_boundary():
     version = read(UNITY / "ProjectSettings" / "ProjectVersion.txt")
     manifest = json.loads(read(UNITY / "Packages" / "manifest.json"))
+    configurator = read(MF / "Editor" / "CompetitionProjectConfigurator.cs")
     assert "2022.3.76f1" in version
     assert manifest["dependencies"]["com.unity.render-pipelines.universal"] == "14.0.11"
     assert manifest["dependencies"]["com.unity.ugui"] == "1.0.0"
+    assert "GraphicsSettings.defaultRenderPipeline = pipeline" in configurator
+    assert "GraphicsSettings.renderPipelineAsset = pipeline" not in configurator
 
 
 def test_competition_scene_is_reproducibly_assembled_and_validated():
@@ -53,6 +56,14 @@ def test_gate2_instrument_can_measure_both_neural_codes():
     assert "QualitySettings.vSyncCount = 1" in display
     assert "KeyCode.F12" in display
     assert "software" in display.lower() and "photodiode" in display.lower()
+
+
+def test_feedback_shell_cannot_occlude_frequency_coded_core():
+    assembler = read(MF / "Editor" / "CompetitionSceneAssembler.cs")
+    assert "LineRenderer line = go.AddComponent<LineRenderer>()" in assembler
+    assert "line.loop = true" in assembler
+    assert "CreateShell(\"SightFeedbackShell\"" in assembler
+    assert "CreateShell(\"GuardFeedbackShell\"" in assembler
 
 
 def test_torture_harness_injects_render_stalls_without_new_gameplay():
