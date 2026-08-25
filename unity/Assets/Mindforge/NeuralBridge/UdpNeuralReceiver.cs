@@ -11,50 +11,32 @@ namespace Mindforge.Neural
 {
     /// <summary>
     /// Receives derived neural events only. Raw EEG must never cross this boundary.
-    ///
     /// Network I/O stays on a dedicated background thread. Unity-main-thread work is
-    /// deliberately bounded and latest-authoritative so a render stall cannot cause
-    /// several stale/conflicting aura selections to mutate gameplay in one frame.
+    /// bounded and latest-authoritative so a render stall cannot burst stale/conflicting
+    /// neural state changes into one gameplay frame.
     ///
-    /// IMPORTANT: Python monotonic_ns and Unity's realtime clock do not share an
-    /// epoch. Cross-process monotonic timestamps are retained for provenance/order,
-    /// while queue age is measured from a Unity-process receive timestamp captured
-    /// on the socket thread.
+    /// Python monotonic_ns and Unity realtime do not share an epoch. Cross-process
+    /// timestamps remain provenance/order metadata; packet age is measured using the
+    /// Unity process receive clock captured on the socket thread.
     /// </summary>
     public sealed class UdpNeuralReceiver : MonoBehaviour
     {
         [SerializeField] private int port = 19742;
-        [SerializeField] private float staleAfterSeconds = 2.5f;
+        [SerializeField] private float staleAfterSeconds = 1.5f;
         [SerializeField] private float maxPacketQueueAgeSeconds = 0.75f;
         [SerializeField] private int maxQueuedPackets = 128;
         [SerializeField] private int maxDrainPerFrame = 96;
         [SerializeField] private bool logEvents;
 
-        /// <summary>
-        /// Gameplay/governance event stream. At most one non-stop authority event is
-        /// emitted per Unity frame. PARTICIPANT_STOP always dominates.
-        /// </summary>
         public event Action<NeuralEvent> EventReceived;
-
-        /// <summary>
-        /// Newest decoder evidence observed in the current frame. Spectator and
-        /// diegetic feedback should subscribe here instead of forcing every decoder
-        /// window through gameplay authority.
-        /// </summary>
         public event Action<NeuralEvent> EvidenceReceived;
-
         public event Action<bool> ConnectionStateChanged;
 
         private readonly struct ReceivedPacket
         {
             public readonly string Json;
             public readonly long ReceiveTicks;
-
-            public ReceivedPacket(string json, long receiveTicks)
-            {
-                Json = json;
-                ReceiveTicks = receiveTicks;
-            }
+            public ReceivedPacket(string json, long receiveTicks) { Json = json; ReceiveTicks = receiveTicks; }
         }
 
         private readonly ConcurrentQueue<ReceivedPacket> _messages = new ConcurrentQueue<ReceivedPacket>();
@@ -81,12 +63,10 @@ namespace Mindforge.Neural
             maxDrainPerFrame = Mathf.Clamp(maxDrainPerFrame, 1, maxQueuedPackets);
             maxPacketQueueAgeSeconds = Mathf.Max(0.05f, maxPacketQueueAgeSeconds);
             staleAfterSeconds = Mathf.Max(maxPacketQueueAgeSeconds, staleAfterSeconds);
-
             _lastSeenSeq = -1;
             _lastAuthoritySeq = -1;
             _lastValidEventTime = double.NegativeInfinity;
             DrainPending();
-
             _client = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
             _client.Client.ReceiveTimeout = 250;
             _running = true;
@@ -104,17 +84,9 @@ namespace Mindforge.Neural
                     byte[] bytes = _client.Receive(ref remote);
                     Enqueue(Encoding.UTF8.GetString(bytes));
                 }
-                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.TimedOut)
-                {
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Enqueue($"__ERROR__:{ex.GetType().Name}");
-                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.TimedOut) { }
+                catch (ObjectDisposedException) { break; }
+                catch (Exception ex) { Enqueue($"__ERROR__:{ex.GetType().Name}"); }
             }
         }
 
@@ -156,18 +128,12 @@ namespace Mindforge.Neural
             {
                 drained++;
                 Interlocked.Decrement(ref _queuedCount);
-
                 string raw = packet.Json;
-                if (raw.StartsWith("__ERROR__:", StringComparison.Ordinal))
-                {
-                    SetConnected(false);
-                    continue;
-                }
+                if (raw.StartsWith("__ERROR__:", StringComparison.Ordinal)) { SetConnected(false); continue; }
 
                 NeuralEvent evt;
                 try { evt = JsonUtility.FromJson<NeuralEvent>(raw); }
                 catch { continue; }
-
                 if (evt == null || evt.schema != "mindforge.neural_event.v1") continue;
                 if (evt.seq <= _lastSeenSeq) continue;
 
@@ -180,13 +146,9 @@ namespace Mindforge.Neural
 
                 frameMaxSeq = Math.Max(frameMaxSeq, evt.seq);
                 latestEvidence = Newer(latestEvidence, evt);
-
-                if (evt.IsParticipantStop)
-                    participantStop = Newer(participantStop, evt);
-                else if (evt.IsLost || evt.IsRecovered)
-                    latestControl = Newer(latestControl, evt);
-                else if (evt.IsSelection)
-                    latestSelection = Newer(latestSelection, evt);
+                if (evt.IsParticipantStop) participantStop = Newer(participantStop, evt);
+                else if (evt.IsLost || evt.IsRecovered) latestControl = Newer(latestControl, evt);
+                else if (evt.IsSelection) latestSelection = Newer(latestSelection, evt);
             }
 
             if (latestEvidence != null)
@@ -207,13 +169,8 @@ namespace Mindforge.Neural
                 return;
             }
 
-            // If a stall accumulated SELECT -> ABSTAIN windows, the valid selection
-            // is not erased merely because the newest evidence window is a HELD/DWELL
-            // abstention. Conversely a newer explicit LOST/RECOVERED control message
-            // can override an older selection.
             NeuralEvent authority = Newer(latestSelection, latestControl);
             if (authority == null) authority = latestEvidence;
-
             if (authority != null && authority.seq > _lastAuthoritySeq)
             {
                 _lastAuthoritySeq = authority.seq;

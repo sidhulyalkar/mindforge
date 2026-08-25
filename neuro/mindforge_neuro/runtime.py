@@ -23,27 +23,23 @@ class RuntimeState:
 class AuraSelectionRuntime:
     """Turn per-window SSVEP decisions into stable, rate-limited game events."""
 
-    def __init__(self, decoder: SsvepDecoder, profile: CalibrationProfile, *, source_mode: str = "live"):
+    def __init__(self, decoder: SsvepDecoder, profile: CalibrationProfile, *, source_mode: str = "live",
+                 initial_seq: int = 0):
         self.decoder = decoder
         self.profile = profile
         self.source_mode = source_mode
-        self.state = RuntimeState()
+        self.state = RuntimeState(seq=int(initial_seq))
 
     def _event(self, decision: SsvepDecision, *, event: EventType, target: AuraTarget | None,
                reason: str | None = None) -> NeuralEvent:
         return NeuralEvent.create(
-            seq=self.state.seq,
-            event=event,
-            target=target,
-            confidence=decision.confidence,
-            quality=decision.quality.score,
-            model_id=self.profile.model_id,
-            reason=reason,
+            seq=self.state.seq, event=event, target=target,
+            confidence=decision.confidence, quality=decision.quality.score,
+            model_id=self.profile.model_id, reason=reason,
             artifact=decision.quality.artifact,
             sight_score=decision.scores.get(AuraTarget.SIGHT, 0.0),
             guard_score=decision.scores.get(AuraTarget.GUARD, 0.0),
-            margin=decision.margin,
-            source_mode=self.source_mode,
+            margin=decision.margin, source_mode=self.source_mode,
         )
 
     def process(self, eeg_uv: np.ndarray, now: float | None = None) -> NeuralEvent:

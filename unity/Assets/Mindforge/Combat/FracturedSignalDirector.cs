@@ -8,12 +8,8 @@ namespace Mindforge.Combat
 {
     /// <summary>
     /// Competition boss scheduler built around cognitive pacing rather than a flat
-    /// difficulty ramp.
-    ///
-    /// Phase I: predictable rhythm / safe aura practice.
-    /// Phase II: Echo nodes split physical attention and reward Flux.
-    /// Phase III: denser crossfire that pushes counters / Gravity Bloom.
-    /// Signal Break: boss vulnerability + VEP visual rest.
+    /// difficulty ramp. External neural-link pauses suppress enemy authority without
+    /// granting the Guardian a free damage window.
     /// </summary>
     public sealed class FracturedSignalDirector : MonoBehaviour
     {
@@ -44,8 +40,10 @@ namespace Mindforge.Combat
         private int _attackIndex;
         private int _lastPhase;
         private Coroutine _loop;
+        private bool _externalPaused;
 
         public event Action<int> PhaseChanged;
+        public bool ExternalPaused => _externalPaused;
 
         public int Phase
         {
@@ -55,6 +53,15 @@ namespace Mindforge.Combat
                 float ratio = vitals.Health / Mathf.Max(1f, vitals.MaxHealth);
                 return ratio > 0.68f ? 1 : ratio > 0.34f ? 2 : 3;
             }
+        }
+
+        public void SetExternalPause(bool paused)
+        {
+            if (_externalPaused == paused) return;
+            _externalPaused = paused;
+            telegraph?.Clear();
+            _echoes.RemoveAll(item => item == null);
+            foreach (FracturedEchoNode echo in _echoes) echo?.SetExternalPause(paused);
         }
 
         private void OnEnable()
@@ -82,8 +89,9 @@ namespace Mindforge.Combat
         {
             while (true)
             {
-                if (vitals == null || !vitals.IsAlive)
+                if (vitals == null || !vitals.IsAlive || _externalPaused)
                 {
+                    telegraph?.Clear();
                     yield return null;
                     continue;
                 }
@@ -103,6 +111,7 @@ namespace Mindforge.Combat
                 }
 
                 yield return ExecutePattern(phase);
+                if (_externalPaused) continue;
                 float interval = phase == 1 ? phaseOneInterval : phase == 2 ? phaseTwoInterval : phaseThreeInterval;
                 yield return new WaitForSeconds(interval);
             }
@@ -110,10 +119,10 @@ namespace Mindforge.Combat
 
         private IEnumerator ExecutePattern(int phase)
         {
+            if (_externalPaused) yield break;
             _attackIndex++;
             if (phase == 1)
             {
-                // Warm-up alternates two highly legible families.
                 if ((_attackIndex & 1) == 0)
                     yield return TelegraphAndFan(2, 14.5f, 12f, phaseOneTelegraph, false);
                 else
@@ -138,8 +147,6 @@ namespace Mindforge.Combat
                 yield break;
             }
 
-            // Controlled overload: more projectiles and Echo pressure, but every
-            // family still has an explicit hostile-colored telegraph.
             int phaseThreeIndex = _attackIndex % 5;
             if (phaseThreeIndex == 0)
             {
@@ -154,29 +161,30 @@ namespace Mindforge.Combat
 
         private IEnumerator TelegraphAndFan(int count, float speed, float spreadDegrees, float delay, bool heavy)
         {
-            if (player == null || projectilePrefab == null) yield break;
+            if (player == null || projectilePrefab == null || _externalPaused) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             Vector3 center = (player.position - origin).normalized;
             telegraph?.ShowFan(origin, center, count, spreadDegrees, heavy);
             yield return new WaitForSeconds(delay);
             telegraph?.Clear();
-            if (vitals != null && vitals.Poise != null && vitals.Poise.Broken) yield break;
+            if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
             SpawnAimedFan(count, speed, spreadDegrees, heavy);
         }
 
         private IEnumerator TelegraphAndRadial(int count, float speed, float delay, bool heavy)
         {
+            if (_externalPaused) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             telegraph?.ShowRadial(origin, heavy);
             yield return new WaitForSeconds(delay);
             telegraph?.Clear();
-            if (vitals != null && vitals.Poise != null && vitals.Poise.Broken) yield break;
+            if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
             SpawnRadial(count, speed, heavy);
         }
 
         private void SpawnAimedFan(int count, float speed, float spreadDegrees, bool heavy)
         {
-            if (player == null || projectilePrefab == null) return;
+            if (player == null || projectilePrefab == null || _externalPaused) return;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             Vector3 center = (player.position - origin).normalized;
             for (int i = 0; i < count; i++)
@@ -189,6 +197,7 @@ namespace Mindforge.Combat
 
         private void SpawnRadial(int count, float speed, bool heavy)
         {
+            if (_externalPaused) return;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             for (int i = 0; i < count; i++)
             {
@@ -200,20 +209,21 @@ namespace Mindforge.Combat
 
         private void Spawn(Vector3 origin, Vector3 direction, float speed, float damage)
         {
+            if (_externalPaused) return;
             MindforgeProjectile p = Instantiate(projectilePrefab, origin, Quaternion.LookRotation(direction));
             p.Configure(CombatTeam.Enemy, direction.normalized * speed, damage, 0f);
         }
 
         private void SpawnEchoIfNeeded()
         {
-            if (echoPrefab == null || player == null) return;
+            if (echoPrefab == null || player == null || _externalPaused) return;
             _echoes.RemoveAll(item => item == null);
             if (_echoes.Count >= Mathf.Max(1, maxEchoes)) return;
-
             float phase = (_echoes.Count / (float)Mathf.Max(1, maxEchoes)) * Mathf.PI * 2f + _attackIndex * 0.43f;
             FracturedEchoNode echo = Instantiate(echoPrefab, transform.position, Quaternion.identity,
                 echoParent != null ? echoParent : transform.parent);
             echo.Initialize(transform, player, playerFlux, phase);
+            echo.SetExternalPause(_externalPaused);
             _echoes.Add(echo);
         }
     }

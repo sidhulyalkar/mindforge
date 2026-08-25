@@ -21,6 +21,16 @@ namespace Mindforge.SoulWisp
         public float FrequencyHz => frequencyHz;
         public bool IsResting => Time.realtimeSinceStartupAsDouble < _restUntil;
         public float RestRemaining => Mathf.Max(0f, (float)(_restUntil - Time.realtimeSinceStartupAsDouble));
+        public bool IsHighPhase
+        {
+            get
+            {
+                if (IsResting) return false;
+                double t = Time.realtimeSinceStartupAsDouble - _sessionStart;
+                return System.Math.Sin(2.0 * System.Math.PI * frequencyHz * t) >= 0.0;
+            }
+        }
+        public float CurrentLuminance => EvaluateLuminance(Time.realtimeSinceStartupAsDouble);
 
         private void Awake()
         {
@@ -40,14 +50,17 @@ namespace Mindforge.SoulWisp
             _restUntil = System.Math.Max(_restUntil, Time.realtimeSinceStartupAsDouble + realSeconds);
         }
 
-        private void LateUpdate()
+        private float EvaluateLuminance(double now)
         {
-            double now = Time.realtimeSinceStartupAsDouble;
+            if (now < _restUntil) return restLuminance;
             double t = now - _sessionStart;
             float sine01 = 0.5f + 0.5f * Mathf.Sin((float)(2.0 * System.Math.PI * frequencyHz * t));
-            // Rest suppresses modulation without stopping the real-time phase clock.
-            // When modulation resumes, the target is still phase-consistent with the session clock.
-            float luminance = IsResting ? restLuminance : Mathf.Lerp(minLuminance, maxLuminance, sine01);
+            return Mathf.Lerp(minLuminance, maxLuminance, sine01);
+        }
+
+        private void LateUpdate()
+        {
+            float luminance = EvaluateLuminance(Time.realtimeSinceStartupAsDouble);
             if (targetRenderer != null)
             {
                 targetRenderer.GetPropertyBlock(_block);
