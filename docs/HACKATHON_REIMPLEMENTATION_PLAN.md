@@ -1,592 +1,322 @@
 # Mindforge BR41N.IO 2026 Reimplementation Plan
 
-## Mission
+## Frozen competition thesis
 
-Create an 8–12 minute BCI-native action-game experience that is scientifically defensible, visually spectacular, immediately understandable, physically reliable, and rehearsed enough to survive a live jury demonstration.
+Mindforge is now centered on **one primary BCI interaction**:
 
-The goal is not maximum feature count.
+> A persistent Soul Wisp splits into blue **Neural Sight** and green **Neural Guard** VEP auras around the active enemy. Visual attention selects which aura temporarily empowers the Guardian while normal controls retain movement, attacks, dodge, aim, and timing.
 
-The goal is one interaction no conventional game can reproduce cleanly with an extra button.
+The primary competition decoder is **two-target SSVEP**, initially 10 Hz vs 12 Hz, with filter-bank CCA and session-specific acceptance thresholds.
 
----
-
-# Product thesis
-
-## The hands own precision. The brain owns transformation.
-
-Controller/keyboard:
-
-- movement
-- dodge
-- attacks
-- counter timing
-- aim
-
-BCI:
-
-- reveals hidden state
-- chooses/stabilizes a neural channel
-- prepares opportunities
-- accumulates Resonance
-
-BCI never owns a frame-perfect attack.
+P300 and motor imagery are no longer parallel P0 development tracks. They may remain research/fallback experiments only if the primary SSVEP path fails physical qualification.
 
 ---
 
-# Vertical slice
+# Why this design wins attention
 
-## 1. Awakening / calibration
-
-Duration target: 2–5 minutes including hardware preparation.
-
-The Guardian learns the participant's neural signature while the player learns the world.
-
-Required:
-
-- channel quality
-- task instructions
-- short baseline
-- paradigm trials
-- model validation
-- threshold selection
-- practice selection
-- clear Live BCI / Controller-Only decision
-
-No fake “ready” state.
-
-## 2. Hall of Echoes tutorial
-
-Duration target: 2 minutes.
-
-Teach physical combat first.
-
-Then show the first BCI-native interaction:
-
-- several Echo Sigils appear
-- participant attends to one
-- decoder accumulates evidence
-- one stabilizes
-- player physically attacks the revealed vulnerability
-
-The entire game grammar should be understood here.
-
-## 3. The Fractured Signal boss
-
-Duration target: 5–7 minutes.
-
-### Phase A — Echo
-
-Neural Sight reveals the real boss copy.
-
-### Phase B — Prediction
-
-BCI selects/stabilizes one future timeline; controller skill handles the resulting attack pattern.
-
-### Phase C — Interference
-
-The game makes abstention meaningful. Low-quality evidence does nothing rather than creating a false command.
-
-### Phase D — Resonance
-
-Successful BCI interactions accumulate into a spectacular audiovisual final state. Controller execution lands the final attack.
-
-## 4. Evidence epilogue
-
-Duration target: 30–60 seconds.
-
-Show:
-
-- paradigm
-- calibration duration
-- accepted neural decisions
-- abstentions
-- false activations if ground truth is available
-- mean/median confidence
-- processing overhead
-- signal loss events
-- boss result
-
-The judge sees both the game and the science.
-
----
-
-# Architecture
+It has an immediate explanation:
 
 ```text
-Unicorn
-  ↓
-neuro/acquisition
-  ↓
-neuro/signal
-  ↓
-neuro/paradigms
-  ↓
-neuro/inference
-  ↓
-shared NeuralEvent protocol
-  ↓
-unity/NeuralBridge
-  ↓
-Boss / world / HUD / audio
+look blue  → hit harder
+look green → heal faster
+hands      → still play the game
+```
+
+But the expert loop is deeper because Sight and Guard have independent timers. Players can deliberately create overlap windows while deciding whether visual attention can safely leave the combat action.
+
+The jury can see an unbroken causal chain from target fixation to posterior VEP evidence to decoder selection to a visible aura transfer and changed combat statistics.
+
+---
+
+# Competition vertical slice
+
+## 1. Wisp awakening and calibration
+
+Target: 2–5 minutes including signal setup.
+
+- electrode/channel quality;
+- stationary Sight trials;
+- stationary Guard trials;
+- randomized alternation;
+- moving-orb validation;
+- session score/margin thresholds;
+- clear LIVE BCI vs fallback state.
+
+## 2. Physical combat tutorial
+
+Teach movement, attack and dodge before the BCI must be managed.
+
+## 3. Sight tutorial
+
+One enemy. Prompt blue. On accepted selection, blue energy visibly returns from the enemy-orbiting aura to the Guardian and damage amplification begins.
+
+## 4. Guard tutorial
+
+Damage the player in a controlled way. Prompt green. On accepted selection, green energy returns and regeneration becomes obvious.
+
+## 5. Unprompted combined encounter
+
+The player chooses when to switch. This establishes that the neural layer is strategic, not a scripted tutorial trigger.
+
+## 6. Boss: The Fractured Signal
+
+### Phase I — Pressure
+Sight is rewarding and easy to maintain.
+
+### Phase II — Attrition
+Chip damage introduces Guard decisions.
+
+### Phase III — Interference
+Combat pressure makes gaze allocation costly. Uncertain EEG abstains rather than switching incorrectly.
+
+### Phase IV — Mastery
+Optimal play refreshes both timers and exploits overlap while maintaining controller skill.
+
+## 7. Evidence epilogue
+
+Show the run's real paradigm, calibration result, accepted selections, abstentions, false switches if prompted ground truth exists, decision times, signal losses, and game outcome.
+
+---
+
+# Software architecture
+
+```text
+Unicorn Hybrid Black
+        ↓
+Unicorn Suite LSL / qualified acquisition
+        ↓
+SlidingWindowBuffer
+        ↓
+signal quality / artifact gate
+        ↓
+FBCCA 10 Hz vs 12 Hz
+        ↓
+score + winner margin
+        ↓
+dwell / refresh / refractory governor
+        ↓
+NeuralEvent v1
+        ↓ UDP 19742
+Unity
+        ↓
+AuraBuffController
+        ↓
+Sight / Guard gameplay state
 ```
 
 ## Hard invariants
 
 1. Unity never receives raw EEG.
-2. Every neural event is timestamped and sequenced.
-3. Every event carries confidence and quality.
-4. Decoder can always emit `ABSTAIN`.
-5. `PARTICIPANT_STOP` dominates every state.
-6. Controller-Only remains playable.
-7. A hardware fault cannot own or block the combat loop.
-8. Replay and Live BCI use the same event schema.
+2. Controller owns frame-critical combat authority.
+3. Neural target identity is not inferred from gameplay context.
+4. Every accepted event contains target, quality, confidence/control score, model ID, sequence, and monotonic timestamp.
+5. `ABSTAIN` is expected behavior.
+6. Duplicate/out-of-order neural events are ignored.
+7. Stream loss cannot freeze combat.
+8. Simulation/replay/live modes are visibly distinct.
+9. Physical stimulus timing is measured, not assumed.
 
 ---
 
-# NeuralEvent v1
+# Implementation state
 
-```json
-{
-  "schema": "mindforge.neural_event.v1",
-  "seq": 147,
-  "monotonic_ns": 3829472394723,
-  "event": "ATTUNE_TARGET",
-  "target": "echo_03",
-  "value": null,
-  "confidence": 0.91,
-  "quality": 0.94,
-  "paradigm": "ssvep_fbcca",
-  "model_id": "participant-01-session-03",
-  "artifact": false,
-  "reason": null
-}
-```
+## Implemented now
 
-`ABSTAIN` is a normal event, not an exception.
+- two-target FBCCA core;
+- session calibration thresholds;
+- basic signal-quality gate;
+- dwell/refractory selection runtime;
+- NeuralEvent schema;
+- UDP Unity receiver;
+- Soul Wisp follow/orbit behavior;
+- 10/12 Hz sampled-sine aura renderer;
+- independent Sight/Guard buff timers;
+- playable web game-feel prototype;
+- synthetic end-to-end UDP fixture;
+- optional Unicorn LSL acquisition adapter;
+- deterministic tests.
 
----
+## Not yet observed
 
-# Paradigm tournament
+- physical Unicorn stream integration on the competition machine;
+- emitted 10/12 Hz display timing;
+- human calibration accuracy;
+- moving-target human accuracy;
+- full-combat false-switch rate;
+- measured selection latency;
+- comfort across participants;
+- polished Unity scene/art/audio.
 
-We should not decide the competition decoder by taste.
-
-Build three experiments behind the same event API.
-
-## Candidate A — SSVEP / FBCCA
-
-### Pros
-
-- strong target-selection mapping
-- relatively short calibration
-- natural multi-target mechanic
-- straightforward confidence score
-
-### Risks
-
-- flicker burden
-- refresh-rate/frequency design
-- photosensitivity concerns
-- potential visual interference with action combat
-
-### First gameplay use
-
-Neural Sight during deliberately slowed/contained attunement windows.
-
-## Candidate B — P300
-
-### Pros
-
-- excellent narrative mapping to attended target
-- less continuous flicker
-- established BCI paradigm
-
-### Risks
-
-- requires repeated stimulus sequences
-- selection latency
-- stimulus synchronization must be excellent
-
-### First gameplay use
-
-Echo Sigil selection and timeline collapse.
-
-## Candidate C — motor imagery
-
-### Pros
-
-- feels like active self-generated neural control
-- strong scientific story
-
-### Risks
-
-- high subject variability
-- calibration burden
-- novice performance can be poor
-
-### First gameplay use
-
-Neural Guard preparation only.
-
-### Gate
-
-MI does not become competition-critical unless real participants demonstrate sufficiently stable control.
+These are the P0 evidence gaps.
 
 ---
 
-# Empirical selection score
+# Physical qualification ladder
 
-For each paradigm, collect:
+## Q0 — display
 
-- setup minutes
-- calibration minutes
-- online accuracy
-- false activation rate
-- abstention rate
-- median decision time
-- p95 software overhead after decision window
-- artifact sensitivity
-- participant success fraction
-- self-reported comfort
-- game comprehension
+- lock intended refresh configuration;
+- disable problematic variable refresh behavior if needed;
+- photodiode/high-speed measurement of both target codes;
+- verify dropped-frame behavior.
 
-Create a weighted score where reliability and player understanding outweigh raw information-transfer rate.
+## Q1 — acquisition
 
----
+- connect Unicorn LSL stream;
+- verify 8 EEG channels and ~250 Hz nominal rate;
+- verify units/channel ordering;
+- validate stale-stream and reconnect behavior.
 
-# Game systems to build
+## Q2 — stationary SSVEP
 
-## Player
+- 8–12 trials per target;
+- fit session thresholds;
+- measure accepted precision, abstention, false switches, decision time.
 
-Minimal action set:
+## Q3 — moving auras
 
-- move
-- dash
-- light attack
-- shatter/heavy
-- counter
-- interact
+Compare stationary, ~0.10 Hz, ~0.15 Hz, and ~0.20 Hz orbit conditions.
 
-One primary weapon.
+If motion hurts badly, simplify animation before adding decoder complexity.
 
-Do not migrate five weapons until the core fight is already excellent.
+## Q4 — movement
 
-## Boss
+Repeat while player uses movement controls.
 
-One authoritative state machine with:
+Stress blink, jaw/face EMG, head motion, and dry-vs-wet contact stability.
 
-- physical state
-- neural opportunity state
-- vulnerability state
-- resonance state
-- presentation state
+## Q5 — full combat
 
-Neural state may reveal/change opportunities but cannot directly mutate player inputs.
+Measure whether selection quality survives the actual game.
 
-## Resonance
-
-Resonance is the bridge between classifier uncertainty and game feel.
-
-Potential update rule:
-
-```text
-if artifact or quality < q_min:
-    delta = 0
-elif confidence < c_min:
-    delta = 0
-else:
-    delta = gain * calibrated_confidence * task_success
-```
-
-Decay slowly between interactions so one lucky decision cannot dominate the final state.
-
-## Telemetry
-
-Every run produces one append-only local session record containing:
-
-- timestamps
-- stimulus markers
-- derived events
-- quality summaries
-- game-state transitions
-- controller inputs needed for deterministic replay
-
-Raw EEG recording is separately consented and separately stored.
+This is the real release gate.
 
 ---
 
-# Scientific implementation
+# Tuning rules
 
-## Acquisition
+## Neural parameters
 
-Target Unicorn configuration:
+Do not tune gameplay and classifier thresholds on the same outcome metric.
 
-- 8 EEG channels
-- nominal 250 Hz
-- explicit channel mapping
-- timestamp preservation
-- local ring buffer
+Classifier tuning optimizes accepted-decision reliability and abstention. Gameplay tuning optimizes fun and strategic tradeoffs using the resulting measured decision time.
 
-Required states:
+## Buff duration
 
-- disconnected
-- connecting
-- connected
-- usable
-- uncertain
-- stale
-- lost
-- recovering
+Current 3.4 s durations are placeholders. After real decision-time measurements, set durations so:
 
-## Signal processing
+- a novice can experience a clear payoff;
+- a skilled player can create some overlap;
+- maintaining both requires intentional attention switching;
+- the optimal strategy is not to stare permanently at one aura.
 
-Paradigm-specific pipelines, but shared infrastructure for:
+## Orbit
 
-- notch 50/60 Hz
-- band-pass
-- causal online path
-- filter delay accounting
-- clipping/saturation detection
-- flat channel detection
-- packet/stale detection
-- high-frequency EMG proxy
-- optional ocular rejection/down-weighting
-
-Do not over-promise artifact “removal.” Prefer gating and evidence weighting.
-
-## Calibration
-
-Use within-session calibration first.
-
-Do not introduce long-term personalization before the live single-session system is reliable.
-
-## Confidence
-
-Raw classifier probability is not automatically calibrated confidence.
-
-Where possible:
-
-- use held-out calibration trials
-- estimate score distributions
-- tune thresholds from calibration data
-- measure expected calibration error / reliability
-- record margins
-
-## Latency
-
-Track separately:
-
-- acquisition delay
-- window duration
-- preprocessing compute
-- inference compute
-- transport
-- Unity consumption
-- visual response
-
-Never call the task window itself “system latency.”
+Current angular speed: 0.92 rad/s (~0.146 Hz). Slow it before compromising decoding reliability.
 
 ---
 
-# Human study plan
+# Human playtest campaign
 
-The hackathon is not a clinical study, but disciplined usability testing matters.
+Aim for multiple independent adult participants before competition.
 
-## Pilot stages
+For each participant record:
 
-### Developer pilot
+- setup/calibration time;
+- session qualification result;
+- stationary accuracy;
+- moving accuracy;
+- movement accuracy;
+- full-combat accepted precision;
+- abstention and false-switch rates;
+- median/p95 decision time;
+- visual comfort;
+- tutorial comprehension;
+- boss completion;
+- free response: “What did the BCI do?”
 
-Goal: correctness.
-
-### Familiar-user pilot
-
-Goal: calibration and decoder tuning.
-
-### Naive-player pilot
-
-Goal: tutorial and game understanding.
-
-### Jury rehearsal
-
-Goal: complete experience under time pressure.
-
-## Minimum useful sample before competition
-
-Aim for at least 8–12 distinct adult participants if hardware access permits.
-
-This is not a powered scientific efficacy trial. It is a robustness/usability campaign.
-
-## Record
-
-- successful calibration yes/no
-- primary paradigm result
-- time-to-first-success
-- completion
-- number of abstentions
-- obvious false activations
-- perceived agency
-- frustration
-- comfort
-- “what did the BCI do?” free response
-
-The free response is critical. If participants describe the mechanic incorrectly, the game is communicating poorly.
+The free response is a product metric. If the player cannot explain the causal mechanic, the design is not communicating clearly enough.
 
 ---
 
-# Reliability campaign
+# Competition choreography
 
-Test the ugly cases intentionally.
+## Opening
 
-## Software fault injection
+“The Guardian is controlled by my hands. The creature beside me is my Soul Wisp. When combat starts, it becomes two visual BCI targets.”
 
-- 0.5/2/5/10% packet loss
-- jitter
-- duplicated events
-- reordering
-- stale frames
-- decoder timeout
-- bad sequence number
-- malformed event
+## First causal moment
 
-## Signal stress
+Focus blue. Show decoder evidence. Sight activates. Immediately demonstrate increased damage.
 
-- blink
-- jaw clench
-- eyebrow movement
-- head turn
-- electrode degradation
-- noisy room
-- device reconnection
+## Second causal moment
 
-## Demo stress
+Take damage. Focus green. Guard activates. Show recovery.
 
-- launch from clean boot
-- no internet
-- controller unplug/replug
-- headset lost mid-boss
-- failed calibration
-- low-quality participant
-- projector/monitor refresh mismatch
+## Mastery moment
 
-Every one needs a graceful known path.
+Switch quickly enough to overlap both states while dodging boss attacks.
+
+## Science screen
+
+Show exact paradigm and observed session metrics.
+
+## Reliability moment
+
+If presentation time permits, deliberately look away or generate an ambiguous interval and show `ABSTAIN` rather than a false switch.
 
 ---
 
-# Presentation choreography
+# Schedule
 
-## 0:00–0:30 — pitch
+## Aug 24–28
 
-“Your hands control the Guardian. Your brain reveals the reality it can fight.”
+- Dual Aura architecture and prototype ✅
+- decoder/runtime/tests ✅
+- physical acquisition route scaffold ✅
+- Unity component core ✅
 
-## 0:30–2:30 — calibration montage
+## Aug 29–Sep 4
 
-Show the system learning the participant.
+- create complete Unity scene/prefabs;
+- finish controller-first boss loop;
+- wire Wisp targeting and combat stats;
+- implement calibration scene/state machine;
+- add session telemetry/replay.
 
-## 2:30–4:00 — first neural causal moment
+## Sep 5–11
 
-Select an Echo Sigil. Make the world change dramatically.
+- obtain/connect physical Unicorn;
+- qualify LSL stream;
+- measure monitor timing;
+- run first stationary and moving sessions.
 
-## 4:00–8:00 — boss
+## Sep 12–18
 
-Show physical skill + BCI cooperation.
+- multi-user SSVEP qualification;
+- select final codebook/orbit speed;
+- tune thresholds;
+- tune Sight/Guard duration from measured selection timing.
 
-## 8:00–9:00 — Resonance finale
+## Sep 19–25
 
-Maximum audiovisual payoff.
+- full closed-loop combat sessions;
+- external player tutorial testing;
+- art/VFX/audio production;
+- reliability and fallback campaign.
 
-## 9:00–10:00 — science
+## Sep 26–30
 
-One screen:
+- freeze mechanics;
+- polish onboarding and boss readability;
+- finalize evidence summary;
+- clean-machine installation rehearsals.
 
-- signals
-- paradigm
-- confidence
-- abstentions
-- latency breakdown
-- result
-
-Then demonstrate one failure mode deliberately if time permits.
-
----
-
-# Schedule to October 4, 2026
-
-## Aug 24–28 — Salvage and design freeze
-
-- recover v7.8
-- classify KEEP/SIMPLIFY/REWRITE/ARCHIVE
-- define new repo structure
-- freeze NeuralEvent v1
-- choose boss mechanic spec
-- build migration manifest
-
-Exit gate: new codebase can build from a minimal competition core.
-
-## Aug 29–Sep 4 — Controller vertical slice
-
-- player movement/combat
-- Fractured Signal state machine
-- synthetic neural events
-- Resonance
-- tutorial
-- deterministic replay
-
-Exit gate: game is fun enough to test without EEG.
-
-## Sep 5–11 — Real Unicorn + paradigm prototypes
-
-- physical acquisition
-- timing markers
-- SSVEP prototype
-- P300 prototype
-- signal quality
-- recording
-
-Exit gate: real EEG causes a visible Unity event.
-
-## Sep 12–18 — Paradigm tournament
-
-- multiple participants
-- compare P300/SSVEP
-- MI pilot only if worthwhile
-- select primary
-- tune confidence/abstention
-
-Exit gate: one paradigm is frozen for competition.
-
-## Sep 19–25 — Closed-loop game integration
-
-- production calibration ritual
-- boss neural phases
-- fallback
-- telemetry
-- first naive-player sessions
-
-Exit gate: unfamiliar player can complete the full experience.
-
-## Sep 26–30 — Competition polish
-
-- final art direction
-- VFX
-- audio
-- accessibility
-- setup UX
-- crash/fault pass
-- scientific summary
-
-Exit gate: candidate build.
-
-## Oct 1–3 — Freeze and rehearse
+## Oct 1–3
 
 No new systems.
 
-- clean-machine installs
-- repeated full runs
-- backup replay mode
-- presentation timing
-- hardware packing checklist
-- evidence snapshot
-
-Exit gate: demo survives repeated rehearsals.
+Repeated full demo rehearsals, hardware checklist, backup replay build, and final competition package.
 
 ---
 
@@ -594,29 +324,17 @@ Exit gate: demo survives repeated rehearsals.
 
 Mindforge is competition-ready when:
 
-1. a naive participant can explain the neural mechanic correctly;
-2. real Unicorn data controls at least one central game mechanic;
-3. the system abstains rather than hallucinating low-confidence commands;
-4. controller combat remains satisfying without BCI;
-5. the BCI enables a game-state transformation that an ordinary extra button would not capture well;
-6. the same session can be replayed deterministically from derived events;
-7. physical signal loss is graceful;
-8. the final Resonance moment is visually and sonically memorable;
-9. scientific claims are backed by observed measurements;
-10. the full demo fits comfortably inside a jury presentation.
+1. real Unicorn EEG selects the two moving auras;
+2. multiple participants can calibrate successfully;
+3. false switches stay low enough that players trust the system;
+4. uncertainty causes abstention;
+5. movement does not destroy decoder usability;
+6. controller combat is satisfying on its own;
+7. Sight/Guard switching creates a real mastery curve;
+8. the Soul Wisp is visually memorable;
+9. every scientific claim shown to judges has observed evidence;
+10. the full experience survives repeated live rehearsals.
 
----
+## North-star rule
 
-# North-star rule
-
-Whenever a feature competes with:
-
-- better real EEG reliability,
-- better game feel,
-- clearer onboarding,
-- stronger audiovisual payoff,
-- better live-demo robustness,
-
-**the feature loses.**
-
-That is how the v7.8 platform becomes a winning game rather than an ever-growing architecture.
+If a new feature competes with better physical EEG reliability, better game feel, clearer onboarding, stronger Soul Wisp presentation, or greater demo robustness, **the new feature loses**.
