@@ -21,12 +21,17 @@ function Resolve-UnityEditor {
         return (Resolve-Path $ExplicitPath).Path
     }
 
-    $candidates = @(
-        (Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedVersion\Editor\Unity.exe"),
-        (Join-Path ${env:ProgramFiles(x86)} "Unity\Hub\Editor\$ExpectedVersion\Editor\Unity.exe")
-    ) | Where-Object { $_ -and (Test-Path $_) }
+    $candidates = New-Object System.Collections.Generic.List[string]
+    if ($env:ProgramFiles) {
+        $candidates.Add((Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedVersion\Editor\Unity.exe"))
+    }
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    if ($programFilesX86) {
+        $candidates.Add((Join-Path $programFilesX86 "Unity\Hub\Editor\$ExpectedVersion\Editor\Unity.exe"))
+    }
 
-    if ($candidates.Count -eq 0) {
+    $found = @($candidates | Where-Object { Test-Path $_ })
+    if ($found.Count -eq 0) {
         throw @"
 Unity $ExpectedVersion was not found.
 Install exactly $ExpectedVersion through Unity Hub, or rerun with:
@@ -34,7 +39,7 @@ Install exactly $ExpectedVersion through Unity Hub, or rerun with:
 "@
     }
 
-    return (Resolve-Path $candidates[0]).Path
+    return (Resolve-Path $found[0]).Path
 }
 
 $Unity = Resolve-UnityEditor -ExplicitPath $UnityPath
@@ -54,9 +59,9 @@ if (Test-Path $LogPath) {
 $arguments = @(
     "-batchmode",
     "-quit",
-    "-projectPath", $ProjectPath,
+    "-projectPath", ('"{0}"' -f $ProjectPath),
     "-executeMethod", "Mindforge.Editor.CompetitionSceneAssembler.BuildAndValidate",
-    "-logFile", $LogPath
+    "-logFile", ('"{0}"' -f $LogPath)
 )
 
 Write-Host "[Mindforge] Running Gate 1 assembler + validator..."
