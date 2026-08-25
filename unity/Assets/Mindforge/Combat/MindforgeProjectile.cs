@@ -1,4 +1,5 @@
 using UnityEngine;
+using Mindforge.Presentation;
 
 namespace Mindforge.Combat
 {
@@ -12,12 +13,23 @@ namespace Mindforge.Combat
         [SerializeField] private float lifetime = 5f;
         [SerializeField] private LayerMask hitMask = ~0;
 
+        [Header("Visual language")]
+        [SerializeField] private CombatVisualPalette palette;
+        [SerializeField] private Renderer visualRenderer;
+        [SerializeField] private TrailRenderer trailRenderer;
+
         private Rigidbody _body;
         private Collider _collider;
         private Vector3 _previousPosition;
         private bool _captured;
+        private bool _reflected;
         private Transform _captureAnchor;
         private float _capturePhase;
+        private MaterialPropertyBlock _visualBlock;
+
+        private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorProperty = Shader.PropertyToID("_Color");
+        private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
 
         public CombatTeam Team => team;
         public bool IsHostileToGuardian => team == CombatTeam.Enemy;
@@ -31,13 +43,22 @@ namespace Mindforge.Combat
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _previousPosition = transform.position;
+            _visualBlock = new MaterialPropertyBlock();
+            if (visualRenderer == null) visualRenderer = GetComponentInChildren<Renderer>();
+            if (trailRenderer == null) trailRenderer = GetComponentInChildren<TrailRenderer>();
+            ApplyVisualIdentity();
             Destroy(gameObject, lifetime);
         }
 
         public void Configure(CombatTeam newTeam, Vector3 velocity, float newDamage, float newPoise, int newPierce = 0)
         {
-            team = newTeam; damage = newDamage; poiseDamage = newPoise; pierce = newPierce;
+            team = newTeam;
+            damage = newDamage;
+            poiseDamage = newPoise;
+            pierce = newPierce;
+            _reflected = false;
             _body.velocity = velocity;
+            ApplyVisualIdentity();
         }
 
         public void ReflectTowards(Transform target, float speed, float newDamage, float newPoise, int extraPierce = 0)
@@ -48,8 +69,45 @@ namespace Mindforge.Combat
             damage = newDamage;
             poiseDamage = newPoise;
             pierce = Mathf.Max(pierce, extraPierce);
+            _reflected = true;
             Vector3 direction = (target.position - transform.position).normalized;
             _body.velocity = direction * speed;
+            ApplyVisualIdentity();
+        }
+
+        private void ApplyVisualIdentity()
+        {
+            Color color;
+            if (team == CombatTeam.Enemy)
+            {
+                bool heavy = damage >= 14f || poiseDamage >= 15f;
+                color = palette != null
+                    ? (heavy ? palette.hostileHeavy : palette.hostilePrimary)
+                    : (heavy ? new Color(1f, 0.42f, 0.12f) : new Color(1f, 0.18f, 0.34f));
+            }
+            else if (_reflected)
+            {
+                color = palette != null ? palette.reflected : new Color(0.73f, 0.38f, 1f);
+            }
+            else
+            {
+                color = palette != null ? palette.guardianPrimary : new Color(0.94f, 0.95f, 1f);
+            }
+
+            if (visualRenderer != null)
+            {
+                visualRenderer.GetPropertyBlock(_visualBlock);
+                _visualBlock.SetColor(BaseColor, color);
+                _visualBlock.SetColor(ColorProperty, color);
+                _visualBlock.SetColor(EmissionColor, color * 1.8f);
+                visualRenderer.SetPropertyBlock(_visualBlock);
+            }
+
+            if (trailRenderer != null)
+            {
+                trailRenderer.startColor = color;
+                trailRenderer.endColor = new Color(color.r, color.g, color.b, 0f);
+            }
         }
 
         public void Capture(Transform anchor, float phase)
