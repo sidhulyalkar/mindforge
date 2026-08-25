@@ -3,8 +3,10 @@ using UnityEngine;
 namespace Mindforge.SoulWisp
 {
     /// <summary>
-    /// Persistent soul companion. It floats beside the player while idle and
-    /// bifurcates into two diametrically opposed VEP auras around the current target.
+    /// Persistent soul companion. During combat the visual targets occupy a
+    /// camera-facing gaze corridor between Guardian and threat instead of orbiting
+    /// an arbitrary HUD corner. This reduces eye travel while preserving the
+    /// fantasy that the Wisp is binding the enemy.
     /// </summary>
     public sealed class SoulWispController : MonoBehaviour
     {
@@ -19,11 +21,14 @@ namespace Mindforge.SoulWisp
         [SerializeField] private Vector3 idleOffset = new Vector3(0.8f, 1.35f, 0.25f);
         [SerializeField] private float followSharpness = 7f;
 
-        [Header("Combat orbit")]
-        [SerializeField] private float orbitRadius = 1.55f;
-        [SerializeField] private float orbitVerticalAmplitude = 0.38f;
-        [SerializeField] private float orbitAngularSpeedRadians = 0.92f;
-        [SerializeField] private float auraScale = 0.28f;
+        [Header("Combat gaze corridor")]
+        [Range(0f, 1f)]
+        [SerializeField] private float anchorTowardTarget = 0.78f;
+        [SerializeField] private float anchorVerticalOffset = 0.45f;
+        [SerializeField] private float orbitRadius = 1.35f;
+        [SerializeField] private float orbitVerticalAmplitude = 0.32f;
+        [SerializeField] private float orbitAngularSpeedRadians = 0.78f;
+        [SerializeField] private float auraScale = 0.30f;
 
         [Header("VEP")]
         [SerializeField] private float sightFrequencyHz = 10f;
@@ -36,6 +41,8 @@ namespace Mindforge.SoulWisp
 
         public bool InCombat => _target != null;
         public Transform CurrentTarget => _target;
+        public bool StimuliResting => (sightStimulus != null && sightStimulus.IsResting) ||
+                                      (guardStimulus != null && guardStimulus.IsResting);
 
         private void Awake()
         {
@@ -53,6 +60,12 @@ namespace Mindforge.SoulWisp
             if (guardAura != null) guardAura.gameObject.SetActive(combat);
         }
 
+        public void RestStimuli(float realSeconds)
+        {
+            sightStimulus?.RestFor(realSeconds);
+            guardStimulus?.RestFor(realSeconds);
+        }
+
         private void Update()
         {
             if (player == null) return;
@@ -64,20 +77,23 @@ namespace Mindforge.SoulWisp
                 return;
             }
 
-            transform.position = _target.position;
+            Camera cam = Camera.main;
+            Vector3 up = cam != null ? cam.transform.up : Vector3.up;
+            Vector3 anchor = Vector3.Lerp(player.position, _target.position, anchorTowardTarget) + up * anchorVerticalOffset;
+            transform.position = anchor;
             _orbitPhase = Mathf.Repeat(_orbitPhase + orbitAngularSpeedRadians * Time.unscaledDeltaTime, Mathf.PI * 2f);
-            PlaceAura(sightAura, _orbitPhase);
-            PlaceAura(guardAura, _orbitPhase + Mathf.PI);
+            PlaceAura(sightAura, anchor, _orbitPhase);
+            PlaceAura(guardAura, anchor, _orbitPhase + Mathf.PI);
         }
 
-        private void PlaceAura(Transform aura, float phase)
+        private void PlaceAura(Transform aura, Vector3 anchor, float phase)
         {
-            if (aura == null || _target == null) return;
+            if (aura == null) return;
             Camera cam = Camera.main;
             Vector3 right = cam != null ? cam.transform.right : Vector3.right;
             Vector3 up = cam != null ? cam.transform.up : Vector3.up;
             Vector3 offset = right * Mathf.Cos(phase) * orbitRadius + up * Mathf.Sin(phase) * orbitVerticalAmplitude;
-            aura.position = _target.position + offset;
+            aura.position = anchor + offset;
             aura.localScale = Vector3.one * auraScale;
             if (cam != null) aura.rotation = Quaternion.LookRotation(aura.position - cam.transform.position, cam.transform.up);
         }

@@ -20,6 +20,9 @@ class SsvepConfig:
     harmonics: int = 3
     filter_bands_hz: tuple[tuple[float, float], ...] = ((6.0, 35.0), (14.0, 35.0))
     filter_bank_weights: tuple[float, ...] = (1.0, 0.55)
+    # Unicorn montage: Fz,C3,Cz,C4,Pz,PO7,Oz,PO8. Artifact gating sees all
+    # channels; SSVEP classification defaults to the posterior visual subset.
+    decode_channel_indices: tuple[int, ...] = (4, 5, 6, 7)
     mains_hz: float = 60.0
     min_quality: float = 0.55
     min_score: float = 0.15
@@ -49,3 +52,5 @@ class SsvepConfig:
                 raise ValueError(f"{target.value} harmonics exceed Nyquist")
         if len(self.filter_bands_hz) != len(self.filter_bank_weights):
             raise ValueError("filter bands and weights must have equal length")
+        if not self.decode_channel_indices or any(i < 0 for i in self.decode_channel_indices):
+            raise ValueError("decode_channel_indices must contain non-negative channel indices")

@@ -78,17 +78,21 @@ class SsvepDecoder:
         x = np.asarray(eeg_uv, dtype=float)
         if x.ndim != 2 or x.shape[1] != self.config.window_samples:
             raise ValueError(f"expected (channels, {self.config.window_samples}) EEG window, got {x.shape}")
+        indices = np.asarray(self.config.decode_channel_indices, dtype=int)
+        if np.any(indices >= x.shape[0]):
+            raise ValueError(f"decode channel index exceeds EEG channel count {x.shape[0]}")
+        x_decode = x[indices]
         aggregate = {target: 0.0 for target in self.config.target_frequencies}
         total_weight = float(sum(self.config.filter_bank_weights))
         for band, weight in zip(self.config.filter_bands_hz, self.config.filter_bank_weights):
-            filtered = self._filter(x, *band)
+            filtered = self._filter(x_decode, *band)
             for target, refs in self._refs.items():
                 rho = canonical_correlation(filtered, refs)
                 aggregate[target] += weight * rho * rho
         return {target: value / total_weight for target, value in aggregate.items()}
 
     def decide(self, eeg_uv: np.ndarray) -> SsvepDecision:
-        quality = assess_window_quality(eeg_uv)
+        quality = assess_window_quality(eeg_uv, self.config.sample_rate_hz)
         if quality.artifact or quality.score < self.config.min_quality:
             return SsvepDecision(None, {t: 0.0 for t in self.config.target_frequencies}, 0.0, 0.0,
                                  quality, False, quality.reason or "LOW_QUALITY")
@@ -98,7 +102,7 @@ class SsvepDecoder:
         winner, top = ranked[0]
         second = ranked[1][1]
         margin = float(top - second)
-        # Monotonic control/display score, not a calibrated posterior probability.
+        # Monotonic UI/control score, not a calibrated posterior probability.
         confidence = float(np.clip(0.5 + 0.5 * margin / max(top, 1e-9), 0.0, 1.0))
         if top < self.min_score:
             return SsvepDecision(winner, scores, confidence, margin, quality, False, "LOW_SCORE")

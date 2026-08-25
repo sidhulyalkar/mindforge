@@ -1,11 +1,12 @@
 using System.Collections;
 using UnityEngine;
+using Mindforge.SoulWisp;
 
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Minimal competition boss scheduler. Visual telegraphs should be driven by
-    /// animation/VFX before SpawnFan/SpawnRadial is called.
+    /// Competition boss scheduler. Signal Break deliberately doubles as a visual
+    /// rest phase: the boss is vulnerable while SSVEP modulation is held steady.
     /// </summary>
     public sealed class FracturedSignalDirector : MonoBehaviour
     {
@@ -13,6 +14,8 @@ namespace Mindforge.Combat
         [SerializeField] private MindforgeProjectile projectilePrefab;
         [SerializeField] private Transform projectileOrigin;
         [SerializeField] private Transform player;
+        [SerializeField] private SoulWispController soulWisp;
+        [SerializeField] private float signalBreakVisualRestSeconds = 2.6f;
         [SerializeField] private float phaseOneInterval = 1.35f;
         [SerializeField] private float phaseTwoInterval = 1.05f;
         [SerializeField] private float phaseThreeInterval = 0.82f;
@@ -31,8 +34,23 @@ namespace Mindforge.Combat
             }
         }
 
-        private void OnEnable() => _loop = StartCoroutine(AttackLoop());
-        private void OnDisable() { if (_loop != null) StopCoroutine(_loop); _loop = null; }
+        private void OnEnable()
+        {
+            if (vitals != null && vitals.Poise != null) vitals.Poise.BrokenEvent += OnSignalBreak;
+            _loop = StartCoroutine(AttackLoop());
+        }
+
+        private void OnDisable()
+        {
+            if (vitals != null && vitals.Poise != null) vitals.Poise.BrokenEvent -= OnSignalBreak;
+            if (_loop != null) StopCoroutine(_loop);
+            _loop = null;
+        }
+
+        private void OnSignalBreak()
+        {
+            soulWisp?.RestStimuli(signalBreakVisualRestSeconds);
+        }
 
         private IEnumerator AttackLoop()
         {
@@ -69,7 +87,7 @@ namespace Mindforge.Combat
             {
                 float offset = (i - (count - 1) * 0.5f) * spreadDegrees;
                 Vector3 direction = Quaternion.AngleAxis(offset, Vector3.up) * center;
-                Spawn(origin, direction, speed, 10f + Phase * 2f);
+                Spawn(origin, direction, speed, 10f + Phase * 3f);
             }
         }
 

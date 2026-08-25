@@ -7,7 +7,7 @@ namespace Mindforge.Combat
     {
         [SerializeField] private float maxPoise = 120f;
         [SerializeField] private float recoveryPerSecond = 5f;
-        [SerializeField] private float breakDuration = 1.15f;
+        [SerializeField] private float breakDuration = 2.6f;
 
         public float Current { get; private set; }
         public float Max => maxPoise;

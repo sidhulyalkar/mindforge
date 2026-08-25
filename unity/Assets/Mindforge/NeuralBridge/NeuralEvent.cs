@@ -18,6 +18,11 @@ namespace Mindforge.Neural
         public string model_id;
         public bool artifact;
         public string reason;
+        public bool has_evidence;
+        public float sight_score;
+        public float guard_score;
+        public float margin;
+        public string source_mode;
 
         public AuraTarget Target
         {

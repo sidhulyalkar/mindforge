@@ -14,11 +14,7 @@ class EegChunk:
 
 
 class SlidingWindowBuffer:
-    """Fixed-size EEG ring buffer with deterministic hop scheduling.
-
-    The first window is emitted as soon as it becomes full. Subsequent windows
-    are emitted every ``hop_samples`` new samples.
-    """
+    """Fixed-size EEG ring buffer with deterministic hop scheduling."""
 
     def __init__(self, channels: int, window_samples: int, hop_samples: int):
         if channels < 1 or window_samples < 2 or not 1 <= hop_samples <= window_samples:
@@ -56,13 +52,11 @@ class SlidingWindowBuffer:
 
             if self._filled < self.window_samples:
                 continue
-
             if not self._has_emitted:
                 outputs.append((self._data.copy(), self._timestamps.copy()))
                 self._has_emitted = True
                 self._since_emit = 0
                 continue
-
             self._since_emit += 1
             if self._since_emit >= self.hop_samples:
                 outputs.append((self._data.copy(), self._timestamps.copy()))
@@ -71,12 +65,10 @@ class SlidingWindowBuffer:
 
 
 class UnicornLslSource:
-    """Optional live source for a Unicorn Suite LSL EEG stream.
+    """Fail-closed LSL source shared by Phantom Unicorn and physical Unicorn runs.
 
-    ``pylsl`` is optional so replay/simulation tests remain hardware-free. The
-    adapter intentionally requires an explicit scale-to-microvolts value. LSL
-    stream units and channel ordering must be verified on the actual competition
-    machine before a run is classified as observed hardware evidence.
+    ``scale_to_uv`` and EEG channel indices remain explicit because LSL metadata
+    from hardware tools is not assumed to have universal units/order.
     """
 
     EXPECTED_SAMPLE_RATE_HZ = 250.0
@@ -86,6 +78,7 @@ class UnicornLslSource:
         self,
         *,
         stream_name: str | None = None,
+        source_id: str | None = None,
         timeout_s: float = 5.0,
         scale_to_uv: float = 1.0,
         eeg_channel_indices: tuple[int, ...] = tuple(range(8)),
@@ -94,25 +87,39 @@ class UnicornLslSource:
             raise ValueError("exactly 8 EEG channel indices are required")
         if scale_to_uv <= 0:
             raise ValueError("scale_to_uv must be positive")
+        if timeout_s <= 0:
+            raise ValueError("timeout_s must be positive")
         self.stream_name = stream_name
-        self.timeout_s = timeout_s
+        self.source_id = source_id
+        self.timeout_s = float(timeout_s)
         self.scale_to_uv = float(scale_to_uv)
-        self.eeg_channel_indices = eeg_channel_indices
+        self.eeg_channel_indices = tuple(int(i) for i in eeg_channel_indices)
         self._inlet = None
         self._info = None
 
     def connect(self) -> None:
         try:
             from pylsl import StreamInlet, resolve_byprop
-        except ImportError as exc:
-            raise RuntimeError("pylsl is required for live Unicorn LSL acquisition") from exc
+        except (ImportError, OSError, RuntimeError) as exc:
+            raise RuntimeError("pylsl and a loadable liblsl runtime are required for LSL acquisition") from exc
 
-        if self.stream_name:
-            streams = resolve_byprop("name", self.stream_name, timeout=self.timeout_s)
+        if self.source_id:
+            prop, value = "source_id", self.source_id
+        elif self.stream_name:
+            prop, value = "name", self.stream_name
         else:
-            streams = resolve_byprop("type", "EEG", timeout=self.timeout_s)
+            prop, value = "type", "EEG"
+
+        streams = list(resolve_byprop(prop, value, minimum=2, timeout=self.timeout_s))
+        if self.stream_name:
+            streams = [s for s in streams if str(s.name()) == self.stream_name]
+        if self.source_id:
+            streams = [s for s in streams if str(s.source_id()) == self.source_id]
         if not streams:
-            raise RuntimeError("no matching EEG LSL stream found")
+            raise RuntimeError(f"no LSL stream matched {prop}={value!r}")
+        if len(streams) > 1:
+            identities = ", ".join(f"{s.name()}[{s.source_id()}]" for s in streams[:5])
+            raise RuntimeError(f"ambiguous LSL source; refine stream_name/source_id. Matches: {identities}")
 
         info = streams[0]
         nominal = float(info.nominal_srate())
@@ -124,11 +131,17 @@ class UnicornLslSource:
             raise RuntimeError(f"EEG stream nominal rate {nominal} Hz; expected approximately 250 Hz")
 
         self._info = info
-        self._inlet = StreamInlet(info, max_buflen=5, recover=True)
+        self._inlet = StreamInlet(info, max_buflen=5, recover=bool(str(info.source_id() or "")), processing_flags=0)
 
     @property
     def connected(self) -> bool:
         return self._inlet is not None
+
+    @property
+    def stream_identity(self) -> str | None:
+        if self._info is None:
+            return None
+        return f"{self._info.name()}[{self._info.source_id()}]"
 
     def pull_chunk(self, *, max_samples: int = 128, timeout_s: float = 0.25) -> EegChunk | None:
         if self._inlet is None:
@@ -143,6 +156,8 @@ class UnicornLslSource:
         ts = np.asarray(timestamps, dtype=float)
         if ts.size != x.shape[1] or not np.isfinite(x).all() or not np.isfinite(ts).all():
             raise RuntimeError("invalid samples or timestamps from LSL stream")
+        if ts.size > 1 and np.any(np.diff(ts) < 0):
+            raise RuntimeError("LSL timestamps moved backwards")
         return EegChunk(x, ts, time.monotonic())
 
     def close(self) -> None:

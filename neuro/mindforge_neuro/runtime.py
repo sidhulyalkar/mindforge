@@ -8,7 +8,7 @@ import numpy as np
 from .calibration import CalibrationProfile
 from .config import AuraTarget
 from .events import EventType, NeuralEvent
-from .ssvep import SsvepDecoder
+from .ssvep import SsvepDecision, SsvepDecoder
 
 
 @dataclass
@@ -23,10 +23,28 @@ class RuntimeState:
 class AuraSelectionRuntime:
     """Turn per-window SSVEP decisions into stable, rate-limited game events."""
 
-    def __init__(self, decoder: SsvepDecoder, profile: CalibrationProfile):
+    def __init__(self, decoder: SsvepDecoder, profile: CalibrationProfile, *, source_mode: str = "live"):
         self.decoder = decoder
         self.profile = profile
+        self.source_mode = source_mode
         self.state = RuntimeState()
+
+    def _event(self, decision: SsvepDecision, *, event: EventType, target: AuraTarget | None,
+               reason: str | None = None) -> NeuralEvent:
+        return NeuralEvent.create(
+            seq=self.state.seq,
+            event=event,
+            target=target,
+            confidence=decision.confidence,
+            quality=decision.quality.score,
+            model_id=self.profile.model_id,
+            reason=reason,
+            artifact=decision.quality.artifact,
+            sight_score=decision.scores.get(AuraTarget.SIGHT, 0.0),
+            guard_score=decision.scores.get(AuraTarget.GUARD, 0.0),
+            margin=decision.margin,
+            source_mode=self.source_mode,
+        )
 
     def process(self, eeg_uv: np.ndarray, now: float | None = None) -> NeuralEvent:
         now = time.monotonic() if now is None else now
@@ -35,10 +53,8 @@ class AuraSelectionRuntime:
         if not decision.accepted or decision.target is None:
             self.state.candidate = None
             self.state.candidate_windows = 0
-            return NeuralEvent.create(seq=self.state.seq, event=EventType.ABSTAIN, target=None,
-                                      confidence=decision.confidence, quality=decision.quality.score,
-                                      model_id=self.profile.model_id, reason=decision.reason,
-                                      artifact=decision.quality.artifact)
+            return self._event(decision, event=EventType.ABSTAIN, target=None,
+                               reason=decision.reason or "LOW_QUALITY")
 
         if decision.target == self.state.candidate:
             self.state.candidate_windows += 1
@@ -47,26 +63,18 @@ class AuraSelectionRuntime:
             self.state.candidate_windows = 1
 
         if self.state.candidate_windows < self.decoder.config.dwell_windows:
-            return NeuralEvent.create(seq=self.state.seq, event=EventType.ABSTAIN, target=None,
-                                      confidence=decision.confidence, quality=decision.quality.score,
-                                      model_id=self.profile.model_id, reason="DWELL")
+            return self._event(decision, event=EventType.ABSTAIN, target=None, reason="DWELL")
 
         since_last = now - self.state.last_emit_time
         changed = decision.target != self.state.last_emitted
         if not changed and since_last < self.decoder.config.refresh_seconds:
-            return NeuralEvent.create(seq=self.state.seq, event=EventType.ABSTAIN, target=None,
-                                      confidence=decision.confidence, quality=decision.quality.score,
-                                      model_id=self.profile.model_id, reason="HELD")
+            return self._event(decision, event=EventType.ABSTAIN, target=None, reason="HELD")
         if since_last < self.decoder.config.refractory_seconds:
-            return NeuralEvent.create(seq=self.state.seq, event=EventType.ABSTAIN, target=None,
-                                      confidence=decision.confidence, quality=decision.quality.score,
-                                      model_id=self.profile.model_id, reason="REFRACTORY")
+            return self._event(decision, event=EventType.ABSTAIN, target=None, reason="REFRACTORY")
 
         self.state.last_emitted = decision.target
         self.state.last_emit_time = now
-        return NeuralEvent.create(seq=self.state.seq, event=EventType.AURA_SELECTED,
-                                  target=decision.target, confidence=decision.confidence,
-                                  quality=decision.quality.score, model_id=self.profile.model_id)
+        return self._event(decision, event=EventType.AURA_SELECTED, target=decision.target)
 
 
 class UdpEventSink:

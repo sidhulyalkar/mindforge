@@ -30,12 +30,24 @@ class NeuralEvent:
     model_id: str
     artifact: bool = False
     reason: str | None = None
+    has_evidence: bool = False
+    sight_score: float = 0.0
+    guard_score: float = 0.0
+    margin: float = 0.0
+    source_mode: str = "live"
 
     @classmethod
     def create(cls, *, seq: int, event: EventType, target: AuraTarget | None,
                confidence: float, quality: float, model_id: str,
                reason: str | None = None, artifact: bool = False,
-               monotonic_ns: int | None = None) -> "NeuralEvent":
+               monotonic_ns: int | None = None,
+               sight_score: float = 0.0, guard_score: float = 0.0,
+               margin: float = 0.0, has_evidence: bool | None = None,
+               source_mode: str = "live") -> "NeuralEvent":
+        sight_score = float(max(0.0, sight_score))
+        guard_score = float(max(0.0, guard_score))
+        if has_evidence is None:
+            has_evidence = sight_score > 0.0 or guard_score > 0.0
         return cls(
             schema="mindforge.neural_event.v1",
             seq=seq,
@@ -48,6 +60,11 @@ class NeuralEvent:
             model_id=model_id,
             artifact=artifact,
             reason=reason,
+            has_evidence=bool(has_evidence),
+            sight_score=sight_score,
+            guard_score=guard_score,
+            margin=float(max(0.0, margin)),
+            source_mode=source_mode,
         )
 
     def to_dict(self) -> dict[str, Any]:
