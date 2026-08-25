@@ -27,13 +27,20 @@ def test_stale_link_is_fairly_paused_not_free_damage():
     input_src = text(UNITY / "Combat" / "GuardianCombatInput.cs")
     boss = text(UNITY / "Combat" / "FracturedSignalDirector.cs")
     echo = text(UNITY / "Combat" / "FracturedEchoNode.cs")
+    projectile = text(UNITY / "Combat" / "MindforgeProjectile.cs")
+    bloom = text(UNITY / "Combat" / "GravityBloomAbility.cs")
     assert "staleAfterSeconds = 1.5f" in receiver
     assert "SetExternalPause(true)" in gate
     assert "SetCombatActionsEnabled(false)" in gate
+    assert "gravityBloom?.SetExternalPause(true)" in gate
+    assert "SetProjectilePause(true)" in gate
     assert "if (!CombatActionsEnabled) return;" in input_src
     assert "public void SetExternalPause(bool paused)" in boss
     assert "echo?.SetExternalPause(paused)" in boss
     assert "_externalPaused" in echo
+    assert "public void SetExternalPause(bool paused)" in projectile
+    assert "if (_externalPaused || _captured" in projectile
+    assert "public void SetExternalPause(bool paused)" in bloom
     assert "stableRecoverySeconds = 0.75f" in gate
     assert "desaturationVeil" in gate and "degradedVeilAlpha" in gate
 
