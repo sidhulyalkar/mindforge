@@ -3,20 +3,26 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using Mindforge.Combat;
 using Mindforge.Neural;
+using Mindforge.SoulWisp;
 
 namespace Mindforge.Calibration
 {
     /// <summary>
-    /// In-world calibration handshake. Baseline is collected before periodic visual
-    /// stimulation so endogenous alpha is characterized without SSVEP carry-over.
-    /// Python remains the authority that decides whether calibration is usable.
+    /// In-world Unity/Python calibration handshake. Baseline is collected before
+    /// periodic visual stimulation so endogenous alpha is characterized without
+    /// recent SSVEP carry-over. Combat actions stay locked until Python accepts the
+    /// participant-specific calibration.
     /// </summary>
     public sealed class AwakeningCalibrationDirector : MonoBehaviour
     {
         [SerializeField] private UdpNeuralReceiver receiver;
         [SerializeField] private CalibrationMarkerSender markerSender;
         [SerializeField] private NeuralLinkContingency linkContingency;
+        [SerializeField] private GuardianCombatInput guardianInput;
+        [SerializeField] private SoulWispController soulWisp;
+        [SerializeField] private Transform combatTarget;
         [SerializeField] private GameObject wispCoreRoot;
         [SerializeField] private GameObject sightAuraRoot;
         [SerializeField] private GameObject guardAuraRoot;
@@ -47,7 +53,10 @@ namespace Mindforge.Calibration
         private void OnEnable()
         {
             if (receiver != null) receiver.EventReceived += OnNeuralEvent;
+            guardianInput?.SetCombatActionsEnabled(false);
+            soulWisp?.SetTarget(null);
             SetDisplay(false, false);
+            if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(true);
             if (arenaRoot != null) arenaRoot.SetActive(false);
             SetStatus("WAITING FOR NEURAL CALIBRATION SERVICE");
         }
@@ -80,6 +89,8 @@ namespace Mindforge.Calibration
                 SetDisplay(false, false);
                 if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(false);
                 if (arenaRoot != null) arenaRoot.SetActive(true);
+                soulWisp?.SetTarget(combatTarget);
+                guardianInput?.SetCombatActionsEnabled(true);
                 linkContingency?.ArmForCombat();
                 CalibrationStageChanged?.Invoke("ready");
                 calibrationReady?.Invoke();
@@ -89,6 +100,8 @@ namespace Mindforge.Calibration
                 _running = false;
                 _failed = true;
                 CalibrationReady = false;
+                guardianInput?.SetCombatActionsEnabled(false);
+                soulWisp?.SetTarget(null);
                 SetDisplay(false, false);
                 SetStatus("WISP LINK UNCLEAR · PRESS ENTER TO RETRY");
                 CalibrationStageChanged?.Invoke("failed");
@@ -99,6 +112,8 @@ namespace Mindforge.Calibration
         public void BeginCalibration()
         {
             if (!_serviceReady || _running) return;
+            guardianInput?.SetCombatActionsEnabled(false);
+            soulWisp?.SetTarget(null);
             if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(true);
             if (arenaRoot != null) arenaRoot.SetActive(false);
             _sessionId = Guid.NewGuid().ToString("N");
@@ -110,8 +125,6 @@ namespace Mindforge.Calibration
 
         private IEnumerator RunProtocol()
         {
-            // Baseline first. Doing this after 10/12 Hz stimulation makes the baseline
-            // harder to interpret because recent visual entrainment may carry over.
             yield return RunStage("baseline", baselineSeconds, false, false, "BE STILL · LET THE WISP LISTEN");
             yield return RunStage("sight", sightSeconds, true, false, "ATTUNE TO SIGHT · BLUE");
             yield return RunStage("guard", guardSeconds, false, true, "ATTUNE TO GUARD · GREEN");
