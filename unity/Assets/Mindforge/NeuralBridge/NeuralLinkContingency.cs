@@ -18,6 +18,9 @@ namespace Mindforge.Neural
         [SerializeField] private GuardianCombatInput guardianInput;
         [SerializeField] private CanvasGroup warningGroup;
         [SerializeField] private Text warningText;
+        [Tooltip("Neutral gray fullscreen veil. Keep it outside the VEP-core renderers.")]
+        [SerializeField] private CanvasGroup desaturationVeil;
+        [SerializeField, Range(0f, 1f)] private float degradedVeilAlpha = 0.58f;
         [SerializeField] private float stableRecoverySeconds = 0.75f;
 
         private bool _armed;
@@ -36,7 +39,7 @@ namespace Mindforge.Neural
                 receiver.ConnectionStateChanged += OnConnectionChanged;
                 receiver.EventReceived += OnNeuralAuthority;
             }
-            SetWarning(false, false);
+            SetPresentation(false, false);
         }
 
         private void OnDisable()
@@ -103,7 +106,7 @@ namespace Mindforge.Neural
             bossDirector?.SetExternalPause(true);
             guardianInput?.SetCombatActionsEnabled(false);
             Shader.SetGlobalFloat("_MindforgeNeuralLinkDegraded", 1f);
-            SetWarning(true, participantStop || _participantStopped);
+            SetPresentation(true, participantStop || _participantStopped);
             if (changed) DegradationStateChanged?.Invoke(true);
         }
 
@@ -114,18 +117,26 @@ namespace Mindforge.Neural
             bossDirector?.SetExternalPause(false);
             guardianInput?.SetCombatActionsEnabled(true);
             Shader.SetGlobalFloat("_MindforgeNeuralLinkDegraded", 0f);
-            SetWarning(false, false);
+            SetPresentation(false, false);
             DegradationStateChanged?.Invoke(false);
         }
 
-        private void SetWarning(bool visible, bool participantStop)
+        private void SetPresentation(bool visible, bool participantStop)
         {
             if (warningText != null)
                 warningText.text = visible ? (participantStop ? "PARTICIPANT STOP · COMBAT SAFE" : "NEURAL LINK UNSTABLE") : string.Empty;
-            if (warningGroup == null) return;
-            warningGroup.alpha = visible ? 1f : 0f;
-            warningGroup.interactable = false;
-            warningGroup.blocksRaycasts = false;
+            if (warningGroup != null)
+            {
+                warningGroup.alpha = visible ? 1f : 0f;
+                warningGroup.interactable = false;
+                warningGroup.blocksRaycasts = false;
+            }
+            if (desaturationVeil != null)
+            {
+                desaturationVeil.alpha = visible ? degradedVeilAlpha : 0f;
+                desaturationVeil.interactable = false;
+                desaturationVeil.blocksRaycasts = false;
+            }
         }
     }
 }
