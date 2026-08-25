@@ -44,12 +44,13 @@ namespace Mindforge.Combat
         {
             Clear();
             if (radialRing == null) return;
+            int segments = Mathf.Max(12, ringSegments);
             Color color = Hostile(heavy);
             radialRing.gameObject.SetActive(true);
-            radialRing.positionCount = Mathf.Max(12, ringSegments) + 1;
-            for (int i = 0; i <= ringSegments; i++)
+            radialRing.positionCount = segments + 1;
+            for (int i = 0; i <= segments; i++)
             {
-                float a = i / (float)ringSegments * Mathf.PI * 2f;
+                float a = i / (float)segments * Mathf.PI * 2f;
                 radialRing.SetPosition(i, origin + new Vector3(Mathf.Cos(a), 0.05f, Mathf.Sin(a)) * ringRadius);
             }
             radialRing.startColor = color;
