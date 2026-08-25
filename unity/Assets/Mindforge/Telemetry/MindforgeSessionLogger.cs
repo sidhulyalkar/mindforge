@@ -190,8 +190,31 @@ namespace Mindforge.Telemetry
             string json = JsonUtility.ToJson(_session, true);
             string temp = path + ".tmp";
             File.WriteAllText(temp, json);
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(temp, path);
+            ReplaceCheckpoint(temp, path);
+        }
+
+        private static void ReplaceCheckpoint(string temp, string path)
+        {
+            if (!File.Exists(path))
+            {
+                File.Move(temp, path);
+                return;
+            }
+
+            try
+            {
+                // Same-directory replacement is atomic on the normal desktop filesystems
+                // used for competition builds. Keep the previous checkpoint intact until
+                // the new temp file has been fully written.
+                File.Replace(temp, path, null);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                // Last-resort portability path. Qualification should verify the primary
+                // File.Replace path on the actual demo machine before competition day.
+                File.Delete(path);
+                File.Move(temp, path);
+            }
         }
 
         private void OnApplicationQuit()
