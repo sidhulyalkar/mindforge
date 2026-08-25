@@ -21,21 +21,36 @@ namespace Mindforge.Combat
         private readonly HashSet<int> _capturedIds = new HashSet<int>();
         private bool _active;
         private bool _concord;
+        private bool _externalPaused;
+        private float _pauseStartedAt;
         private float _endAt;
         private float _lastUse = -999f;
 
         public bool Active => _active;
         public bool ConcordCast => _active && _concord;
+        public bool ExternalPaused => _externalPaused;
+
+        public void SetExternalPause(bool paused)
+        {
+            if (_externalPaused == paused) return;
+            _externalPaused = paused;
+            if (paused)
+            {
+                _pauseStartedAt = Time.time;
+            }
+            else if (_active)
+            {
+                _endAt += Mathf.Max(0f, Time.time - _pauseStartedAt);
+            }
+        }
 
         public bool TryActivate()
         {
-            if (tuning == null || flux == null || !flux.IsFull || Time.time - _lastUse < tuning.bloomCooldown) return false;
+            if (_externalPaused || tuning == null || flux == null || !flux.IsFull || Time.time - _lastUse < tuning.bloomCooldown) return false;
             if (!flux.TryConsumeFull()) return false;
 
             _lastUse = Time.time;
             _active = true;
-            // Concord is deliberately sticky after a real Sight+Guard overlap. Do
-            // not regress to instantaneous timer overlap here.
             _concord = auras != null && auras.ConcordActive;
             _endAt = Time.time + tuning.bloomDuration * (_concord ? 1.15f : 1f);
             _captured.Clear();
@@ -48,7 +63,7 @@ namespace Mindforge.Combat
 
         private void FixedUpdate()
         {
-            if (!_active || tuning == null) return;
+            if (_externalPaused || !_active || tuning == null) return;
             float radius = tuning.bloomRadius * (_concord ? tuning.concordRadiusMultiplier : 1f);
             int count = Physics.OverlapSphereNonAlloc(transform.position, radius, _hits, projectileMask, QueryTriggerInteraction.Collide);
             for (int i = 0; i < count; i++)
@@ -63,6 +78,7 @@ namespace Mindforge.Combat
 
         private void Detonate()
         {
+            if (_externalPaused) return;
             _active = false;
             if (primaryTarget == null)
             {
