@@ -1,454 +1,661 @@
 # MINDFORGE: The First Guardian
 
-### A BCI action game where your hands fight and your visual attention commands a living soul companion.
+### A BCI action game where your hands fight, your visual attention reallocates power, and enemy attacks can become your weapons.
 
 > **Target:** BR41N.IO Designers' Hackathon at IEEE SMC 2026  
-> **Category:** Your Gaming Project / BCI Gaming  
 > **Event:** October 4–5, 2026  
+> **Category:** Your Gaming Project / BCI Gaming  
 > **Engine target:** Unity 2022.3 LTS  
-> **Primary BCI:** g.tec Unicorn Hybrid Black  
-> **Primary neural paradigm:** two-target SSVEP / visual evoked potential selection
-
-## The idea
-
-**Mindforge** is being rebuilt around one interaction that is simple enough to explain in seconds and deep enough to master:
-
-> A magical **Soul Wisp** floats beside the player. When an enemy appears, the Wisp splits into a **blue Sight aura** and a **green Guard aura** that orbit the enemy. The player continues fighting normally while visually attending to either moving aura. EEG detects which frequency-coded visual target the player's visual system is responding to.
-
-### Blue → Neural Sight
-
-Temporarily amplify damage.
-
-### Green → Neural Guard
-
-Temporarily accelerate healing.
-
-The bonuses persist for a few seconds, so skilled players can repeatedly switch attention while moving, dodging, and attacking to keep both states optimally refreshed.
-
-The game does **not** attempt to read thoughts such as “I want damage” or “I want healing.” It decodes a narrower signal: **which temporally coded visual target is producing the stronger steady-state visual evoked response in posterior EEG?** The game maps that decoded target into the fantasy of a soul companion obeying visual attention.
+> **Primary hardware:** g.tec Unicorn Hybrid Black  
+> **Primary paradigm:** two-target SSVEP / visual evoked potential selection
 
 ---
 
-# Why this is a better BCI game
+## The pitch
 
-A conventional controller is already excellent at precise, millisecond-scale actions. EEG is not. Mindforge therefore does not replace movement, dodging, attacking, or parrying with slower neural commands.
+**Mindforge** is built around a simple rule:
+
+> **The hands own precision. The brain owns strategic transformation.**
+
+A magical companion called the **Soul Wisp** floats beside the Guardian. In combat it bifurcates into two frequency-coded visual targets positioned in the gaze corridor between the player and the active threat.
+
+- **Blue / Neural Sight / 10 Hz** temporarily amplifies offense.
+- **Green / Neural Guard / 12 Hz** temporarily enables recovery.
+
+The player continues moving, aiming, dashing, attacking and parrying with ordinary controls while choosing where to allocate visual attention.
+
+Mindforge does **not** claim to decode abstract “damage intent,” “healing intent,” emotion, or concentration. It asks a narrower BCI question:
+
+> Which of two temporally coded visual targets is producing the stronger steady-state visual evoked response in posterior EEG?
+
+The game assigns the fantasy meaning to the decoded target.
+
+---
+
+# Neural Counterplay
+
+Mindforge is no longer a shooter with an EEG button attached. Its combat system is designed around **conversion**.
 
 ```text
-CONTROLLER / KEYBOARD
-movement · aim · attacks · dodge · timing
-
-              +
-
-EEG / VISUAL ATTENTION
-which magical aura should empower me now?
+THREAT
+  ↓
+near miss / parry / capture
+  ↓
+RESOURCE
+  ↓
+physical opening
+  ↓
+neural state changes its value
 ```
 
-The player must decide **when it is worth moving visual attention away from the fight** to refresh an offensive or restorative neural state. That tradeoff is the game.
+A hostile projectile can:
+
+1. hit the player;
+2. be grazed during a high-speed dash to generate **Flux**;
+3. be reflected with a **Counter Pulse**;
+4. be captured inside **Gravity Bloom**;
+5. be fired back as part of **Twin Eclipse**.
+
+The neural layer creates another conversion:
+
+```text
+VISUAL ATTENTION
+        ↓
+posterior VEP evidence
+        ↓
+Sight / Guard
+        ↓
+new combat opportunity
+```
+
+The interesting game lives where those two systems intersect.
 
 ---
 
 # The Soul Wisp
 
-The Soul Wisp is not a HUD widget. It is a persistent character.
+## Exploration
 
-## Outside combat
+The unsplit Wisp behaves like a floating extension of the Guardian: spring-follow movement, gentle drift, particles and subtle connection-state feedback.
 
-It floats near the Guardian like a small balloon-like extension of the player's soul with spring-follow movement, gentle drift, particles, and subtle signal-quality behavior.
+## Combat
 
-## During combat
+When a threat is engaged, the Wisp splits into two camera-facing auras.
 
-The Wisp races toward the engaged enemy and bifurcates into two halves that orbit approximately opposite one another.
+Rather than orbiting a detached HUD corner, the pair occupies an **action-centered gaze corridor** between Guardian and enemy, biased toward the threat. This reduces unnecessary eye travel while preserving the fiction that the Wisp is binding the enemy.
 
-### 🔷 Blue aura — Neural Sight
+### Sight
 
-Initial gameplay tuning:
-
-```text
-1.65× outgoing damage
-3.4 s duration
-```
-
-A blue selection does not attack automatically. It makes the player's next few seconds of ordinary physical combat more powerful.
-
-### 🟢 Green aura — Neural Guard
-
-Initial gameplay tuning:
+Initial game candidate:
 
 ```text
-+4.2 HP/s regeneration
-3.4 s duration
+10 Hz visual code
+~3.6 s primary buff
+~1.58× outgoing damage
 ```
 
-Guard does not dodge or parry automatically. It lets the player recover while continuing to fight.
+Sight never attacks for the player. It makes physical execution more valuable.
 
-### Independent timers
+### Guard
 
-Sight and Guard have independent expiration timers. A strong player can focus blue, exploit the damage window, switch to green, overlap healing with the remaining Sight duration, return to combat, then refresh whichever resource matters next.
+Initial game candidate:
 
-The BCI becomes a genuine combat resource rather than a one-time gimmick.
+```text
+12 Hz visual code
+~3.6 s primary buff
+regenerative recovery
+```
+
+Guard never dodges or parries automatically.
+
+### Concord
+
+Sight and Guard are the **only neural target classes**.
+
+If their independently timed buffs genuinely overlap, Mindforge creates an emergent gameplay state called **Concord**.
+
+Concord currently remains available for a **4.5 s grace window** after true overlap. This is deliberate: the BCI establishes a strategic state, then the player can return their eyes to the battlefield and execute with their hands.
+
+```text
+Guard acquired
+      ↓
+attend Sight
+      ↓
+true overlap
+      ↓
+CONCORD
+      ↓
+eyes return to combat
+      ↓
+Phase Dash / Flux / Gravity Bloom
+      ↓
+TWIN ECLIPSE
+```
+
+Concord is not a third classifier output.
 
 ---
 
-# What is happening neurologically?
+# Combat abilities
 
-## Steady-state visual evoked potentials
+## Pulse Shot
 
-The blue and green auras are visually modulated at different temporal frequencies.
+Fast mobile pressure. Sight improves its offensive payoff.
 
-| Target | Initial frequency | Gameplay identity |
+## Rift Cleave
+
+A committed close-range strike with heavy poise damage, knockback and impact feedback. It is especially valuable during Signal Break.
+
+## Phase Dash
+
+Momentum-driven high-speed movement. Skillfully passing close to hostile projectiles generates Flux.
+
+## Counter Pulse
+
+A short precision reflection window, currently around **180 ms**. Successful counters change projectile ownership, damage boss poise and generate Flux.
+
+The neural system never owns this timing.
+
+## Gravity Bloom
+
+At full Flux, the Guardian creates a temporary field that captures nearby hostile projectiles and then releases them toward the enemy.
+
+## Twin Eclipse
+
+When Gravity Bloom is executed during Concord, the encounter reaches its highest-value combined neural/physical state: the boss's own projectile topology becomes the player's offensive burst.
+
+---
+
+# The Fractured Signal
+
+The competition boss is designed around a repeating cognitive rhythm rather than permanent maximal pressure.
+
+### Phase I — Pressure
+
+Clear projectile grammar. Learn the relationship between Sight, Guard and physical combat.
+
+### Phase II — Attrition
+
+More crossfire and resource pressure. Guard decisions begin to matter.
+
+### Phase III — Interference
+
+The player must decide when it is safe to visually attend a Wisp target while movement, parry and projectile-management demands continue.
+
+### Signal Break — visual rest + punish
+
+Boss poise collapse creates an approximately **2.6 s vulnerability window**.
+
+During this state:
+
+- the boss stops attacking;
+- the player receives a physical punish opportunity;
+- periodic Wisp modulation is held at a steady luminance;
+- the VEP phase clock continues in real time;
+- modulation resumes phase-consistently afterward.
+
+Signal Break is therefore both a combat reward and an intentional visual-cortex rest period.
+
+---
+
+# Two clocks, two responsibilities
+
+One of Mindforge's central engineering ideas is that combat feel must not corrupt visual-stimulus timing.
+
+```text
+COMBAT                              VISUAL BCI
+120 Hz fixed simulation             unscaled real-time clock
+movement                             10 Hz Sight phase
+collision                            12 Hz Guard phase
+poise                                stimulus modulation
+hit-stop allowed                     never paused by hit-stop
+```
+
+A successful parry or heavy Cleave may temporarily freeze scaled game simulation for impact.
+
+The visual target clock does not freeze.
+
+This lets Mindforge retain action-game impact without intentionally changing its SSVEP code every time the player lands a satisfying hit.
+
+---
+
+# What happens neurologically?
+
+The initial visual codes are:
+
+| Aura | Frequency | Gameplay mapping |
 |---|---:|---|
-| Blue | 10 Hz | Neural Sight |
-| Green | 12 Hz | Neural Guard |
+| Sight | 10 Hz | offense |
+| Guard | 12 Hz | recovery |
 
-When the player looks at one target, periodic visual stimulation can produce frequency-specific activity measurable in posterior EEG. The decoder compares the EEG with reference signals corresponding to the two target frequencies and harmonics.
-
-With the Unicorn Hybrid Black, posterior channels **Pz, PO7, Oz, and PO8** are particularly relevant to this visual paradigm.
-
-The current decoder uses a two-target **filter-bank canonical correlation analysis (FBCCA)** pipeline.
+The current pipeline uses **filter-bank canonical correlation analysis (FBCCA)**.
 
 ```text
-BLUE 10 Hz aura       GREEN 12 Hz aura
-       \                  /
-          VISUAL ATTENTION
-                 ↓
-       posterior EEG window
-                 ↓
-        signal-quality gate
-                 ↓
-       filter-bank processing
-                 ↓
-      CCA score @ 10 / 12 Hz
-                 ↓
-        score + winner margin
-                 ↓
-      temporal dwell requirement
-                 ↓
-      ┌──────────┴──────────┐
-      │                     │
- AURA_SELECTED          ABSTAIN
-      │
-      ├── sight → damage buff
-      └── guard → healing buff
+visual target
+     ↓
+8-channel EEG @ 250 Hz
+     ↓
+quality / artifact authority gate
+     ↓
+posterior decoder subset
+Pz / PO7 / Oz / PO8
+     ↓
+filter-bank processing
+     ↓
+CCA against 10 / 12 Hz + harmonics
+     ↓
+Sight score / Guard score
+     ↓
+absolute score + margin
+     ↓
+multi-window dwell
+     ↓
+AURA_SELECTED or ABSTAIN
 ```
 
-### Scientific boundary
+The full montage remains useful for deciding whether a window is trustworthy, while the default classifier focuses on posterior channels most relevant to the visual paradigm.
 
-The system does **not** claim that 10 Hz means aggression, 12 Hz means healing, or that it has decoded abstract damage/healing intent. The frequency identifies the **visual target**. The game assigns the meaning of that target.
-
----
-
-# Why the old abstract Resonance mechanic is gone
-
-Earlier plans included a continuous “Resonance” variable built from generic neural confidence. That is no longer a primary BCI mechanic because its neurological interpretation was too vague.
-
-The Dual Aura system has a concrete answer to “what did the EEG decode?”
-
-> **A calibrated visual target selection.**
-
-The player knows what they are doing, the decoder knows what it is identifying, and a judge can see the causal chain.
-
----
-
-# Why moving auras are plausible
-
-Visual BCI targets are often stationary, but research has demonstrated VEP/P300 selection with moving targets and SSVEP paradigms with superimposed motion. Motion can reduce SSVEP performance as it becomes faster, so Mindforge makes **the animation obey the neuroscience**.
-
-Initial orbit speed:
+Current engineering defaults:
 
 ```text
-0.92 rad/s ≈ 0.146 Hz ≈ one orbit every 6.8 seconds
-```
-
-The local particles can be rich, but the coded luminance component remains controlled. The auras are camera-facing to reduce occlusion, apparent size changes, and excessive gaze travel. Exact movement speed will be selected from physical sessions.
-
----
-
-# Calibration is part of the story
-
-The player awakens the Soul Wisp instead of beginning on a sterile settings page.
-
-1. **Link** — check usable EEG channels while the Wisp appears beside the Guardian.
-2. **Sight** — look directly at the blue aura while labeled EEG is recorded.
-3. **Guard** — repeat for green.
-4. **Alternation** — randomized blue/green prompts build target score distributions and teach switching.
-5. **Moving validation** — both auras orbit a training construct at combat speed while prompted selections are measured.
-6. **Session qualification** — fit conservative score/margin thresholds and decide whether the session is usable.
-
-If the BCI is not reliable, Mindforge does not pretend otherwise. It can repeat a short block, inspect electrode quality, test another predeclared frequency pair, or continue Controller-Only.
-
----
-
-# The decoder
-
-The executable implementation lives in `neuro/mindforge_neuro/`.
-
-For each target frequency `f`, it constructs sine/cosine reference signals across three harmonics, applies a small filter bank, computes canonical correlations against the two target references, combines scores, gates on signal quality and winner margin, then requires stable evidence across consecutive windows.
-
-Current initial configuration:
-
-```text
-sampling rate        250 Hz
-window               1.25 s
-blue target          10 Hz
-green target         12 Hz
+sample rate          250 Hz
+analysis window      1.25 s
+hop target           ~0.25 s
+Sight                10 Hz
+Guard                12 Hz
 harmonics            3
 filter bank          6–35 Hz, 14–35 Hz
-stable dwell         2 accepted windows
+decode channels      Pz / PO7 / Oz / PO8
+dwell                2 accepted windows
 refresh              2.25 s
-short refractory     0.35 s
+refractory           0.35 s
 ```
 
-These are engineering starting values to validate, not claims about achieved human performance.
+These are experiment candidates, not claims of measured human performance.
 
 ---
 
-# Uncertainty is simple: do nothing
+# Uncertainty has one authority rule
 
-If EEG evidence is ambiguous, contaminated, stale, or low quality, the decoder emits:
+If the signal is ambiguous or suspicious:
 
 ```text
 ABSTAIN
 ```
 
-No aura changes. No wrong “brain button.” No invented intent. An already active buff simply continues until its timer expires.
+No wrong “brain button.”
+
+No guessed intent.
+
+An existing macro-state may continue according to its normal timer, but the uncertain EEG window cannot invent a new one.
+
+The authority gate currently checks for obvious failure modes including:
+
+- non-finite data;
+- flat/disconnected channels;
+- saturation;
+- extreme variance;
+- large common-mode transients;
+- extreme derivatives;
+- broad high-frequency central-channel contamination.
+
+Names such as `EMG_SUSPECTED` are engineering flags, not physiological diagnoses.
+
+The thresholds were hardened using synthetic stress cases and **must be retuned/validated on physical Unicorn data**.
 
 ---
 
-# Derived-event boundary
+# Make the invisible visible
 
-Unity never receives raw EEG. The neuroscience process emits small derived events such as:
+A live BCI demonstration should not look like “a person stared at something and then magic happened.”
+
+Mindforge's derived event envelope can carry:
 
 ```json
 {
   "schema": "mindforge.neural_event.v1",
-  "seq": 147,
-  "monotonic_ns": 3829472394723,
-  "event": "AURA_SELECTED",
-  "target": "sight",
-  "confidence": 0.91,
-  "quality": 0.94,
-  "paradigm": "ssvep_fbcca",
-  "model_id": "participant-01-session-03",
-  "artifact": false,
-  "reason": null
+  "event": "ABSTAIN",
+  "target": null,
+  "sight_score": 0.41,
+  "guard_score": 0.37,
+  "margin": 0.04,
+  "quality": 0.91,
+  "source_mode": "simulation"
 }
 ```
 
-This makes the same game testable with synthetic events, derived-event replay, recorded EEG through the live decoder, or physical Unicorn EEG.
+The Unity `NeuralEvidenceHud` is designed to show judges:
+
+- Sight evidence;
+- Guard evidence;
+- score margin;
+- signal quality;
+- accepted target or abstention reason;
+- run provenance: `SIMULATION`, `LIVE`, or `REPLAY`.
+
+The audience should see evidence move **before** the game accepts a neural state.
 
 ---
 
-# Game loop
+# neurOS + Phantom Unicorn
 
-1. **Enter the Forge** — meet and calibrate the Soul Wisp.
-2. **Learn ordinary combat** — movement, attacks, dodge and enemy telegraphs before BCI pressure.
-3. **Learn Sight** — a successful blue selection visibly sends energy into the Guardian and attacks become stronger.
-4. **Learn Guard** — the player takes controlled damage, selects green, and sees health return.
-5. **Combined encounter** — prompts disappear and the player begins choosing switches independently.
-6. **Boss: The Fractured Signal** — pressure, attrition, interference, then a mastery phase where optimal play overlaps Sight and Guard while maintaining skilled physical combat.
+Mindforge now uses **neurOS** as a neuro-simulation and experiment layer.
 
----
+The reusable simulator lives in neurOS rather than being buried inside the game.
 
-# First playable implementation
+neurOS PR **#39** adds:
 
-## `web_demo/`
+- a protocol-grade `SyntheticEEGGenerator`;
+- a normal neurOS `SyntheticEEGDriver`;
+- Unicorn-like 8-channel / 250 Hz configuration;
+- colored background activity;
+- endogenous alpha;
+- posterior SSVEP + harmonic injection;
+- weak/strong responder control;
+- per-channel contact control;
+- blink, jaw, controller, motion, saturation and dropout stressors;
+- deterministic seeds;
+- LSL publication as `UnicornMock`;
+- transport loss, delivery jitter and deliberate stream silence.
 
-An immediately playable game-feel vertical slice.
+This simulator is deliberately **not a physiological digital twin**.
+
+Its job is to break software assumptions before a participant does.
+
+## Canonical source swap
 
 ```text
-WASD      move
-Space     fire
-Shift     dash
-Q         simulated blue/Sight evidence
-E         simulated green/Guard evidence
+PHANTOM
+neurOS synthetic EEG
+       ↓
+LSL UnicornMock
+       ↓
+Mindforge decoder
+       ↓
+NeuralEvent
+       ↓
+Unity
+
+PHYSICAL
+Unicorn Suite LSL
+       ↓
+SAME Mindforge decoder
+       ↓
+SAME NeuralEvent
+       ↓
+SAME Unity game
 ```
 
-It renders the persistent Wisp, dual orbiting targets, 10/12 Hz visual modulation, evidence accumulation, overlapping buffs, projectiles, dodging, and a multi-phase Fractured Signal encounter. It also exposes a `mindforge-neural-event` browser event bridge.
-
-**Browser stimulus timing is not qualified as an EEG experiment.** It exists to test game feel before physical hardware integration.
-
-## `unity/`
-
-Competition-target C# components include:
-
-- `UdpNeuralReceiver`
-- `NeuralEvent`
-- `SoulWispController`
-- `VepAuraStimulus`
-- `AuraBuffController`
-- `DualAuraCombatDirector`
-- `AuraAwarePlayerStats`
-- development-only `SimulatedAuraInput`
-
-The neural bridge listens on UDP port `19742` and accepts only derived events.
+Raw EEG does not enter Unity in either path.
 
 ---
 
-# Repository architecture
+# Running the Phantom lab
+
+## Fast deterministic stress matrix
+
+```bash
+python tools/run_phantom_lab.py \
+  --windows 32 \
+  --json phantom-report.json
+```
+
+This evaluates strong/weak responses, alpha collision, artifact cases and posterior-channel loss.
+
+## Combat-cadence sweep
+
+```bash
+python tools/run_phantom_cadence.py \
+  --calibration-gain 1.0 \
+  --combat-gains 1.0,0.8,0.65 \
+  --switch-seconds 3.25 \
+  --buff-seconds 3.6,4.5,5.25 \
+  --grace-seconds 3.0,4.5,6.0 \
+  --json cadence.json
+```
+
+This intentionally separates **calibration SSVEP strength** from **combat SSVEP strength**.
+
+That lets us ask what happens if moving targets, saccades, controller tension or visual competition attenuate the response after a beautiful stationary calibration.
+
+## End-to-end LSL simulation
+
+In neurOS:
+
+```bash
+python examples/mindforge_phantom_unicorn.py
+```
+
+In Mindforge:
+
+```bash
+python tools/run_lsl_decoder.py \
+  --stream-name UnicornMock \
+  --source-mode simulation
+```
+
+Unity listens for derived events on UDP port `19742`.
+
+The same decoder tool is intended to target the verified physical Unicorn LSL source with `--source-mode live`.
+
+---
+
+# Display timing
+
+A number written in a Unity script is not proof that a monitor emitted that frequency.
+
+`DisplayTimingMonitor` provides a software-side guard for:
+
+- observed frame cadence;
+- long-frame/drop fraction;
+- expected refresh-rate health.
+
+That is still insufficient for competition qualification.
+
+The intended display must be physically measured with a **photodiode or equivalent high-speed timing method**, including while the full combat scene is under load and across hit-stop/rest transitions.
+
+---
+
+# Calibration ritual
+
+Calibration is part of the fiction: **the Forge learns how to hear the player**.
+
+1. verify channel readiness;
+2. attend Sight during labeled trials;
+3. attend Guard during labeled trials;
+4. randomized alternation;
+5. fit session-specific score/margin thresholds;
+6. validate stationary targets;
+7. validate moving targets;
+8. validate while operating normal controls;
+9. qualify or fall back transparently.
+
+A participant who cannot achieve a reliable session does not get a fake `LIVE BCI` label.
+
+---
+
+# Physical qualification ladder
+
+```text
+Q0  emitted display timing
+ ↓
+Q1  physical Unicorn acquisition + units/channel identity
+ ↓
+Q2  stationary Sight / Guard
+ ↓
+Q3  moving gaze-corridor targets
+ ↓
+Q4  targets + controller movement
+ ↓
+Q5  full Neural Counterplay combat
+ ↓
+Q6  multiple independent participants
+ ↓
+competition candidate
+```
+
+For each stage measure at least:
+
+- calibration duration;
+- accepted-decision precision;
+- false-switch rate;
+- abstention rate;
+- median/p95 selection time;
+- per-target performance;
+- signal-loss events;
+- movement/artifact sensitivity;
+- participant comfort;
+- free-response understanding of what the BCI actually did.
+
+---
+
+# Repository map
 
 ```text
 mindforge/
 ├── README.md
-├── pyproject.toml
 ├── docs/
-│   ├── CURRENT_PLATFORM_AUDIT.md
-│   ├── HACKATHON_REIMPLEMENTATION_PLAN.md
+│   ├── COMBAT_ECOSYSTEM.md
+│   ├── ART_AND_FEEL.md
 │   ├── DUAL_AURA_VEP_DESIGN.md
-│   └── EXPERIMENT_PROTOCOL.md
+│   ├── PHANTOM_UNICORN_LAB.md
+│   ├── BCI_TIMING_AND_CADENCE.md
+│   ├── EXPERIMENT_PROTOCOL.md
+│   ├── SCIENTIFIC_REFERENCES.md
+│   └── HACKATHON_REIMPLEMENTATION_PLAN.md
 ├── neuro/mindforge_neuro/
-│   ├── config.py
-│   ├── quality.py
-│   ├── ssvep.py
+│   ├── acquisition.py
 │   ├── calibration.py
+│   ├── config.py
 │   ├── events.py
-│   └── runtime.py
-├── tests/test_ssvep.py
+│   ├── quality.py
+│   ├── runtime.py
+│   └── ssvep.py
+├── tools/
+│   ├── run_lsl_decoder.py
+│   ├── run_phantom_lab.py
+│   ├── run_phantom_cadence.py
+│   └── synthetic_bci_demo.py
+├── tests/
 ├── web_demo/
-│   ├── index.html
-│   ├── styles.css
-│   └── game.js
 └── unity/Assets/Mindforge/
+    ├── Combat/
     ├── NeuralBridge/
-    ├── SoulWisp/
-    └── Combat/
+    └── SoulWisp/
 ```
 
 ---
 
-# Signal quality and artifacts
+# Playable browser prototype
 
-This is a movement-heavy game, so the runtime treats artifact handling primarily as **authority gating**, not magical signal cleaning. It rejects obvious unusable windows and the physical qualification campaign will stress blinks, jaw/facial EMG, head turns, simultaneous movement, electrode degradation, and Bluetooth interruption.
-
-If the signal is uncertain, gameplay receives `ABSTAIN`.
-
----
-
-# Unicorn Hybrid Black target
-
-The primary headset provides eight EEG channels sampled at 250 Hz and supports dry/wet hybrid electrodes. The commonly used montage is:
+The browser build exists for rapid **game-feel** testing, not physiological stimulus qualification.
 
 ```text
-Fz
-C3  Cz  C4
-Pz
-PO7 Oz PO8
+WASD     move
+mouse    aim
+Space    Pulse Shot
+F        Rift Cleave
+Shift    Phase Dash
+R        Counter Pulse
+X        Gravity Bloom
+Q        simulated Sight evidence
+E        simulated Guard evidence
 ```
 
-This is convenient for Mindforge because it includes posterior coverage around the visual cortex. The Unicorn ecosystem also supports Python/.NET/Unity and LSL/UDP integration routes.
+The competition implementation target remains Unity.
 
 ---
 
-# Display timing matters
+# Current evidence status
 
-A frequency written in Unity code is not automatically the frequency physically emitted by a display. Before competition we must validate monitor refresh, variable-refresh state, frame pacing, luminance timing, target phase stability and dropped frames.
+## Established by software tests / synthetic stress
 
-The final competition display should be measured with a **photodiode or equivalent physical timing method**.
+- decoder distinguishes synthetic 10/12 Hz targets;
+- posterior-channel decode path works;
+- ambiguous decisions can abstain;
+- saturation/transient/high-frequency stress loses authority;
+- dwell/refractory event behavior works;
+- continuous evidence fields propagate through `NeuralEvent`;
+- source provenance is explicit;
+- sliding-window behavior is deterministic;
+- the neurOS Phantom source passes neurOS CI and driver-contract checks;
+- browser combat source passes automated syntax checks.
 
----
+## Not yet established
 
-# Accessibility and comfort
+- observed human SSVEP accuracy;
+- observed human decision time;
+- actual moving-target human reliability;
+- actual controller-motion contamination distribution;
+- physical display-code fidelity;
+- physical Unicorn end-to-end performance;
+- multi-user robustness;
+- final Unity art/audio quality.
 
-Color is never the only target cue.
-
-**Sight:** blue, triangle/three-ray glyph, sharper particles, higher audio motif.  
-**Guard:** green, ring/cross glyph, rounded pulse, lower audio motif.
-
-Visual periodic stimulation is not appropriate for every participant. Mindforge must provide a warning, immediate opt-out, Controller-Only play, reduced-motion options, non-color-only information, and no gameplay penalty for BCI fallback.
-
----
-
-# Scientific validation plan
-
-We will qualify increasingly realistic conditions:
-
-```text
-stationary targets
-       ↓
-moving targets
-       ↓
-moving targets + player movement
-       ↓
-full combat
-```
-
-Measure per-target accuracy, accepted-decision precision, false-switch rate, abstention rate, decision-time median/p95, score margin, usable posterior channels, target-switch rate, Sight uptime, Guard uptime, overlap time, and game completion.
-
-The question is not merely “can SSVEP classify two frequencies?” It is **can a player use this reliably while actually playing Mindforge?**
+Those are the next gates, not footnotes.
 
 ---
 
-# Testing status
-
-The initial decoder package includes deterministic synthetic tests for:
-
-- 10 Hz Sight classification;
-- 12 Hz Guard classification;
-- obvious artifact rejection;
-- calibration threshold fitting;
-- dwell-gated selection emission.
-
-These establish software behavior only, not observed human EEG accuracy.
-
----
-
-# Privacy
+# Privacy and scientific boundaries
 
 1. Raw EEG remains local by default.
-2. Unity receives only derived events.
+2. Unity receives derived events only.
 3. Raw recording requires explicit consent.
-4. No medical or psychological profiling.
-5. No cloud service is required for the competition loop.
-6. Participant stop always overrides gameplay.
+4. Simulation, replay and live modes are visibly distinct.
+5. No medical, psychological or personality inference.
+6. `PARTICIPANT_STOP` dominates gameplay authority.
+7. Controller-Only remains a valid fallback.
+
+Mindforge is a research and entertainment project, not a medical device.
 
 ---
 
-# What success looks like at BR41N.IO
+# What winning looks like
 
-A judge should see the Wisp split around a boss, watch the player keep dodging, see 10 Hz evidence rise as they attend blue, then see blue energy snap back into the Guardian and attacks hit harder. After taking damage, the player attends green while repositioning, Guard activates, health returns, and for a brief period both buffs overlap. The player exploits that overlap to finish the boss.
+A judge should be able to watch one uninterrupted causal sequence:
 
-Then the telemetry view shows exactly why each neural selection was accepted or rejected.
+```text
+player fights physically
+        ↓
+Sight / Guard evidence bars move
+        ↓
+decoder accepts one target
+        ↓
+Wisp visibly transfers power
+        ↓
+player creates Concord
+        ↓
+eyes return to the fight
+        ↓
+near-miss dash / counter generates Flux
+        ↓
+Gravity Bloom captures a hostile barrage
+        ↓
+Twin Eclipse returns it
+        ↓
+boss poise collapses
+        ↓
+Signal Break suppresses VEP modulation
+        ↓
+player physically punishes the opening
+```
 
-That is visible neural causality without pretending to read thoughts.
+Then the same screen can show whether that run was `LIVE`, `SIMULATION`, or `REPLAY` and why each neural decision was accepted or rejected.
 
----
+That is the project:
 
-# Near-term implementation gates
-
-- [x] Define the Dual Aura game mechanic
-- [x] Replace abstract Resonance with explicit visual-target decoding
-- [x] Implement two-target FBCCA decoder core
-- [x] Implement conservative signal-quality gate
-- [x] Implement session calibration thresholds
-- [x] Implement dwell/refractory event runtime
-- [x] Implement derived NeuralEvent contract
-- [x] Implement browser game-feel prototype
-- [x] Implement Unity neural receiver and Soul Wisp components
-- [x] Add deterministic Python tests
-- [ ] Connect physical Unicorn Hybrid Black acquisition
-- [ ] Synchronize Unity stimulus markers with acquisition
-- [ ] Validate 10/12 Hz codebook on physical display
-- [ ] Run stationary human calibration
-- [ ] Run moving-orb human calibration
-- [ ] Run movement + BCI qualification
-- [ ] Tune buff duration against measured decision time
-- [ ] Complete Fractured Signal art/audio pass
-- [ ] Run multi-participant playtesting
-- [ ] Freeze competition build
-
----
-
-# One-sentence pitch
-
-> **Mindforge is a BCI action game where a magical soul companion splits into two moving visual-evoked-potential auras around enemies, letting players continuously allocate neural attention between offensive power and healing while their hands remain responsible for real combat.**
+> **a fast action game whose physical skill remains immediate, while a slower and probabilistic BCI creates a distinct strategic axis that the game is explicitly paced around.**
 
 ---
 
-# Disclaimer
+## Key docs
 
-Mindforge is a research and entertainment project. It is not a medical device and does not diagnose, monitor, prevent, or treat any health condition. Its EEG features are operational BCI control signals tied to explicitly defined visual paradigms, not measurements of personality, intelligence, emotion, or mental health.
+- `docs/COMBAT_ECOSYSTEM.md` — Neural Counterplay combat design
+- `docs/DUAL_AURA_VEP_DESIGN.md` — visual BCI mechanic
+- `docs/PHANTOM_UNICORN_LAB.md` — neurOS simulation architecture
+- `docs/BCI_TIMING_AND_CADENCE.md` — clock separation and timing sweeps
+- `docs/EXPERIMENT_PROTOCOL.md` — physical qualification
+- `docs/ART_AND_FEEL.md` — visual/readability direction
+- `docs/SCIENTIFIC_REFERENCES.md` — scientific/hardware sources
 
-## BR41N.IO 2026
-
-Mindforge targets the **BR41N.IO Designers' Hackathon at IEEE SMC 2026**, October 4–5, 2026, in the custom BCI gaming category.
-
-**Your hands wield the Guardian. Your eyes guide the Wisp. Your visual cortex closes the loop.**
+**Your hands wield the Guardian. Your attention guides the Wisp. The game respects the difference.**
