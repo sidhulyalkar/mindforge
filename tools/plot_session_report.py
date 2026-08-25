@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ARTIFACT_REASONS = {"EMG_SUSPECTED", "FAST_TRANSIENT", "COMMON_MODE_TRANSIENT", "SATURATION", "TOO_FEW_CHANNELS"}
+DECODER_EVENTS = {"AURA_SELECTED", "ABSTAIN"}
 
 
 def rolling_fraction(values: np.ndarray, window: int = 20) -> np.ndarray:
@@ -35,10 +36,13 @@ def main() -> None:
     path = Path(args.session_json)
     data = json.loads(path.read_text(encoding="utf-8"))
     records = data.get("records", [])
-    evidence = [r for r in records if r.get("category") == "neural_evidence"]
+    evidence = [r for r in records
+                if r.get("category") == "neural_evidence" and r.get("event_type") in DECODER_EVENTS]
     if not evidence:
-        raise SystemExit("session contains no neural_evidence records")
+        raise SystemExit("session contains no decoder evidence windows")
 
+    # Calibration SERVICE_READY/HEARTBEAT/READY records intentionally do not enter
+    # these statistics. They are transport/status events, not classifier windows.
     t0 = float(evidence[0].get("realtime_s", 0.0))
     t = np.asarray([float(r.get("realtime_s", 0.0)) - t0 for r in evidence])
     sight = np.asarray([float(r.get("sight_score", 0.0)) for r in evidence])
@@ -76,14 +80,26 @@ def main() -> None:
         x = float(r.get("realtime_s", 0.0)) - t0
         ax4.axvline(x, alpha=0.55)
         ax4.text(x, 0.92, str(r.get("event_type", "phase")), rotation=90, va="top", fontsize=8)
-    selections = [r for r in records if r.get("category") == "neural_authority" and r.get("event_type") == "AURA_SELECTED"]
+
+    selections = [r for r in records
+                  if r.get("category") == "neural_authority" and r.get("event_type") == "AURA_SELECTED"]
+    switch_intervals: list[float] = []
+    last_target = None
+    last_switch_time = None
     for r in selections:
         x = float(r.get("realtime_s", 0.0)) - t0
-        ax4.scatter([x], [0.55 if r.get("target") == "sight" else 0.30], marker="o")
+        target = r.get("target")
+        ax4.scatter([x], [0.55 if target == "sight" else 0.30], marker="o")
+        if target and target != last_target:
+            if last_switch_time is not None:
+                switch_intervals.append(x - last_switch_time)
+            last_switch_time = x
+            last_target = target
+
     ax4.set_ylim(0, 1)
     ax4.set_yticks([0.30, 0.55])
     ax4.set_yticklabels(["Guard", "Sight"])
-    ax4.set_xlabel("Seconds since first neural evidence")
+    ax4.set_xlabel("Seconds since first decoder evidence window")
     ax4.set_title("Accepted selections and boss-phase transitions")
 
     total = max(1, len(evidence))
@@ -91,10 +107,11 @@ def main() -> None:
     artifact_n = int(np.sum(artifact))
     abstain_n = sum(r.get("event_type") == "ABSTAIN" for r in evidence)
     source = data.get("source_mode") or "unknown"
+    switch_text = "n/a" if not switch_intervals else f"{float(np.median(switch_intervals)):.2f}s"
     fig.suptitle(
         f"Mindforge closed-loop session · {data.get('outcome', 'UNKNOWN')} · {str(source).upper()}\n"
         f"windows={len(evidence)}  selections={accepted_n}  abstentions={abstain_n}  "
-        f"suspected-artifact={artifact_n} ({artifact_n / total:.1%})",
+        f"suspected-artifact={artifact_n} ({artifact_n / total:.1%})  median inter-selection={switch_text}",
         fontsize=12,
     )
 
