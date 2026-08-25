@@ -1,4 +1,5 @@
 using UnityEngine;
+using Mindforge.Presentation;
 
 namespace Mindforge.SoulWisp
 {
@@ -16,6 +17,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private Transform guardAura;
         [SerializeField] private VepAuraStimulus sightStimulus;
         [SerializeField] private VepAuraStimulus guardStimulus;
+        [SerializeField] private CombatVisualPalette palette;
 
         [Header("Follow")]
         [SerializeField] private Vector3 idleOffset = new Vector3(0.8f, 1.35f, 0.25f);
@@ -46,6 +48,11 @@ namespace Mindforge.SoulWisp
 
         private void Awake()
         {
+            if (palette != null)
+            {
+                sightColor = palette.sightTarget;
+                guardColor = palette.guardTarget;
+            }
             sightStimulus?.Configure(sightFrequencyHz, sightColor);
             guardStimulus?.Configure(guardFrequencyHz, guardColor);
             SetTarget(null);
