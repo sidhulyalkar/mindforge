@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mindforge: Dual Aura Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header><div><p class="eyebrow">BR41N.IO CONTROL VERTICAL SLICE</p><h1>Mindforge: The First Guardian</h1></div><div class="badge">SIMULATED BCI</div></header>
+    <section class="game-wrap">
+      <canvas id="game" width="1280" height="720" aria-label="Mindforge game arena"></canvas>
+      <div id="intro" class="panel">
+        <p class="eyebrow">SOUL WISP CALIBRATION</p>
+        <h2>Your Wisp splits when danger appears.</h2>
+        <p><strong>Blue / Neural Sight</strong> amplifies damage. <strong>Green / Neural Guard</strong> accelerates healing.</p>
+        <p>In the hardware build, visual attention to the frequency-coded VEP target drives selection. This browser build uses <kbd>Q</kbd> and <kbd>E</kbd> as simulated decoder evidence.</p>
+        <div class="controls-grid"><span><kbd>WASD</kbd> move</span><span><kbd>Space</kbd> fire</span><span><kbd>Shift</kbd> dash</span><span><kbd>Q</kbd> attend blue</span><span><kbd>E</kbd> attend green</span></div>
+        <button id="startButton">Begin calibration</button>
+      </div>
+    </section>
+    <section class="telemetry">
+      <div><span>Blue evidence</span><meter id="blueEvidence" min="0" max="1" value="0"></meter><strong id="blueValue">0.00</strong></div>
+      <div><span>Green evidence</span><meter id="greenEvidence" min="0" max="1" value="0"></meter><strong id="greenValue">0.00</strong></div>
+      <div><span>Neural state</span><strong id="neuralState">CALIBRATION</strong></div>
+      <div><span>Last event</span><strong id="lastEvent">none</strong></div>
+    </section>
+    <p class="footnote">Browser modulation is for game-feel testing only. Hardware qualification requires synchronized Unity stimuli, EEG acquisition, measured refresh timing, and participant-specific calibration.</p>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
