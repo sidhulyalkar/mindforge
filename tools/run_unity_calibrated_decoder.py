@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Unity-driven calibration followed by the production Mindforge SSVEP decoder loop.
+"""Unity-driven calibration followed by the production Mindforge SSVEP decoder.
 
 Unity owns presentation and sends labeled begin/end markers on UDP 19743. Python
 continuously acquires LSL EEG, fits session-specific thresholds, emits calibration
 status heartbeats, then continues with the exact NeuralEvent stream used by combat.
 No raw EEG is written to disk.
+
+When and only when source_mode=simulation, this tool may also drive the neurOS
+Phantom Unicorn localhost control port so REST/SIGHT/GUARD calibration labels and
+synthetic EEG state cannot drift apart during a golden-path rehearsal.
 """
 from __future__ import annotations
 
@@ -25,6 +29,7 @@ from mindforge_neuro.runtime import AuraSelectionRuntime, UdpEventSink
 SCHEMA = "mindforge.calibration_marker.v1"
 STAGES = ("baseline", "sight", "guard")
 POSTERIOR = (4, 5, 6, 7)
+PHANTOM_STAGE_COMMAND = {"baseline": "0", "sight": "1", "guard": "2"}
 
 
 def split_windows(eeg: np.ndarray, samples: int, hop: int) -> list[np.ndarray]:
@@ -59,6 +64,25 @@ def status_event(seq: int, kind: EventType, model_id: str, source_mode: str,
                               source_mode=source_mode)
 
 
+class PhantomController:
+    """Best-effort localhost simulator control. Never enabled for live/replay."""
+
+    def __init__(self, enabled: bool, host: str, port: int):
+        self.enabled = bool(enabled)
+        self.address = (host, port)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if self.enabled else None
+
+    def send(self, command: str) -> None:
+        if self.socket is None:
+            return
+        self.socket.sendto(command.encode("utf-8"), self.address)
+
+    def close(self) -> None:
+        if self.socket is not None:
+            self.socket.close()
+            self.socket = None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stream-name", default="UnicornMock")
@@ -72,6 +96,10 @@ def main() -> None:
     parser.add_argument("--hop-seconds", type=float, default=0.25)
     parser.add_argument("--calibration-hop-seconds", type=float, default=0.50)
     parser.add_argument("--report-dir", default="experiments/reports")
+    parser.add_argument("--phantom-control-host", default="127.0.0.1")
+    parser.add_argument("--phantom-control-port", type=int, default=19744)
+    parser.add_argument("--disable-phantom-control", action="store_true",
+                        help="do not drive neurOS Phantom from Unity calibration markers")
     args = parser.parse_args()
 
     cfg = SsvepConfig()
@@ -84,6 +112,17 @@ def main() -> None:
     markers = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     markers.bind((args.marker_host, args.marker_port))
     markers.setblocking(False)
+
+    phantom_enabled = (
+        args.source_mode == "simulation"
+        and not args.disable_phantom_control
+        and args.stream_name == "UnicornMock"
+    )
+    phantom = PhantomController(phantom_enabled, args.phantom_control_host,
+                                args.phantom_control_port)
+    if phantom_enabled:
+        phantom.send("0")
+        print(f"Phantom calibration control enabled at udp://{args.phantom_control_host}:{args.phantom_control_port}")
 
     seq = 1
     sink.send(status_event(seq, EventType.CALIBRATION_SERVICE_READY, model_id, args.source_mode,
@@ -118,6 +157,8 @@ def main() -> None:
                     active_session = session
                     active_stage = stage
                     active_chunks = []
+                    if phantom_enabled:
+                        phantom.send(PHANTOM_STAGE_COMMAND[stage])
                     print(f"Calibration BEGIN {stage} session={session[:8]}")
                 elif action == "end" and active_stage == stage and active_session == session:
                     epochs[stage] = (np.concatenate(active_chunks, axis=1)
@@ -125,6 +166,8 @@ def main() -> None:
                     print(f"Calibration END {stage}: {epochs[stage].shape[1]} samples")
                     active_stage = None
                     active_chunks = []
+                    if phantom_enabled and stage == "guard":
+                        phantom.send("0")
 
             chunk = source.pull_chunk(max_samples=128, timeout_s=0.05)
             if chunk is not None and active_stage is not None:
@@ -142,11 +185,14 @@ def main() -> None:
                     hop = max(1, int(round(args.calibration_hop_seconds * cfg.sample_rate_hz)))
                     trials: list[tuple[AuraTarget, np.ndarray]] = []
                     for target, stage in ((AuraTarget.SIGHT, "sight"), (AuraTarget.GUARD, "guard")):
-                        trials.extend((target, window) for window in split_windows(epochs[stage], cfg.window_samples, hop))
+                        trials.extend((target, window) for window in split_windows(
+                            epochs[stage], cfg.window_samples, hop))
                     profile = calibrate_decoder(decoder, trials, model_id=model_id)
                     baseline = resting_alpha_diagnostics(epochs["baseline"], cfg.sample_rate_hz)
                     if profile.training_accuracy < 0.70 or profile.accepted_fraction < 0.50:
-                        raise ValueError(f"separability below promotion gate: accuracy={profile.training_accuracy:.3f}, accepted={profile.accepted_fraction:.3f}")
+                        raise ValueError(
+                            f"separability below promotion gate: accuracy={profile.training_accuracy:.3f}, "
+                            f"accepted={profile.accepted_fraction:.3f}")
 
                     report = {
                         "schema": "mindforge.calibration_report.v1",
@@ -161,25 +207,33 @@ def main() -> None:
                     }
                     report_dir = Path(args.report_dir)
                     report_dir.mkdir(parents=True, exist_ok=True)
-                    (report_dir / f"calibration-{active_session}.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+                    (report_dir / f"calibration-{active_session}.json").write_text(
+                        json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
                     seq += 1
-                    sink.send(status_event(seq, EventType.CALIBRATION_READY, model_id, args.source_mode,
-                                           confidence=profile.training_accuracy,
-                                           quality=profile.accepted_fraction,
-                                           reason=f"alpha_peak_hz={baseline['alpha_peak_hz']:.2f};alpha_fraction={baseline['alpha_fraction']:.3f}"))
+                    sink.send(status_event(
+                        seq, EventType.CALIBRATION_READY, model_id, args.source_mode,
+                        confidence=profile.training_accuracy,
+                        quality=profile.accepted_fraction,
+                        reason=(f"alpha_peak_hz={baseline['alpha_peak_hz']:.2f};"
+                                f"alpha_fraction={baseline['alpha_fraction']:.3f}")))
                     print("Calibration accepted:", json.dumps(report, indent=2))
                     break
                 except Exception as exc:
+                    if phantom_enabled:
+                        phantom.send("0")
                     seq += 1
-                    sink.send(status_event(seq, EventType.CALIBRATION_FAILED, model_id, args.source_mode,
-                                           reason=str(exc)[:240]))
+                    sink.send(status_event(seq, EventType.CALIBRATION_FAILED, model_id,
+                                           args.source_mode, reason=str(exc)[:240]))
                     print(f"Calibration rejected: {exc}. Waiting for Unity retry.")
                     epochs = {}
 
-        runtime = AuraSelectionRuntime(decoder, profile, source_mode=args.source_mode, initial_seq=seq)
+        runtime = AuraSelectionRuntime(decoder, profile, source_mode=args.source_mode,
+                                       initial_seq=seq)
         buffer = SlidingWindowBuffer(8, cfg.window_samples,
                                      max(1, int(round(args.hop_seconds * cfg.sample_rate_hz))))
         print("Streaming calibrated derived events to Unity. Ctrl-C to stop.")
+        if phantom_enabled:
+            print("For simulated combat, drive attention/faults with tools/phantom_control.py.")
         while True:
             chunk = source.pull_chunk(max_samples=128, timeout_s=0.35)
             if chunk is None:
@@ -187,10 +241,16 @@ def main() -> None:
             for window, _timestamps in buffer.push(chunk.samples_uv, chunk.timestamps_s):
                 event = runtime.process(window)
                 sink.send(event)
-                print(f"{event.event.value:13s} target={(event.target.value if event.target else '-'):5s} S={event.sight_score:.3f} G={event.guard_score:.3f} margin={event.margin:.3f} q={event.quality:.2f} reason={event.reason or '-'}")
+                print(
+                    f"{event.event.value:13s} target={(event.target.value if event.target else '-'):5s} "
+                    f"S={event.sight_score:.3f} G={event.guard_score:.3f} "
+                    f"margin={event.margin:.3f} q={event.quality:.2f} reason={event.reason or '-'}")
     except KeyboardInterrupt:
         print("\nStopping calibrated decoder.")
     finally:
+        if phantom_enabled:
+            phantom.send("0")
+        phantom.close()
         markers.close()
         sink.close()
         source.close()
