@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Mindforge.Presentation;
 using Mindforge.SoulWisp;
 
 namespace Mindforge.Combat
@@ -12,6 +13,7 @@ namespace Mindforge.Combat
         [SerializeField] private FluxMeter flux;
         [SerializeField] private CombatantVitals vitals;
         [SerializeField] private HitStopController hitStop;
+        [SerializeField] private CombatPresentationDirector presentation;
         [SerializeField] private MindforgeProjectile projectilePrefab;
         [SerializeField] private Transform muzzle;
         [SerializeField] private Transform primaryTarget;
@@ -24,7 +26,7 @@ namespace Mindforge.Combat
         private float _counterUntil;
         private string _lastAura;
 
-        public bool ConcordActive => auras != null && auras.SightActive && auras.GuardActive;
+        public bool ConcordActive => auras != null && auras.ConcordActive;
         public Transform PrimaryTarget { get => primaryTarget; set => primaryTarget = value; }
 
         private void OnEnable()
@@ -81,10 +83,20 @@ namespace Mindforge.Combat
                 delta.y = 0f;
                 if (delta.sqrMagnitude < 0.01f || Vector3.Angle(aimDirection, delta) > halfArc) continue;
                 float multiplier = auras != null ? auras.DamageMultiplier : 1f;
-                receiver.ReceiveDamage(new DamagePacket(tuning.cleaveDamage * multiplier, tuning.cleavePoise, delta.normalized * tuning.cleaveImpulse, _hits[i].ClosestPoint(transform.position), CombatTeam.Guardian, true));
+                receiver.ReceiveDamage(new DamagePacket(
+                    tuning.cleaveDamage * multiplier,
+                    tuning.cleavePoise,
+                    delta.normalized * tuning.cleaveImpulse,
+                    _hits[i].ClosestPoint(transform.position),
+                    CombatTeam.Guardian,
+                    true));
                 hit = true;
             }
-            if (hit) hitStop?.Pulse(tuning.heavyHitStop);
+            if (hit)
+            {
+                hitStop?.Pulse(tuning.heavyHitStop);
+                presentation?.CleaveImpact(aimDirection);
+            }
             return true;
         }
 
@@ -101,14 +113,31 @@ namespace Mindforge.Combat
         {
             if (tuning == null) return;
             int count = Physics.OverlapSphereNonAlloc(transform.position, tuning.counterRadius, _hits, projectileMask, QueryTriggerInteraction.Collide);
+            bool reflectedAny = false;
+            Vector3 impactDirection = primaryTarget != null ? primaryTarget.position - transform.position : transform.forward;
+
             for (int i = 0; i < count; i++)
             {
                 MindforgeProjectile p = _hits[i].GetComponentInParent<MindforgeProjectile>();
                 if (p == null || !p.IsHostileToGuardian || !_reflectedThisWindow.Add(p.GetInstanceID())) continue;
-                p.ReflectTowards(primaryTarget, tuning.bloomReleaseSpeed, tuning.reflectedDamage * (ConcordActive ? 1.25f : 1f), tuning.reflectedPoise * (ConcordActive ? 1.25f : 1f), auras != null && auras.SightActive ? 1 : 0);
+                p.ReflectTowards(
+                    primaryTarget,
+                    tuning.bloomReleaseSpeed,
+                    tuning.reflectedDamage * (ConcordActive ? 1.25f : 1f),
+                    tuning.reflectedPoise * (ConcordActive ? 1.25f : 1f),
+                    auras != null && auras.SightActive ? 1 : 0);
                 flux?.Award(tuning.counterFlux, "Perfect Counter");
                 if (auras != null && auras.GuardActive) vitals?.Heal(2.4f);
+                reflectedAny = true;
+            }
+
+            // Multiple projectiles may be reflected by one parry field, but camera
+            // and hit-stop fire once per successful Counter Pulse rather than once
+            // per projectile. This keeps multi-reflections crisp instead of sticky.
+            if (reflectedAny)
+            {
                 hitStop?.Pulse(tuning.parryHitStop);
+                presentation?.CounterImpact(impactDirection);
             }
         }
     }
