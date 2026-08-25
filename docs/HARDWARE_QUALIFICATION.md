@@ -4,9 +4,7 @@ Mindforge treats hardware support as observed only after physical acquisition is
 
 ## Before live labeling
 
-Verify the physical Unicorn stream's identity, channel count/order, nominal rate, units, timestamp behavior, reconnect semantics and any auxiliary channels.
-
-Do not infer scale-to-microvolts or channel ordering from the Phantom source.
+Verify the physical Unicorn stream's identity, channel count/order, nominal rate, units, timestamp behavior, reconnect semantics and any auxiliary channels. Do not infer physical scale or ordering from the Phantom source.
 
 ## Display
 
@@ -28,8 +26,8 @@ light combat
 full combat
 ```
 
-Record accuracy, abstention, false selections, selection timing, quality/artifact state, movement condition and failures at each stage.
+Record accepted selections, abstentions, false selections, timing, quality/artifact state, movement condition and failures at each stage.
 
 ## Failure behavior
 
-Hardware loss must never block controller combat. Existing buffs decay normally unless the experiment protocol requires a stricter fail-close behavior. `PARTICIPANT_STOP` always dominates.
+Hardware loss never blocks controller combat. Existing buffs decay normally unless the experiment protocol explicitly chooses a stricter fail-close behavior. `PARTICIPANT_STOP` always dominates.
