@@ -53,9 +53,14 @@ namespace Mindforge.Combat
         public float concordDamageMultiplier = 1.45f;
 
         [Header("Hit Stop")]
-        public float lightHitStop = 0.025f;
+        [Tooltip("Crisp contact feedback for light impacts.")]
+        public float lightHitStop = 0.020f;
+        [Tooltip("Rift Cleave / substantial direct impact.")]
         public float heavyHitStop = 0.055f;
-        public float parryHitStop = 0.055f;
-        public float poiseBreakHitStop = 0.075f;
+        [Tooltip("Counter Pulse should read as sharp, not sluggish.")]
+        public float parryHitStop = 0.020f;
+        public float poiseBreakHitStop = 0.080f;
+        [Tooltip("Rare payoff only. Full Twin Eclipse impact can afford the dramatic freeze.")]
+        public float twinEclipseHitStop = 0.120f;
     }
 }
