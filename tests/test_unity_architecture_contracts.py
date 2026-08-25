@@ -84,11 +84,12 @@ def test_signal_break_is_both_visual_rest_and_sensory_rest():
 
 def test_boss_has_cognitive_pacing_and_echo_pressure():
     boss = read("Combat", "FracturedSignalDirector.cs")
-    assert "Phase I" in boss
-    assert "Phase II" in boss
-    assert "Phase III" in boss
+    assert "phaseOneTelegraph" in boss
+    assert "phaseTwoTelegraph" in boss
+    assert "phaseThreeTelegraph" in boss
     assert "SpawnEchoIfNeeded" in boss
     assert "FracturedSignalTelegraph" in boss
+    assert "SetExternalPause" in boss
 
 
 def test_presentation_dimming_is_opt_in_and_vep_independent():
