@@ -6,7 +6,7 @@ UNITY = ROOT / "unity" / "Assets" / "Mindforge"
 
 
 def read(*parts: str) -> str:
-    return (UNITY.joinpath(*parts)).read_text(encoding="utf-8")
+    return UNITY.joinpath(*parts).read_text(encoding="utf-8")
 
 
 def test_udp_receiver_is_threaded_bounded_and_latest_authoritative():
@@ -25,7 +25,6 @@ def test_udp_receiver_is_threaded_bounded_and_latest_authoritative():
 
 def test_cross_process_monotonic_clock_is_not_used_as_unity_packet_age():
     src = read("NeuralBridge", "UdpNeuralReceiver.cs")
-    # Packet age must come from the receive timestamp captured in Unity's process.
     assert "PacketAgeSeconds(ReceivedPacket packet)" in src
     assert "packet.ReceiveTicks" in src
     assert "evt.monotonic_ns" not in src
@@ -37,7 +36,7 @@ def test_hitstop_is_extendable_and_does_not_recapture_zero_timescale():
     assert "System.Math.Max(_freezeUntil" in src
     assert "if (_routine != null) return;" in src
     assert "_ownsTimeScale" in src
-    assert "WaitForSecondsRealtime" not in src  # real-time window is polled and extendable
+    assert "WaitForSecondsRealtime" not in src
 
 
 def test_sticky_concord_is_the_combat_authority():
@@ -90,3 +89,22 @@ def test_boss_has_cognitive_pacing_and_echo_pressure():
     assert "Phase III" in boss
     assert "SpawnEchoIfNeeded" in boss
     assert "FracturedSignalTelegraph" in boss
+
+
+def test_presentation_dimming_is_opt_in_and_vep_independent():
+    presentation = read("Presentation", "CombatPresentationDirector.cs")
+    stimulus = read("SoulWisp", "VepAuraStimulus.cs")
+    assert 'Shader.SetGlobalFloat("_MindforgeAmbientDim"' in presentation
+    assert "_MindforgeAmbientDim" not in stimulus
+    assert "Time.unscaledDeltaTime" in presentation
+
+
+def test_twin_eclipse_and_counter_have_asymmetric_hitstop():
+    tuning = read("Combat", "CombatTuning.cs")
+    guardian = read("Combat", "GuardianCombatController.cs")
+    bloom = read("Combat", "GravityBloomAbility.cs")
+    assert "parryHitStop = 0.020f" in tuning
+    assert "twinEclipseHitStop = 0.120f" in tuning
+    assert "bool reflectedAny" in guardian
+    assert "if (reflectedAny)" in guardian
+    assert "tuning.twinEclipseHitStop" in bloom
