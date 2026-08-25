@@ -57,7 +57,8 @@ def test_participant_stop_is_terminal_even_if_connection_recovers():
 def test_photodiode_patch_is_phase_locked_and_qualification_only():
     patch = text(UNITY / "Presentation" / "PhotodiodePatch.cs")
     stimulus = text(UNITY / "SoulWisp" / "VepAuraStimulus.cs")
-    assert "ActiveStimulus.IsHighPhase" in patch
+    assert "VepAuraStimulus stimulus = ActiveStimulus" in patch
+    assert "stimulus.IsHighPhase" in patch
     assert "StimulusSource.Sight" in patch and "StimulusSource.Guard" in patch
     assert "toggleKey = KeyCode.F10" in patch
     assert "switchSourceKey = KeyCode.F11" in patch
