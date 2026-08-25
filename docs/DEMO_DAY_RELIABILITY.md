@@ -50,14 +50,16 @@ The contingency response is intentionally fair rather than advantageous:
 
 - boss scheduler pauses;
 - Echo nodes stop firing;
+- already-fired projectiles freeze and stop colliding;
+- an already-active Gravity Bloom suspends without detonating;
 - Guardian movement remains available;
 - Guardian attack/parry/dash/Bloom actions are disabled;
 - existing neural buffs continue to expire on real time;
 - a neutral fullscreen veil heavily mutes/desaturates the presentation without touching the VEP-core timing code;
 - `NEURAL LINK UNSTABLE` appears;
-- recovery must remain stable for ~0.75 s before authority resumes.
+- recovery must remain stable for ~0.75 s before combat state resumes.
 
-This prevents radio/network silence from killing the player or creating a free boss-damage window.
+On recovery, projectile velocities/collider state and an active Bloom's remaining duration are restored instead of replaying stale actions in a burst. This prevents radio/network silence from killing the player or creating a free boss-damage window.
 
 `PARTICIPANT_STOP` is stronger than ordinary signal loss. It is terminal for the current run: later socket/radio recovery does not resume combat, and the game remains in a safe paused state until the session is explicitly restarted.
 
@@ -121,10 +123,11 @@ Before this layer is called competition-ready, observe:
 2. Awakening handshake with neurOS Phantom;
 3. deliberate calibration failure and retry;
 4. 2+ s Phantom source silence during Phase III;
-5. fair pause and stable recovery;
-6. participant-stop remains terminal across source recovery;
-7. telemetry partial checkpoint survives interruption;
-8. telemetry JSON finalization after victory and defeat;
-9. report generation to PNG/PDF;
-10. photodiode timing under idle, Counter Pulse, Signal Break, and Twin Eclipse;
-11. repeat the complete path with physical Unicorn.
+5. fair pause freezes scheduler, Echoes, projectiles, and active Bloom state;
+6. stable recovery restores that state without stale-authority burst;
+7. participant-stop remains terminal across source recovery;
+8. telemetry partial checkpoint survives interruption;
+9. telemetry JSON finalization after victory and defeat;
+10. report generation to PNG/PDF;
+11. photodiode timing under idle, Counter Pulse, Signal Break, and Twin Eclipse;
+12. repeat the complete path with physical Unicorn.
