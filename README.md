@@ -275,14 +275,7 @@ Signal Break is combat reward, tension-release rhythm, and visual-fatigue manage
 
 # Presentation
 
-The Unity presentation layer includes hooks for:
-
-- directional Rift Cleave / Counter camera displacement;
-- FOV compression during Gravity Bloom capture;
-- FOV snap on release;
-- environment-only dimming for major payoffs;
-- Signal Break low-pass / bass-pulse sensory rest;
-- 120 ms Twin Eclipse impact contrast.
+The Unity presentation layer includes hooks for directional Rift Cleave / Counter camera displacement, FOV compression during Gravity Bloom capture, FOV snap on release, environment-only dimming for major payoffs, Signal Break low-pass/bass-pulse sensory rest, and 120 ms Twin Eclipse impact contrast.
 
 Environment dimming is opt-in. The coded VEP materials intentionally ignore the presentation dim global.
 
@@ -290,17 +283,7 @@ Environment dimming is opt-in. The coded VEP materials intentionally ignore the 
 
 # Make the invisible visible
 
-`NeuralEvidenceHud` shows judges:
-
-- Sight score;
-- Guard score;
-- winner margin;
-- quality;
-- accepted/abstained state;
-- simulation/replay/live provenance;
-- UDP queue depth;
-- stale packet drops;
-- backpressure drops.
+`NeuralEvidenceHud` shows judges Sight score, Guard score, winner margin, quality, accepted/abstained state, simulation/replay/live provenance, UDP queue depth, stale packet drops, and backpressure drops.
 
 The HUD follows the newest evidence stream while gameplay follows bounded authority, so a judge can see what the decoder is currently observing even after a render stall.
 
@@ -346,14 +329,6 @@ python tools/run_lsl_decoder.py \
 
 ---
 
-# Display timing
-
-`DisplayTimingMonitor` catches software-side frame cadence failures, but it is not proof of emitted luminance timing.
-
-Physical timing must still be measured, ideally with a photodiode, during idle stimuli, full boss load, Counter Pulse, Signal Break, Twin Eclipse, and post-rest resume.
-
----
-
 # Qualification ladder
 
 ```text
@@ -382,25 +357,9 @@ Q10 full Fractured Signal encounter
 
 See [`docs/UNITY_SCENE_WIRING.md`](docs/UNITY_SCENE_WIRING.md) for the concrete scene/prefab wiring checklist.
 
----
-
-# Current implementation boundary
-
-The competition branch includes the decoder/runtime, bounded threaded Unity event intake, spectator evidence, sticky Concord, visual-rest Signal Break, reserved visual palette, coded-core/feedback-shell separation, post-decision haptics, directional presentation hooks, Neural Counterplay combat, cognitively paced boss patterns, Echo nodes, hostile telegraphs, Phantom-lab tooling, browser prototype, and architecture regression tests.
-
-Automated repository checks cover Python/neural behavior, browser JavaScript syntax, and source-level Unity architecture contracts.
-
 ## Not claimed yet
 
-We do **not yet claim**:
-
-- an observed successful Unity Editor/Player compile of the complete new scene;
-- verified serialized production scene/prefab wiring;
-- measured physical 10/12 Hz luminance timing;
-- verified physical Unicorn metadata/units on the competition machine;
-- human SSVEP performance;
-- human full-combat BCI performance;
-- final production art/audio.
+We do **not yet claim** an observed successful Unity Editor/Player compile of the complete new scene, verified serialized production scene/prefab wiring, measured physical 10/12 Hz luminance timing, verified physical Unicorn metadata/units on the competition machine, human SSVEP performance, human full-combat BCI performance, or final production art/audio.
 
 Those are the remaining evidence gates.
 
