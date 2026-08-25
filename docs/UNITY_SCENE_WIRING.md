@@ -2,29 +2,11 @@
 
 This file turns the code architecture into a concrete competition-scene checklist.
 
-## 1. Neural runtime root
+## Neural runtime root
 
-Create `MindforgeNeuralRuntime` with:
+Create `MindforgeNeuralRuntime` with `UdpNeuralReceiver`, `DualAuraCombatDirector`, `NeuralEvidenceHud`, and `NeuralHapticFeedback`. Use UDP port `19742`, a bounded queue, a queue-age limit around 0.75 s, and a stale connection threshold around 2.5 s. The spectator evidence HUD should not cover the player's action-gaze corridor.
 
-- `UdpNeuralReceiver`
-  - port `19742`
-  - max queue age ~`0.75 s`
-  - stale connection threshold ~`2.5 s`
-  - bounded queue / bounded drain per frame
-- `DualAuraCombatDirector`
-  - receiver → `UdpNeuralReceiver`
-  - buffs → Guardian `AuraBuffController`
-- `NeuralEvidenceHud`
-  - receiver → same `UdpNeuralReceiver`
-- `NeuralHapticFeedback`
-  - receiver → same receiver
-  - buffs → same `AuraBuffController`
-
-The evidence HUD is spectator-facing. It should not cover the player's action-gaze corridor.
-
-## 2. Soul Wisp hierarchy
-
-Recommended hierarchy:
+## Soul Wisp hierarchy
 
 ```text
 SoulWispRoot
@@ -39,103 +21,47 @@ SoulWispRoot
 
 Never put `NeuralAuraFeedback` on the VEP core renderer.
 
-`SoulWispController` owns target positioning and receives the shared `CombatVisualPalette`.
+Create one `MindforgeVisualPalette` asset and assign it to the Wisp, projectile prefabs, feedback shell and boss telegraph. Sight blue / Guard green are reserved.
 
-## 3. Visual palette
+## Guardian combat
 
-Create one `MindforgeVisualPalette` asset from `CombatVisualPalette`.
+Guardian root should contain `GuardianMotor`, `GuardianCombatController`, `AuraBuffController`, `FluxMeter`, `CombatantVitals`, `GravityBloomAbility`, and `ProjectileNearMissSensor` with shared `CombatTuning`, `HitStopController`, and `CombatPresentationDirector` references.
 
-Assign it to:
+All Concord consumers must use `AuraBuffController.ConcordActive`.
 
-- `SoulWispController`;
-- projectile prefabs;
-- `NeuralAuraFeedback`;
-- `FracturedSignalTelegraph`.
-
-The exact Sight blue / Guard green must not be reused by enemy fire or generic player ordnance.
-
-## 4. Guardian combat
-
-Guardian root:
-
-- `GuardianMotor`
-- `GuardianCombatController`
-- `AuraBuffController`
-- `FluxMeter`
-- `CombatantVitals`
-- `GravityBloomAbility`
-- `ProjectileNearMissSensor`
-
-Shared references:
-
-- `CombatTuning` asset;
-- `HitStopController`;
-- `CombatPresentationDirector`;
-- current boss target.
-
-`GuardianCombatController.ConcordActive` and `GravityBloomAbility` must use `AuraBuffController.ConcordActive`, not instantaneous Sight+Guard overlap.
-
-## 5. Camera feel
-
-Camera hierarchy:
+## Camera hierarchy
 
 ```text
-FollowRig               <- authoritative tracking / lock-on
-└── ImpactPivot          <- CombatPresentationDirector owns local offset only
+FollowRig               <- normal tracking / lock-on
+└── ImpactPivot          <- CombatPresentationDirector owns local offset
     └── GameplayCamera
 ```
 
-Do not put `CombatPresentationDirector` on the same transform that the follow/lock-on system writes directly.
+Do not let impact presentation and follow tracking write the same transform. Environment lights may opt into dimming; VEP core materials must ignore `_MindforgeAmbientDim`.
 
-Assign:
+## Fractured Signal boss
 
-- `impactPivot` → dedicated child;
-- `gameplayCamera` → actual camera;
-- ambient lights → non-BCI environment lights only;
-- optional low-pass filter → combat/music mix source;
-- optional Signal Break pulse → bass/heartbeat cue.
-
-VEP core materials should ignore the `_MindforgeAmbientDim` shader global.
-
-## 6. Boss encounter
-
-Fractured Signal root:
+Boss root:
 
 - `CombatantVitals`
 - `PoiseSystem`
 - `FracturedSignalDirector`
 - `SignalBreakReward`
-- optional `FracturedSignalTelegraph`
+- `FracturedSignalTelegraph`
 
-Wire:
+Wire the Wisp, player's `FluxMeter`, telegraph component, Echo prefab, projectile prefab, and shared `CombatPresentationDirector`.
 
-- `FracturedSignalDirector.soulWisp` → player's Wisp;
-- `FracturedSignalDirector.playerFlux` → player's FluxMeter;
-- `FracturedSignalDirector.telegraph` → hostile-colored telegraph component;
-- `FracturedSignalDirector.echoPrefab` → configured Echo prefab;
-- `SignalBreakReward.presentation` → shared `CombatPresentationDirector`.
-
-### Echo prefab
-
-Echo prefab should contain:
+Echo prefab:
 
 - `FracturedEchoNode`
 - `CombatantVitals`
 - optional `PoiseSystem`
-- hostile projectile prefab reference
+- hostile projectile prefab
 - angular/fractured visual mesh
 
-Destroying an Echo rewards Flux and should be visually readable without using Sight blue or Guard green.
+Provide enough `LineRenderer` rays for the largest Phase III fan plus one radial ring. Telegraphs should use hostile crimson/orange only.
 
-### Telegraph object
-
-Provide enough `LineRenderer` rays for the largest Phase III fan and one radial `LineRenderer` ring. Telegraph materials should use unlit/additive crimson or orange and should never be confused with the smooth neural targets.
-
-`PoiseSystem.breakDuration` and `signalBreakVisualRestSeconds` should remain intentionally aligned for the competition build unless experiment data justifies separating them.
-
-## 7. Hit-stop values
-
-Initial competition tuning:
+## Hit-stop targets
 
 ```text
 light            0.020 s
@@ -145,13 +71,9 @@ Signal Break     0.080 s
 Twin Eclipse     0.120 s
 ```
 
-`HitStopController` must remain the single authority for scaled-time freezes.
+`HitStopController` remains the single scaled-time freeze authority.
 
-## 8. Projectile visual language
-
-Enemy projectile prefabs should use angular meshes.
-
-`MindforgeProjectile` colors them automatically when a `CombatVisualPalette` is assigned:
+## Projectile language
 
 ```text
 enemy normal  -> crimson/magenta
@@ -160,78 +82,57 @@ Guardian      -> ivory
 reflected     -> violet
 ```
 
-The VEP target colors are deliberately absent from this list.
+Enemy meshes should be angular. Neural targets remain smooth.
 
-## 9. Display qualification
+## Transport stress rehearsal
 
-Software checklist:
+With neurOS `UnicornMock`, inject LSL jitter, dropped chunks, source silence and recovery while triggering Counter Pulse, Rift Cleave, Signal Break, Twin Eclipse and heavy particle load.
 
-- VSync / refresh locked;
-- `DisplayTimingMonitor` healthy;
-- no long-frame spike during Twin Eclipse;
-- VEP core remains visible during all boss patterns;
-- no temporal post effect applied to VEP cores.
-
-Physical checklist:
-
-- photodiode on Sight core;
-- photodiode on Guard core;
-- idle timing;
-- full boss load;
-- Counter Pulse hit-stop;
-- Signal Break rest transition;
-- Twin Eclipse;
-- resume after rest.
-
-## 10. Transport stress rehearsal
-
-With neurOS `UnicornMock` active, inject:
-
-- LSL delivery jitter;
-- dropped chunks;
-- 2 s source silence;
-- recovery.
-
-Simultaneously trigger:
-
-- Counter Pulse;
-- Rift Cleave;
-- Signal Break;
-- Twin Eclipse;
-- high particle load.
-
-Watch the spectator HUD transport counters and verify:
+Verify:
 
 ```text
 queue stays bounded
 old packets are discarded
-no burst of conflicting aura selections
+no conflicting aura-selection burst
 PARTICIPANT_STOP survives
 BCI loss/recovery is visible
 controller combat never blocks
 ```
 
-## 11. Demo provenance
+## Display qualification
 
-Every judge-facing run must visibly identify one of:
+Software checks:
 
-```text
-SIMULATION
-REPLAY
-LIVE
-```
+- refresh/VSync locked;
+- `DisplayTimingMonitor` healthy;
+- no long-frame spike during Twin Eclipse;
+- VEP cores stay visible;
+- no temporal post effect touches VEP cores.
 
-A Phantom Unicorn run is useful engineering evidence but must never be presented as observed human BCI performance.
+Physical photodiode checks:
 
-## 12. Promotion gate
+- Sight core;
+- Guard core;
+- idle timing;
+- full boss load;
+- Counter Pulse;
+- Signal Break transition;
+- Twin Eclipse;
+- resume after visual rest.
 
-Do not call the Unity vertical slice qualified until all of these are observed:
+## Demo provenance
 
-1. Unity 2022.3 Editor imports and compiles the full project;
+Every judge-facing run visibly says `SIMULATION`, `REPLAY`, or `LIVE`. Phantom Unicorn is engineering evidence, never human BCI evidence.
+
+## Promotion gate
+
+Do not call the Unity vertical slice qualified until:
+
+1. Unity 2022.3 imports and compiles the complete project;
 2. scene/prefab references are serialized correctly;
 3. controller-only fight completes end-to-end;
-4. Phantom Unicorn reaches Unity through the full LSL → Python → UDP path;
+4. Phantom Unicorn reaches Unity through LSL → Python → UDP;
 5. forced render stalls do not burst stale neural authority;
 6. physical VEP timing is measured;
 7. physical Unicorn acquisition is verified;
-8. stationary, moving, movement, and full-combat human sessions are completed.
+8. stationary, moving, player-movement, and full-combat human sessions are completed.
