@@ -8,6 +8,8 @@ namespace Mindforge.Combat
     {
         [SerializeField] private CombatTuning tuning;
         [SerializeField] private Transform cameraReference;
+        [SerializeField] private GuardianEquipmentLoadout loadout;
+        [SerializeField] private GuardianStamina stamina;
 
         private Rigidbody _body;
         private Vector2 _moveInput;
@@ -25,6 +27,8 @@ namespace Mindforge.Combat
             _body = GetComponent<Rigidbody>();
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
+            if (stamina == null) stamina = GetComponent<GuardianStamina>();
         }
 
         public void SetMoveInput(Vector2 input) => _moveInput = Vector2.ClampMagnitude(input, 1f);
@@ -32,12 +36,19 @@ namespace Mindforge.Combat
         public bool RequestDash(Vector3 fallbackDirection)
         {
             if (tuning == null || Time.time - _lastDash < tuning.dashCooldown) return false;
+            float staminaCost = stamina != null
+                ? stamina.DodgeBaseCost * (loadout != null ? loadout.RollStaminaMultiplier : 1f)
+                : 0f;
+            if (stamina != null && !stamina.TrySpend(staminaCost, "DODGE_ROLL")) return false;
+
             Vector3 direction = MoveDirectionWorld();
             if (direction.sqrMagnitude < 0.01f) direction = fallbackDirection.normalized;
             if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
             _lastDash = Time.time;
-            _dashUntil = Time.time + tuning.dashDuration;
-            _body.velocity = direction.normalized * tuning.dashSpeed;
+            float speedMultiplier = loadout != null ? loadout.RollSpeedMultiplier : 1f;
+            float durationMultiplier = loadout != null ? loadout.RollDurationMultiplier : 1f;
+            _dashUntil = Time.time + tuning.dashDuration * durationMultiplier;
+            _body.velocity = direction.normalized * tuning.dashSpeed * speedMultiplier;
             DashStarted?.Invoke();
             return true;
         }
@@ -53,14 +64,16 @@ namespace Mindforge.Combat
         private void FixedUpdate()
         {
             if (tuning == null || IsDashing) return;
+            float loadMultiplier = loadout != null ? loadout.MoveSpeedMultiplier : 1f;
             Vector3 desiredDir = MoveDirectionWorld();
             Vector3 horizontal = Vector3.ProjectOnPlane(_body.velocity, Vector3.up);
-            Vector3 accel = desiredDir * tuning.acceleration - horizontal * tuning.drag;
+            Vector3 accel = desiredDir * tuning.acceleration * Mathf.Lerp(0.88f, 1f, loadMultiplier) - horizontal * tuning.drag;
             _body.AddForce(accel, ForceMode.Acceleration);
             horizontal = Vector3.ProjectOnPlane(_body.velocity, Vector3.up);
-            if (horizontal.magnitude > tuning.maxSpeed)
+            float maxSpeed = tuning.maxSpeed * loadMultiplier;
+            if (horizontal.magnitude > maxSpeed)
             {
-                Vector3 clamped = horizontal.normalized * tuning.maxSpeed;
+                Vector3 clamped = horizontal.normalized * maxSpeed;
                 _body.velocity = clamped + Vector3.up * _body.velocity.y;
             }
         }
