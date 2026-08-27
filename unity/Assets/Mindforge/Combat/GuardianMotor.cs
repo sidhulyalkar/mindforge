@@ -10,16 +10,19 @@ namespace Mindforge.Combat
         [SerializeField] private Transform cameraReference;
         [SerializeField] private GuardianEquipmentLoadout loadout;
         [SerializeField] private GuardianStamina stamina;
+        [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private float dodgeInvulnerabilitySeconds = 0.105f;
 
         private Rigidbody _body;
         private Vector2 _moveInput;
         private float _dashUntil;
+        private float _invulnerableUntil;
         private float _lastDash = -999f;
 
         public event Action DashStarted;
 
         public bool IsDashing => Time.time < _dashUntil;
-        public bool IsInvulnerable => IsDashing;
+        public bool IsInvulnerable => Time.time < _invulnerableUntil;
         public Vector3 Velocity => _body != null ? _body.velocity : Vector3.zero;
 
         private void Awake()
@@ -34,6 +37,7 @@ namespace Mindforge.Combat
         {
             if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
             if (stamina == null) stamina = GetComponent<GuardianStamina>();
+            if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
         }
 
         public void SetMoveInput(Vector2 input) => _moveInput = Vector2.ClampMagnitude(input, 1f);
@@ -41,7 +45,9 @@ namespace Mindforge.Combat
         public bool RequestDash(Vector3 fallbackDirection)
         {
             ResolvePhysicalBudget();
-            if (tuning == null || Time.time - _lastDash < tuning.dashCooldown) return false;
+            if (tuning == null || IsDashing || Time.time - _lastDash < tuning.dashCooldown) return false;
+            if (physicalCombat != null && !physicalCombat.CanDodge) return false;
+
             float staminaCost = stamina != null
                 ? stamina.DodgeBaseCost * (loadout != null ? loadout.RollStaminaMultiplier : 1f)
                 : 0f;
@@ -53,7 +59,9 @@ namespace Mindforge.Combat
             _lastDash = Time.time;
             float speedMultiplier = loadout != null ? loadout.RollSpeedMultiplier : 1f;
             float durationMultiplier = loadout != null ? loadout.RollDurationMultiplier : 1f;
-            _dashUntil = Time.time + tuning.dashDuration * durationMultiplier;
+            float rollDuration = tuning.dashDuration * durationMultiplier;
+            _dashUntil = Time.time + rollDuration;
+            _invulnerableUntil = Time.time + Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds));
             _body.velocity = direction.normalized * tuning.dashSpeed * speedMultiplier;
             DashStarted?.Invoke();
             return true;
@@ -72,12 +80,13 @@ namespace Mindforge.Combat
             ResolvePhysicalBudget();
             if (tuning == null || IsDashing) return;
             float loadMultiplier = loadout != null ? loadout.MoveSpeedMultiplier : 1f;
+            float stanceMultiplier = physicalCombat != null ? Mathf.Clamp(physicalCombat.MovementMultiplier, 0.2f, 1f) : 1f;
             Vector3 desiredDir = MoveDirectionWorld();
             Vector3 horizontal = Vector3.ProjectOnPlane(_body.velocity, Vector3.up);
-            Vector3 accel = desiredDir * tuning.acceleration * Mathf.Lerp(0.88f, 1f, loadMultiplier) - horizontal * tuning.drag;
+            Vector3 accel = desiredDir * tuning.acceleration * Mathf.Lerp(0.88f, 1f, loadMultiplier) * stanceMultiplier - horizontal * tuning.drag;
             _body.AddForce(accel, ForceMode.Acceleration);
             horizontal = Vector3.ProjectOnPlane(_body.velocity, Vector3.up);
-            float maxSpeed = tuning.maxSpeed * loadMultiplier;
+            float maxSpeed = tuning.maxSpeed * loadMultiplier * stanceMultiplier;
             if (horizontal.magnitude > maxSpeed)
             {
                 Vector3 clamped = horizontal.normalized * maxSpeed;
