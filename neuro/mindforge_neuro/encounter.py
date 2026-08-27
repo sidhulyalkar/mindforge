@@ -30,6 +30,15 @@ class EncounterReport:
     echo_shatters: int
     echo_shatter_rate: float | None
 
+    boss_attack_telegraphs: int
+    boss_attacks_fired: int
+    fan_attacks_fired: int
+    radial_attacks_fired: int
+    heavy_attacks_fired: int
+    player_damage_after_recent_fan: int
+    player_damage_after_recent_radial: int
+    player_damage_without_recent_primary_pattern: int
+
     player_damage_events: int
     player_damage_total: float
     player_heavy_hits: int
@@ -92,6 +101,43 @@ def _degraded_seconds(markers: list[GameMarker]) -> float:
     return total
 
 
+def _recent_primary_pattern_before_damage(
+    markers: list[GameMarker], *, lookback_seconds: float = 2.25
+) -> tuple[int, int, int]:
+    """Count recent primary boss patterns before damage without claiming causation.
+
+    Projectiles have travel time and Echoes fire independently, so these are exposure
+    diagnostics only. They answer "what primary pattern had just fired?", not "what
+    definitely caused the hit?".
+    """
+    fan = 0
+    radial = 0
+    unmatched = 0
+    fired: list[GameMarker] = []
+    for marker in markers:
+        if marker.event == "BOSS_ATTACK_FIRED":
+            fired.append(marker)
+            continue
+        if marker.event != "PLAYER_DAMAGED":
+            continue
+
+        recent = [
+            attack for attack in fired
+            if 0.0 <= marker.unity_realtime_s - attack.unity_realtime_s <= lookback_seconds
+        ]
+        if not recent:
+            unmatched += 1
+            continue
+        reason = (recent[-1].reason or "").upper()
+        if reason.startswith("FAN_"):
+            fan += 1
+        elif reason.startswith("RADIAL_"):
+            radial += 1
+        else:
+            unmatched += 1
+    return fan, radial, unmatched
+
+
 def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memory") -> EncounterReport:
     ordered = sorted(list(markers), key=lambda marker: (marker.unity_realtime_s, marker.seq))
     session_ids = tuple(sorted({marker.session_id for marker in ordered if marker.session_id}))
@@ -110,6 +156,13 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
     reflects = _count(ordered, "COUNTER_REFLECT")
     echo_spawns = _count(ordered, "ECHO_SPAWNED")
     echo_shatters = _count(ordered, "ECHO_SHATTERED")
+
+    telegraphs = [marker for marker in ordered if marker.event == "BOSS_ATTACK_TELEGRAPH"]
+    attacks = [marker for marker in ordered if marker.event == "BOSS_ATTACK_FIRED"]
+    fan_attacks = sum((marker.reason or "").upper().startswith("FAN_") for marker in attacks)
+    radial_attacks = sum((marker.reason or "").upper().startswith("RADIAL_") for marker in attacks)
+    heavy_attacks = sum((marker.reason or "").upper().endswith("_HEAVY") for marker in attacks)
+    recent_fan_damage, recent_radial_damage, unmatched_damage = _recent_primary_pattern_before_damage(ordered)
 
     player_damage_events, player_damage_total, player_heavy_hits = _damage(ordered, "PLAYER_DAMAGED")
     boss_damage_events, boss_damage_total, boss_heavy_hits = _damage(ordered, "BOSS_DAMAGED")
@@ -139,6 +192,8 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         flags.append("PLAYER_TOOK_DAMAGE_WITHOUT_RECORDED_BOSS_DAMAGE")
     if _count(ordered, "BCI_DEGRADED") > 0:
         flags.append("NEURAL_LINK_DEGRADED_DURING_RUN")
+    if attacks and not telegraphs:
+        flags.append("BOSS_ATTACKS_FIRED_WITHOUT_TELEGRAPH_MARKERS")
 
     return EncounterReport(
         schema="mindforge.encounter_report.v1",
@@ -159,6 +214,14 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         echo_spawns=echo_spawns,
         echo_shatters=echo_shatters,
         echo_shatter_rate=_rate(echo_shatters, echo_spawns),
+        boss_attack_telegraphs=len(telegraphs),
+        boss_attacks_fired=len(attacks),
+        fan_attacks_fired=fan_attacks,
+        radial_attacks_fired=radial_attacks,
+        heavy_attacks_fired=heavy_attacks,
+        player_damage_after_recent_fan=recent_fan_damage,
+        player_damage_after_recent_radial=recent_radial_damage,
+        player_damage_without_recent_primary_pattern=unmatched_damage,
         player_damage_events=player_damage_events,
         player_damage_total=player_damage_total,
         player_heavy_hits=player_heavy_hits,
