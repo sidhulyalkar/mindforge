@@ -20,15 +20,12 @@ namespace Mindforge.Combat
         [SerializeField] private Transform primaryTarget;
         [SerializeField] private LayerMask damageMask;
         [SerializeField] private LayerMask projectileMask;
-        [SerializeField] private float guardHealEvidenceInterval = 0.75f;
 
         private readonly Collider[] _hits = new Collider[48];
         private readonly HashSet<int> _reflectedThisWindow = new HashSet<int>();
         private float _lastShot = -999f, _lastCleave = -999f, _lastCounter = -999f;
         private float _counterUntil;
         private string _lastAura;
-        private float _guardHealPending;
-        private float _guardHealFlushAt;
 
         public event Action<string> ActionAccepted;
         public event Action<string> CombatOutcome;
@@ -55,26 +52,8 @@ namespace Mindforge.Combat
             {
                 float restored = vitals.Heal(auras.HealingPerSecond * Time.deltaTime);
                 if (restored > 0f)
-                {
-                    _guardHealPending += restored;
-                    if (_guardHealFlushAt <= 0f)
-                        _guardHealFlushAt = Time.time + Mathf.Max(0.1f, guardHealEvidenceInterval);
-                }
-                if (_guardHealPending > 0f && Time.time >= _guardHealFlushAt)
-                    FlushGuardHealing("GUARD_REGEN_REALIZED");
+                    NeuralPayoffObserved?.Invoke("GUARD_REGEN_REALIZED", restored);
             }
-            else if (_guardHealPending > 0f)
-            {
-                FlushGuardHealing("GUARD_REGEN_REALIZED");
-            }
-        }
-
-        private void FlushGuardHealing(string kind)
-        {
-            if (_guardHealPending > 0f)
-                NeuralPayoffObserved?.Invoke(kind, _guardHealPending);
-            _guardHealPending = 0f;
-            _guardHealFlushAt = 0f;
         }
 
         private void OnAuraApplied(string target)
