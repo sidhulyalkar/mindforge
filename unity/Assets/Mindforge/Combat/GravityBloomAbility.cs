@@ -96,7 +96,9 @@ namespace Mindforge.Combat
                 return;
             }
 
-            float damage = tuning.reflectedDamage * (_concord ? tuning.concordDamageMultiplier : 1f);
+            float baselineDamage = tuning.reflectedDamage;
+            float damage = baselineDamage * (_concord ? tuning.concordDamageMultiplier : 1f);
+            float neuralBonusDamage = _concord ? Mathf.Max(0f, damage - baselineDamage) : 0f;
             float poise = tuning.reflectedPoise * (_concord ? tuning.concordDamageMultiplier : 1f);
             for (int i = 0; i < _captured.Count; i++)
             {
@@ -107,7 +109,9 @@ namespace Mindforge.Combat
                     tuning.bloomReleaseSpeed * (_concord ? 1.18f : 1f),
                     damage,
                     poise,
-                    _concord ? 2 : 0);
+                    _concord ? 2 : 0,
+                    _concord ? "TWIN_ECLIPSE_DAMAGE" : null,
+                    neuralBonusDamage);
             }
             _captured.Clear();
             _capturedIds.Clear();
