@@ -24,11 +24,34 @@ namespace Mindforge.Combat
         public void ReceiveDamage(DamagePacket packet)
         {
             if (!IsAlive || packet.SourceTeam == team) return;
-            Health = Mathf.Max(0f, Health - Mathf.Max(0f, packet.Damage));
+
+            float before = Health;
+            float requestedDamage = Mathf.Max(0f, packet.Damage);
+            Health = Mathf.Max(0f, Health - requestedDamage);
+            float actualDamage = Mathf.Max(0f, before - Health);
+
+            // Realized neural bonus is counterfactual incremental direct damage, not
+            // requested bonus. If the non-neural baseline would already have removed
+            // the remaining HP, the incremental realized contribution is zero.
+            float requestedBonus = Mathf.Clamp(packet.NeuralBonusDamage, 0f, requestedDamage);
+            float baselineDamage = Mathf.Max(0f, requestedDamage - requestedBonus);
+            float baselineActual = Mathf.Min(before, baselineDamage);
+            float realizedBonus = Mathf.Max(0f, actualDamage - baselineActual);
+
             if (body != null && packet.Impulse.sqrMagnitude > 0.001f)
                 body.AddForce(packet.Impulse, ForceMode.VelocityChange);
             poise?.Apply(packet.PoiseDamage);
-            Damaged?.Invoke(packet);
+
+            Damaged?.Invoke(new DamagePacket(
+                actualDamage,
+                packet.PoiseDamage,
+                packet.Impulse,
+                packet.Point,
+                packet.SourceTeam,
+                packet.Heavy,
+                packet.NeuralPayoffKind,
+                realizedBonus));
+
             if (Health <= 0f) Died?.Invoke();
         }
 
