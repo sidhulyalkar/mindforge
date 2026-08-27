@@ -61,17 +61,24 @@ def test_damage_attribution_travels_with_actual_consequence_and_clips_overkill()
     assert "_neuralBonusDamage));" in projectile
 
 
-def test_guard_healing_reports_actual_restored_hp_not_requested_rate():
+def test_guard_healing_reports_actual_restored_hp_and_batches_only_at_telemetry_boundary():
     vitals = read("Combat", "CombatantVitals.cs")
     controller = read("Combat", "GuardianCombatController.cs")
+    bridge = read("Telemetry", "MindforgeGameMarkerBridge.cs")
 
     assert "public float Heal(float amount)" in vitals
     assert "return Mathf.Max(0f, Health - before)" in vitals
     assert "float restored = vitals.Heal(auras.HealingPerSecond * Time.deltaTime)" in controller
-    assert "_guardHealPending += restored" in controller
-    assert '"GUARD_REGEN_REALIZED"' in controller
+    assert 'NeuralPayoffObserved?.Invoke("GUARD_REGEN_REALIZED", restored)' in controller
     assert '"GUARD_COUNTER_HEAL_REALIZED"' in controller
-    assert "guardHealEvidenceInterval = 0.75f" in controller
+    assert "_guardHealPending" not in controller
+
+    assert "guardHealMarkerInterval = 0.75f" in bridge
+    assert "_guardRegenPending += value" in bridge
+    assert "private void Update()" in bridge
+    assert "FlushGuardRegen();" in bridge
+    assert bridge.index("FlushGuardRegen();\n            sender?.Emit(\"VICTORY\"") < bridge.index("private void OnPlayerDied()")
+    assert 'reason: "GUARD_REGEN_REALIZED"' in bridge
 
 
 def test_sight_concord_and_twin_eclipse_use_explicit_incremental_baselines():
@@ -100,7 +107,6 @@ def test_game_marker_bridge_emits_realized_payoff_and_observes_echo_targets():
     assert '"NEURAL_DAMAGE_BONUS_REALIZED"' in bridge
     assert '"NEURAL_GUARD_HEAL_REALIZED"' in bridge
     assert "packet.NeuralBonusDamage <= 0f" in bridge
-    assert 'target: "echo"' not in bridge  # helper receives target dynamically
     assert 'EmitNeuralDamageBonus(packet, "echo")' in bridge
     assert 'EmitNeuralDamageBonus(packet, "boss")' in bridge
 
