@@ -4,9 +4,12 @@ using Mindforge.Presentation;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Optional procedural telegraph renderer for The Fractured Signal.
+    /// Procedural telegraph renderer for The Fractured Signal.
     /// Telegraphs use hostile crimson/orange only and remain visually distinct from
     /// the smooth blue/green BCI targets.
+    ///
+    /// A telegraph is a promise. Fan attacks preview their actual launch lanes and
+    /// radial attacks now do the same instead of showing only an ambiguous ring.
     /// </summary>
     public sealed class FracturedSignalTelegraph : MonoBehaviour
     {
@@ -24,28 +27,41 @@ namespace Mindforge.Combat
             Clear();
             if (rays == null) return;
             Color color = Hostile(heavy);
-            int shown = Mathf.Min(count, rays.Length);
+            int shown = Mathf.Min(Mathf.Max(0, count), rays.Length);
             for (int i = 0; i < shown; i++)
             {
                 LineRenderer line = rays[i];
                 if (line == null) continue;
                 float offset = (i - (shown - 1) * 0.5f) * spreadDegrees;
                 Vector3 direction = Quaternion.AngleAxis(offset, Vector3.up) * centerDirection.normalized;
-                line.gameObject.SetActive(true);
-                line.positionCount = 2;
-                line.SetPosition(0, origin);
-                line.SetPosition(1, origin + direction * rayLength);
-                line.startColor = new Color(color.r, color.g, color.b, 0.15f);
-                line.endColor = new Color(color.r, color.g, color.b, 0.85f);
+                ShowRay(line, origin, direction, color);
             }
         }
 
-        public void ShowRadial(Vector3 origin, bool heavy = false)
+        public void ShowRadial(Vector3 origin, int projectileCount, bool heavy = false)
         {
             Clear();
+            Color color = Hostile(heavy);
+            int count = Mathf.Max(1, projectileCount);
+
+            // Preview the same angular lattice SpawnRadial will use. If the scene was
+            // assembled with fewer ray renderers than projectile lanes, show as many
+            // exact lanes as possible rather than inventing interpolated directions.
+            if (rays != null)
+            {
+                int shown = Mathf.Min(count, rays.Length);
+                for (int i = 0; i < shown; i++)
+                {
+                    LineRenderer line = rays[i];
+                    if (line == null) continue;
+                    float angle = i / (float)count * 360f;
+                    Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * Vector3.forward;
+                    ShowRay(line, origin, direction, color);
+                }
+            }
+
             if (radialRing == null) return;
             int segments = Mathf.Max(12, ringSegments);
-            Color color = Hostile(heavy);
             radialRing.gameObject.SetActive(true);
             radialRing.positionCount = segments + 1;
             for (int i = 0; i <= segments; i++)
@@ -63,6 +79,16 @@ namespace Mindforge.Combat
                 foreach (LineRenderer line in rays)
                     if (line != null) line.gameObject.SetActive(false);
             if (radialRing != null) radialRing.gameObject.SetActive(false);
+        }
+
+        private void ShowRay(LineRenderer line, Vector3 origin, Vector3 direction, Color color)
+        {
+            line.gameObject.SetActive(true);
+            line.positionCount = 2;
+            line.SetPosition(0, origin);
+            line.SetPosition(1, origin + direction.normalized * rayLength);
+            line.startColor = new Color(color.r, color.g, color.b, 0.15f);
+            line.endColor = new Color(color.r, color.g, color.b, 0.85f);
         }
 
         private Color Hostile(bool heavy)
