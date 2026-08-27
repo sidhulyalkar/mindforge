@@ -10,6 +10,9 @@ namespace Mindforge.Combat
     /// Competition boss scheduler built around cognitive pacing rather than a flat
     /// difficulty ramp. External neural-link pauses suppress enemy authority without
     /// granting the Guardian a free damage window.
+    ///
+    /// Projectile and melee patterns share this scheduler so entering sword range adds
+    /// embodied pressure without creating unreadable overlapping authority loops.
     /// </summary>
     public sealed class FracturedSignalDirector : MonoBehaviour
     {
@@ -22,6 +25,7 @@ namespace Mindforge.Combat
         [SerializeField] private FracturedSignalTelegraph telegraph;
         [SerializeField] private FracturedEchoNode echoPrefab;
         [SerializeField] private Transform echoParent;
+        [SerializeField] private FracturedSignalMeleeDirector meleeDirector;
 
         [Header("Signal Break")]
         [SerializeField] private float signalBreakVisualRestSeconds = 2.6f;
@@ -70,6 +74,7 @@ namespace Mindforge.Combat
 
         private void OnEnable()
         {
+            ResolveMelee();
             if (vitals != null && vitals.Poise != null) vitals.Poise.BrokenEvent += OnSignalBreak;
             _lastPhase = Phase;
             _loop = StartCoroutine(AttackLoop());
@@ -127,9 +132,13 @@ namespace Mindforge.Combat
         {
             if (_externalPaused) yield break;
             _attackIndex++;
+            FracturedSignalMeleeDirector melee = ResolveMelee();
+
             if (phase == 1)
             {
-                if ((_attackIndex & 1) == 0)
+                if (_attackIndex % 4 == 0 && melee != null && melee.CanEngage)
+                    yield return melee.ExecuteCleave(phase, false);
+                else if ((_attackIndex & 1) == 0)
                     yield return TelegraphAndFan(2, 14.5f, 12f, phaseOneTelegraph, false);
                 else
                     yield return TelegraphAndRadial(radialCount, 10.2f, phaseOneTelegraph, false);
@@ -148,6 +157,8 @@ namespace Mindforge.Combat
                     yield return TelegraphAndFan(3, 16f, 12f, phaseTwoTelegraph, false);
                 else if (index == 2)
                     yield return TelegraphAndRadial(radialCount + 4, 11.4f, phaseTwoTelegraph, false);
+                else if (melee != null && melee.CanEngage)
+                    yield return melee.ExecuteCleave(phase, true);
                 else
                     yield return TelegraphAndFan(4, 17f, 9f, phaseTwoTelegraph, true);
                 yield break;
@@ -160,9 +171,27 @@ namespace Mindforge.Combat
                 yield return new WaitForSeconds(phaseThreeTelegraph * 0.55f);
             }
             else if (phaseThreeIndex == 1 || phaseThreeIndex == 4)
+            {
                 yield return TelegraphAndFan(5, 18.5f, 8f, phaseThreeTelegraph, true);
+            }
+            else if (phaseThreeIndex == 2 && melee != null && melee.CanEngage)
+            {
+                yield return melee.ExecuteSlam(phase, true);
+            }
+            else if (phaseThreeIndex == 3 && melee != null && melee.CanEngage)
+            {
+                yield return melee.ExecuteCleave(phase, true);
+            }
             else
+            {
                 yield return TelegraphAndRadial(radialCount + 8, 12.5f, phaseThreeTelegraph, phaseThreeIndex == 3);
+            }
+        }
+
+        private FracturedSignalMeleeDirector ResolveMelee()
+        {
+            if (meleeDirector == null) meleeDirector = GetComponent<FracturedSignalMeleeDirector>();
+            return meleeDirector;
         }
 
         private IEnumerator TelegraphAndFan(int count, float speed, float spreadDegrees, float delay, bool heavy)
