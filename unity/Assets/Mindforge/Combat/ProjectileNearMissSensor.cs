@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ namespace Mindforge.Combat
         [SerializeField] private float minSpeed = 4.5f;
 
         private readonly HashSet<int> _inside = new HashSet<int>();
+
+        public event Action NearMissAwarded;
 
         private void Awake()
         {
@@ -29,8 +32,10 @@ namespace Mindforge.Combat
         {
             MindforgeProjectile p = other.GetComponentInParent<MindforgeProjectile>();
             if (p == null || !_inside.Remove(p.GetInstanceID()) || !p.IsHostileToGuardian) return;
-            if (motor != null && motor.Velocity.magnitude >= minSpeed)
-                flux?.Award(tuning != null ? tuning.nearMissFlux : 0.18f, "Thread the Needle");
+            if (motor == null || motor.Velocity.magnitude < minSpeed) return;
+
+            flux?.Award(tuning != null ? tuning.nearMissFlux : 0.18f, "Thread the Needle");
+            NearMissAwarded?.Invoke();
         }
     }
 }

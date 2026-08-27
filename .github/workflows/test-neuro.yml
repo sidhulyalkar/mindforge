@@ -39,6 +39,7 @@ jobs:
           python -m py_compile tools/run_unity_calibrated_decoder.py
           python -m py_compile tools/mindforge_dev.py
           python -m py_compile tools/mindforge_qualify.py
+          python -m py_compile tools/mindforge_encounter.py
           python -m py_compile tools/run_unity_gate.py
           python -m py_compile tools/phantom_control.py
           python -m py_compile tools/plot_session_report.py

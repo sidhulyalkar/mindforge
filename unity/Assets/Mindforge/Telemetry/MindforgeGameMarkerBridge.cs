@@ -22,6 +22,7 @@ namespace Mindforge.Telemetry
         [SerializeField] private CombatantVitals playerVitals;
         [SerializeField] private FluxMeter flux;
         [SerializeField] private NeuralLinkContingency linkContingency;
+        [SerializeField] private ProjectileNearMissSensor nearMissSensor;
 
         private void OnEnable()
         {
@@ -45,12 +46,18 @@ namespace Mindforge.Telemetry
             if (bossDirector != null) bossDirector.PhaseChanged += OnBossPhase;
             if (bossVitals != null)
             {
+                bossVitals.Damaged += OnBossDamaged;
                 bossVitals.Died += OnBossDied;
                 if (bossVitals.Poise != null) bossVitals.Poise.BrokenEvent += OnSignalBreak;
             }
-            if (playerVitals != null) playerVitals.Died += OnPlayerDied;
+            if (playerVitals != null)
+            {
+                playerVitals.Damaged += OnPlayerDamaged;
+                playerVitals.Died += OnPlayerDied;
+            }
             if (flux != null) flux.Changed += OnFluxChanged;
             if (linkContingency != null) linkContingency.DegradationStateChanged += OnLinkState;
+            if (nearMissSensor != null) nearMissSensor.NearMissAwarded += OnNearMiss;
         }
 
         private void ResolveReferences()
@@ -63,6 +70,7 @@ namespace Mindforge.Telemetry
             if (bossDirector == null) bossDirector = Object.FindObjectOfType<FracturedSignalDirector>(true);
             if (flux == null) flux = Object.FindObjectOfType<FluxMeter>(true);
             if (linkContingency == null) linkContingency = Object.FindObjectOfType<NeuralLinkContingency>(true);
+            if (nearMissSensor == null) nearMissSensor = Object.FindObjectOfType<ProjectileNearMissSensor>(true);
 
             CombatantVitals[] vitals = Object.FindObjectsOfType<CombatantVitals>(true);
             foreach (CombatantVitals candidate in vitals)
@@ -94,12 +102,18 @@ namespace Mindforge.Telemetry
             if (bossDirector != null) bossDirector.PhaseChanged -= OnBossPhase;
             if (bossVitals != null)
             {
+                bossVitals.Damaged -= OnBossDamaged;
                 bossVitals.Died -= OnBossDied;
                 if (bossVitals.Poise != null) bossVitals.Poise.BrokenEvent -= OnSignalBreak;
             }
-            if (playerVitals != null) playerVitals.Died -= OnPlayerDied;
+            if (playerVitals != null)
+            {
+                playerVitals.Damaged -= OnPlayerDamaged;
+                playerVitals.Died -= OnPlayerDied;
+            }
             if (flux != null) flux.Changed -= OnFluxChanged;
             if (linkContingency != null) linkContingency.DegradationStateChanged -= OnLinkState;
+            if (nearMissSensor != null) nearMissSensor.NearMissAwarded -= OnNearMiss;
         }
 
         private int Phase => bossDirector != null ? bossDirector.Phase : 0;
@@ -109,6 +123,27 @@ namespace Mindforge.Telemetry
         private void OnCombatOutcome(string outcome) => sender?.Emit(outcome, "combat_outcome", bossPhase: Phase);
         private void OnAuraApplied(string target) => sender?.Emit("NEURAL_BUFF_APPLIED", "neural_payoff", target: target, bossPhase: Phase);
         private void OnConcord() => sender?.Emit("CONCORD_ESTABLISHED", "neural_payoff", bossPhase: Phase);
+        private void OnNearMiss() => sender?.Emit("NEAR_MISS", "combat_outcome", reason: "THREAD_THE_NEEDLE", bossPhase: Phase);
+
+        private void OnPlayerDamaged(DamagePacket packet)
+        {
+            sender?.Emit(
+                "PLAYER_DAMAGED",
+                "combat_outcome",
+                reason: packet.Heavy ? "HEAVY" : "LIGHT",
+                value: Mathf.Max(0f, packet.Damage),
+                bossPhase: Phase);
+        }
+
+        private void OnBossDamaged(DamagePacket packet)
+        {
+            sender?.Emit(
+                "BOSS_DAMAGED",
+                "combat_outcome",
+                reason: packet.Heavy ? "HEAVY" : "LIGHT",
+                value: Mathf.Max(0f, packet.Damage),
+                bossPhase: Phase);
+        }
 
         private void OnBloomActivated(bool concord)
         {
