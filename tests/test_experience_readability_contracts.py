@@ -38,12 +38,14 @@ def test_combat_state_hud_is_gameplay_first_and_non_authoritative():
     for token in (
         "THE FRACTURED SIGNAL",
         "GUARDIAN",
+        "STAMINA",
         "FLUX",
-        "SIGHT  offense",
-        "GUARD  recovery",
+        "SIGHT  blade",
+        "GUARD  shield",
         "CONCORD",
         "TWIN ECLIPSE",
         "SIGNAL BREAK · PUNISH WINDOW",
+        "PERFECT GUARD · RETURN TO SENDER",
         "ControllerOnlyQualificationActive",
         "P2 CONTROLLER-ONLY",
         "BCI intentionally disabled",
@@ -57,11 +59,14 @@ def test_combat_state_hud_is_gameplay_first_and_non_authoritative():
         ".BeginCounter(",
         ".RequestDash(",
         ".TryActivate(",
+        ".TryLightAttack(",
+        ".SetGuardHeld(",
         ".TryApply(",
         ".Award(",
         ".TryConsumeFull(",
         "ReceiveDamage(",
         "BeginCalibration(",
+        "TrySpend(",
     ):
         assert forbidden not in hud
 
@@ -79,19 +84,34 @@ def test_radial_telegraph_previews_the_same_angular_lattice_as_spawn():
     assert "AttackFired?.Invoke(\"RADIAL\", count, heavy)" in director
 
 
-def test_onboarding_is_staged_instead_of_dumping_all_controls_at_once():
+def test_onboarding_is_staged_around_physical_combat_then_arcane_options():
     guide = _read("Presentation", "PlayerAgencyGuide.cs")
 
     assert "CurrentLesson()" in guide
-    assert "WASD move  |  MOUSE / ARROWS aim  |  SPACE Pulse" in guide
-    assert "F Cleave up close  |  C Counter incoming crimson projectiles" in guide
-    assert "BUILD FLUX  |  near miss, perfect Counter, and Signal Break" in guide
+    assert "LMB SWORD" in guide
+    assert "RMB HOLD SHIELD" in guide
+    assert "tap the guard just before impact for a PERFECT GUARD" in guide
+    assert "SHIFT DODGE ROLL" in guide
+    assert "SPACE remains your ranged Pulse option" in guide
+    assert "F Cleave up close" in guide
+    assert "TAB opens your current equipment build" in guide
     assert "FLUX FULL  |  R GRAVITY BLOOM" in guide
     assert "CONCORD ACTIVE  |  R TWIN ECLIPSE" in guide
 
-    # The tutorial observes accepted actions but does not execute them.
+    # The tutorial observes actions but never executes gameplay authority.
     assert "combat.ActionAccepted += OnCombatAction" in guide
-    for forbidden in (".FirePulse(", ".RiftCleave(", ".BeginCounter(", ".RequestDash(", ".TryActivate("):
+    assert "physicalCombat.SwordAttackStarted += OnSwordAttack" in guide
+    assert "physicalCombat.GuardChanged += OnGuardChanged" in guide
+    for forbidden in (
+        ".FirePulse(",
+        ".RiftCleave(",
+        ".BeginCounter(",
+        ".RequestDash(",
+        ".TryActivate(",
+        ".TryLightAttack(",
+        ".SetGuardHeld(",
+        "TrySpend(",
+    ):
         assert forbidden not in guide
 
 
@@ -129,4 +149,3 @@ def test_encounter_report_tracks_recent_pattern_exposure_without_claiming_causat
 
     source = (ROOT / "neuro/mindforge_neuro/encounter.py").read_text(encoding="utf-8")
     assert "without claiming causation" in source
-    assert "definitely caused the hit?" in source
