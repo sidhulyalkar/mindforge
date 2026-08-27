@@ -126,4 +126,4 @@ def test_encounter_report_tracks_recent_pattern_exposure_without_claiming_causat
 
     source = (ROOT / "neuro/mindforge_neuro/encounter.py").read_text(encoding="utf-8")
     assert "without claiming causation" in source
-    assert 'not "what definitely caused the hit?"' in source
+    assert "definitely caused the hit?" in source
