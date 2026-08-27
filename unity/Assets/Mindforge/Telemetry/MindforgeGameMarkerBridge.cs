@@ -48,6 +48,8 @@ namespace Mindforge.Telemetry
                 bossDirector.PhaseChanged += OnBossPhase;
                 bossDirector.EchoSpawned += OnEchoSpawned;
                 bossDirector.EchoShattered += OnEchoShattered;
+                bossDirector.AttackTelegraphed += OnBossAttackTelegraphed;
+                bossDirector.AttackFired += OnBossAttackFired;
             }
             if (bossVitals != null)
             {
@@ -109,6 +111,8 @@ namespace Mindforge.Telemetry
                 bossDirector.PhaseChanged -= OnBossPhase;
                 bossDirector.EchoSpawned -= OnEchoSpawned;
                 bossDirector.EchoShattered -= OnEchoShattered;
+                bossDirector.AttackTelegraphed -= OnBossAttackTelegraphed;
+                bossDirector.AttackFired -= OnBossAttackFired;
             }
             if (bossVitals != null)
             {
@@ -136,6 +140,26 @@ namespace Mindforge.Telemetry
         private void OnNearMiss() => sender?.Emit("NEAR_MISS", "combat_outcome", reason: "THREAD_THE_NEEDLE", bossPhase: Phase);
         private void OnEchoSpawned() => sender?.Emit("ECHO_SPAWNED", "boss_phase", bossPhase: Phase);
         private void OnEchoShattered() => sender?.Emit("ECHO_SHATTERED", "combat_outcome", reason: "PLAYER_PRIORITY_TARGET", bossPhase: Phase);
+
+        private void OnBossAttackTelegraphed(string pattern, int projectileCount, bool heavy)
+        {
+            sender?.Emit(
+                "BOSS_ATTACK_TELEGRAPH",
+                "boss_pattern",
+                reason: $"{pattern}_{(heavy ? "HEAVY" : "LIGHT")}",
+                value: projectileCount,
+                bossPhase: Phase);
+        }
+
+        private void OnBossAttackFired(string pattern, int projectileCount, bool heavy)
+        {
+            sender?.Emit(
+                "BOSS_ATTACK_FIRED",
+                "boss_pattern",
+                reason: $"{pattern}_{(heavy ? "HEAVY" : "LIGHT")}",
+                value: projectileCount,
+                bossPhase: Phase);
+        }
 
         private void OnPlayerDamaged(DamagePacket packet)
         {
