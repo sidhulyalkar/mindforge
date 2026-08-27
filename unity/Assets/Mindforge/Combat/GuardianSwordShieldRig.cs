@@ -36,10 +36,38 @@ namespace Mindforge.Combat
 
         private void Awake()
         {
-            if (swordBlade != null) _swordBaseScale = swordBlade.localScale;
-            if (shieldRoot != null) _shieldBaseScale = shieldRoot.localScale;
             _swordBlock = new MaterialPropertyBlock();
             _shieldBlock = new MaterialPropertyBlock();
+            CaptureBaseScales();
+        }
+
+        public void ConfigureRuntime(
+            Transform newSwordRoot,
+            Transform newSwordBlade,
+            Renderer newSwordRenderer,
+            TrailRenderer newSwordTrail,
+            Light newSwordLight,
+            Transform newShieldRoot,
+            Renderer newShieldRenderer,
+            Light newShieldLight,
+            CombatVisualPalette visualPalette = null)
+        {
+            swordRoot = newSwordRoot;
+            swordBlade = newSwordBlade;
+            swordRenderer = newSwordRenderer;
+            swordTrail = newSwordTrail;
+            swordLight = newSwordLight;
+            shieldRoot = newShieldRoot;
+            shieldRenderer = newShieldRenderer;
+            shieldLight = newShieldLight;
+            if (visualPalette != null) palette = visualPalette;
+            CaptureBaseScales();
+        }
+
+        private void CaptureBaseScales()
+        {
+            if (swordBlade != null) _swordBaseScale = swordBlade.localScale;
+            if (shieldRoot != null) _shieldBaseScale = shieldRoot.localScale;
         }
 
         public void SetCombatState(
