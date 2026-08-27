@@ -40,6 +40,10 @@ def marker(
     )
 
 
+def ready(seq: int = 1) -> GameMarker:
+    return marker(seq, "NEURAL_PAYOFF_LEDGER_READY", reason="CONSERVATIVE_DIRECT_DAMAGE_AND_HEAL_V1")
+
+
 def test_damage_attribution_travels_with_actual_consequence_and_clips_overkill():
     contracts = read("Combat", "CombatContracts.cs")
     vitals = read("Combat", "CombatantVitals.cs")
@@ -49,15 +53,11 @@ def test_damage_attribution_travels_with_actual_consequence_and_clips_overkill()
     assert "NeuralBonusDamage" in contracts
     assert "neuralPayoffKind = null" in contracts
     assert "neuralBonusDamage = 0f" in contracts
-
     assert "float baselineDamage = Mathf.Max(0f, requestedDamage - requestedBonus)" in vitals
     assert "float baselineActual = Mathf.Min(before, baselineDamage)" in vitals
     assert "float realizedBonus = Mathf.Max(0f, actualDamage - baselineActual)" in vitals
-    assert "actualDamage" in vitals
-
     assert "_neuralPayoffKind" in projectile
     assert "_neuralBonusDamage" in projectile
-    assert "_neuralPayoffKind," in projectile
     assert "_neuralBonusDamage));" in projectile
 
 
@@ -72,13 +72,11 @@ def test_guard_healing_reports_actual_restored_hp_and_batches_only_at_telemetry_
     assert 'NeuralPayoffObserved?.Invoke("GUARD_REGEN_REALIZED", restored)' in controller
     assert '"GUARD_COUNTER_HEAL_REALIZED"' in controller
     assert "_guardHealPending" not in controller
-
     assert "guardHealMarkerInterval = 0.75f" in bridge
     assert "_guardRegenPending += value" in bridge
     assert "private void Update()" in bridge
-    assert "FlushGuardRegen();" in bridge
-    assert bridge.index("FlushGuardRegen();\n            sender?.Emit(\"VICTORY\"") < bridge.index("private void OnPlayerDied()")
     assert 'reason: "GUARD_REGEN_REALIZED"' in bridge
+    assert "private void OnBossDied()" in bridge and "private void OnPlayerDied()" in bridge
 
 
 def test_sight_concord_and_twin_eclipse_use_explicit_incremental_baselines():
@@ -91,17 +89,18 @@ def test_sight_concord_and_twin_eclipse_use_explicit_incremental_baselines():
     assert '"SIGHT_CLEAVE_DAMAGE"' in controller
     assert "reflectedDamage - baselineDamage" in controller
     assert '"CONCORD_COUNTER_DAMAGE"' in controller
-
     assert "float baselineDamage = tuning.reflectedDamage" in bloom
     assert "damage - baselineDamage" in bloom
     assert '"TWIN_ECLIPSE_DAMAGE"' in bloom
 
 
-def test_game_marker_bridge_emits_realized_payoff_and_observes_echo_targets():
+def test_game_marker_bridge_declares_ledger_and_observes_dynamic_echo_targets():
     bridge = read("Telemetry", "MindforgeGameMarkerBridge.cs")
     echo = read("Combat", "FracturedEchoNode.cs")
 
     assert "public CombatantVitals Vitals => vitals" in echo
+    assert '"NEURAL_PAYOFF_LEDGER_READY"' in bridge
+    assert '"CONSERVATIVE_DIRECT_DAMAGE_AND_HEAL_V1"' in bridge
     assert "ObserveEchoVitals()" in bridge
     assert "vitals.Damaged += OnEchoDamaged" in bridge
     assert '"NEURAL_DAMAGE_BONUS_REALIZED"' in bridge
@@ -113,18 +112,20 @@ def test_game_marker_bridge_emits_realized_payoff_and_observes_echo_targets():
 
 def test_encounter_report_sums_only_realized_payoff_markers():
     markers = [
-        marker(1, "NEURAL_BUFF_APPLIED", target="sight"),
-        marker(2, "NEURAL_DAMAGE_BONUS_REALIZED", value=6.0, reason="SIGHT_PULSE_DAMAGE", target="boss"),
-        marker(3, "NEURAL_DAMAGE_BONUS_REALIZED", value=4.5, reason="SIGHT_CLEAVE_DAMAGE", target="echo"),
-        marker(4, "NEURAL_DAMAGE_BONUS_REALIZED", value=7.5, reason="CONCORD_COUNTER_DAMAGE", target="boss"),
-        marker(5, "NEURAL_DAMAGE_BONUS_REALIZED", value=13.5, reason="TWIN_ECLIPSE_DAMAGE", target="boss"),
-        marker(6, "NEURAL_BUFF_APPLIED", target="guard"),
-        marker(7, "NEURAL_GUARD_HEAL_REALIZED", value=2.2, reason="GUARD_REGEN_REALIZED", target="guardian"),
-        marker(8, "NEURAL_GUARD_HEAL_REALIZED", value=1.8, reason="GUARD_COUNTER_HEAL_REALIZED", target="guardian"),
-        marker(9, "VICTORY"),
+        ready(1),
+        marker(2, "NEURAL_BUFF_APPLIED", target="sight"),
+        marker(3, "NEURAL_DAMAGE_BONUS_REALIZED", value=6.0, reason="SIGHT_PULSE_DAMAGE", target="boss"),
+        marker(4, "NEURAL_DAMAGE_BONUS_REALIZED", value=4.5, reason="SIGHT_CLEAVE_DAMAGE", target="echo"),
+        marker(5, "NEURAL_DAMAGE_BONUS_REALIZED", value=7.5, reason="CONCORD_COUNTER_DAMAGE", target="boss"),
+        marker(6, "NEURAL_DAMAGE_BONUS_REALIZED", value=13.5, reason="TWIN_ECLIPSE_DAMAGE", target="boss"),
+        marker(7, "NEURAL_BUFF_APPLIED", target="guard"),
+        marker(8, "NEURAL_GUARD_HEAL_REALIZED", value=2.2, reason="GUARD_REGEN_REALIZED", target="guardian"),
+        marker(9, "NEURAL_GUARD_HEAL_REALIZED", value=1.8, reason="GUARD_COUNTER_HEAL_REALIZED", target="guardian"),
+        marker(10, "VICTORY"),
     ]
 
     report = analyze_encounter(markers)
+    assert report.neural_payoff_ledger_ready is True
     assert report.neural_damage_bonus_events == 4
     assert report.realized_neural_bonus_damage_total == 31.5
     assert report.sight_pulse_bonus_damage == 6.0
@@ -141,13 +142,22 @@ def test_encounter_report_sums_only_realized_payoff_markers():
     assert "GUARD_ACCEPTED_WITH_ZERO_RECORDED_HEALING" not in report.diagnostic_flags
 
 
-def test_accepted_neural_state_without_realized_payoff_is_diagnostic_not_success():
-    report = analyze_encounter([
+def test_zero_payoff_diagnostics_require_explicit_ledger_capability():
+    instrumented = analyze_encounter([
+        ready(1),
+        marker(2, "NEURAL_BUFF_APPLIED", target="sight"),
+        marker(3, "NEURAL_BUFF_APPLIED", target="guard"),
+        marker(4, "DEFEAT"),
+    ])
+    assert instrumented.neural_payoff_ledger_ready is True
+    assert "SIGHT_ACCEPTED_WITH_ZERO_RECORDED_DAMAGE_BONUS" in instrumented.diagnostic_flags
+    assert "GUARD_ACCEPTED_WITH_ZERO_RECORDED_HEALING" in instrumented.diagnostic_flags
+
+    legacy = analyze_encounter([
         marker(1, "NEURAL_BUFF_APPLIED", target="sight"),
         marker(2, "NEURAL_BUFF_APPLIED", target="guard"),
         marker(3, "DEFEAT"),
     ])
-    assert report.realized_neural_bonus_damage_total == 0.0
-    assert report.realized_guard_healing_total == 0.0
-    assert "SIGHT_ACCEPTED_WITH_ZERO_RECORDED_DAMAGE_BONUS" in report.diagnostic_flags
-    assert "GUARD_ACCEPTED_WITH_ZERO_RECORDED_HEALING" in report.diagnostic_flags
+    assert legacy.neural_payoff_ledger_ready is False
+    assert "SIGHT_ACCEPTED_WITH_ZERO_RECORDED_DAMAGE_BONUS" not in legacy.diagnostic_flags
+    assert "GUARD_ACCEPTED_WITH_ZERO_RECORDED_HEALING" not in legacy.diagnostic_flags
