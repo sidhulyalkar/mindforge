@@ -41,7 +41,7 @@ def marker(
     )
 
 
-def test_equipment_contract_makes_mass_and_load_mechanical_not_cosmetic():
+def test_equipment_contract_makes_mass_load_and_shield_coverage_mechanical():
     equipment = read("Combat", "GuardianEquipmentLoadout.cs")
     motor = read("Combat", "GuardianMotor.cs")
     stamina = read("Combat", "GuardianStamina.cs")
@@ -53,6 +53,7 @@ def test_equipment_contract_makes_mass_and_load_mechanical_not_cosmetic():
     assert 'displayName = "Aetherblade Longsword"' in equipment
     assert 'displayName = "Verdant Ward Shield"' in equipment
     assert 'displayName = "Warden Weave"' in equipment
+    assert "coverageDegrees = 112f" in equipment
     assert "public float TotalMassKg" in equipment
     assert "public float LoadRatio" in equipment
     assert "MoveSpeedMultiplier" in equipment
@@ -72,7 +73,7 @@ def test_equipment_contract_makes_mass_and_load_mechanical_not_cosmetic():
     assert "DrainUpTo" in stamina
 
 
-def test_sword_is_swept_physical_contact_with_commitment_and_bounded_sight_modulation():
+def test_sword_is_swept_physical_contact_with_three_step_commitment_and_bounded_sight_modulation():
     sword = read("Combat", "GuardianSwordShieldController.cs")
 
     assert "Physics.OverlapCapsuleNonAlloc" in sword
@@ -83,7 +84,13 @@ def test_sword_is_swept_physical_contact_with_commitment_and_bounded_sight_modul
     assert "weapon.reachMeters" in sword
     assert "angularVelocity" in sword
     assert "swingMomentum" in sword
-    assert 'stamina.TrySpend(weapon.staminaCost, "SWORD_LIGHT")' in sword
+    assert "comboQueueOpensAt" in sword
+    assert "_comboStep < 3" in sword
+    assert "BeginSwordStep(_comboStep + 1" in sword
+    assert "finisherDamageMultiplier" in sword
+    assert "finisherPoiseMultiplier" in sword
+    assert "weapon.staminaCost * staminaMultiplier" in sword
+    assert 'stamina.TrySpend(staminaCost, "SWORD_LIGHT")' in sword
 
     # Neural evidence can modulate a sword only behind accepted Sight authority.
     assert "auras != null && auras.SightActive" in sword
@@ -92,11 +99,11 @@ def test_sword_is_swept_physical_contact_with_commitment_and_bounded_sight_modul
     assert "bonusDamage = Mathf.Max(0f, damage - baseDamage)" in sword
 
 
-def test_shield_is_a_collision_surface_with_stamina_chip_and_true_concord_counterfactual():
+def test_shield_is_directional_collision_with_stamina_chip_and_true_concord_counterfactual():
     projectile = read("Combat", "MindforgeProjectile.cs")
     shield = read("Combat", "GuardianSwordShieldController.cs")
 
-    # Shield interception precedes body damage resolution.
+    # Shield interception precedes body damage resolution for physical projectiles.
     shield_index = projectile.index("GuardianShieldHitbox shield")
     vitals_index = projectile.index("CombatantVitals receiver")
     assert shield_index < vitals_index
@@ -109,7 +116,15 @@ def test_shield_is_a_collision_surface_with_stamina_chip_and_true_concord_counte
     assert '"PERFECT_GUARD"' in shield
     assert "BreakGuard();" in shield
 
-    # Concord payoff is the actual increment in the reflected consequence, not a label.
+    # Direct boss strikes require facing coverage rather than treating guard as global.
+    assert "TryResolveIncomingStrike" in shield
+    assert "GuardStrikeResult" in shield
+    assert "shield.coverageDegrees" in shield
+    assert "Vector3.Angle(guardFacing, towardThreat)" in shield
+    assert "GuardStrikeResult.OutsideCoverage" in shield
+    assert "guardBreakDamageLeak" in shield
+
+    # Concord projectile payoff is the actual increment in the reflected consequence, not a label.
     assert "float baselineDamage" in shield
     assert "float reflectedDamage = baselineDamage * concordMultiplier" in shield
     assert "reflectedDamage - baselineDamage" in shield
@@ -168,9 +183,12 @@ def test_procedural_rig_and_hud_feedback_track_same_bounded_weapon_geometry():
     assert "BoxCollider shieldCollider" in bootstrap
     assert "TrailRenderer" in bootstrap
     assert "Point" in bootstrap
+    assert "FracturedSignalMeleeDirector" in bootstrap
 
     assert "maxSwordLengthBonus = 0.42f" in rig
     assert "guardCoverageScale" in rig
+    assert "comboStep == 2" in rig
+    assert "comboStep >= 3" in rig
     assert "swordTrail.emitting = attacking" in rig
     assert "shieldLight.intensity" in rig
 
