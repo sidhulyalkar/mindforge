@@ -55,10 +55,7 @@ class EncounterReport:
     sight_buffs: int
     guard_buffs: int
 
-    # Conservative realized neural payoff. Damage is the incremental direct damage
-    # that actually mattered after overkill clipping. Healing is actual HP restored.
-    # These totals intentionally exclude harder-to-price benefits such as projectile
-    # speed, pierce, increased range, attention-switch Flux, and avoided future harm.
+    neural_payoff_ledger_ready: bool
     neural_damage_bonus_events: int
     realized_neural_bonus_damage_total: float
     sight_pulse_bonus_damage: float
@@ -150,7 +147,6 @@ def _recent_primary_pattern_before_damage(
             continue
         if marker.event != "PLAYER_DAMAGED":
             continue
-
         recent = [
             attack for attack in fired
             if 0.0 <= marker.unity_realtime_s - attack.unity_realtime_s <= lookback_seconds
@@ -171,10 +167,7 @@ def _recent_primary_pattern_before_damage(
 def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memory") -> EncounterReport:
     ordered = sorted(list(markers), key=lambda marker: (marker.unity_realtime_s, marker.seq))
     session_ids = tuple(sorted({marker.session_id for marker in ordered if marker.session_id}))
-    if ordered:
-        duration = max(0.0, ordered[-1].unity_realtime_s - ordered[0].unity_realtime_s)
-    else:
-        duration = 0.0
+    duration = max(0.0, ordered[-1].unity_realtime_s - ordered[0].unity_realtime_s) if ordered else 0.0
 
     terminal = [marker.event for marker in ordered if marker.event in {"VICTORY", "DEFEAT"}]
     outcome = terminal[-1] if terminal else "INCOMPLETE"
@@ -201,6 +194,7 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
     sight_buffs = sum(marker.event == "NEURAL_BUFF_APPLIED" and (marker.target or "").lower() == "sight" for marker in ordered)
     guard_buffs = sum(marker.event == "NEURAL_BUFF_APPLIED" and (marker.target or "").lower() == "guard" for marker in ordered)
 
+    payoff_ledger_ready = _count(ordered, "NEURAL_PAYOFF_LEDGER_READY") > 0
     neural_damage_events = [marker for marker in ordered if marker.event == "NEURAL_DAMAGE_BONUS_REALIZED"]
     guard_heals = [marker for marker in ordered if marker.event == "NEURAL_GUARD_HEAL_REALIZED"]
     realized_neural_bonus_damage_total = sum(max(0.0, float(marker.value)) for marker in neural_damage_events)
@@ -229,10 +223,9 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         flags.append("NEURAL_LINK_DEGRADED_DURING_RUN")
     if attacks and not telegraphs:
         flags.append("BOSS_ATTACKS_FIRED_WITHOUT_TELEGRAPH_MARKERS")
-    if sight_buffs > 0 and realized_neural_bonus_damage_total <= 0:
+    if payoff_ledger_ready and sight_buffs > 0 and realized_neural_bonus_damage_total <= 0:
         flags.append("SIGHT_ACCEPTED_WITH_ZERO_RECORDED_DAMAGE_BONUS")
-    if guard_buffs > 0 and realized_guard_healing_total <= 0:
-        # This can be legitimate at full health; it is a review prompt, not failure.
+    if payoff_ledger_ready and guard_buffs > 0 and realized_guard_healing_total <= 0:
         flags.append("GUARD_ACCEPTED_WITH_ZERO_RECORDED_HEALING")
 
     return EncounterReport(
@@ -276,6 +269,7 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         concord_established=_count(ordered, "CONCORD_ESTABLISHED"),
         sight_buffs=sight_buffs,
         guard_buffs=guard_buffs,
+        neural_payoff_ledger_ready=payoff_ledger_ready,
         neural_damage_bonus_events=len(neural_damage_events),
         realized_neural_bonus_damage_total=realized_neural_bonus_damage_total,
         sight_pulse_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="SIGHT_PULSE_DAMAGE"),
