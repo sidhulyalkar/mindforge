@@ -16,8 +16,10 @@ def test_showcase_has_one_click_editor_build_play_path_without_faking_bci():
     preview = read("Qualification", "ShowcasePreviewBootstrap.cs")
 
     assert 'MenuItem("Mindforge/Showcase/Build + Play Combat Showcase"' in menu
+    assert 'MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase"' in menu
     assert "CompetitionSceneAssembler.BuildCompetitionScene()" in menu
     assert "ShowcaseSceneDecorator.DecorateOpenScene()" in menu
+    assert "CinematicSceneDetailer.EnhanceOpenScene()" in menu
     assert "CompetitionGateValidator.ValidateAndWrite(false)" in menu
     assert "EditorApplication.isPlaying = true" in menu
     assert "ShowcasePreviewBootstrap.EditorPreferenceKey" in menu
@@ -69,6 +71,8 @@ def test_showcase_runtime_composes_character_boss_camera_vfx_post_and_melee_tele
         "CombatVfxOrchestrator",
         "ShowcasePostProcessing",
         "FracturedSignalMeleeDirector",
+        "CinematicRuntimeMaterialOverride",
+        "CinematicArtOverrideInstaller",
     ):
         assert token in installer
 
@@ -119,6 +123,7 @@ def test_showcase_presentation_classes_remain_non_authoritative():
         ("Presentation", "ShowcasePostProcessing.cs"),
         ("Presentation", "CombatVfxOrchestrator.cs"),
         ("Presentation", "FracturedSignalMeleePresentation.cs"),
+        ("Presentation", "CinematicRuntimeMaterialOverride.cs"),
     )
     forbidden = (
         "ReceiveDamage(",
@@ -150,12 +155,29 @@ def test_showcase_hotkeys_do_not_collide_with_judge_lens_or_controller_preview()
 def test_post_stack_is_visual_only_and_signal_break_reduces_sensory_load():
     post = read("Presentation", "ShowcasePostProcessing.cs")
 
-    assert "VolumeProfile" in post
-    assert "Bloom" in post
-    assert "Vignette" in post
-    assert "ColorAdjustments" in post
-    assert "TonemappingMode.ACES" in post
-    assert "renderPostProcessing = true" in post
-    assert "rest ? 0.18f : 0.42f" in post
-    assert "rest ? 0.08f : 0.16f" in post
+    for token in (
+        "VolumeProfile",
+        "Bloom",
+        "Vignette",
+        "ColorAdjustments",
+        "WhiteBalance",
+        "FilmGrain",
+        "ChromaticAberration",
+        "TonemappingMode.ACES",
+        "renderPostProcessing = true",
+        "rest ? 0.13f : 0.31f",
+        "rest ? 0.060f : 0.115f",
+        "rest ? 4f : 14f",
+        "rest ? 0.018f : 0.045f",
+        "rest ? 0.003f : 0.012f",
+    ):
+        assert token in post
+
+    # Temporal reconstruction is restricted to controller-only visual review; the
+    # calibrated/live path stays frame-local with SMAA for VEP timing integrity.
+    assert "ControllerOnlyQualificationActive" in post
+    assert "AntialiasingMode.TemporalAntiAliasing" in post
+    assert "AntialiasingMode.SubpixelMorphologicalAntiAliasing" in post
+    assert post.index("if (controllerOnly)") < post.index("AntialiasingMode.TemporalAntiAliasing")
+    assert post.index("AntialiasingMode.TemporalAntiAliasing") < post.index("AntialiasingMode.SubpixelMorphologicalAntiAliasing")
     assert "VepAuraStimulus" not in post
