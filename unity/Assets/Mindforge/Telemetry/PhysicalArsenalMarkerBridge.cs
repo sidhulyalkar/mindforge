@@ -14,6 +14,7 @@ namespace Mindforge.Telemetry
         [SerializeField] private GuardianEquipmentLoadout loadout;
         [SerializeField] private GuardianStamina stamina;
         [SerializeField] private FracturedSignalDirector bossDirector;
+        [SerializeField] private FracturedSignalMeleeDirector meleeDirector;
 
         private int Phase => bossDirector != null ? bossDirector.Phase : 0;
 
@@ -28,6 +29,11 @@ namespace Mindforge.Telemetry
                 combat.ShieldBlocked += OnShieldBlocked;
                 combat.PerfectGuard += OnPerfectGuard;
                 combat.GuardBroken += OnGuardBroken;
+            }
+            if (meleeDirector != null)
+            {
+                meleeDirector.MeleeTelegraphed += OnBossMeleeTelegraph;
+                meleeDirector.MeleeResolved += OnBossMeleeResolved;
             }
         }
 
@@ -48,21 +54,34 @@ namespace Mindforge.Telemetry
             if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
             if (stamina == null) stamina = GetComponent<GuardianStamina>();
             if (bossDirector == null) bossDirector = Object.FindObjectOfType<FracturedSignalDirector>(true);
+            if (meleeDirector == null && bossDirector != null) meleeDirector = bossDirector.GetComponent<FracturedSignalMeleeDirector>();
         }
 
         private void OnDisable()
         {
-            if (combat == null) return;
-            combat.SwordAttackStarted -= OnSwordAttack;
-            combat.SwordHit -= OnSwordHit;
-            combat.GuardChanged -= OnGuardChanged;
-            combat.ShieldBlocked -= OnShieldBlocked;
-            combat.PerfectGuard -= OnPerfectGuard;
-            combat.GuardBroken -= OnGuardBroken;
+            if (combat != null)
+            {
+                combat.SwordAttackStarted -= OnSwordAttack;
+                combat.SwordHit -= OnSwordHit;
+                combat.GuardChanged -= OnGuardChanged;
+                combat.ShieldBlocked -= OnShieldBlocked;
+                combat.PerfectGuard -= OnPerfectGuard;
+                combat.GuardBroken -= OnGuardBroken;
+            }
+            if (meleeDirector != null)
+            {
+                meleeDirector.MeleeTelegraphed -= OnBossMeleeTelegraph;
+                meleeDirector.MeleeResolved -= OnBossMeleeResolved;
+            }
         }
 
         private void OnSwordAttack()
-            => sender?.Emit("SWORD_LIGHT", "combat_action", value: stamina != null ? stamina.Value : 0f, bossPhase: Phase);
+            => sender?.Emit(
+                "SWORD_LIGHT",
+                "combat_action",
+                reason: combat != null ? $"COMBO_{Mathf.Clamp(combat.ComboStep, 1, 3)}" : "COMBO_UNKNOWN",
+                value: stamina != null ? stamina.Value : 0f,
+                bossPhase: Phase);
 
         private void OnSwordHit(float damage, float neuralBonus)
             => sender?.Emit(
@@ -88,5 +107,23 @@ namespace Mindforge.Telemetry
 
         private void OnGuardBroken()
             => sender?.Emit("GUARD_BROKEN", "combat_outcome", value: stamina != null ? stamina.Value : 0f, bossPhase: Phase);
+
+        private void OnBossMeleeTelegraph(string pattern, Vector3 direction, float range, float arcDegrees, bool heavy)
+            => sender?.Emit(
+                "BOSS_MELEE_TELEGRAPH",
+                "boss_pattern",
+                target: pattern,
+                reason: heavy ? "HEAVY" : "LIGHT",
+                value: Mathf.Max(0f, range),
+                bossPhase: Phase);
+
+        private void OnBossMeleeResolved(string pattern, string outcome, float damage)
+            => sender?.Emit(
+                "BOSS_MELEE_RESOLVED",
+                "boss_pattern",
+                target: pattern,
+                reason: outcome,
+                value: Mathf.Max(0f, damage),
+                bossPhase: Phase);
     }
 }
