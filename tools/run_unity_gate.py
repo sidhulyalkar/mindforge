@@ -139,7 +139,7 @@ def main() -> None:
     command = build_command(editor, project, log_path)
 
     if args.dry_run:
-        print(json.dumps({"pinned_unity": pinned, "editor": str(editor), "command": command}, indent=2))
+        print(json.dumps({"pinned_unity": pinned, "editor": str(editor), "commit": commit, "command": command}, indent=2))
         return
 
     gate_report.parent.mkdir(parents=True, exist_ok=True)
@@ -162,14 +162,18 @@ def main() -> None:
             parse_error = str(exc)
 
     editor_version = gate.get("editor_version") if isinstance(gate, dict) else None
+    gate_commit = gate.get("git_sha") if isinstance(gate, dict) else None
     gate_passed = bool(gate and gate.get("passed"))
     exact_version = editor_version == pinned
-    passed = result.returncode == 0 and gate_passed and exact_version
+    exact_commit = bool(commit and commit != "unknown" and gate_commit == commit)
+    passed = result.returncode == 0 and gate_passed and exact_version and exact_commit
     report = {
         "schema": "mindforge.unity_gate1_run.v1",
         "generated_utc": finished,
         "started_utc": started,
         "commit": commit,
+        "observed_git_sha": gate_commit,
+        "exact_git_sha_match": exact_commit,
         "passed": passed,
         "clean_checkout_contract": "configure -> assemble -> validate",
         "pinned_unity_version": pinned,

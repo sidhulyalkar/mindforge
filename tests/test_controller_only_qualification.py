@@ -42,3 +42,14 @@ def test_controller_only_path_does_not_invent_calibration_success():
     assert "calibrationReady?.Invoke()" not in method
     assert "ArmForCombat()" not in method
     assert "linkContingency?.Disarm()" in method
+
+
+def test_controller_only_mode_suppresses_neural_only_presentation_not_just_authority():
+    bootstrap = read("Qualification", "ControllerOnlyQualificationBootstrap.cs")
+    assert "NeuralEvidenceHud" in bootstrap
+    assert "NeuralAuraFeedback" in bootstrap
+    assert "NeuralHapticFeedback" in bootstrap
+    assert "evidenceHud.enabled = false" in bootstrap
+    assert "auraFeedback.enabled = false" in bootstrap
+    assert "haptics.enabled = false" in bootstrap
+    assert "intentional neural absence as a fault" in bootstrap

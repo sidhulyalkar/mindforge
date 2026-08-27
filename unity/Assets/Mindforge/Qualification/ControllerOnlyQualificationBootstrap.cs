@@ -4,6 +4,7 @@ using System.Collections;
 using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.Neural;
+using Mindforge.SoulWisp;
 using Mindforge.Telemetry;
 
 namespace Mindforge.Qualification
@@ -67,11 +68,21 @@ namespace Mindforge.Qualification
             NeuralLinkContingency contingency = FindObjectOfType<NeuralLinkContingency>(true);
             UdpNeuralReceiver receiver = FindObjectOfType<UdpNeuralReceiver>(true);
             DualAuraCombatDirector auraAuthority = FindObjectOfType<DualAuraCombatDirector>(true);
+            NeuralEvidenceHud evidenceHud = FindObjectOfType<NeuralEvidenceHud>(true);
+            NeuralAuraFeedback auraFeedback = FindObjectOfType<NeuralAuraFeedback>(true);
+            NeuralHapticFeedback haptics = FindObjectOfType<NeuralHapticFeedback>(true);
 
             // Fail closed with respect to neural authority. P2 is a game-quality test,
             // not a simulated BCI session.
             contingency?.Disarm();
             if (auraAuthority != null) auraAuthority.enabled = false;
+
+            // P2 should not present intentional neural absence as a fault. Suppress
+            // neural-only status/feedback while preserving the explicit qualification
+            // banner and GameMarker provenance below.
+            if (evidenceHud != null) evidenceHud.enabled = false;
+            if (auraFeedback != null) auraFeedback.enabled = false;
+            if (haptics != null) haptics.enabled = false;
             if (receiver != null) receiver.enabled = false;
 
             if (!calibration.EnterControllerOnlyQualification())

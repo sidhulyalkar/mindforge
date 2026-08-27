@@ -22,6 +22,7 @@ namespace Mindforge.Editor
     public sealed class GateReport
     {
         public string schema = "mindforge.unity_gate1.v1";
+        public string git_sha;
         public string editor_version;
         public string generated_utc;
         public bool passed;
@@ -40,6 +41,7 @@ namespace Mindforge.Editor
         {
             GateReport report = new GateReport
             {
+                git_sha = Environment.GetEnvironmentVariable("MINDFORGE_GIT_SHA") ?? "unknown",
                 editor_version = Application.unityVersion,
                 generated_utc = DateTime.UtcNow.ToString("O"),
                 scene_path = ScenePath,

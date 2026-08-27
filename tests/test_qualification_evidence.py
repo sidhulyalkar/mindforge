@@ -90,6 +90,7 @@ def test_promotion_manifest_never_invents_unobserved_gates():
 
 def test_unity_gate_is_clean_checkout_batch_qualification_not_source_only():
     batch = (ROOT / "unity/Assets/Mindforge/Editor/CompetitionBatchRunner.cs").read_text(encoding="utf-8")
+    gate = (ROOT / "unity/Assets/Mindforge/Editor/CompetitionGateValidator.cs").read_text(encoding="utf-8")
     runner = (ROOT / "tools/run_unity_gate.py").read_text(encoding="utf-8")
     workflow = (ROOT / ".github/workflows/test-neuro.yml").read_text(encoding="utf-8")
 
@@ -102,3 +103,13 @@ def test_unity_gate_is_clean_checkout_batch_qualification_not_source_only():
     assert "unity-gate1-run.json" in runner
     assert "mindforge-software-evidence" in workflow
     assert "pytest --junitxml" in workflow
+
+    # The process-generated Gate 1 evidence must echo the exact Git identity supplied
+    # to Unity, and the Python wrapper must require that identity to match before P1.
+    assert "public string git_sha" in gate
+    assert 'Environment.GetEnvironmentVariable("MINDFORGE_GIT_SHA")' in gate
+    assert 'gate.get("git_sha")' in runner
+    assert '"observed_git_sha"' in runner
+    assert '"exact_git_sha_match"' in runner
+    assert "gate_commit == commit" in runner
+    assert "and exact_commit" in runner
