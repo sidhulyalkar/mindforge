@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Mindforge.Combat
@@ -20,6 +21,13 @@ namespace Mindforge.Combat
         private float _phase;
         private float _nextFire;
         private bool _externalPaused;
+        private bool _shattered;
+
+        /// <summary>
+        /// Semantic lifecycle evidence only. Consumers may observe that the player
+        /// destroyed an Echo, but the event never changes combat authority.
+        /// </summary>
+        public event Action Shattered;
 
         public void Initialize(Transform boss, Transform player, FluxMeter playerFlux, float phase)
         {
@@ -59,6 +67,9 @@ namespace Mindforge.Combat
 
         private void OnDied()
         {
+            if (_shattered) return;
+            _shattered = true;
+            Shattered?.Invoke();
             _playerFlux?.Award(fluxReward, "Echo Shatter");
             Destroy(gameObject, 0.05f);
         }
