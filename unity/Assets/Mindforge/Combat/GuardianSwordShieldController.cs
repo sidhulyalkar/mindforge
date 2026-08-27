@@ -89,6 +89,22 @@ namespace Mindforge.Combat
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
         }
 
+        public void ConfigureRuntime(
+            NeuralFocusResonance focus,
+            FluxMeter fluxMeter,
+            Transform target,
+            GuardianShieldHitbox hitbox,
+            HitStopController stop,
+            CombatTuning combatTuning = null)
+        {
+            resonance = focus;
+            flux = fluxMeter;
+            primaryTarget = target;
+            shieldHitbox = hitbox;
+            hitStop = stop;
+            if (combatTuning != null) tuning = combatTuning;
+        }
+
         private void OnDisable()
         {
             _guardHeld = false;
