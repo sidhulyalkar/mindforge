@@ -43,7 +43,12 @@ namespace Mindforge.Telemetry
                 buffs.AuraApplied += OnAuraApplied;
                 buffs.ConcordTriggered += OnConcord;
             }
-            if (bossDirector != null) bossDirector.PhaseChanged += OnBossPhase;
+            if (bossDirector != null)
+            {
+                bossDirector.PhaseChanged += OnBossPhase;
+                bossDirector.EchoSpawned += OnEchoSpawned;
+                bossDirector.EchoShattered += OnEchoShattered;
+            }
             if (bossVitals != null)
             {
                 bossVitals.Damaged += OnBossDamaged;
@@ -99,7 +104,12 @@ namespace Mindforge.Telemetry
                 buffs.AuraApplied -= OnAuraApplied;
                 buffs.ConcordTriggered -= OnConcord;
             }
-            if (bossDirector != null) bossDirector.PhaseChanged -= OnBossPhase;
+            if (bossDirector != null)
+            {
+                bossDirector.PhaseChanged -= OnBossPhase;
+                bossDirector.EchoSpawned -= OnEchoSpawned;
+                bossDirector.EchoShattered -= OnEchoShattered;
+            }
             if (bossVitals != null)
             {
                 bossVitals.Damaged -= OnBossDamaged;
@@ -124,6 +134,8 @@ namespace Mindforge.Telemetry
         private void OnAuraApplied(string target) => sender?.Emit("NEURAL_BUFF_APPLIED", "neural_payoff", target: target, bossPhase: Phase);
         private void OnConcord() => sender?.Emit("CONCORD_ESTABLISHED", "neural_payoff", bossPhase: Phase);
         private void OnNearMiss() => sender?.Emit("NEAR_MISS", "combat_outcome", reason: "THREAD_THE_NEEDLE", bossPhase: Phase);
+        private void OnEchoSpawned() => sender?.Emit("ECHO_SPAWNED", "boss_phase", bossPhase: Phase);
+        private void OnEchoShattered() => sender?.Emit("ECHO_SHATTERED", "combat_outcome", reason: "PLAYER_PRIORITY_TARGET", bossPhase: Phase);
 
         private void OnPlayerDamaged(DamagePacket packet)
         {
