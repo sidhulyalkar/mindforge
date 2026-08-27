@@ -44,6 +44,8 @@ namespace Mindforge.Presentation
                 guardian.AddComponent<GuardianAvatarPresentation>();
             if (guardian.GetComponent<GuardianMotionPolish>() == null)
                 guardian.AddComponent<GuardianMotionPolish>();
+            if (guardian.GetComponent<GuardianPresentationHierarchyBinder>() == null)
+                guardian.AddComponent<GuardianPresentationHierarchyBinder>();
             if (guardian.GetComponent<GuardianLocomotionVfx>() == null)
                 guardian.AddComponent<GuardianLocomotionVfx>();
             if (guardian.GetComponent<GuardianAnimatorBridge>() == null)
@@ -85,7 +87,7 @@ namespace Mindforge.Presentation
                 gameObject.AddComponent<CinematicArtOverrideInstaller>();
 
             Debug.Log(
-                "[Mindforge:Showcase] Animation/graphics v3 installed: additive Guardian weight and recoil, " +
+                "[Mindforge:Showcase] Animation/graphics v3 installed: coherent Guardian body hierarchy, additive weight and recoil, " +
                 "production Animator contracts, armament afterimages/motes, grounded locomotion particles, " +
                 "Fractured Signal secondary motion, truthful telegraphs, tactical camera, semantic VFX, " +
                 "cinematic URP, PBR rebinding and optional authored-art overrides.");
