@@ -5,8 +5,9 @@ using Mindforge.SoulWisp;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Qualification-only photodiode patch. F10 toggles visibility. F11 switches
-    /// between the Sight (10 Hz) and Guard (12 Hz) VEP phase clocks.
+    /// Qualification-only photodiode patch. F9 toggles visibility. F11 switches
+    /// between the Sight (10 Hz) and Guard (12 Hz) VEP phase clocks. F10 is reserved
+    /// for the player/judge-facing authority explainer and must never toggle a stimulus.
     ///
     /// During human sessions this square must be physically occluded by the diode or
     /// disabled, otherwise it becomes an additional peripheral SSVEP stimulus.
@@ -18,7 +19,7 @@ namespace Mindforge.Presentation
         [SerializeField] private VepAuraStimulus sightStimulus;
         [SerializeField] private VepAuraStimulus guardStimulus;
         [SerializeField] private Image patch;
-        [SerializeField] private KeyCode toggleKey = KeyCode.F10;
+        [SerializeField] private KeyCode toggleKey = KeyCode.F9;
         [SerializeField] private KeyCode switchSourceKey = KeyCode.F11;
         [SerializeField] private bool visibleAtStartup;
         [SerializeField] private StimulusSource source = StimulusSource.Sight;
