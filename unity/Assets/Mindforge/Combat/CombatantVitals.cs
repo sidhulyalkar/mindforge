@@ -32,10 +32,16 @@ namespace Mindforge.Combat
             if (Health <= 0f) Died?.Invoke();
         }
 
-        public void Heal(float amount)
+        /// <summary>
+        /// Returns the health that was actually restored after max-health clipping.
+        /// Callers that do not need attribution may ignore the return value.
+        /// </summary>
+        public float Heal(float amount)
         {
-            if (!IsAlive || amount <= 0f) return;
+            if (!IsAlive || amount <= 0f) return 0f;
+            float before = Health;
             Health = Mathf.Min(maxHealth, Health + amount);
+            return Mathf.Max(0f, Health - before);
         }
     }
 }
