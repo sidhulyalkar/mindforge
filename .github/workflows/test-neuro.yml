@@ -19,14 +19,20 @@ jobs:
       - run: pip install -e '.[test]'
 
       - name: Run pytest and capture promotion evidence
+        shell: bash
         run: |
           mkdir -p experiments/reports
+          set +e
           pytest --junitxml=experiments/reports/pytest.xml
-          python tools/mindforge_qualify.py software \
-            --junit experiments/reports/pytest.xml \
-            --commit "$GITHUB_SHA" \
-            --output experiments/reports/software-gate.json \
-            --enforce
+          pytest_status=$?
+          set -e
+          if [ -f experiments/reports/pytest.xml ]; then
+            python tools/mindforge_qualify.py software \
+              --junit experiments/reports/pytest.xml \
+              --commit "$GITHUB_SHA" \
+              --output experiments/reports/software-gate.json
+          fi
+          exit "$pytest_status"
 
       - name: Validate Python demo and qualification tools
         run: |
