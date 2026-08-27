@@ -77,7 +77,8 @@ namespace Mindforge.Combat
             Vector3 aimDirection,
             float sightResonance,
             float guardResonance,
-            float guardCoverageScale)
+            float guardCoverageScale,
+            int comboStep = 1)
         {
             Vector3 aim = Vector3.ProjectOnPlane(aimDirection, Vector3.up);
             if (aim.sqrMagnitude < 0.01f) aim = transform.forward;
@@ -89,10 +90,26 @@ namespace Mindforge.Combat
 
             if (swordRoot != null)
             {
-                float yaw = attacking
-                    ? Mathf.Lerp(-68f, 72f, Mathf.SmoothStep(0f, 1f, attackProgress))
-                    : 22f;
-                float pitch = attacking ? Mathf.Lerp(-7f, 8f, attackProgress) : -12f;
+                float yaw;
+                float pitch;
+                if (!attacking)
+                {
+                    yaw = 22f;
+                    pitch = -12f;
+                }
+                else
+                {
+                    float eased = Mathf.SmoothStep(0f, 1f, attackProgress);
+                    if (comboStep == 2)
+                        yaw = Mathf.Lerp(72f, -72f, eased);
+                    else if (comboStep >= 3)
+                        yaw = Mathf.Lerp(-86f, 92f, eased);
+                    else
+                        yaw = Mathf.Lerp(-68f, 72f, eased);
+                    pitch = comboStep >= 3
+                        ? Mathf.Lerp(-18f, 15f, attackProgress)
+                        : Mathf.Lerp(-7f, 8f, attackProgress);
+                }
                 swordRoot.rotation = facing * Quaternion.Euler(pitch, yaw, 0f);
             }
 
@@ -101,6 +118,7 @@ namespace Mindforge.Combat
                 Vector3 scale = _swordBaseScale;
                 scale.z *= 1f + maxSwordLengthBonus * sight;
                 scale.x *= 1f + maxSwordWidthBonus * sight;
+                if (attacking && comboStep >= 3) scale.x *= 1.08f;
                 swordBlade.localScale = scale;
             }
 
@@ -121,7 +139,8 @@ namespace Mindforge.Combat
             if (swordTrail != null)
             {
                 swordTrail.emitting = attacking;
-                swordTrail.widthMultiplier = Mathf.Lerp(0.05f, 0.18f, sight);
+                float finisher = attacking && comboStep >= 3 ? 1.30f : 1f;
+                swordTrail.widthMultiplier = Mathf.Lerp(0.05f, 0.18f, sight) * finisher;
                 Color trail = Color.Lerp(new Color(sightColor.r, sightColor.g, sightColor.b, 0.18f), sightColor, sight);
                 swordTrail.startColor = trail;
                 swordTrail.endColor = new Color(trail.r, trail.g, trail.b, 0f);
@@ -130,7 +149,8 @@ namespace Mindforge.Combat
             if (swordLight != null)
             {
                 swordLight.color = sightColor;
-                swordLight.intensity = attacking ? Mathf.Lerp(0.35f, 3.1f, sight) : Mathf.Lerp(0.08f, 0.8f, sight);
+                float finisher = attacking && comboStep >= 3 ? 1.35f : 1f;
+                swordLight.intensity = (attacking ? Mathf.Lerp(0.35f, 3.1f, sight) : Mathf.Lerp(0.08f, 0.8f, sight)) * finisher;
             }
             if (shieldLight != null)
             {
