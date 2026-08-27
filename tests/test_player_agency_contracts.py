@@ -44,10 +44,17 @@ def test_guardian_precision_aim_is_player_owned_and_replayable():
     assert source.index("if (mouseAimEnabled && _mouseAimActive") < source.index("if (aimTarget != null)")
 
     # Resolved conventional aim is part of the fixed command tape contract.
-    assert "aim_x = aim.x" in source
-    assert "aim_y = aim.y" in source
-    assert "aim_z = aim.z" in source
+    assert "aim_x = liveAim.x" in source
+    assert "aim_y = liveAim.y" in source
+    assert "aim_z = liveAim.z" in source
     assert "inputTape.Resolve(live, fixedHz)" in source
+
+    # Reticle/presentation must follow the post-tape authoritative command rather
+    # than showing live mouse input during deterministic replay.
+    resolve_index = source.index("GuardianCommandFrame command =")
+    presentation_index = source.index("UpdateResolvedAimPresentation(command")
+    assert resolve_index < presentation_index
+    assert "inputTape.Mode == GuardianInputTapeMode.Replay" in source
 
 
 def test_player_agency_guide_is_presentation_only_and_judge_legible():
