@@ -24,8 +24,11 @@ namespace Mindforge.Telemetry
         [SerializeField] private FluxMeter flux;
         [SerializeField] private NeuralLinkContingency linkContingency;
         [SerializeField] private ProjectileNearMissSensor nearMissSensor;
+        [SerializeField] private float guardHealMarkerInterval = 0.75f;
 
         private readonly List<CombatantVitals> _observedEchoVitals = new List<CombatantVitals>();
+        private float _guardRegenPending;
+        private float _guardRegenFlushAt;
 
         private void OnEnable()
         {
@@ -72,6 +75,12 @@ namespace Mindforge.Telemetry
             ObserveEchoVitals();
         }
 
+        private void Update()
+        {
+            if (_guardRegenPending > 0f && Time.time >= _guardRegenFlushAt)
+                FlushGuardRegen();
+        }
+
         private void ResolveReferences()
         {
             if (sender == null) sender = Object.FindObjectOfType<UdpGameMarkerSender>(true);
@@ -108,6 +117,7 @@ namespace Mindforge.Telemetry
 
         private void OnDisable()
         {
+            FlushGuardRegen();
             if (motor != null) motor.DashStarted -= OnDash;
             if (combat != null)
             {
@@ -210,10 +220,7 @@ namespace Mindforge.Telemetry
             EmitNeuralDamageBonus(packet, "boss");
         }
 
-        private void OnEchoDamaged(DamagePacket packet)
-        {
-            EmitNeuralDamageBonus(packet, "echo");
-        }
+        private void OnEchoDamaged(DamagePacket packet) => EmitNeuralDamageBonus(packet, "echo");
 
         private void EmitNeuralDamageBonus(DamagePacket packet, string target)
         {
@@ -230,6 +237,14 @@ namespace Mindforge.Telemetry
         private void OnNeuralPayoffObserved(string kind, float value)
         {
             if (value <= 0f || string.IsNullOrEmpty(kind)) return;
+            if (kind == "GUARD_REGEN_REALIZED")
+            {
+                _guardRegenPending += value;
+                if (_guardRegenFlushAt <= 0f)
+                    _guardRegenFlushAt = Time.time + Mathf.Max(0.1f, guardHealMarkerInterval);
+                return;
+            }
+
             sender?.Emit(
                 "NEURAL_GUARD_HEAL_REALIZED",
                 "neural_payoff",
@@ -237,6 +252,20 @@ namespace Mindforge.Telemetry
                 reason: kind,
                 value: value,
                 bossPhase: Phase);
+        }
+
+        private void FlushGuardRegen()
+        {
+            if (_guardRegenPending <= 0f) return;
+            sender?.Emit(
+                "NEURAL_GUARD_HEAL_REALIZED",
+                "neural_payoff",
+                target: "guardian",
+                reason: "GUARD_REGEN_REALIZED",
+                value: _guardRegenPending,
+                bossPhase: Phase);
+            _guardRegenPending = 0f;
+            _guardRegenFlushAt = 0f;
         }
 
         private void OnBloomActivated(bool concord)
@@ -255,8 +284,18 @@ namespace Mindforge.Telemetry
 
         private void OnBossPhase(int phase) => sender?.Emit("BOSS_PHASE", "boss_phase", value: phase, bossPhase: phase);
         private void OnSignalBreak() => sender?.Emit("SIGNAL_BREAK", "combat_outcome", bossPhase: Phase);
-        private void OnBossDied() => sender?.Emit("VICTORY", "session", bossPhase: Phase);
-        private void OnPlayerDied() => sender?.Emit("DEFEAT", "session", bossPhase: Phase);
+
+        private void OnBossDied()
+        {
+            FlushGuardRegen();
+            sender?.Emit("VICTORY", "session", bossPhase: Phase);
+        }
+
+        private void OnPlayerDied()
+        {
+            FlushGuardRegen();
+            sender?.Emit("DEFEAT", "session", bossPhase: Phase);
+        }
 
         private void OnFluxChanged(float before, float after, string reason)
         {
