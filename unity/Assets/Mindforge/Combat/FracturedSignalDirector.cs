@@ -43,6 +43,8 @@ namespace Mindforge.Combat
         private bool _externalPaused;
 
         public event Action<int> PhaseChanged;
+        public event Action EchoSpawned;
+        public event Action EchoShattered;
         public bool ExternalPaused => _externalPaused;
 
         public int Phase
@@ -77,6 +79,8 @@ namespace Mindforge.Combat
             if (_loop != null) StopCoroutine(_loop);
             _loop = null;
             telegraph?.Clear();
+            foreach (FracturedEchoNode echo in _echoes)
+                if (echo != null) echo.Shattered -= OnEchoShattered;
         }
 
         private void OnSignalBreak()
@@ -223,8 +227,15 @@ namespace Mindforge.Combat
             FracturedEchoNode echo = Instantiate(echoPrefab, transform.position, Quaternion.identity,
                 echoParent != null ? echoParent : transform.parent);
             echo.Initialize(transform, player, playerFlux, phase);
+            echo.Shattered += OnEchoShattered;
             echo.SetExternalPause(_externalPaused);
             _echoes.Add(echo);
+            EchoSpawned?.Invoke();
+        }
+
+        private void OnEchoShattered()
+        {
+            EchoShattered?.Invoke();
         }
     }
 }
