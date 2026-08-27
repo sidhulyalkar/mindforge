@@ -5,7 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "seq", "session_id", "event", "category", "unity_realtime_s",
+    "schema", "seq", "session_id", "calibration_id", "event", "category", "unity_realtime_s",
     "game_time_s", "frame", "fixed_tick", "stage", "action", "target", "reason",
     "value", "boss_phase", "stimulus_epoch", "trial_id", "planned_duration_s"
   ],
@@ -13,6 +13,7 @@
     "schema": {"const": "mindforge.game_marker.v1"},
     "seq": {"type": "integer", "minimum": 0},
     "session_id": {"type": "string"},
+    "calibration_id": {"type": ["string", "null"]},
     "event": {"type": "string", "minLength": 1},
     "category": {"type": "string", "minLength": 1},
     "unity_realtime_s": {"type": "number", "minimum": 0},

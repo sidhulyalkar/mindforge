@@ -56,13 +56,30 @@ def resting_alpha_diagnostics(eeg: np.ndarray, sample_rate_hz: float) -> dict[st
             "alpha_fraction": float(np.sum(spec[alpha]) / np.sum(spec[broadband]))}
 
 
-def status_event(seq: int, kind: EventType, model_id: str, source_mode: str,
-                 confidence: float = 0.0, quality: float = 0.0,
-                 reason: str | None = None, session_id: str | None = None) -> NeuralEvent:
-    return NeuralEvent.create(seq=seq, event=kind, target=None, confidence=confidence,
-                              quality=quality, model_id=model_id, reason=reason,
-                              source_mode=source_mode, session_id=session_id,
-                              calibration_id=session_id, authority_ttl_ms=0)
+def status_event(
+    seq: int,
+    kind: EventType,
+    model_id: str,
+    source_mode: str,
+    confidence: float = 0.0,
+    quality: float = 0.0,
+    reason: str | None = None,
+    session_id: str | None = None,
+    calibration_id: str | None = None,
+) -> NeuralEvent:
+    return NeuralEvent.create(
+        seq=seq,
+        event=kind,
+        target=None,
+        confidence=confidence,
+        quality=quality,
+        model_id=model_id,
+        reason=reason,
+        source_mode=source_mode,
+        session_id=session_id,
+        calibration_id=calibration_id,
+        authority_ttl_ms=0,
+    )
 
 
 class PhantomController:
@@ -137,7 +154,8 @@ def main() -> None:
     print(f"Connected to {source.stream_identity}; waiting for Unity Awakening markers on {args.marker_port}")
 
     active_stage: str | None = None
-    active_session: str | None = None
+    active_game_session: str | None = None
+    active_calibration: str | None = None
     active_chunks: list[np.ndarray] = []
     epochs: dict[str, np.ndarray] = {}
 
@@ -154,19 +172,24 @@ def main() -> None:
                     continue
                 if marker.category != "calibration" or marker.stage not in STAGES:
                     continue
-                session = marker.session_id
+
+                game_session = marker.session_id or None
+                calibration_session = marker.calibration_id or marker.session_id
                 stage = str(marker.stage)
                 action = str(marker.action or "")
                 if action == "begin":
-                    if active_session != session:
+                    if active_calibration != calibration_session:
                         epochs = {}
-                    active_session = session
+                    active_game_session = game_session
+                    active_calibration = calibration_session
                     active_stage = stage
                     active_chunks = []
                     if phantom_enabled:
                         phantom.send(PHANTOM_STAGE_COMMAND[stage])
-                    print(f"Calibration BEGIN {stage} session={session[:8]}")
-                elif action == "end" and active_stage == stage and active_session == session:
+                    print(
+                        f"Calibration BEGIN {stage} game={active_game_session or '-'} "
+                        f"calibration={(active_calibration or '-')[:12]}")
+                elif action == "end" and active_stage == stage and active_calibration == calibration_session:
                     epochs[stage] = (np.concatenate(active_chunks, axis=1)
                                      if active_chunks else np.empty((8, 0), dtype=float))
                     print(f"Calibration END {stage}: {epochs[stage].shape[1]} samples")
@@ -182,8 +205,15 @@ def main() -> None:
             now = time.monotonic()
             if now >= heartbeat_at:
                 seq += 1
-                sink.send(status_event(seq, EventType.CALIBRATION_HEARTBEAT, model_id, args.source_mode,
-                                       reason=active_stage or "waiting", session_id=active_session))
+                sink.send(status_event(
+                    seq,
+                    EventType.CALIBRATION_HEARTBEAT,
+                    model_id,
+                    args.source_mode,
+                    reason=active_stage or "waiting",
+                    session_id=active_game_session,
+                    calibration_id=active_calibration,
+                ))
                 heartbeat_at = now + 0.5
 
             if all(stage in epochs for stage in STAGES):
@@ -202,7 +232,8 @@ def main() -> None:
 
                     report = {
                         "schema": "mindforge.calibration_report.v1",
-                        "session_id": active_session,
+                        "session_id": active_game_session,
+                        "calibration_id": active_calibration,
                         "model_id": profile.model_id,
                         "source_mode": args.source_mode,
                         "training_accuracy": profile.training_accuracy,
@@ -213,25 +244,37 @@ def main() -> None:
                     }
                     report_dir = Path(args.report_dir)
                     report_dir.mkdir(parents=True, exist_ok=True)
-                    (report_dir / f"calibration-{active_session}.json").write_text(
+                    calibration_name = active_calibration or active_game_session or str(int(time.time()))
+                    (report_dir / f"calibration-{calibration_name}.json").write_text(
                         json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
                     seq += 1
                     sink.send(status_event(
-                        seq, EventType.CALIBRATION_READY, model_id, args.source_mode,
+                        seq,
+                        EventType.CALIBRATION_READY,
+                        model_id,
+                        args.source_mode,
                         confidence=profile.training_accuracy,
                         quality=profile.accepted_fraction,
                         reason=(f"alpha_peak_hz={baseline['alpha_peak_hz']:.2f};"
                                 f"alpha_fraction={baseline['alpha_fraction']:.3f}"),
-                        session_id=active_session))
+                        session_id=active_game_session,
+                        calibration_id=active_calibration,
+                    ))
                     print("Calibration accepted:", json.dumps(report, indent=2))
                     break
                 except Exception as exc:
                     if phantom_enabled:
                         phantom.send("0")
                     seq += 1
-                    sink.send(status_event(seq, EventType.CALIBRATION_FAILED, model_id,
-                                           args.source_mode, reason=str(exc)[:240],
-                                           session_id=active_session))
+                    sink.send(status_event(
+                        seq,
+                        EventType.CALIBRATION_FAILED,
+                        model_id,
+                        args.source_mode,
+                        reason=str(exc)[:240],
+                        session_id=active_game_session,
+                        calibration_id=active_calibration,
+                    ))
                     print(f"Calibration rejected: {exc}. Waiting for Unity retry.")
                     epochs = {}
 
@@ -240,8 +283,8 @@ def main() -> None:
             profile,
             source_mode=args.source_mode,
             initial_seq=seq,
-            session_id=active_session,
-            calibration_id=active_session,
+            session_id=active_game_session,
+            calibration_id=active_calibration,
         )
         buffer = SlidingWindowBuffer(8, cfg.window_samples,
                                      max(1, int(round(args.hop_seconds * cfg.sample_rate_hz))))

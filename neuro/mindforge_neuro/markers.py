@@ -29,6 +29,10 @@ class GameMarkerType(str, Enum):
 class GameMarker:
     """A Unity-originated event describing what the game actually did.
 
+    ``session_id`` identifies the Unity game session. ``calibration_id`` is a
+    separate optional join key for calibration epochs. This prevents a calibration
+    marker from silently changing the meaning of session identity.
+
     This channel intentionally carries no raw EEG and no decoder implementation
     state. It is the inverse of ``NeuralEvent``: Unity publishes presentation and
     gameplay facts so acquisition, replay and qualification tools can align the
@@ -53,6 +57,7 @@ class GameMarker:
     stimulus_epoch: int = -1
     trial_id: str | None = None
     planned_duration_s: float = 0.0
+    calibration_id: str | None = None
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "GameMarker":
@@ -60,13 +65,15 @@ class GameMarker:
         if schema not in SUPPORTED_GAME_MARKER_SCHEMAS:
             raise ValueError(f"unsupported game marker schema: {schema}")
 
-        # Old Awakening markers are promoted into the general contract on read so
-        # recordings from the current competition slice remain usable indefinitely.
+        # Old Awakening markers used session_id as the calibration identifier.
+        # Preserve that information while promoting it to the explicit field.
         if schema == LEGACY_CALIBRATION_MARKER_V1:
+            legacy_id = str(payload.get("session_id") or "")
             return cls(
                 schema=schema,
                 seq=int(payload.get("seq", 0)),
-                session_id=str(payload.get("session_id") or ""),
+                session_id=legacy_id,
+                calibration_id=legacy_id or None,
                 event=GameMarkerType.CALIBRATION_STAGE.value,
                 category="calibration",
                 unity_realtime_s=float(payload.get("unity_realtime_s", 0.0)),
@@ -82,6 +89,7 @@ class GameMarker:
             schema=schema,
             seq=max(0, int(payload.get("seq", 0))),
             session_id=str(payload.get("session_id") or ""),
+            calibration_id=_optional_str(payload.get("calibration_id")),
             event=str(payload.get("event") or GameMarkerType.CUSTOM.value),
             category=str(payload.get("category") or "game"),
             unity_realtime_s=float(payload.get("unity_realtime_s", 0.0)),
@@ -118,11 +126,12 @@ class GameMarker:
 class UdpGameMarkerSource:
     """Small reusable UDP inlet for Unity game markers.
 
-    The socket lives in Python because Unity should never need to know which
-    acquisition, recorder or qualification service is listening.
+    Port 19743 is the primary processing lane. Port 19745 is the default passive
+    observation mirror used by developer logging so a recorder does not contend with
+    the calibration/decoder process.
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 19743, *, timeout_s: float = 0.25):
+    def __init__(self, host: str = "127.0.0.1", port: int = 19745, *, timeout_s: float = 0.25):
         self.address = (host, int(port))
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(self.address)

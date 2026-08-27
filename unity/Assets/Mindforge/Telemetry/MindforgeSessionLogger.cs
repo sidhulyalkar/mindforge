@@ -86,8 +86,12 @@ namespace Mindforge.Telemetry
 
         private void Awake()
         {
-            string id = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
-            _session = new SessionTelemetryEnvelope { session_id = id, started_utc = DateTime.UtcNow.ToString("O") };
+            string id = MindforgeSessionContext.GameSessionId;
+            _session = new SessionTelemetryEnvelope
+            {
+                session_id = id,
+                started_utc = MindforgeSessionContext.StartedUtc,
+            };
             _directory = Path.Combine(Application.persistentDataPath, "mindforge_sessions");
             Directory.CreateDirectory(_directory);
             _partialPath = Path.Combine(_directory, $"mindforge-{id}.partial.json");

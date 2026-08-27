@@ -1,4 +1,3 @@
-using System;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
@@ -7,13 +6,18 @@ namespace Mindforge.Telemetry
 {
     /// <summary>
     /// Publishes typed Unity-originated facts to acquisition/replay/qualification
-    /// processes. The sender is intentionally fire-and-forget: loss of a recorder
-    /// must never stall gameplay or grant neural authority.
+    /// processes. The primary port is for the active processing consumer; the mirror
+    /// port is a passive observation lane so evidence logging never contends with the
+    /// calibration/decoder socket.
+    ///
+    /// The sender is intentionally fire-and-forget: loss of a recorder must never
+    /// stall gameplay or grant neural authority.
     /// </summary>
     public sealed class UdpGameMarkerSender : MonoBehaviour
     {
         [SerializeField] private string host = "127.0.0.1";
         [SerializeField] private int port = 19743;
+        [SerializeField] private int observerPort = 19745;
         [SerializeField] private bool logMarkers;
 
         private UdpClient _client;
@@ -26,7 +30,7 @@ namespace Mindforge.Telemetry
 
         private void Awake()
         {
-            _sessionId = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
+            _sessionId = MindforgeSessionContext.GameSessionId;
             _client = new UdpClient();
         }
 
@@ -42,8 +46,8 @@ namespace Mindforge.Telemetry
             long stimulusEpoch = -1,
             string trialId = null)
         {
-            EmitWithSession(
-                _sessionId,
+            EmitInternal(
+                null,
                 eventType,
                 category,
                 null,
@@ -58,13 +62,13 @@ namespace Mindforge.Telemetry
         }
 
         public void EmitCalibration(
-            string sessionId,
+            string calibrationId,
             string stage,
             string action,
             float plannedDurationSeconds)
         {
-            EmitWithSession(
-                sessionId,
+            EmitInternal(
+                calibrationId,
                 "CALIBRATION_STAGE",
                 "calibration",
                 stage,
@@ -78,8 +82,8 @@ namespace Mindforge.Telemetry
                 plannedDurationSeconds);
         }
 
-        public void EmitWithSession(
-            string sessionId,
+        private void EmitInternal(
+            string calibrationId,
             string eventType,
             string category,
             string stage,
@@ -96,7 +100,8 @@ namespace Mindforge.Telemetry
             GameMarker marker = new GameMarker
             {
                 seq = ++_seq,
-                session_id = string.IsNullOrEmpty(sessionId) ? _sessionId : sessionId,
+                session_id = _sessionId,
+                calibration_id = calibrationId ?? string.Empty,
                 @event = eventType ?? "CUSTOM",
                 category = category ?? "game",
                 unity_realtime_s = Time.realtimeSinceStartupAsDouble,
@@ -115,17 +120,26 @@ namespace Mindforge.Telemetry
             };
 
             byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(marker));
+            Send(bytes, port, "primary");
+            if (observerPort > 0 && observerPort != port)
+                Send(bytes, observerPort, "observer");
+
+            if (logMarkers)
+                Debug.Log($"[GameMarker] #{marker.seq} {marker.category}/{marker.@event} {marker.action}");
+        }
+
+        private void Send(byte[] bytes, int destinationPort, string lane)
+        {
             try
             {
-                _client.Send(bytes, bytes.Length, host, port);
-                if (logMarkers)
-                    Debug.Log($"[GameMarker] #{marker.seq} {marker.category}/{marker.@event} {marker.action}");
+                _client.Send(bytes, bytes.Length, host, destinationPort);
             }
             catch (SocketException ex)
             {
                 // Telemetry is evidence, never gameplay authority. A missing recorder
                 // may be visible in logs but must not interrupt the participant.
-                if (logMarkers) Debug.LogWarning($"[GameMarker] UDP send failed: {ex.SocketErrorCode}");
+                if (logMarkers)
+                    Debug.LogWarning($"[GameMarker] {lane} UDP send failed: {ex.SocketErrorCode}");
             }
         }
 

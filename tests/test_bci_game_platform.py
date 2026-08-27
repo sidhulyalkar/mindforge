@@ -102,7 +102,8 @@ def test_game_marker_parses_new_contract_and_legacy_calibration_adapter():
     modern = GameMarker.from_dict({
         "schema": "mindforge.game_marker.v1",
         "seq": 9,
-        "session_id": "s",
+        "session_id": "game-s",
+        "calibration_id": None,
         "event": "PHASE_DASH",
         "category": "combat_action",
         "unity_realtime_s": 1.2,
@@ -121,10 +122,12 @@ def test_game_marker_parses_new_contract_and_legacy_calibration_adapter():
     })
     assert modern.event == "PHASE_DASH"
     assert modern.boss_phase == 2
+    assert modern.session_id == "game-s"
+    assert modern.calibration_id is None
 
     legacy = GameMarker.from_dict({
         "schema": "mindforge.calibration_marker.v1",
-        "session_id": "old",
+        "session_id": "old-cal",
         "stage": "sight",
         "action": "begin",
         "unity_realtime_s": 2.5,
@@ -134,6 +137,7 @@ def test_game_marker_parses_new_contract_and_legacy_calibration_adapter():
     assert legacy.event == "CALIBRATION_STAGE"
     assert legacy.stage == "sight"
     assert legacy.action == "begin"
+    assert legacy.calibration_id == "old-cal"
 
 
 def test_contract_files_and_unity_boundary_encode_platform_invariants():
@@ -142,6 +146,7 @@ def test_contract_files_and_unity_boundary_encode_platform_invariants():
     assert neural_schema["properties"]["schema"]["const"] == "mindforge.neural_event.v2"
     assert "authority_ttl_ms" in neural_schema["required"]
     assert marker_schema["properties"]["schema"]["const"] == "mindforge.game_marker.v1"
+    assert "calibration_id" in marker_schema["required"]
 
     receiver = (ROOT / "unity/Assets/Mindforge/NeuralBridge/UdpNeuralReceiver.cs").read_text()
     neural_event = (ROOT / "unity/Assets/Mindforge/NeuralBridge/NeuralEvent.cs").read_text()
@@ -152,6 +157,7 @@ def test_contract_files_and_unity_boundary_encode_platform_invariants():
     assert "AuthorityExpired" in receiver
     assert "authority_ttl_ms" in neural_event
     assert 'SchemaV1 = "mindforge.game_marker.v1"' in marker_model
+    assert "calibration_id" in marker_model
     assert "GameMarker marker = new GameMarker" in sender
     assert "RuntimeInitializeOnLoadMethod" in bootstrap
     combined = (receiver + neural_event + marker_model + sender).lower()

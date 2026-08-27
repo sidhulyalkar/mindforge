@@ -74,6 +74,23 @@ S4 success does not validate human physiology.
 
 Only the level actually exercised may be claimed.
 
+## One game session, separate evidence identities
+
+All modern Unity evidence surfaces use the same process-lifetime `session_id` from `MindforgeSessionContext`. This makes the durable Unity session envelope, outbound `GameMarker` stream, and returned `NeuralEvent` stream exactly joinable by ID rather than by approximate timestamps.
+
+Calibration is a separate dimension:
+
+```text
+session_id       = this Unity game run
+calibration_id   = the calibration profile/epoch that authorized decoding
+model_id         = decoder implementation/profile identity
+source_mode      = which causal layer was substituted
+```
+
+A calibration marker must never silently change the meaning of `session_id`.
+
+Legacy `mindforge.calibration_marker.v1` captures used their old `session_id` field as a calibration identifier. The Python adapter preserves those recordings by promoting that value into `calibration_id` when read.
+
 ## NeuralEvent v2
 
 The versioned schema lives at `contracts/neural_event.v2.schema.json`.
@@ -122,9 +139,26 @@ VICTORY
 DEFEAT
 ```
 
-Markers carry Unity realtime, game time, rendered frame, fixed tick, session identity and relevant semantic context.
+Markers carry Unity realtime, game time, rendered frame, fixed tick, game-session identity, optional calibration identity, and relevant semantic context.
 
 Calibration begin/end markers are promoted into this same contract in newly bootstrapped scenes. The Python parser also accepts the previous `mindforge.calibration_marker.v1` schema so older captures remain valid.
+
+### Two GameMarker lanes
+
+UDP is datagram delivery, not a pub/sub bus. Two processes binding the same port must not be relied upon to receive independent copies. Mindforge therefore mirrors outbound markers deliberately:
+
+```text
+Unity GameMarker
+      ├── UDP 19743  primary processing lane
+      │              calibration / active decoder consumer
+      │
+      └── UDP 19745  passive observer lane
+                     recorder / qualification / developer console
+```
+
+The mirror contains the same typed marker and sequence number. Passive logging can therefore run during calibration without stealing packets from the decoder.
+
+The outbound path remains non-authoritative. Failure of either lane may remove evidence, but it must never pause combat, invent neural authority, or change a result.
 
 ## Automatic Unity installation
 
@@ -132,9 +166,7 @@ Calibration begin/end markers are promoted into this same contract in newly boot
 
 It is idempotent. Existing generated scenes do not need to be hand-edited, and future scenes receive the same contract without depending on fragile serialized references.
 
-`MindforgeGameMarkerBridge` discovers the combat objects, subscribes to their semantic events, and publishes `GameMarker` records through `UdpGameMarkerSender` on localhost UDP 19743.
-
-Failure of this telemetry path is allowed to remove evidence. It is never allowed to pause combat, invent a neural command, or change a result.
+`MindforgeGameMarkerBridge` discovers the combat objects, subscribes to their semantic events, and publishes `GameMarker` records through `UdpGameMarkerSender`.
 
 ## Development harness
 
@@ -171,14 +203,14 @@ source_mode = decision_replay
 
 The gameplay path is otherwise the production UDP receiver and authority implementation.
 
-### Observe Unity
+### Observe Unity without contending with calibration
 
 ```bash
 python tools/mindforge_dev.py marker-log \
   --output experiments/markers/unity.jsonl
 ```
 
-This captures the other half of the causal loop.
+The command listens to the passive observer mirror on UDP 19745 by default. The active calibration/decoder path remains on UDP 19743.
 
 ## Causal trace
 

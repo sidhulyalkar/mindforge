@@ -11,7 +11,7 @@ Replay an exact decision tape::
 
     python tools/mindforge_dev.py replay experiments/tapes/demo.jsonl --speed 1.0
 
-Record Unity-originated game markers::
+Record Unity-originated game markers from the passive mirror lane::
 
     python tools/mindforge_dev.py marker-log --output experiments/markers/run.jsonl
 
@@ -21,13 +21,11 @@ and ``replay`` identifies itself as decision replay in every emitted NeuralEvent
 from __future__ import annotations
 
 import argparse
-import json
 import time
 from dataclasses import replace
 from pathlib import Path
 
 from mindforge_neuro.dev_sources import DecisionSimulationConfig, DecisionSimulator, NeuralEventTape, TapeEntry
-from mindforge_neuro.events import NeuralEvent
 from mindforge_neuro.markers import UdpGameMarkerSource
 from mindforge_neuro.runtime import UdpEventSink
 
@@ -70,7 +68,7 @@ def run_decision(args: argparse.Namespace) -> None:
     tape: list[TapeEntry] = []
     print(f"Decision simulator -> udp://{args.host}:{args.port} session={simulator.session_id}")
     try:
-        for repeat in range(args.repeat):
+        for _repeat in range(args.repeat):
             for state, duration in script:
                 ticks = max(1, int(round(duration * args.hz)))
                 for _ in range(ticks):
@@ -127,7 +125,7 @@ def run_marker_log(args: argparse.Namespace) -> None:
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + args.seconds if args.seconds > 0 else None
-    print(f"Listening for Unity GameMarker on udp://{args.host}:{args.port}")
+    print(f"Listening for Unity GameMarker mirror on udp://{args.host}:{args.port}")
     with UdpGameMarkerSource(args.host, args.port, timeout_s=0.25) as source:
         try:
             while deadline is None or time.monotonic() < deadline:
@@ -169,9 +167,10 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--session-id", default=None)
     replay.set_defaults(func=run_replay)
 
-    marker = sub.add_parser("marker-log", help="listen to the Unity -> Python GameMarker channel")
+    marker = sub.add_parser("marker-log", help="listen to the passive Unity GameMarker mirror")
     marker.add_argument("--host", default="127.0.0.1")
-    marker.add_argument("--port", type=int, default=19743)
+    marker.add_argument("--port", type=int, default=19745,
+                        help="passive GameMarker observer port; 19743 is reserved for the active processing consumer")
     marker.add_argument("--output", default=None)
     marker.add_argument("--seconds", type=float, default=0.0, help="0 means until Ctrl-C")
     marker.set_defaults(func=run_marker_log)

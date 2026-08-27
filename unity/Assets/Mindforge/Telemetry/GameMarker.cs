@@ -14,6 +14,7 @@ namespace Mindforge.Telemetry
         public string schema = SchemaV1;
         public long seq;
         public string session_id;
+        public string calibration_id;
         public string @event;
         public string category;
         public double unity_realtime_s;
