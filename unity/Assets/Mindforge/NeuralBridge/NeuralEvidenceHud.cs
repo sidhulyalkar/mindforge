@@ -41,7 +41,10 @@ namespace Mindforge.Neural
             if (guardFill != null) guardFill.fillAmount = Mathf.MoveTowards(guardFill.fillAmount, _targetGuard, step);
             if (qualityFill != null) qualityFill.fillAmount = Mathf.MoveTowards(qualityFill.fillAmount, _targetQuality, step);
             if (transportText != null && receiver != null)
-                transportText.text = $"Q {receiver.QueueDepth} · old {receiver.DroppedForAge} · overflow {receiver.DroppedForBackpressure}";
+            {
+                transportText.text =
+                    $"Q {receiver.QueueDepth} · old {receiver.DroppedForAge} · ttl {receiver.DroppedExpiredAuthority} · overflow {receiver.DroppedForBackpressure}";
+            }
         }
 
         private void OnConnectionStateChanged(bool connected)
@@ -79,7 +82,8 @@ namespace Mindforge.Neural
             if (modeText != null)
             {
                 string mode = string.IsNullOrEmpty(evt.source_mode) ? "UNKNOWN" : evt.source_mode.ToUpperInvariant();
-                modeText.text = $"{mode} · {evt.paradigm}";
+                string schema = evt.IsV2 ? "v2" : "v1";
+                modeText.text = $"{mode} · {evt.paradigm} · {schema}";
             }
         }
     }
