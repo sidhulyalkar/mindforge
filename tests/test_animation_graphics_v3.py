@@ -147,5 +147,11 @@ def test_locomotion_vfx_reads_velocity_but_never_mutates_motor():
     assert "motor.DashStarted += OnDash" in source
     assert '"CinematicGroundInteractionVfx"' in source
     assert "ParticleSystemSimulationSpace.World" in source
-    for forbidden in ("RequestDash(", "SetMoveInput(", "AddForce(", "velocity ="):
+    for forbidden in (
+        "RequestDash(",
+        "SetMoveInput(",
+        "AddForce(",
+        "motor.Velocity =",
+        "GetComponent<Rigidbody>()",
+    ):
         assert forbidden not in source
