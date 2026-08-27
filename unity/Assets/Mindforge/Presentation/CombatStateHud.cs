@@ -7,11 +7,6 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Gameplay-first, non-authoritative encounter HUD.
-    ///
-    /// This view intentionally sits conceptually in front of the decoder evidence HUD:
-    /// the player first needs to understand health, poise, Flux, strategic aura state,
-    /// and the next meaningful payoff. It observes existing authoritative objects and
-    /// never invokes combat, neural, Flux, damage, or calibration authority.
     /// </summary>
     public sealed class CombatStateHud : MonoBehaviour
     {
@@ -22,6 +17,10 @@ namespace Mindforge.Presentation
         [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private FracturedSignalDirector bossDirector;
         [SerializeField] private AwakeningCalibrationDirector calibration;
+        [SerializeField] private GuardianStamina stamina;
+        [SerializeField] private GuardianEquipmentLoadout loadout;
+        [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private NeuralFocusResonance resonance;
 
         private GUIStyle _small;
         private GUIStyle _label;
@@ -71,6 +70,10 @@ namespace Mindforge.Presentation
             if (bloom == null) bloom = FindObjectOfType<GravityBloomAbility>(true);
             if (bossDirector == null) bossDirector = FindObjectOfType<FracturedSignalDirector>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (stamina == null) stamina = FindObjectOfType<GuardianStamina>(true);
+            if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
+            if (physicalCombat == null) physicalCombat = FindObjectOfType<GuardianSwordShieldController>(true);
+            if (resonance == null) resonance = FindObjectOfType<NeuralFocusResonance>(true);
 
             CombatantVitals[] vitals = FindObjectsOfType<CombatantVitals>(true);
             foreach (CombatantVitals candidate in vitals)
@@ -108,6 +111,13 @@ namespace Mindforge.Presentation
                 bossDirector.PhaseChanged -= OnPhaseChanged;
                 bossDirector.PhaseChanged += OnPhaseChanged;
             }
+            if (physicalCombat != null)
+            {
+                physicalCombat.PerfectGuard -= OnPerfectGuard;
+                physicalCombat.GuardBroken -= OnGuardBroken;
+                physicalCombat.PerfectGuard += OnPerfectGuard;
+                physicalCombat.GuardBroken += OnGuardBroken;
+            }
         }
 
         private void Unsubscribe()
@@ -126,14 +136,19 @@ namespace Mindforge.Presentation
                 bossVitals.Poise.BrokenEvent -= OnSignalBreak;
             if (bossDirector != null)
                 bossDirector.PhaseChanged -= OnPhaseChanged;
+            if (physicalCombat != null)
+            {
+                physicalCombat.PerfectGuard -= OnPerfectGuard;
+                physicalCombat.GuardBroken -= OnGuardBroken;
+            }
         }
 
         private void OnAuraApplied(string target)
         {
             if (ControllerOnly()) return;
             string label = string.Equals(target, "guard", System.StringComparison.OrdinalIgnoreCase)
-                ? "GUARD · RECOVERY ONLINE"
-                : "SIGHT · OFFENSE AMPLIFIED";
+                ? "GUARD RESONANCE · SHIELD CAN GROW"
+                : "SIGHT RESONANCE · BLADE CAN GROW";
             ShowBanner(label, 0.9f);
         }
 
@@ -151,6 +166,8 @@ namespace Mindforge.Presentation
                 concord ? 1.45f : 0.9f);
 
         private void OnSignalBreak() => ShowBanner("SIGNAL BREAK · PUNISH WINDOW", 1.2f);
+        private void OnPerfectGuard() => ShowBanner("PERFECT GUARD · RETURN TO SENDER", 0.65f);
+        private void OnGuardBroken() => ShowBanner("GUARD BROKEN · RECOVER STAMINA", 0.9f);
 
         private void OnPhaseChanged(int phase)
         {
@@ -199,30 +216,33 @@ namespace Mindforge.Presentation
         private void DrawPlayerState()
         {
             float x = 18f;
-            float y = Screen.height - 142f;
-            const float width = 300f;
-            GUI.Box(new Rect(x, y, width, 122f), string.Empty);
-            GUI.Label(new Rect(x + 12f, y + 7f, width - 24f, 20f), "GUARDIAN", _label);
+            float y = Screen.height - 174f;
+            const float width = 336f;
+            GUI.Box(new Rect(x, y, width, 154f), string.Empty);
+            string load = loadout != null ? $" · {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD" : string.Empty;
+            GUI.Label(new Rect(x + 12f, y + 7f, width - 24f, 20f), "GUARDIAN" + load, _label);
             GUI.Label(new Rect(x + 12f, y + 30f, 72f, 18f), "VITAL", _small);
             DrawBar(new Rect(x + 82f, y + 32f, width - 96f, 12f), Ratio(playerVitals.Health, playerVitals.MaxHealth), new Color(0.68f, 0.80f, 1f));
-            GUI.Label(new Rect(x + 12f, y + 54f, 72f, 18f), "FLUX", _small);
-            DrawBar(new Rect(x + 82f, y + 56f, width - 96f, 12f), flux != null ? Ratio(flux.Value, flux.Max) : 0f, new Color(0.82f, 0.38f, 1f));
+            GUI.Label(new Rect(x + 12f, y + 54f, 72f, 18f), "STAMINA", _small);
+            DrawBar(new Rect(x + 82f, y + 56f, width - 96f, 12f), stamina != null ? stamina.Ratio : 0f, new Color(0.50f, 0.95f, 0.58f));
+            GUI.Label(new Rect(x + 12f, y + 78f, 72f, 18f), "FLUX", _small);
+            DrawBar(new Rect(x + 82f, y + 80f, width - 96f, 12f), flux != null ? Ratio(flux.Value, flux.Max) : 0f, new Color(0.82f, 0.38f, 1f));
 
-            string action = "BUILD FLUX · NEAR MISS / COUNTER / BREAK";
+            string action = physicalCombat != null && physicalCombat.IsGuarding
+                ? "RMB GUARD · release to recover stamina"
+                : "LMB SWORD · RMB SHIELD · SHIFT ROLL · TAB BUILD";
             if (flux != null && flux.IsFull)
-                action = !ControllerOnly() && auras != null && auras.ConcordActive
-                    ? "R · TWIN ECLIPSE READY"
-                    : "R · GRAVITY BLOOM READY";
-            GUI.Label(new Rect(x + 12f, y + 80f, width - 24f, 28f), action, _small);
+                action += !ControllerOnly() && auras != null && auras.ConcordActive ? " · R TWIN ECLIPSE" : " · R BLOOM";
+            GUI.Label(new Rect(x + 12f, y + 106f, width - 24f, 34f), action, _small);
         }
 
         private void DrawStrategicState()
         {
-            float width = 322f;
+            float width = 350f;
             float x = Screen.width - width - 18f;
-            float y = Screen.height - 142f;
-            GUI.Box(new Rect(x, y, width, 122f), string.Empty);
-            GUI.Label(new Rect(x + 12f, y + 7f, width - 24f, 20f), "SOUL WISP", _label);
+            float y = Screen.height - 174f;
+            GUI.Box(new Rect(x, y, width, 154f), string.Empty);
+            GUI.Label(new Rect(x + 12f, y + 7f, width - 24f, 20f), "SOUL WISP · ARMAMENT RESONANCE", _label);
 
             if (ControllerOnly())
             {
@@ -232,12 +252,16 @@ namespace Mindforge.Presentation
             }
 
             if (auras == null) return;
+            float sight = resonance != null ? resonance.Sight : 0f;
+            float guard = resonance != null ? resonance.Guard : 0f;
             GUI.Label(new Rect(x + 12f, y + 34f, width - 24f, 20f),
-                auras.SightActive ? $"SIGHT  offense  {auras.SightRemaining:F1}s" : "SIGHT  waiting", _small);
-            GUI.Label(new Rect(x + 12f, y + 57f, width - 24f, 20f),
-                auras.GuardActive ? $"GUARD  recovery  {auras.GuardRemaining:F1}s" : "GUARD  waiting", _small);
-            GUI.Label(new Rect(x + 12f, y + 82f, width - 24f, 26f),
-                auras.ConcordActive ? $"CONCORD  {auras.ConcordRemaining:F1}s · TWIN ECLIPSE ENABLED" : "CONCORD  overlap Sight + Guard", _small);
+                auras.SightActive ? $"SIGHT  blade {sight:P0} · {auras.SightRemaining:F1}s" : "SIGHT  waiting", _small);
+            DrawBar(new Rect(x + 12f, y + 55f, width - 24f, 8f), auras.SightActive ? sight : 0f, new Color(0.20f, 0.55f, 1f));
+            GUI.Label(new Rect(x + 12f, y + 70f, width - 24f, 20f),
+                auras.GuardActive ? $"GUARD  shield {guard:P0} · {auras.GuardRemaining:F1}s" : "GUARD  waiting", _small);
+            DrawBar(new Rect(x + 12f, y + 91f, width - 24f, 8f), auras.GuardActive ? guard : 0f, new Color(0.18f, 1f, 0.52f));
+            GUI.Label(new Rect(x + 12f, y + 108f, width - 24f, 30f),
+                auras.ConcordActive ? $"CONCORD  {auras.ConcordRemaining:F1}s · TWIN ECLIPSE ENABLED" : "Focus modulates equipped gear, never player input", _small);
         }
 
         private static void DrawBar(Rect rect, float value, Color fill)
