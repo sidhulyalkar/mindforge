@@ -8,6 +8,9 @@ from .encounter import EncounterReport, analyze_encounter_file
 from .qualification import load_markers, utc_now, write_json
 
 
+CONTROLLER_ONLY_MODE = "CONTROLLER_ONLY_NO_BCI"
+
+
 @dataclass(frozen=True)
 class PlaytestCaptureReport:
     schema: str
@@ -23,9 +26,13 @@ class PlaytestCaptureReport:
     stop_reason: str
     git_commit: str | None
     marker_sha256: str
+    controller_only_declared: bool
+    qualification_modes: tuple[str, ...]
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        payload = asdict(self)
+        payload["qualification_modes"] = list(self.qualification_modes)
+        return payload
 
 
 def sha256_file(path: str | Path) -> str:
@@ -34,6 +41,17 @@ def sha256_file(path: str | Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _qualification_modes(markers) -> tuple[str, ...]:
+    values: set[str] = set()
+    for marker in markers:
+        if marker.event != "QUALIFICATION_MODE":
+            continue
+        value = (marker.reason or marker.target or marker.action or "").strip()
+        if value:
+            values.add(value)
+    return tuple(sorted(values))
 
 
 def finalize_playtest_bundle(
@@ -64,6 +82,9 @@ def finalize_playtest_bundle(
             f"playtest session mismatch: expected {expected_session_id!r}, observed {session_id!r}"
         )
 
+    qualification_modes = _qualification_modes(markers)
+    controller_only_declared = CONTROLLER_ONLY_MODE in qualification_modes
+
     encounter_path = output_dir / "encounter.json"
     capture_path = output_dir / "capture.json"
     encounter = analyze_encounter_file(marker_path)
@@ -83,6 +104,8 @@ def finalize_playtest_bundle(
         stop_reason=str(stop_reason),
         git_commit=git_commit or None,
         marker_sha256=sha256_file(marker_path),
+        controller_only_declared=controller_only_declared,
+        qualification_modes=qualification_modes,
     )
     write_json(capture_path, report.to_dict())
     return report, encounter

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture one Unity playtest session and emit a reproducible P2 evidence bundle."""
+"""Capture one explicit controller-only Unity playtest and emit a reproducible P2 evidence bundle."""
 from __future__ import annotations
 
 import argparse
@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from mindforge_neuro.markers import UdpGameMarkerSource
-from mindforge_neuro.playtest import finalize_playtest_bundle
+from mindforge_neuro.playtest import CONTROLLER_ONLY_MODE, finalize_playtest_bundle
 from mindforge_neuro.qualification import utc_now
 
 
@@ -42,7 +42,6 @@ def capture(args: argparse.Namespace) -> int:
     last_marker_at: float | None = None
     active_session: str | None = None
     stop_reason = "UNKNOWN"
-    terminal = None
     count = 0
 
     print(f"Mindforge P2 capture -> udp://{args.host}:{args.port}")
@@ -90,8 +89,7 @@ def capture(args: argparse.Namespace) -> int:
                     print(f"#{marker.seq:05d} {marker.category}/{marker.event} {marker.reason or ''}")
 
                 if marker.event in {"VICTORY", "DEFEAT"}:
-                    terminal = marker.event
-                    stop_reason = f"TERMINAL_{terminal}"
+                    stop_reason = f"TERMINAL_{marker.event}"
                     break
     except KeyboardInterrupt:
         stop_reason = "INTERRUPTED"
@@ -110,10 +108,16 @@ def capture(args: argparse.Namespace) -> int:
     print(json.dumps(capture_report.to_dict(), indent=2, sort_keys=True))
     print(json.dumps(encounter.to_dict(), indent=2, sort_keys=True))
 
-    if args.require_terminal and not capture_report.terminal_observed:
-        return 2
     if count == 0:
         return 3
+    if not capture_report.controller_only_declared:
+        print(
+            f"P2 FAIL: session never declared QUALIFICATION_MODE/{CONTROLLER_ONLY_MODE}. "
+            "The evidence bundle is preserved but is not controller-only qualification evidence."
+        )
+        return 4
+    if args.require_terminal and not capture_report.terminal_observed:
+        return 2
     return 0
 
 
