@@ -1,4 +1,5 @@
 using UnityEngine;
+using Mindforge.Calibration;
 using Mindforge.Combat;
 using Mindforge.SoulWisp;
 
@@ -20,6 +21,7 @@ namespace Mindforge.Presentation
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private FracturedSignalDirector bossDirector;
+        [SerializeField] private AwakeningCalibrationDirector calibration;
 
         private GUIStyle _small;
         private GUIStyle _label;
@@ -44,14 +46,11 @@ namespace Mindforge.Presentation
             _lastObservedPhase = bossDirector != null ? bossDirector.Phase : 0;
         }
 
-        private void OnDisable()
-        {
-            Unsubscribe();
-        }
+        private void OnDisable() => Unsubscribe();
 
         private void Update()
         {
-            if (playerVitals == null || bossVitals == null || flux == null || auras == null || bossDirector == null)
+            if (playerVitals == null || bossVitals == null || flux == null || bossDirector == null)
             {
                 Unsubscribe();
                 Resolve();
@@ -67,15 +66,11 @@ namespace Mindforge.Presentation
 
         private void Resolve()
         {
-            FluxMeter discoveredFlux = FindObjectOfType<FluxMeter>(true);
-            AuraBuffController discoveredAuras = FindObjectOfType<AuraBuffController>(true);
-            GravityBloomAbility discoveredBloom = FindObjectOfType<GravityBloomAbility>(true);
-            FracturedSignalDirector discoveredBoss = FindObjectOfType<FracturedSignalDirector>(true);
-
-            if (flux == null) flux = discoveredFlux;
-            if (auras == null) auras = discoveredAuras;
-            if (bloom == null) bloom = discoveredBloom;
-            if (bossDirector == null) bossDirector = discoveredBoss;
+            if (flux == null) flux = FindObjectOfType<FluxMeter>(true);
+            if (auras == null) auras = FindObjectOfType<AuraBuffController>(true);
+            if (bloom == null) bloom = FindObjectOfType<GravityBloomAbility>(true);
+            if (bossDirector == null) bossDirector = FindObjectOfType<FracturedSignalDirector>(true);
+            if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
 
             CombatantVitals[] vitals = FindObjectsOfType<CombatantVitals>(true);
             foreach (CombatantVitals candidate in vitals)
@@ -135,13 +130,17 @@ namespace Mindforge.Presentation
 
         private void OnAuraApplied(string target)
         {
+            if (ControllerOnly()) return;
             string label = string.Equals(target, "guard", System.StringComparison.OrdinalIgnoreCase)
                 ? "GUARD · RECOVERY ONLINE"
                 : "SIGHT · OFFENSE AMPLIFIED";
             ShowBanner(label, 0.9f);
         }
 
-        private void OnConcord() => ShowBanner("CONCORD · TWIN ECLIPSE WINDOW", 1.25f);
+        private void OnConcord()
+        {
+            if (!ControllerOnly()) ShowBanner("CONCORD · TWIN ECLIPSE WINDOW", 1.25f);
+        }
 
         private void OnBloomActivated(bool concord)
             => ShowBanner(concord ? "TWIN ECLIPSE · CAPTURE" : "GRAVITY BLOOM · CAPTURE", 0.75f);
@@ -164,6 +163,8 @@ namespace Mindforge.Presentation
             _bannerText = text;
             _bannerUntil = Time.realtimeSinceStartupAsDouble + Mathf.Max(0.1f, seconds);
         }
+
+        private bool ControllerOnly() => calibration != null && calibration.ControllerOnlyQualificationActive;
 
         private void OnGUI()
         {
@@ -209,18 +210,28 @@ namespace Mindforge.Presentation
 
             string action = "BUILD FLUX · NEAR MISS / COUNTER / BREAK";
             if (flux != null && flux.IsFull)
-                action = auras != null && auras.ConcordActive ? "R · TWIN ECLIPSE READY" : "R · GRAVITY BLOOM READY";
+                action = !ControllerOnly() && auras != null && auras.ConcordActive
+                    ? "R · TWIN ECLIPSE READY"
+                    : "R · GRAVITY BLOOM READY";
             GUI.Label(new Rect(x + 12f, y + 80f, width - 24f, 28f), action, _small);
         }
 
         private void DrawStrategicState()
         {
-            if (auras == null) return;
             float width = 322f;
             float x = Screen.width - width - 18f;
             float y = Screen.height - 142f;
             GUI.Box(new Rect(x, y, width, 122f), string.Empty);
             GUI.Label(new Rect(x + 12f, y + 7f, width - 24f, 20f), "SOUL WISP", _label);
+
+            if (ControllerOnly())
+            {
+                GUI.Label(new Rect(x + 12f, y + 38f, width - 24f, 52f),
+                    "P2 CONTROLLER-ONLY\nBCI intentionally disabled", _label);
+                return;
+            }
+
+            if (auras == null) return;
             GUI.Label(new Rect(x + 12f, y + 34f, width - 24f, 20f),
                 auras.SightActive ? $"SIGHT  offense  {auras.SightRemaining:F1}s" : "SIGHT  waiting", _small);
             GUI.Label(new Rect(x + 12f, y + 57f, width - 24f, 20f),
