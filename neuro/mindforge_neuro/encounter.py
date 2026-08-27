@@ -55,6 +55,23 @@ class EncounterReport:
     sight_buffs: int
     guard_buffs: int
 
+    # Conservative realized neural payoff. Damage is the incremental direct damage
+    # that actually mattered after overkill clipping. Healing is actual HP restored.
+    # These totals intentionally exclude harder-to-price benefits such as projectile
+    # speed, pierce, increased range, attention-switch Flux, and avoided future harm.
+    neural_damage_bonus_events: int
+    realized_neural_bonus_damage_total: float
+    sight_pulse_bonus_damage: float
+    sight_cleave_bonus_damage: float
+    concord_counter_bonus_damage: float
+    twin_eclipse_bonus_damage: float
+    neural_damage_bonus_to_boss: float
+    neural_damage_bonus_to_echoes: float
+    guard_heal_events: int
+    realized_guard_healing_total: float
+    guard_regen_healing: float
+    guard_counter_healing: float
+
     bci_degradations: int
     bci_degraded_seconds: float
     final_flux: float | None
@@ -79,6 +96,19 @@ def _damage(markers: list[GameMarker], event: str) -> tuple[int, float, int]:
         sum(max(0.0, float(marker.value)) for marker in matching),
         sum((marker.reason or "").upper() == "HEAVY" for marker in matching),
     )
+
+
+def _sum_event(markers: list[GameMarker], event: str, *, reason: str | None = None, target: str | None = None) -> float:
+    total = 0.0
+    for marker in markers:
+        if marker.event != event:
+            continue
+        if reason is not None and (marker.reason or "").upper() != reason.upper():
+            continue
+        if target is not None and (marker.target or "").lower() != target.lower():
+            continue
+        total += max(0.0, float(marker.value))
+    return total
 
 
 def _rate(success: int, attempts: int) -> float | None:
@@ -171,6 +201,11 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
     sight_buffs = sum(marker.event == "NEURAL_BUFF_APPLIED" and (marker.target or "").lower() == "sight" for marker in ordered)
     guard_buffs = sum(marker.event == "NEURAL_BUFF_APPLIED" and (marker.target or "").lower() == "guard" for marker in ordered)
 
+    neural_damage_events = [marker for marker in ordered if marker.event == "NEURAL_DAMAGE_BONUS_REALIZED"]
+    guard_heals = [marker for marker in ordered if marker.event == "NEURAL_GUARD_HEAL_REALIZED"]
+    realized_neural_bonus_damage_total = sum(max(0.0, float(marker.value)) for marker in neural_damage_events)
+    realized_guard_healing_total = sum(max(0.0, float(marker.value)) for marker in guard_heals)
+
     flags: list[str] = []
     if not ordered:
         flags.append("NO_MARKERS")
@@ -194,6 +229,11 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         flags.append("NEURAL_LINK_DEGRADED_DURING_RUN")
     if attacks and not telegraphs:
         flags.append("BOSS_ATTACKS_FIRED_WITHOUT_TELEGRAPH_MARKERS")
+    if sight_buffs > 0 and realized_neural_bonus_damage_total <= 0:
+        flags.append("SIGHT_ACCEPTED_WITH_ZERO_RECORDED_DAMAGE_BONUS")
+    if guard_buffs > 0 and realized_guard_healing_total <= 0:
+        # This can be legitimate at full health; it is a review prompt, not failure.
+        flags.append("GUARD_ACCEPTED_WITH_ZERO_RECORDED_HEALING")
 
     return EncounterReport(
         schema="mindforge.encounter_report.v1",
@@ -236,6 +276,18 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         concord_established=_count(ordered, "CONCORD_ESTABLISHED"),
         sight_buffs=sight_buffs,
         guard_buffs=guard_buffs,
+        neural_damage_bonus_events=len(neural_damage_events),
+        realized_neural_bonus_damage_total=realized_neural_bonus_damage_total,
+        sight_pulse_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="SIGHT_PULSE_DAMAGE"),
+        sight_cleave_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="SIGHT_CLEAVE_DAMAGE"),
+        concord_counter_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="CONCORD_COUNTER_DAMAGE"),
+        twin_eclipse_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="TWIN_ECLIPSE_DAMAGE"),
+        neural_damage_bonus_to_boss=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", target="boss"),
+        neural_damage_bonus_to_echoes=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", target="echo"),
+        guard_heal_events=len(guard_heals),
+        realized_guard_healing_total=realized_guard_healing_total,
+        guard_regen_healing=_sum_event(ordered, "NEURAL_GUARD_HEAL_REALIZED", reason="GUARD_REGEN_REALIZED"),
+        guard_counter_healing=_sum_event(ordered, "NEURAL_GUARD_HEAL_REALIZED", reason="GUARD_COUNTER_HEAL_REALIZED"),
         bci_degradations=_count(ordered, "BCI_DEGRADED"),
         bci_degraded_seconds=_degraded_seconds(ordered),
         final_flux=flux_values[-1] if flux_values else None,
