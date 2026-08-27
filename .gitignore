@@ -9,6 +9,11 @@ unity/[Uu]ser[Ss]ettings/
 unity/MemoryCaptures/
 unity/Recordings/
 
+# Reproducibly generated competition assets
+unity/Assets/Mindforge/Generated/
+unity/Assets/Mindforge/Scenes/Mindforge_Competition.unity
+unity/Assets/Mindforge/Scenes/Mindforge_Competition.unity.meta
+
 # IDE / OS
 .vscode/
 .idea/
@@ -32,5 +37,7 @@ __pycache__/
 .venv/
 
 # Generated qualification evidence
-experiments/reports/unity-gate1-latest.json
+experiments/reports/*.json
+experiments/reports/*.xml
+experiments/reports/*.log
 experiments/reports/display-timing-*.csv
