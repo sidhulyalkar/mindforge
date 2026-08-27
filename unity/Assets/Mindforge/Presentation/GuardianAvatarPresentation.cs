@@ -46,6 +46,9 @@ namespace Mindforge.Presentation
         private void OnDestroy()
         {
             if (vitals != null) vitals.Damaged -= OnDamaged;
+            if (_armorMaterial != null) Destroy(_armorMaterial);
+            if (_clothMaterial != null) Destroy(_clothMaterial);
+            if (_accentMaterial != null) Destroy(_accentMaterial);
         }
 
         private void Resolve()
@@ -70,11 +73,11 @@ namespace Mindforge.Presentation
 
             _visualRoot = NewNode("GuardianShowcaseAvatar", transform, new Vector3(0f, 0.02f, 0f));
 
-            Transform pelvis = Part("Pelvis", PrimitiveType.Cube, _visualRoot, new Vector3(0f, -0.08f, 0f), new Vector3(0.56f, 0.30f, 0.36f), _armorMaterial);
+            Part("Pelvis", PrimitiveType.Cube, _visualRoot, new Vector3(0f, -0.08f, 0f), new Vector3(0.56f, 0.30f, 0.36f), _armorMaterial);
             _torso = Part("Torso", PrimitiveType.Cube, _visualRoot, new Vector3(0f, 0.31f, 0f), new Vector3(0.70f, 0.66f, 0.40f), _armorMaterial);
             Part("ChestAether", PrimitiveType.Cube, _torso, new Vector3(0f, 0.08f, 0.215f), new Vector3(0.34f, 0.10f, 0.035f), _accentMaterial);
 
-            Transform neck = Part("Neck", PrimitiveType.Cylinder, _visualRoot, new Vector3(0f, 0.72f, 0f), new Vector3(0.14f, 0.12f, 0.14f), _clothMaterial);
+            Part("Neck", PrimitiveType.Cylinder, _visualRoot, new Vector3(0f, 0.72f, 0f), new Vector3(0.14f, 0.12f, 0.14f), _clothMaterial);
             _head = Part("Head", PrimitiveType.Sphere, _visualRoot, new Vector3(0f, 0.94f, 0f), new Vector3(0.38f, 0.42f, 0.38f), _armorMaterial);
             Part("Visor", PrimitiveType.Cube, _head, new Vector3(0f, 0.02f, 0.205f), new Vector3(0.29f, 0.065f, 0.035f), _accentMaterial);
             Part("CrownFin", PrimitiveType.Cube, _head, new Vector3(0f, 0.24f, -0.02f), new Vector3(0.07f, 0.22f, 0.20f), _armorMaterial);
@@ -88,7 +91,6 @@ namespace Mindforge.Presentation
             _mantle.localRotation = Quaternion.Euler(8f, 0f, 0f);
             Part("MantleMark", PrimitiveType.Cube, _mantle, new Vector3(0f, 0.04f, -0.035f), new Vector3(0.18f, 0.34f, 0.025f), _accentMaterial);
 
-            // Shoulder silhouettes give the small top-down character readable facing.
             Part("LeftPauldron", PrimitiveType.Sphere, _visualRoot, new Vector3(-0.48f, 0.60f, 0f), new Vector3(0.30f, 0.20f, 0.34f), _armorMaterial);
             Part("RightPauldron", PrimitiveType.Sphere, _visualRoot, new Vector3(0.48f, 0.60f, 0f), new Vector3(0.30f, 0.20f, 0.34f), _armorMaterial);
 
@@ -134,6 +136,7 @@ namespace Mindforge.Presentation
             bool guarding = physicalCombat != null && physicalCombat.IsGuarding;
             bool attacking = physicalCombat != null && physicalCombat.IsAttacking;
             bool dashing = motor != null && motor.IsDashing;
+            int combo = physicalCombat != null ? physicalCombat.ComboStep : 1;
 
             if (_leftLeg != null) _leftLeg.localRotation = Quaternion.Euler(step, 0f, 0f);
             if (_rightLeg != null) _rightLeg.localRotation = Quaternion.Euler(-step, 0f, 0f);
@@ -142,11 +145,15 @@ namespace Mindforge.Presentation
             Quaternion leftArm = Quaternion.Euler(-armSwing, 0f, guarding ? -48f : -8f);
             Quaternion rightArm = Quaternion.Euler(armSwing, 0f, attacking ? 48f : 8f);
             if (guarding) leftArm = Quaternion.Euler(-72f, -10f, -46f);
-            if (attacking) rightArm = Quaternion.Euler(-48f, 24f, 62f);
+            if (attacking)
+            {
+                float side = combo == 2 ? -1f : 1f;
+                rightArm = Quaternion.Euler(combo >= 3 ? -66f : -48f, 24f * side, (combo >= 3 ? 78f : 62f) * side);
+            }
             if (_leftArm != null) _leftArm.localRotation = Quaternion.Slerp(_leftArm.localRotation, leftArm, 1f - Mathf.Exp(-18f * dt));
             if (_rightArm != null) _rightArm.localRotation = Quaternion.Slerp(_rightArm.localRotation, rightArm, 1f - Mathf.Exp(-18f * dt));
 
-            float lean = dashing ? 17f : attacking ? 7f : guarding ? -4f : Mathf.Sin(_stride * 2f) * 1.2f * move01;
+            float lean = dashing ? 17f : attacking ? (combo >= 3 ? 11f : 7f) : guarding ? -4f : Mathf.Sin(_stride * 2f) * 1.2f * move01;
             if (_torso != null) _torso.localRotation = Quaternion.Slerp(_torso.localRotation, Quaternion.Euler(lean, 0f, 0f), 1f - Mathf.Exp(-12f * dt));
             if (_mantle != null)
             {
@@ -169,13 +176,21 @@ namespace Mindforge.Presentation
         private void ApplyDamageFlash()
         {
             if (_renderers == null || _block == null) return;
-            Color flash = Color.Lerp(Color.black, new Color(1f, 0.22f, 0.12f), _damageFlash);
+            bool flashing = _damageFlash > 0.001f;
             for (int i = 0; i < _renderers.Length; i++)
             {
                 Renderer renderer = _renderers[i];
                 if (renderer == null) continue;
+                if (!flashing)
+                {
+                    // These renderers are owned only by this visual rig. Clearing the
+                    // block restores each material's authored blue/emissive identity.
+                    renderer.SetPropertyBlock(null);
+                    continue;
+                }
+
                 renderer.GetPropertyBlock(_block);
-                _block.SetColor(EmissionColor, flash * (_damageFlash * 2.0f));
+                _block.SetColor(EmissionColor, new Color(1f, 0.22f, 0.12f) * (_damageFlash * 2.2f));
                 renderer.SetPropertyBlock(_block);
             }
         }
