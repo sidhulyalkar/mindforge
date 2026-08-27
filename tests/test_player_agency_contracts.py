@@ -39,18 +39,14 @@ def test_guardian_precision_aim_is_player_owned_and_replayable():
     assert "PrecisionAimActive" in source
     assert "CurrentAimPoint" in source
 
-    # The boss/lock target must be a fallback after explicit player aim paths.
     assert source.index("if (_keyboardAim.sqrMagnitude > 0.01f)") < source.index("if (aimTarget != null)")
     assert source.index("if (mouseAimEnabled && _mouseAimActive") < source.index("if (aimTarget != null)")
 
-    # Resolved conventional aim is part of the fixed command tape contract.
     assert "aim_x = liveAim.x" in source
     assert "aim_y = liveAim.y" in source
     assert "aim_z = liveAim.z" in source
     assert "inputTape.Resolve(live, fixedHz)" in source
 
-    # Reticle/presentation must follow the post-tape authoritative command rather
-    # than showing live mouse input during deterministic replay.
     resolve_index = source.index("GuardianCommandFrame command =")
     presentation_index = source.index("UpdateResolvedAimPresentation(command")
     assert resolve_index < presentation_index
@@ -61,9 +57,9 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: move, aim, fire, cleave, counter, dash",
-        "BCI: Sight offense / Guard recovery only",
-        "EEG never moves, aims, fires, dodges, or parries",
+        "HANDS: move, aim, sword, shield, roll, skills",
+        "BCI: bounded blade/shield resonance after accepted Sight/Guard",
+        "EEG never swings, raises guard, aims, rolls, fires, or parries",
         "KeyCode.F10",
         "JudgeLensFlag",
         "PrecisionAimActive",
@@ -71,16 +67,18 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     ):
         assert token in guide
 
-    # The explainer may observe resolved state, but must never mutate combat authority.
     for forbidden in (
         ".FirePulse(",
         ".RiftCleave(",
         ".BeginCounter(",
         ".RequestDash(",
         ".TryActivate(",
+        ".TryLightAttack(",
+        ".SetGuardHeld(",
         ".TryApply(",
         ".Award(",
         "ReceiveDamage(",
+        "TrySpend(",
     ):
         assert forbidden not in guide
 
@@ -97,8 +95,6 @@ def test_p2_human_review_is_opt_in_and_never_changes_promotion_result():
     assert '"could_explain_bci_role"' in tool
     assert "These answers stay separate from machine telemetry and do not auto-pass P2" in tool
 
-    # Human review is written before the existing machine-evidence return gates and
-    # does not participate in controller_only_declared/terminal pass conditions.
     review_call = tool.index("_write_human_review(output_dir, capture_report)")
     controller_gate = tool.index("if not capture_report.controller_only_declared")
     terminal_gate = tool.index("if args.require_terminal and not capture_report.terminal_observed")
