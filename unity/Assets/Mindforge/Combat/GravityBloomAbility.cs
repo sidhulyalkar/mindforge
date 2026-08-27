@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mindforge.Presentation;
@@ -25,6 +26,9 @@ namespace Mindforge.Combat
         private float _pauseStartedAt;
         private float _endAt;
         private float _lastUse = -999f;
+
+        public event Action<bool> Activated;
+        public event Action<bool, int> Released;
 
         public bool Active => _active;
         public bool ConcordCast => _active && _concord;
@@ -58,6 +62,7 @@ namespace Mindforge.Combat
 
             hitStop?.Pulse(tuning.lightHitStop);
             presentation?.BloomCharge(_concord);
+            Activated?.Invoke(_concord);
             return true;
         }
 
@@ -80,12 +85,14 @@ namespace Mindforge.Combat
         {
             if (_externalPaused) return;
             _active = false;
+            int capturedCount = _captured.Count;
             if (primaryTarget == null)
             {
                 foreach (MindforgeProjectile p in _captured)
                     if (p != null) p.ReleaseFromCapture();
                 _captured.Clear();
                 _capturedIds.Clear();
+                Released?.Invoke(_concord, capturedCount);
                 return;
             }
 
@@ -107,6 +114,7 @@ namespace Mindforge.Combat
 
             presentation?.BloomRelease(_concord);
             hitStop?.Pulse(_concord ? tuning.twinEclipseHitStop : tuning.heavyHitStop);
+            Released?.Invoke(_concord, capturedCount);
         }
     }
 }

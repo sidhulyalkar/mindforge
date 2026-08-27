@@ -24,9 +24,9 @@ from mindforge_neuro import AuraTarget, SsvepConfig, SsvepDecoder
 from mindforge_neuro.acquisition import SlidingWindowBuffer, UnicornLslSource
 from mindforge_neuro.calibration import calibrate_decoder
 from mindforge_neuro.events import EventType, NeuralEvent
+from mindforge_neuro.markers import GameMarker
 from mindforge_neuro.runtime import AuraSelectionRuntime, UdpEventSink
 
-SCHEMA = "mindforge.calibration_marker.v1"
 STAGES = ("baseline", "sight", "guard")
 POSTERIOR = (4, 5, 6, 7)
 PHANTOM_STAGE_COMMAND = {"baseline": "0", "sight": "1", "guard": "2"}
@@ -58,10 +58,11 @@ def resting_alpha_diagnostics(eeg: np.ndarray, sample_rate_hz: float) -> dict[st
 
 def status_event(seq: int, kind: EventType, model_id: str, source_mode: str,
                  confidence: float = 0.0, quality: float = 0.0,
-                 reason: str | None = None) -> NeuralEvent:
+                 reason: str | None = None, session_id: str | None = None) -> NeuralEvent:
     return NeuralEvent.create(seq=seq, event=kind, target=None, confidence=confidence,
                               quality=quality, model_id=model_id, reason=reason,
-                              source_mode=source_mode)
+                              source_mode=source_mode, session_id=session_id,
+                              calibration_id=session_id, authority_ttl_ms=0)
 
 
 class PhantomController:
@@ -92,7 +93,7 @@ def main() -> None:
     parser.add_argument("--marker-port", type=int, default=19743)
     parser.add_argument("--udp-host", default="127.0.0.1")
     parser.add_argument("--udp-port", type=int, default=19742)
-    parser.add_argument("--source-mode", choices=("simulation", "live", "replay"), default="simulation")
+    parser.add_argument("--source-mode", choices=("simulation", "live", "replay", "synthetic_eeg", "eeg_replay"), default="simulation")
     parser.add_argument("--hop-seconds", type=float, default=0.25)
     parser.add_argument("--calibration-hop-seconds", type=float, default=0.50)
     parser.add_argument("--report-dir", default="experiments/reports")
@@ -114,7 +115,7 @@ def main() -> None:
     markers.setblocking(False)
 
     phantom_enabled = (
-        args.source_mode == "simulation"
+        args.source_mode in {"simulation", "synthetic_eeg"}
         and not args.disable_phantom_control
         and args.stream_name == "UnicornMock"
     )
@@ -143,14 +144,14 @@ def main() -> None:
                 except BlockingIOError:
                     break
                 try:
-                    marker = json.loads(raw.decode("utf-8"))
+                    marker = GameMarker.from_json(raw)
                 except Exception:
                     continue
-                if marker.get("schema") != SCHEMA or marker.get("stage") not in STAGES:
+                if marker.category != "calibration" or marker.stage not in STAGES:
                     continue
-                session = str(marker.get("session_id") or "")
-                stage = str(marker["stage"])
-                action = str(marker.get("action") or "")
+                session = marker.session_id
+                stage = str(marker.stage)
+                action = str(marker.action or "")
                 if action == "begin":
                     if active_session != session:
                         epochs = {}
@@ -177,7 +178,7 @@ def main() -> None:
             if now >= heartbeat_at:
                 seq += 1
                 sink.send(status_event(seq, EventType.CALIBRATION_HEARTBEAT, model_id, args.source_mode,
-                                       reason=active_stage or "waiting"))
+                                       reason=active_stage or "waiting", session_id=active_session))
                 heartbeat_at = now + 0.5
 
             if all(stage in epochs for stage in STAGES):
@@ -215,7 +216,8 @@ def main() -> None:
                         confidence=profile.training_accuracy,
                         quality=profile.accepted_fraction,
                         reason=(f"alpha_peak_hz={baseline['alpha_peak_hz']:.2f};"
-                                f"alpha_fraction={baseline['alpha_fraction']:.3f}")))
+                                f"alpha_fraction={baseline['alpha_fraction']:.3f}"),
+                        session_id=active_session))
                     print("Calibration accepted:", json.dumps(report, indent=2))
                     break
                 except Exception as exc:
@@ -223,12 +225,19 @@ def main() -> None:
                         phantom.send("0")
                     seq += 1
                     sink.send(status_event(seq, EventType.CALIBRATION_FAILED, model_id,
-                                           args.source_mode, reason=str(exc)[:240]))
+                                           args.source_mode, reason=str(exc)[:240],
+                                           session_id=active_session))
                     print(f"Calibration rejected: {exc}. Waiting for Unity retry.")
                     epochs = {}
 
-        runtime = AuraSelectionRuntime(decoder, profile, source_mode=args.source_mode,
-                                       initial_seq=seq)
+        runtime = AuraSelectionRuntime(
+            decoder,
+            profile,
+            source_mode=args.source_mode,
+            initial_seq=seq,
+            session_id=active_session,
+            calibration_id=active_session,
+        )
         buffer = SlidingWindowBuffer(8, cfg.window_samples,
                                      max(1, int(round(args.hop_seconds * cfg.sample_rate_hz))))
         print("Streaming calibrated derived events to Unity. Ctrl-C to stop.")

@@ -21,6 +21,7 @@ jobs:
       - name: Validate Python demo tools
         run: |
           python -m py_compile tools/run_unity_calibrated_decoder.py
+          python -m py_compile tools/mindforge_dev.py
           python -m py_compile tools/phantom_control.py
           python -m py_compile tools/plot_session_report.py
       - name: Validate browser combat modules

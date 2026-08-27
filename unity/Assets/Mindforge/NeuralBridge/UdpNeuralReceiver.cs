@@ -16,8 +16,8 @@ namespace Mindforge.Neural
     /// neural state changes into one gameplay frame.
     ///
     /// Python monotonic_ns and Unity realtime do not share an epoch. Cross-process
-    /// timestamps remain provenance/order metadata; packet age is measured using the
-    /// Unity process receive clock captured on the socket thread.
+    /// timestamps remain provenance/order metadata; packet age and v2 authority TTL are
+    /// evaluated using the Unity-process receive clock captured on the socket thread.
     /// </summary>
     public sealed class UdpNeuralReceiver : MonoBehaviour
     {
@@ -50,11 +50,13 @@ namespace Mindforge.Neural
         private int _queuedCount;
         private long _droppedForBackpressure;
         private long _droppedForAge;
+        private long _droppedExpiredAuthority;
 
         public bool IsConnected => _connected;
         public int QueueDepth => Volatile.Read(ref _queuedCount);
         public long DroppedForBackpressure => Interlocked.Read(ref _droppedForBackpressure);
         public long DroppedForAge => Interlocked.Read(ref _droppedForAge);
+        public long DroppedExpiredAuthority => Interlocked.Read(ref _droppedExpiredAuthority);
         public long LastSeenSequence => _lastSeenSeq;
 
         private void OnEnable()
@@ -115,9 +117,16 @@ namespace Mindforge.Neural
             return Math.Max(0.0, elapsed / (double)Stopwatch.Frequency);
         }
 
+        private static bool AuthorityExpired(NeuralEvent evt, double packetAgeSeconds)
+        {
+            if (evt == null || !evt.IsSelection || evt.authority_ttl_ms <= 0) return false;
+            return packetAgeSeconds * 1000.0 > evt.authority_ttl_ms;
+        }
+
         private void Update()
         {
             NeuralEvent latestEvidence = null;
+            NeuralEvent latestPassive = null;
             NeuralEvent latestSelection = null;
             NeuralEvent latestControl = null;
             NeuralEvent participantStop = null;
@@ -134,11 +143,12 @@ namespace Mindforge.Neural
                 NeuralEvent evt;
                 try { evt = JsonUtility.FromJson<NeuralEvent>(raw); }
                 catch { continue; }
-                if (evt == null || evt.schema != "mindforge.neural_event.v1") continue;
+                if (evt == null || !evt.HasSupportedSchema) continue;
                 if (evt.seq <= _lastSeenSeq) continue;
 
+                double packetAge = PacketAgeSeconds(packet);
                 bool critical = evt.IsParticipantStop || evt.IsLost || evt.IsRecovered;
-                if (!critical && PacketAgeSeconds(packet) > maxPacketQueueAgeSeconds)
+                if (!critical && packetAge > maxPacketQueueAgeSeconds)
                 {
                     Interlocked.Increment(ref _droppedForAge);
                     continue;
@@ -146,9 +156,25 @@ namespace Mindforge.Neural
 
                 frameMaxSeq = Math.Max(frameMaxSeq, evt.seq);
                 latestEvidence = Newer(latestEvidence, evt);
-                if (evt.IsParticipantStop) participantStop = Newer(participantStop, evt);
-                else if (evt.IsLost || evt.IsRecovered) latestControl = Newer(latestControl, evt);
-                else if (evt.IsSelection) latestSelection = Newer(latestSelection, evt);
+                if (evt.IsParticipantStop)
+                {
+                    participantStop = Newer(participantStop, evt);
+                }
+                else if (evt.IsLost || evt.IsRecovered)
+                {
+                    latestControl = Newer(latestControl, evt);
+                }
+                else if (evt.IsSelection)
+                {
+                    if (AuthorityExpired(evt, packetAge))
+                        Interlocked.Increment(ref _droppedExpiredAuthority);
+                    else
+                        latestSelection = Newer(latestSelection, evt);
+                }
+                else
+                {
+                    latestPassive = Newer(latestPassive, evt);
+                }
             }
 
             if (latestEvidence != null)
@@ -170,12 +196,12 @@ namespace Mindforge.Neural
             }
 
             NeuralEvent authority = Newer(latestSelection, latestControl);
-            if (authority == null) authority = latestEvidence;
+            if (authority == null) authority = latestPassive;
             if (authority != null && authority.seq > _lastAuthoritySeq)
             {
                 _lastAuthoritySeq = authority.seq;
                 if (logEvents)
-                    Debug.Log($"[BCI] {authority.@event} {authority.target} c={authority.confidence:F2} q={authority.quality:F2} queue={QueueDepth}");
+                    Debug.Log($"[BCI] {authority.@event} {authority.target} c={authority.confidence:F2} q={authority.quality:F2} src={authority.source_mode} queue={QueueDepth}");
                 EventReceived?.Invoke(authority);
             }
 

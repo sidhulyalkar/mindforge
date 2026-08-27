@@ -9,30 +9,24 @@
 > **Primary BCI:** g.tec Unicorn Hybrid Black  
 > **Primary neural paradigm:** two-target SSVEP / visual evoked potential selection
 
-## The pitch
+## The idea
 
 **Mindforge** is built around one rule:
 
 > **Hands own precision. The brain owns transformation.**
 
-The player controls a fast action character conventionally: movement, aiming, dashing, shooting, cleaving, parrying, and projectile manipulation remain physical/controller skills. A living **Soul Wisp** adds a second strategic axis. During combat it splits into two frequency-coded aura targets positioned in the action-gaze corridor between the Guardian and the enemy.
+The player controls movement, aiming, dashing, shooting, cleaving, counters and projectile manipulation conventionally. A living **Soul Wisp** adds a slower strategic layer through two temporally coded visual targets:
 
-- **Blue / Neural Sight / 10 Hz:** temporarily amplifies offensive capability.
-- **Green / Neural Guard / 12 Hz:** temporarily accelerates recovery.
+- **Sight / blue / 10 Hz:** temporarily amplifies offensive capability.
+- **Guard / green / 12 Hz:** temporarily accelerates recovery.
 
-The player allocates visual attention between these moving targets while the fight continues. EEG does not replace the controller. It changes what the player's physical combat can become.
+The game does not claim to read abstract thoughts such as “damage” or “heal.” It asks the narrower, testable question:
 
-The system does **not** claim to read abstract thoughts such as "damage" or "heal." It decodes the narrower and testable question:
+> **Which coded visual target is producing the stronger steady-state visual evoked response in posterior EEG?**
 
-> **Which temporally coded visual target is producing the stronger steady-state visual evoked response in posterior EEG?**
+The fantasy meaning is assigned by the game.
 
-The game assigns fantasy meaning to that target.
-
----
-
-# Neural Counterplay
-
-Mindforge's combat ecosystem is designed around converting danger into opportunity.
+## Neural Counterplay
 
 ```text
 enemy attack
@@ -48,28 +42,26 @@ Flux / reflected projectile / poise pressure
 WEAPON
 ```
 
-The core manual verbs are:
+The manual combat verbs are:
 
-- **Pulse Shot** — mobile ranged pressure;
-- **Rift Cleave** — short-range poise damage and knockback;
-- **Phase Dash** — high-speed repositioning and near-miss Flux harvesting;
-- **Counter Pulse** — 180 ms projectile reflection window;
-- **Gravity Bloom** — consume full Flux to capture hostile projectiles and fire them back.
+- **Pulse Shot**: mobile ranged pressure;
+- **Rift Cleave**: short-range poise damage and knockback;
+- **Phase Dash**: repositioning and near-miss Flux harvesting;
+- **Counter Pulse**: a 180 ms projectile reflection window;
+- **Gravity Bloom**: consume full Flux, capture hostile projectiles, fire them back.
 
 Sight and Guard remain the **only two BCI target classes**.
 
-If both independently timed buffs genuinely overlap, Mindforge establishes **Concord**. Concord then remains available for a generous **4.5 s grace window**, letting the player return their eyes to the battlefield and execute a physical sequence rather than asking a slow BCI to perform frame-critical timing.
-
-Full Flux + Concord + Gravity Bloom becomes **Twin Eclipse**.
+If both independently timed buffs genuinely overlap, **Concord** is established and remains available for a forgiving 4.5 s grace window. Full Flux + Concord + Gravity Bloom becomes **Twin Eclipse**.
 
 ```text
 Guard accepted
       ↓
 Sight accepted while Guard remains
       ↓
-CONCORD established
+CONCORD
       ↓
-eyes return to fight
+eyes return to combat
       ↓
 dash / counter / build Flux
       ↓
@@ -78,11 +70,7 @@ Gravity Bloom
 TWIN ECLIPSE
 ```
 
----
-
-# Defensive neural authority
-
-Mindforge treats uncertainty as loss of authority, not an invitation to guess.
+## Defensive neural authority
 
 Initial engineering configuration:
 
@@ -104,69 +92,106 @@ The default Unicorn-like montage is:
 Fz C3 Cz C4 Pz PO7 Oz PO8
 ```
 
-The quality layer conservatively detects obvious engineering failure signatures such as saturation, disconnected channels, common-mode transients, extreme temporal derivatives, and broad high-frequency contamination. These are engineering suspicion flags, not physiological diagnoses.
+The quality layer conservatively detects obvious engineering failure signatures such as saturation, disconnected channels, common-mode transients, extreme derivatives and broad high-frequency contamination. These are engineering suspicion flags, not physiological diagnoses.
 
-Suspicious or ambiguous evidence yields:
+Suspicious or ambiguous evidence yields `ABSTAIN`. No guessed brain button is emitted.
 
-```text
-ABSTAIN
-```
+## A BCI game platform, not a headset-bound Unity demo
 
-No guessed brain button is emitted.
-
----
-
-# Source-independent neural pipeline
+Mindforge now treats the neural loop as two versioned contracts:
 
 ```text
-EEG source
-   ↓
-Python acquisition / quality / FBCCA / dwell
-   ↓
-NeuralEvent v1
-   ↓
-UDP 127.0.0.1:19742
-   ↓
-Unity
+                 NeuralEvent v2
+Python / neurOS ───────────────► Unity
+
+                  GameMarker v1
+Python / neurOS ◄─────────────── Unity
 ```
 
-Unity never receives raw EEG.
+`NeuralEvent` contains only derived neural evidence/authority. `GameMarker` contains only presentation/gameplay facts. **Raw EEG never crosses into Unity.**
 
-Every judge-facing run identifies its provenance as:
+The detailed architecture, schemas, simulation hierarchy and promotion rules live in [`docs/BCI_GAME_PLATFORM.md`](docs/BCI_GAME_PLATFORM.md).
+
+### NeuralEvent v2
+
+The v2 contract adds explicit provenance and freshness fields:
 
 ```text
-SIMULATION
-REPLAY
-LIVE
+session_id
+calibration_id
+source_sample_start
+source_sample_end
+decoder_time_ns
+authority_ttl_ms
 ```
 
----
+Unity accepts both v1 and v2. A v2 selection whose local receive age exceeds `authority_ttl_ms` may still appear as evidence, but it cannot change gameplay.
 
-# Thread-safe, bounded Unity neural transport
+Python and Unity monotonic clocks are never subtracted from each other because independent process monotonic clocks do not share an epoch.
 
-The UDP socket runs on a dedicated background thread.
+### GameMarker v1
 
-A heavy render stall must not turn delayed neural packets into a command avalanche, so Unity now:
+Unity publishes semantically meaningful events including:
 
-- stores arrivals in a bounded concurrent queue;
-- timestamps receipt using a Unity-process `Stopwatch` clock;
-- discards old non-critical arrivals;
-- limits how much backlog is drained per frame;
-- separates newest **evidence** from gameplay **authority**;
-- applies at most one ordinary authority state per frame;
-- preserves `PARTICIPANT_STOP` as the dominant control event.
+```text
+PHASE_DASH
+PULSE_SHOT
+RIFT_CLEAVE
+COUNTER_PULSE
+COUNTER_REFLECT
+GRAVITY_BLOOM_CHARGE / RELEASE
+TWIN_ECLIPSE_CHARGE / RELEASE
+NEURAL_BUFF_APPLIED
+CONCORD_ESTABLISHED
+BOSS_PHASE
+SIGNAL_BREAK
+FLUX_CHANGED
+BCI_DEGRADED / BCI_RECOVERED
+VICTORY / DEFEAT
+```
 
-Python `monotonic_ns` remains useful for source provenance/order, but Unity does not subtract it from its own clock because independent process monotonic clocks do not share an epoch.
+Markers include session identity, Unity realtime, game time, rendered frame and fixed tick. The transport is non-authoritative: losing a recorder is allowed to lose evidence, never to alter the fight.
 
-See [`docs/NEURAL_EVENT_TRANSPORT.md`](docs/NEURAL_EVENT_TRANSPORT.md).
+## Develop the game without wearing electrodes
 
----
+The same Unity authority path can be driven by increasingly realistic sources:
 
-# Two clocks: combat crunch without corrupting SSVEP
+| Level | Source | Purpose |
+|---|---|---|
+| S0 | `manual` | mechanic and UI development |
+| S1 | `simulated_decision` | error/authority/game-feel testing |
+| S2 | `decision_replay` | exact gameplay reproduction |
+| S3 | `eeg_replay` | production decoder on recorded EEG |
+| S4 | `synthetic_eeg` | neurOS participant/sensor/fault simulation |
+| S5 | `live` | physical participant + headset |
+
+These labels are evidence boundaries. S1 is not synthetic EEG. S4 is not human evidence.
+
+### Decision-level development
+
+```bash
+python tools/mindforge_dev.py decision \
+  --script sight:3,guard:3,abstain:1,lost:1,recovered:1 \
+  --hz 4 \
+  --output-tape experiments/tapes/dev.jsonl
+```
+
+### Reproduce an exact authority trace
+
+```bash
+python tools/mindforge_dev.py replay experiments/tapes/dev.jsonl --speed 1.0
+```
+
+### Observe Unity's side of the loop
+
+```bash
+python tools/mindforge_dev.py marker-log \
+  --output experiments/markers/unity.jsonl
+```
+
+## Two clocks: combat crunch without corrupting SSVEP
 
 Combat uses a 120 Hz fixed simulation target while the visual stimulus uses real/unscaled time.
-
-Initial impact hierarchy:
 
 ```text
 light impact       20 ms
@@ -176,48 +201,11 @@ Signal Break       80 ms
 Twin Eclipse      120 ms
 ```
 
-`HitStopController` owns one extendable realtime freeze window. Nested impacts therefore cannot recapture an already-zero time scale and accidentally leave the game nearly frozen.
+`HitStopController` owns one extendable realtime freeze window. The VEP phase clock continues through combat freezes.
 
-The VEP phase clock continues through combat freezes.
+## Coded VEP core vs feedback shell
 
----
-
-# Visual hierarchy is neuro-engineering
-
-The exact Sight blue and Guard green are reserved for the two neural targets and their immediate acceptance feedback.
-
-```text
-BCI Sight       blue
-BCI Guard       green
-hostile normal  crimson / magenta
-hostile heavy   orange-red
-Guardian fire   ivory
-reflected fire  violet
-Concord payoff  magenta-white / violet
-```
-
-Shape reinforces category:
-
-- neural targets: smooth, spherical, soft-edged;
-- hostile projectiles: angular, needle, shard, diamond;
-- Echo nodes: fractured polygonal forms.
-
-Priority:
-
-```text
-lethal telegraph
- > BCI target core
- > Guardian / immediate state
- > ability geometry
- > impact decoration
- > ambience
-```
-
----
-
-# Coded VEP core vs diegetic feedback shell
-
-Each aura is two render layers:
+Each neural aura is deliberately split:
 
 ```text
 Aura Root
@@ -225,89 +213,55 @@ Aura Root
 └── non-coded feedback shell / tether / particles
 ```
 
-The coded core owns only declared frequency/luminance behavior and explicit visual rest. It does **not** react to classifier score, margin, quality, combat damage, Flux, camera shake, or hit-stop.
+The coded core owns only declared frequency/luminance behavior and explicit visual rest. It does **not** react to classifier score, margin, quality, damage, Flux, camera shake or hit-stop.
 
-The feedback shell may communicate signal state with slow/non-periodic scale changes, particle density, desaturation, tether coherence, irregular artifact/offline jitter, and subtle audio.
+The shell may communicate signal state using slower, non-periodic visual changes. This avoids feeding decoder output back into the amplitude of the stimulus that produced the EEG evidence.
 
-This avoids feeding the decoder's result back into the amplitude of the stimulus that produced the EEG evidence.
+## Haptic policy
 
----
+Continuous rumble while evidence is accumulating is excluded. Short haptic echoes occur **after** accepted Sight, accepted Guard or Concord so controller vibration is not intentionally injected into the measurement window.
 
-# Haptic policy
+## The Fractured Signal
 
-Continuous rumble while FBCCA evidence is accumulating is deliberately excluded from P0 because controller vibration may add movement/EMG contamination during measurement.
+The competition encounter is built around readable escalation.
 
-Short haptic echoes occur **after** accepted Sight, accepted Guard, or Concord.
+**Phase I: Warm-up.** Predictable aimed fans and radial patterns teach movement, counters and aura refresh cadence.
 
----
+**Phase II: Attention split.** Fractured Echo nodes add pressure and Flux opportunities while the Wisp remains near the action-gaze corridor.
 
-# The Fractured Signal encounter
+**Phase III: Controlled overload.** Crossfire and heavy attacks increase the value of near misses, Counter Pulse, Gravity Bloom and pre-established Concord without abandoning telegraph readability.
 
-## Phase I — Warm-up
+**Signal Break.** Poise collapse creates roughly 2.6 s of relief. Boss attacks pause, VEP modulation rests at steady luminance, the underlying phase clock continues, the arena dims and the player receives a physical punish window.
 
-Predictable aimed fans and radial patterns teach movement, counters, and aura refresh cadence with strong hostile-colored telegraphs.
+## Make the invisible visible
 
-## Phase II — Attention split
+`NeuralEvidenceHud` shows Sight score, Guard score, winner margin, quality, accepted/abstained state, source provenance, UDP queue depth, stale-packet drops and backpressure drops.
 
-Fractured Echo nodes orbit the boss and add secondary pressure. Destroying one rewards Flux, creating a reason to reroute physical attention while the Wisp remains near the central gaze corridor.
+The evidence HUD follows newest evidence while gameplay follows bounded authority. A render stall therefore cannot hide the distinction between “the decoder observed this” and “the game was allowed to act on this.”
 
-## Phase III — Controlled overload
-
-Crossfire and heavy attacks intensify, increasing the value of near misses, Counter Pulse, Gravity Bloom, and pre-established Concord. Harder does not mean unreadable: every attack family retains explicit telegraph language.
-
-## Signal Break — catharsis and neural rest
-
-Poise collapse creates roughly 2.6 s of relief:
-
-```text
-boss attacks pause
-boss remains vulnerable
-VEP modulation holds steady luminance
-real VEP phase continues underneath
-ambient scene dims
-combat audio can low-pass
-physical punish window opens
-```
-
-Signal Break is combat reward, tension-release rhythm, and visual-fatigue management at the same time.
-
----
-
-# Presentation
-
-The Unity presentation layer includes hooks for directional Rift Cleave / Counter camera displacement, FOV compression during Gravity Bloom capture, FOV snap on release, environment-only dimming for major payoffs, Signal Break low-pass/bass-pulse sensory rest, and 120 ms Twin Eclipse impact contrast.
-
-Environment dimming is opt-in. The coded VEP materials intentionally ignore the presentation dim global.
-
----
-
-# Make the invisible visible
-
-`NeuralEvidenceHud` shows judges Sight score, Guard score, winner margin, quality, accepted/abstained state, simulation/replay/live provenance, UDP queue depth, stale packet drops, and backpressure drops.
-
-The HUD follows the newest evidence stream while gameplay follows bounded authority, so a judge can see what the decoder is currently observing even after a render stall.
-
----
-
-# neurOS: the Phantom Unicorn laboratory
+## neurOS: the Phantom Unicorn laboratory
 
 Mindforge uses neurOS as simulation, perturbation, replay and qualification infrastructure rather than as a frame-by-frame game dependency.
 
-The Phantom source can model deterministic Unicorn-like EEG with colored background activity, endogenous alpha, target-frequency posterior SSVEPs, weak responders, blinks, jaw/controller/movement contamination, channel degradation, saturation, dropout, LSL jitter, dropped chunks, source silence, and recovery.
-
 ```text
-neurOS Phantom EEG
+neurOS synthetic participant / EEG
         ↓
 LSL UnicornMock
         ↓
-Mindforge Python FBCCA
+Mindforge quality + FBCCA + dwell
         ↓
-NeuralEvent
+NeuralEvent v2
         ↓
 Unity Neural Counterplay
+        ↓
+GameMarker v1
+        ↓
+qualification / replay evidence
 ```
 
-Synthetic success is not human physiological evidence. It exists to falsify assumptions before real sessions.
+Phantom can model deterministic Unicorn-like EEG, endogenous alpha, target-frequency posterior SSVEPs, weak responders, blinks, jaw/controller/movement contamination, channel degradation, saturation, dropout, LSL jitter, dropped chunks, source silence and recovery.
+
+Synthetic success exists to falsify assumptions before real sessions. It is not human physiological evidence.
 
 Useful tools:
 
@@ -322,50 +276,50 @@ python tools/run_phantom_cadence.py \
   --grace-seconds 3.0,4.5,6.0 \
   --json cadence.json
 
-python tools/run_lsl_decoder.py \
-  --stream-name UnicornMock \
-  --source-mode simulation
+python tools/run_lsl_decoder.py --stream-name UnicornMock --source-mode simulation
 ```
 
----
-
-# Qualification ladder
+## Qualification ladder
 
 ```text
-Q0  Unity 2022.3 imports + compiles + scene references work
+Q0  Python contracts/tests
  ↓
-Q1  controller-only full encounter
+Q1  Unity 2022.3 imports + compiles + scene references work
  ↓
-Q2  Phantom Unicorn full LSL → Python → UDP → Unity route
+Q2  controller-only full encounter
  ↓
-Q3  forced render/network fault rehearsal
+Q3  simulated_decision → NeuralEvent → Unity
  ↓
-Q4  physical display timing
+Q4  decision replay reproduction
  ↓
-Q5  real Unicorn acquisition
+Q5  Phantom Unicorn → production decoder → Unity
  ↓
-Q6  stationary Sight vs Guard
+Q6  forced render/network fault rehearsal
  ↓
-Q7  moving Sight vs Guard
+Q7  measured physical display timing
  ↓
-Q8  target selection while player moves
+Q8  real Unicorn acquisition metadata/units
  ↓
-Q9  light combat
+Q9  stationary Sight vs Guard
  ↓
-Q10 full Fractured Signal encounter
+Q10 moving selection
+ ↓
+Q11 selection while player moves
+ ↓
+Q12 light combat
+ ↓
+Q13 full Fractured Signal encounter
 ```
 
-See [`docs/UNITY_SCENE_WIRING.md`](docs/UNITY_SCENE_WIRING.md) for the concrete scene/prefab wiring checklist.
+See [`docs/UNITY_SCENE_WIRING.md`](docs/UNITY_SCENE_WIRING.md), [`docs/PHANTOM_UNICORN_LAB.md`](docs/PHANTOM_UNICORN_LAB.md), and [`docs/BCI_GAME_PLATFORM.md`](docs/BCI_GAME_PLATFORM.md).
 
 ## Not claimed yet
 
-We do **not yet claim** an observed successful Unity Editor/Player compile of the complete new scene, verified serialized production scene/prefab wiring, measured physical 10/12 Hz luminance timing, verified physical Unicorn metadata/units on the competition machine, human SSVEP performance, human full-combat BCI performance, or final production art/audio.
+We do **not yet claim** an observed successful Unity Editor/Player compile of this new platform branch, measured physical 10/12 Hz luminance timing, verified physical Unicorn metadata/units on the competition machine, human SSVEP performance, human full-combat BCI performance, or final production art/audio.
 
-Those are the remaining evidence gates.
+Those remain evidence gates, not TODOs to wave away.
 
----
-
-# North star
+## North star
 
 Mindforge should not be remembered as a game controlled badly by EEG.
 
@@ -373,8 +327,6 @@ It should demonstrate a different possibility:
 
 > **A fast physical action game can remain responsive and expressive while neural attention controls a slower strategic layer that ordinary input does not replicate.**
 
-The hands fight the enemy.
+The game should be useful to designers before they own a headset, useful to BCI engineers before the art is final, and inspectable by researchers after a session is over.
 
-The Soul Wisp turns visual attention into power.
-
-And the game is deliberately engineered to know when the BCI should say **nothing at all**.
+The hands fight the enemy. The Soul Wisp turns visual attention into power. The platform makes clear why the BCI was allowed to do what it did.

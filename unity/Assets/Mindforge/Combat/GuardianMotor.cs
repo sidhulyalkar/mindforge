@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Mindforge.Combat
@@ -12,6 +13,8 @@ namespace Mindforge.Combat
         private Vector2 _moveInput;
         private float _dashUntil;
         private float _lastDash = -999f;
+
+        public event Action DashStarted;
 
         public bool IsDashing => Time.time < _dashUntil;
         public bool IsInvulnerable => IsDashing;
@@ -35,6 +38,7 @@ namespace Mindforge.Combat
             _lastDash = Time.time;
             _dashUntil = Time.time + tuning.dashDuration;
             _body.velocity = direction.normalized * tuning.dashSpeed;
+            DashStarted?.Invoke();
             return true;
         }
 

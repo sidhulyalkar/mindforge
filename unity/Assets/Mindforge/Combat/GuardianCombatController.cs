@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mindforge.Presentation;
@@ -25,6 +26,9 @@ namespace Mindforge.Combat
         private float _lastShot = -999f, _lastCleave = -999f, _lastCounter = -999f;
         private float _counterUntil;
         private string _lastAura;
+
+        public event Action<string> ActionAccepted;
+        public event Action<string> CombatOutcome;
 
         public bool ConcordActive => auras != null && auras.ConcordActive;
         public Transform PrimaryTarget { get => primaryTarget; set => primaryTarget = value; }
@@ -64,6 +68,7 @@ namespace Mindforge.Combat
             Vector3 origin = muzzle != null ? muzzle.position : transform.position + Vector3.up;
             MindforgeProjectile p = Instantiate(projectilePrefab, origin, Quaternion.LookRotation(aimDirection.normalized));
             p.Configure(CombatTeam.Guardian, aimDirection.normalized * speed, damage, tuning.shotPoise, pierce);
+            ActionAccepted?.Invoke("PULSE_SHOT");
             return true;
         }
 
@@ -71,6 +76,7 @@ namespace Mindforge.Combat
         {
             if (tuning == null || Time.time - _lastCleave < tuning.cleaveCooldown) return false;
             _lastCleave = Time.time;
+            ActionAccepted?.Invoke("RIFT_CLEAVE");
             float range = tuning.cleaveRange * (auras != null && auras.SightActive ? 1.18f : 1f);
             float halfArc = tuning.cleaveArcDegrees * (auras != null && auras.SightActive ? 1.12f : 1f) * 0.5f;
             int count = Physics.OverlapSphereNonAlloc(transform.position, range, _hits, damageMask, QueryTriggerInteraction.Collide);
@@ -96,6 +102,7 @@ namespace Mindforge.Combat
             {
                 hitStop?.Pulse(tuning.heavyHitStop);
                 presentation?.CleaveImpact(aimDirection);
+                CombatOutcome?.Invoke("RIFT_CLEAVE_HIT");
             }
             return true;
         }
@@ -106,6 +113,7 @@ namespace Mindforge.Combat
             _lastCounter = Time.time;
             _counterUntil = Time.time + tuning.counterWindow;
             _reflectedThisWindow.Clear();
+            ActionAccepted?.Invoke("COUNTER_PULSE");
             return true;
         }
 
@@ -131,13 +139,11 @@ namespace Mindforge.Combat
                 reflectedAny = true;
             }
 
-            // Multiple projectiles may be reflected by one parry field, but camera
-            // and hit-stop fire once per successful Counter Pulse rather than once
-            // per projectile. This keeps multi-reflections crisp instead of sticky.
             if (reflectedAny)
             {
                 hitStop?.Pulse(tuning.parryHitStop);
                 presentation?.CounterImpact(impactDirection);
+                CombatOutcome?.Invoke("COUNTER_REFLECT");
             }
         }
     }

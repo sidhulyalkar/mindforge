@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindforge.dev/contracts/neural_event.v2.schema.json",
+  "title": "Mindforge NeuralEvent v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "seq", "monotonic_ns", "event", "target", "confidence", "quality",
+    "paradigm", "model_id", "artifact", "reason", "has_evidence", "sight_score",
+    "guard_score", "margin", "source_mode", "session_id", "calibration_id",
+    "source_sample_start", "source_sample_end", "decoder_time_ns", "authority_ttl_ms"
+  ],
+  "properties": {
+    "schema": {"const": "mindforge.neural_event.v2"},
+    "seq": {"type": "integer", "minimum": 0},
+    "monotonic_ns": {"type": "integer", "minimum": 0},
+    "event": {"enum": ["AURA_SELECTED", "ABSTAIN", "BCI_LOST", "BCI_RECOVERED", "PARTICIPANT_STOP", "CALIBRATION_SERVICE_READY", "CALIBRATION_HEARTBEAT", "CALIBRATION_READY", "CALIBRATION_FAILED"]},
+    "target": {"type": ["string", "null"], "enum": ["sight", "guard", null]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "quality": {"type": "number", "minimum": 0, "maximum": 1},
+    "paradigm": {"type": "string", "minLength": 1},
+    "model_id": {"type": "string", "minLength": 1},
+    "artifact": {"type": "boolean"},
+    "reason": {"type": ["string", "null"]},
+    "has_evidence": {"type": "boolean"},
+    "sight_score": {"type": "number", "minimum": 0},
+    "guard_score": {"type": "number", "minimum": 0},
+    "margin": {"type": "number", "minimum": 0},
+    "source_mode": {"enum": ["manual", "simulated_decision", "decision_replay", "eeg_replay", "synthetic_eeg", "live", "simulation", "replay"]},
+    "session_id": {"type": ["string", "null"]},
+    "calibration_id": {"type": ["string", "null"]},
+    "source_sample_start": {"type": "integer", "minimum": -1},
+    "source_sample_end": {"type": "integer", "minimum": -1},
+    "decoder_time_ns": {"type": "integer", "minimum": 0},
+    "authority_ttl_ms": {"type": "integer", "minimum": 0}
+  }
+}

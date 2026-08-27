@@ -7,6 +7,9 @@ namespace Mindforge.Neural
     [Serializable]
     public sealed class NeuralEvent
     {
+        public const string SchemaV1 = "mindforge.neural_event.v1";
+        public const string SchemaV2 = "mindforge.neural_event.v2";
+
         public string schema;
         public long seq;
         public long monotonic_ns;
@@ -24,6 +27,14 @@ namespace Mindforge.Neural
         public float margin;
         public string source_mode;
 
+        // v2 provenance. Sentinel -1 means a source sample range was not available.
+        public string session_id;
+        public string calibration_id;
+        public long source_sample_start = -1;
+        public long source_sample_end = -1;
+        public long decoder_time_ns;
+        public int authority_ttl_ms;
+
         public AuraTarget Target
         {
             get
@@ -34,6 +45,11 @@ namespace Mindforge.Neural
             }
         }
 
+        public bool HasSupportedSchema =>
+            string.Equals(schema, SchemaV1, StringComparison.Ordinal) ||
+            string.Equals(schema, SchemaV2, StringComparison.Ordinal);
+
+        public bool IsV2 => string.Equals(schema, SchemaV2, StringComparison.Ordinal);
         public bool IsSelection => string.Equals(@event, "AURA_SELECTED", StringComparison.Ordinal);
         public bool IsAbstain => string.Equals(@event, "ABSTAIN", StringComparison.Ordinal);
         public bool IsLost => string.Equals(@event, "BCI_LOST", StringComparison.Ordinal);

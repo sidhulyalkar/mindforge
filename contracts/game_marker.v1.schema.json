@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindforge.dev/contracts/game_marker.v1.schema.json",
+  "title": "Mindforge GameMarker v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "seq", "session_id", "event", "category", "unity_realtime_s",
+    "game_time_s", "frame", "fixed_tick", "stage", "action", "target", "reason",
+    "value", "boss_phase", "stimulus_epoch", "trial_id", "planned_duration_s"
+  ],
+  "properties": {
+    "schema": {"const": "mindforge.game_marker.v1"},
+    "seq": {"type": "integer", "minimum": 0},
+    "session_id": {"type": "string"},
+    "event": {"type": "string", "minLength": 1},
+    "category": {"type": "string", "minLength": 1},
+    "unity_realtime_s": {"type": "number", "minimum": 0},
+    "game_time_s": {"type": "number"},
+    "frame": {"type": "integer", "minimum": 0},
+    "fixed_tick": {"type": "integer", "minimum": 0},
+    "stage": {"type": ["string", "null"]},
+    "action": {"type": ["string", "null"]},
+    "target": {"type": ["string", "null"]},
+    "reason": {"type": ["string", "null"]},
+    "value": {"type": "number"},
+    "boss_phase": {"type": "integer", "minimum": 0},
+    "stimulus_epoch": {"type": "integer", "minimum": -1},
+    "trial_id": {"type": ["string", "null"]},
+    "planned_duration_s": {"type": "number", "minimum": 0}
+  }
+}
