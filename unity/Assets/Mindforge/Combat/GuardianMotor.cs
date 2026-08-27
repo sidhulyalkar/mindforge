@@ -27,6 +27,11 @@ namespace Mindforge.Combat
             _body = GetComponent<Rigidbody>();
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            ResolvePhysicalBudget();
+        }
+
+        private void ResolvePhysicalBudget()
+        {
             if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
             if (stamina == null) stamina = GetComponent<GuardianStamina>();
         }
@@ -35,6 +40,7 @@ namespace Mindforge.Combat
 
         public bool RequestDash(Vector3 fallbackDirection)
         {
+            ResolvePhysicalBudget();
             if (tuning == null || Time.time - _lastDash < tuning.dashCooldown) return false;
             float staminaCost = stamina != null
                 ? stamina.DodgeBaseCost * (loadout != null ? loadout.RollStaminaMultiplier : 1f)
@@ -63,6 +69,7 @@ namespace Mindforge.Combat
 
         private void FixedUpdate()
         {
+            ResolvePhysicalBudget();
             if (tuning == null || IsDashing) return;
             float loadMultiplier = loadout != null ? loadout.MoveSpeedMultiplier : 1f;
             Vector3 desiredDir = MoveDirectionWorld();
