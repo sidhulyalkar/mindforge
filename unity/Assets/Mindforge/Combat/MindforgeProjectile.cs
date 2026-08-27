@@ -33,6 +33,7 @@ namespace Mindforge.Combat
         private MaterialPropertyBlock _visualBlock;
         private string _neuralPayoffKind;
         private float _neuralBonusDamage;
+        private bool _consumed;
 
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorProperty = Shader.PropertyToID("_Color");
@@ -43,6 +44,8 @@ namespace Mindforge.Combat
         public Rigidbody Body => _body;
         public bool Captured => _captured;
         public bool ExternalPaused => _externalPaused;
+        public float Damage => Mathf.Max(0f, damage);
+        public float Speed => _body != null ? _body.velocity.magnitude : 0f;
 
         private void Awake()
         {
@@ -72,6 +75,7 @@ namespace Mindforge.Combat
             poiseDamage = newPoise;
             pierce = newPierce;
             _reflected = false;
+            _consumed = false;
             _neuralPayoffKind = neuralPayoffKind;
             _neuralBonusDamage = Mathf.Clamp(neuralBonusDamage, 0f, Mathf.Max(0f, newDamage));
             _body.velocity = velocity;
@@ -87,7 +91,7 @@ namespace Mindforge.Combat
             string neuralPayoffKind = null,
             float neuralBonusDamage = 0f)
         {
-            if (target == null) return;
+            if (target == null || _consumed) return;
             ReleaseFromCapture();
             team = CombatTeam.Guardian;
             damage = newDamage;
@@ -98,7 +102,22 @@ namespace Mindforge.Combat
             _neuralBonusDamage = Mathf.Clamp(neuralBonusDamage, 0f, Mathf.Max(0f, newDamage));
             Vector3 direction = (target.position - transform.position).normalized;
             _body.velocity = direction * speed;
+            _previousPosition = transform.position;
             ApplyVisualIdentity();
+        }
+
+        public void ConsumeByShield()
+        {
+            if (_consumed) return;
+            _consumed = true;
+            if (_collider != null) _collider.enabled = false;
+            if (_body != null)
+            {
+                _body.velocity = Vector3.zero;
+                _body.angularVelocity = Vector3.zero;
+                _body.isKinematic = true;
+            }
+            Destroy(gameObject);
         }
 
         public void SetExternalPause(bool paused)
@@ -167,7 +186,7 @@ namespace Mindforge.Combat
 
         public void Capture(Transform anchor, float phase)
         {
-            if (_captured || _externalPaused) return;
+            if (_captured || _externalPaused || _consumed) return;
             _captured = true;
             _captureAnchor = anchor;
             _capturePhase = phase;
@@ -187,7 +206,7 @@ namespace Mindforge.Combat
 
         private void Update()
         {
-            if (_externalPaused || !_captured || _captureAnchor == null) return;
+            if (_externalPaused || !_captured || _captureAnchor == null || _consumed) return;
             _capturePhase += Time.unscaledDeltaTime * 4.5f;
             float radius = 0.65f + 0.16f * Mathf.Sin(_capturePhase * 1.7f);
             transform.position = _captureAnchor.position + new Vector3(Mathf.Cos(_capturePhase), 0.45f, Mathf.Sin(_capturePhase)) * radius;
@@ -195,7 +214,7 @@ namespace Mindforge.Combat
 
         private void FixedUpdate()
         {
-            if (_externalPaused || _captured) return;
+            if (_externalPaused || _captured || _consumed) return;
             Vector3 current = transform.position;
             Vector3 delta = current - _previousPosition;
             float distance = delta.magnitude;
@@ -208,7 +227,13 @@ namespace Mindforge.Combat
 
         private void TryHit(Collider other, Vector3 point)
         {
-            if (_externalPaused || _captured || other == null) return;
+            if (_externalPaused || _captured || _consumed || other == null) return;
+
+            // A raised shield is a physical collision surface, not an invulnerability
+            // flag on the Guardian. It gets first authority over the impact it caught.
+            GuardianShieldHitbox shield = other.GetComponentInParent<GuardianShieldHitbox>();
+            if (shield != null && shield.TryResolveProjectile(this, point)) return;
+
             CombatantVitals receiver = other.GetComponentInParent<CombatantVitals>();
             if (receiver == null || !receiver.IsAlive || receiver.Team == team) return;
             Vector3 impulse = _body.velocity.sqrMagnitude > 0.01f ? _body.velocity.normalized * 1.5f : Vector3.zero;
