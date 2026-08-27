@@ -45,6 +45,8 @@ namespace Mindforge.Combat
         public event Action<int> PhaseChanged;
         public event Action EchoSpawned;
         public event Action EchoShattered;
+        public event Action<string, int, bool> AttackTelegraphed;
+        public event Action<string, int, bool> AttackFired;
         public bool ExternalPaused => _externalPaused;
 
         public int Phase
@@ -168,10 +170,12 @@ namespace Mindforge.Combat
             if (player == null || projectilePrefab == null || _externalPaused) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             Vector3 center = (player.position - origin).normalized;
+            AttackTelegraphed?.Invoke("FAN", count, heavy);
             telegraph?.ShowFan(origin, center, count, spreadDegrees, heavy);
             yield return new WaitForSeconds(delay);
             telegraph?.Clear();
             if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
+            AttackFired?.Invoke("FAN", count, heavy);
             SpawnAimedFan(count, speed, spreadDegrees, heavy);
         }
 
@@ -179,10 +183,12 @@ namespace Mindforge.Combat
         {
             if (_externalPaused) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
+            AttackTelegraphed?.Invoke("RADIAL", count, heavy);
             telegraph?.ShowRadial(origin, count, heavy);
             yield return new WaitForSeconds(delay);
             telegraph?.Clear();
             if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
+            AttackFired?.Invoke("RADIAL", count, heavy);
             SpawnRadial(count, speed, heavy);
         }
 
