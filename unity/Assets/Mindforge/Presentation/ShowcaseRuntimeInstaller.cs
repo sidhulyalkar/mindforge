@@ -42,8 +42,17 @@ namespace Mindforge.Presentation
             GameObject guardian = input.gameObject;
             if (guardian.GetComponent<GuardianAvatarPresentation>() == null)
                 guardian.AddComponent<GuardianAvatarPresentation>();
+            if (guardian.GetComponent<GuardianMotionPolish>() == null)
+                guardian.AddComponent<GuardianMotionPolish>();
+            if (guardian.GetComponent<GuardianLocomotionVfx>() == null)
+                guardian.AddComponent<GuardianLocomotionVfx>();
+            if (guardian.GetComponent<GuardianAnimatorBridge>() == null)
+                guardian.AddComponent<GuardianAnimatorBridge>();
+
             if (boss.GetComponent<FracturedSignalAvatar>() == null)
                 boss.gameObject.AddComponent<FracturedSignalAvatar>();
+            if (boss.GetComponent<FracturedSignalMotionPolish>() == null)
+                boss.gameObject.AddComponent<FracturedSignalMotionPolish>();
 
             FracturedSignalMeleeDirector melee = null;
             for (int frame = 0; frame < 60 && melee == null; frame++)
@@ -72,9 +81,9 @@ namespace Mindforge.Presentation
                 gameObject.AddComponent<CinematicArtOverrideInstaller>();
 
             Debug.Log(
-                "[Mindforge:Showcase] Integrated cinematic presentation installed: Guardian and Fractured Signal " +
-                "presentation, truthful melee telegraphs, tactical camera, semantic VFX, URP post stack, " +
-                "PBR material rebinding and optional authored-art overrides.");
+                "[Mindforge:Showcase] Integrated cinematic presentation installed: Guardian procedural body + additive motion, " +
+                "production Animator bridge, grounded locomotion VFX, Fractured Signal secondary motion, truthful melee telegraphs, " +
+                "tactical camera, semantic VFX, URP post stack, PBR material rebinding and optional authored-art overrides.");
         }
     }
 }
