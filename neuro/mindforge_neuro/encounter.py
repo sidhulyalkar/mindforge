@@ -26,6 +26,9 @@ class EncounterReport:
     counter_success_rate: float | None
     phase_dashes: int
     near_misses: int
+    echo_spawns: int
+    echo_shatters: int
+    echo_shatter_rate: float | None
 
     player_damage_events: int
     player_damage_total: float
@@ -105,6 +108,8 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
     cleave_hits = _count(ordered, "RIFT_CLEAVE_HIT")
     counters = _count(ordered, "COUNTER_PULSE")
     reflects = _count(ordered, "COUNTER_REFLECT")
+    echo_spawns = _count(ordered, "ECHO_SPAWNED")
+    echo_shatters = _count(ordered, "ECHO_SHATTERED")
 
     player_damage_events, player_damage_total, player_heavy_hits = _damage(ordered, "PLAYER_DAMAGED")
     boss_damage_events, boss_damage_total, boss_heavy_hits = _damage(ordered, "BOSS_DAMAGED")
@@ -126,6 +131,8 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         flags.append("COUNTERS_ATTEMPTED_WITH_ZERO_REFLECTS")
     if cleaves >= 4 and cleave_hits == 0:
         flags.append("CLEAVES_ATTEMPTED_WITH_ZERO_HITS")
+    if echo_spawns > 0 and echo_shatters == 0 and outcome != "INCOMPLETE":
+        flags.append("ECHOES_SPAWNED_WITH_ZERO_SHATTERS")
     if _count(ordered, "SIGNAL_BREAK") == 0 and outcome != "INCOMPLETE":
         flags.append("TERMINAL_RUN_WITH_ZERO_SIGNAL_BREAKS")
     if player_damage_total > 0 and boss_damage_total <= 0:
@@ -149,6 +156,9 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         counter_success_rate=_rate(reflects, counters),
         phase_dashes=_count(ordered, "PHASE_DASH"),
         near_misses=_count(ordered, "NEAR_MISS"),
+        echo_spawns=echo_spawns,
+        echo_shatters=echo_shatters,
+        echo_shatter_rate=_rate(echo_shatters, echo_spawns),
         player_damage_events=player_damage_events,
         player_damage_total=player_damage_total,
         player_heavy_hits=player_heavy_hits,
