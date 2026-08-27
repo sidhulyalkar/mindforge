@@ -44,6 +44,9 @@ def test_combat_state_hud_is_gameplay_first_and_non_authoritative():
         "CONCORD",
         "TWIN ECLIPSE",
         "SIGNAL BREAK · PUNISH WINDOW",
+        "ControllerOnlyQualificationActive",
+        "P2 CONTROLLER-ONLY",
+        "BCI intentionally disabled",
         "RuntimeInitializeOnLoadMethod",
     ):
         assert token in hud
