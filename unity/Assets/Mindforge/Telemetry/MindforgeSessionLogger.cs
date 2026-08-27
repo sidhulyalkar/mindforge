@@ -27,11 +27,30 @@ namespace Mindforge.Telemetry
         public float boss_health;
         public float player_health;
         public float flux;
+
+        // Additive NeuralEvent v2 provenance. Non-neural records leave these at
+        // sentinel/default values so session.v1 readers remain backward compatible.
+        public string neural_schema;
+        public long neural_seq = -1;
+        public string neural_session_id;
+        public string calibration_id;
+        public long source_sample_start = -1;
+        public long source_sample_end = -1;
+        public long decoder_time_ns;
+        public int authority_ttl_ms;
+
+        // Unity-local transport state at the instant the record was observed.
+        public int transport_queue_depth;
+        public long dropped_packet_age;
+        public long dropped_backpressure;
+        public long dropped_expired_authority;
     }
 
     [Serializable]
     public sealed class SessionTelemetryEnvelope
     {
+        // v2 fields above are additive. Keep the envelope identifier stable so old
+        // competition report tooling can continue to read new captures.
         public string schema = "mindforge.session.v1";
         public string session_id;
         public string calibration_session_id;
@@ -127,8 +146,34 @@ namespace Mindforge.Telemetry
         {
             if (evt == null || _finalized) return;
             if (!string.IsNullOrEmpty(evt.source_mode)) _session.source_mode = evt.source_mode;
-            Add(category, evt.@event, evt.target, evt.confidence, evt.quality,
-                evt.sight_score, evt.guard_score, evt.margin, evt.reason, evt.source_mode);
+            SessionTelemetryRecord record = Add(
+                category,
+                evt.@event,
+                evt.target,
+                evt.confidence,
+                evt.quality,
+                evt.sight_score,
+                evt.guard_score,
+                evt.margin,
+                evt.reason,
+                evt.source_mode);
+            if (record == null) return;
+
+            record.neural_schema = evt.schema;
+            record.neural_seq = evt.seq;
+            record.neural_session_id = evt.session_id;
+            record.calibration_id = evt.calibration_id;
+            record.source_sample_start = evt.source_sample_start;
+            record.source_sample_end = evt.source_sample_end;
+            record.decoder_time_ns = evt.decoder_time_ns;
+            record.authority_ttl_ms = evt.authority_ttl_ms;
+            if (receiver != null)
+            {
+                record.transport_queue_depth = receiver.QueueDepth;
+                record.dropped_packet_age = receiver.DroppedForAge;
+                record.dropped_backpressure = receiver.DroppedForBackpressure;
+                record.dropped_expired_authority = receiver.DroppedExpiredAuthority;
+            }
         }
 
         private void OnCalibrationStage(string stage)
@@ -145,12 +190,20 @@ namespace Mindforge.Telemetry
         private void OnBossDied() => FinalizeSession("VICTORY");
         private void OnPlayerDied() => FinalizeSession("DEFEAT");
 
-        private void Add(string category, string eventType, string target = null, float confidence = 0f,
-                         float quality = 0f, float sight = 0f, float guard = 0f, float margin = 0f,
-                         string reason = null, string sourceMode = null)
+        private SessionTelemetryRecord Add(
+            string category,
+            string eventType,
+            string target = null,
+            float confidence = 0f,
+            float quality = 0f,
+            float sight = 0f,
+            float guard = 0f,
+            float margin = 0f,
+            string reason = null,
+            string sourceMode = null)
         {
-            if (_finalized) return;
-            _session.records.Add(new SessionTelemetryRecord
+            if (_finalized) return null;
+            SessionTelemetryRecord record = new SessionTelemetryRecord
             {
                 realtime_s = Time.realtimeSinceStartupAsDouble,
                 game_time_s = Time.time,
@@ -168,7 +221,9 @@ namespace Mindforge.Telemetry
                 boss_health = bossVitals != null ? bossVitals.Health : -1f,
                 player_health = playerVitals != null ? playerVitals.Health : -1f,
                 flux = flux != null ? flux.Value : -1f,
-            });
+            };
+            _session.records.Add(record);
+            return record;
         }
 
         public void FinalizeSession(string outcome)
