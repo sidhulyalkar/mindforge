@@ -17,8 +17,6 @@ namespace Mindforge.Presentation
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private NeuralFocusResonance resonance;
 
-        private float _attackStartedAt = -999f;
-
         public void Configure(
             GuardianSwordShieldController controller,
             GuardianSwordShieldRig armamentRig,
@@ -35,45 +33,21 @@ namespace Mindforge.Presentation
             resonance = focus;
         }
 
-        private void OnEnable()
-        {
-            if (combat != null) combat.SwordAttackStarted += OnSwordAttack;
-        }
-
-        private void Start()
-        {
-            if (combat != null)
-            {
-                combat.SwordAttackStarted -= OnSwordAttack;
-                combat.SwordAttackStarted += OnSwordAttack;
-            }
-        }
-
-        private void OnDisable()
-        {
-            if (combat != null) combat.SwordAttackStarted -= OnSwordAttack;
-        }
-
-        private void OnSwordAttack() => _attackStartedAt = Time.time;
-
         private void LateUpdate()
         {
             if (combat == null || rig == null) return;
-            float duration = loadout != null && loadout.MainHand != null
-                ? Mathf.Max(0.08f, loadout.MainHand.lightAttackSeconds)
-                : 0.42f;
-            float progress = combat.IsAttacking ? Mathf.Clamp01((Time.time - _attackStartedAt) / duration) : 0f;
             Vector3 aim = input != null ? input.CurrentAimDirection : transform.forward;
             float sight = auras != null && auras.SightActive && resonance != null ? resonance.Sight : 0f;
             float guard = auras != null && auras.GuardActive && resonance != null ? resonance.Guard : 0f;
             rig.SetCombatState(
                 combat.IsGuarding,
                 combat.IsAttacking,
-                progress,
+                combat.AttackProgress,
                 aim,
                 sight,
                 guard,
-                combat.GuardCoverageScale);
+                combat.GuardCoverageScale,
+                combat.ComboStep);
         }
     }
 }
