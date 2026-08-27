@@ -46,11 +46,12 @@ def test_awakening_is_a_hard_combat_gate():
     assert 'RunStage("guard"' in src
 
 
-def test_gate2_instrument_can_measure_both_neural_codes():
+def test_gate2_instrument_can_measure_both_neural_codes_without_player_hotkey_collision():
     patch = read(MF / "Presentation" / "PhotodiodePatch.cs")
     display = read(MF / "Qualification" / "DisplayQualificationController.cs")
     assert "StimulusSource.Sight" in patch and "StimulusSource.Guard" in patch
-    assert "KeyCode.F10" in patch and "KeyCode.F11" in patch
+    assert "KeyCode.F9" in patch and "KeyCode.F11" in patch
+    assert "F10 is reserved" in patch
     assert "ActiveFrequencyHz" in patch
     assert "targetRefreshHz = 120" in display
     assert "QualitySettings.vSyncCount = 1" in display
