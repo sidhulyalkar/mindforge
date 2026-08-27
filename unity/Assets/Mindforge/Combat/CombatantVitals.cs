@@ -9,21 +9,27 @@ namespace Mindforge.Combat
         [SerializeField] private float maxHealth = 100f;
         [SerializeField] private PoiseSystem poise;
         [SerializeField] private Rigidbody body;
+        [SerializeField] private GuardianMotor guardianMotor;
 
         public CombatTeam Team => team;
         public bool IsAlive => Health > 0f;
         public float Health { get; private set; }
         public float MaxHealth => maxHealth;
         public PoiseSystem Poise => poise;
+        public bool IsTemporarilyInvulnerable => team == CombatTeam.Guardian && guardianMotor != null && guardianMotor.IsInvulnerable;
 
         public event Action<DamagePacket> Damaged;
         public event Action Died;
 
-        private void Awake() => Health = maxHealth;
+        private void Awake()
+        {
+            Health = maxHealth;
+            if (guardianMotor == null) guardianMotor = GetComponent<GuardianMotor>();
+        }
 
         public void ReceiveDamage(DamagePacket packet)
         {
-            if (!IsAlive || packet.SourceTeam == team) return;
+            if (!IsAlive || packet.SourceTeam == team || IsTemporarilyInvulnerable) return;
 
             float before = Health;
             float requestedDamage = Mathf.Max(0f, packet.Damage);
