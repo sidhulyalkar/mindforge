@@ -1,6 +1,7 @@
 using UnityEngine;
 using Mindforge.Presentation;
 using Mindforge.SoulWisp;
+using Mindforge.Telemetry;
 
 namespace Mindforge.Combat
 {
@@ -114,6 +115,9 @@ namespace Mindforge.Combat
                 loadout,
                 guardian.GetComponent<AuraBuffController>(),
                 resonance);
+
+            if (guardian.GetComponent<PhysicalArsenalMarkerBridge>() == null)
+                guardian.AddComponent<PhysicalArsenalMarkerBridge>();
 
             Debug.Log("[Mindforge] Physical arsenal v1 installed: Aetherblade Longsword + Verdant Ward Shield + Warden Weave.");
         }
