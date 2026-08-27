@@ -1,19 +1,40 @@
 using System;
+using UnityEngine;
 
 namespace Mindforge.Telemetry
 {
     /// <summary>
-    /// Process-lifetime identity for one Unity game session. Every local evidence
-    /// surface uses this ID so GameMarker logs and the durable session envelope can
-    /// be joined exactly rather than by approximate wall-clock timestamps.
-    /// Calibration/decoder identities remain separate provenance dimensions.
+    /// Identity for one Unity runtime/play session. Every local evidence surface uses
+    /// this ID so GameMarker logs and durable session envelopes can be joined exactly
+    /// rather than by approximate timestamps.
+    ///
+    /// SubsystemRegistration intentionally resets the identity on every Play entry,
+    /// including Editor configurations where domain reload is disabled. A standalone
+    /// player still receives one identity for its runtime process.
     /// </summary>
     public static class MindforgeSessionContext
     {
-        private static readonly DateTime Started = DateTime.UtcNow;
-        private static readonly string Id = Started.ToString("yyyyMMddTHHmmssfffZ");
+        private static DateTime _started;
+        private static string _id;
 
-        public static string GameSessionId => Id;
-        public static string StartedUtc => Started.ToString("O");
+        static MindforgeSessionContext()
+        {
+            ResetIdentity();
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetForRuntime()
+        {
+            ResetIdentity();
+        }
+
+        private static void ResetIdentity()
+        {
+            _started = DateTime.UtcNow;
+            _id = $"{_started:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}";
+        }
+
+        public static string GameSessionId => _id;
+        public static string StartedUtc => _started.ToString("O");
     }
 }

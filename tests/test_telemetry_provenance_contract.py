@@ -30,6 +30,16 @@ def test_session_logger_preserves_v2_neural_provenance_and_local_transport_evide
     assert "raw EEG" in logger
 
 
+def test_game_session_identity_resets_for_every_unity_play_runtime_even_without_domain_reload():
+    context = (ROOT / "unity/Assets/Mindforge/Telemetry/MindforgeSessionContext.cs").read_text(encoding="utf-8")
+    assert "RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)" in context
+    assert "ResetForRuntime" in context
+    assert "ResetIdentity();" in context
+    assert "Guid.NewGuid():N" in context
+    assert "domain reload is disabled" in context
+    assert "static readonly string Id" not in context
+
+
 def test_developer_cli_all_subcommand_parsers_start_cleanly():
     tool = ROOT / "tools/mindforge_dev.py"
     for args in (["--help"], ["decision", "--help"], ["replay", "--help"], ["marker-log", "--help"]):
