@@ -87,8 +87,6 @@ namespace Mindforge.Combat
             }
             _pointerScreen = pointer;
 
-            // Physical-arsenal controls are additive in v1 so the existing ranged
-            // verbs remain available while sword/shield feel is qualified in Unity.
             _swordAttackLatched |= Input.GetMouseButtonDown(0);
             _guardDownLatched |= Input.GetMouseButtonDown(1);
             _guardHeld = Input.GetMouseButton(1);
@@ -102,6 +100,7 @@ namespace Mindforge.Combat
         private void FixedUpdate()
         {
             if (motor == null || combat == null) return;
+            if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
             _fixedInputTick++;
 
             Vector3 liveAim = ResolveAimDirection(out Vector3 liveAimPoint, out bool precisionAim);
@@ -123,7 +122,6 @@ namespace Mindforge.Combat
                 guard_down = _guardDownLatched,
             };
 
-            // One-shot device edges are consumed by exactly one fixed command frame.
             _cleaveLatched = false;
             _counterLatched = false;
             _dashLatched = false;
@@ -243,12 +241,35 @@ namespace Mindforge.Combat
                 return;
             }
 
+            // Dodge owns the whole fixed command frame when it succeeds. This makes
+            // roll timing a real commitment rather than a free overlay on attacks.
+            if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
+            {
+                physicalCombat?.SetGuardHeld(false, aim);
+                if (motor.RequestDash(aim)) return;
+            }
+
+            // No attacks or guarding while a roll is already in flight.
+            if (motor.IsDashing)
+            {
+                physicalCombat?.SetGuardHeld(false, aim);
+                return;
+            }
+
             physicalCombat?.SetGuardHeld(command.guard_held, aim);
+
+            // Raised shield is a stance. It suppresses simultaneous offensive verbs.
+            if (physicalCombat != null && physicalCombat.IsGuarding) return;
+
             if (command.sword_attack_down) physicalCombat?.TryLightAttack(aim);
+
+            // Sword wind-up/contact/recovery owns subsequent combat input until its
+            // commitment ends; the player cannot fire a spell through the animation.
+            if (physicalCombat != null && physicalCombat.IsAttacking) return;
+
             if (command.fire_held) combat.FirePulse(aim);
             if (command.cleave_down) combat.RiftCleave(aim);
             if (command.counter_down) combat.BeginCounter();
-            if (command.dash_down) motor.RequestDash(aim);
             if (command.bloom_down) bloom?.TryActivate();
         }
 
