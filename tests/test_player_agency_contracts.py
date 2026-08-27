@@ -4,8 +4,26 @@ import subprocess
 import sys
 from pathlib import Path
 
+from mindforge_neuro.encounter import analyze_encounter
+from mindforge_neuro.markers import GameMarker
+
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _marker(event: str, seq: int, *, boss_phase: int = 2) -> GameMarker:
+    return GameMarker(
+        schema="mindforge.game_marker.v1",
+        seq=seq,
+        session_id="p2-session",
+        event=event,
+        category="combat_outcome",
+        unity_realtime_s=float(seq),
+        game_time_s=float(seq),
+        frame=seq * 10,
+        fixed_tick=seq * 20,
+        boss_phase=boss_phase,
+    )
 
 
 def test_guardian_precision_aim_is_player_owned_and_replayable():
@@ -92,3 +110,38 @@ def test_playtest_cli_exposes_review_without_requiring_interaction():
     )
     assert result.returncode == 0, result.stderr
     assert "--prompt-review" in result.stdout
+
+
+def test_echo_priority_targeting_is_semantically_observable():
+    echo = (ROOT / "unity/Assets/Mindforge/Combat/FracturedEchoNode.cs").read_text(encoding="utf-8")
+    boss = (ROOT / "unity/Assets/Mindforge/Combat/FracturedSignalDirector.cs").read_text(encoding="utf-8")
+    bridge = (ROOT / "unity/Assets/Mindforge/Telemetry/MindforgeGameMarkerBridge.cs").read_text(encoding="utf-8")
+
+    assert "public event Action Shattered" in echo
+    assert "public event Action EchoSpawned" in boss
+    assert "public event Action EchoShattered" in boss
+    assert '"ECHO_SPAWNED"' in bridge
+    assert '"ECHO_SHATTERED"' in bridge
+
+
+def test_encounter_report_flags_completed_runs_that_ignore_every_echo():
+    ignored = analyze_encounter([
+        _marker("ECHO_SPAWNED", 1),
+        _marker("ECHO_SPAWNED", 2),
+        _marker("VICTORY", 3, boss_phase=3),
+    ])
+    assert ignored.echo_spawns == 2
+    assert ignored.echo_shatters == 0
+    assert ignored.echo_shatter_rate == 0.0
+    assert "ECHOES_SPAWNED_WITH_ZERO_SHATTERS" in ignored.diagnostic_flags
+
+    engaged = analyze_encounter([
+        _marker("ECHO_SPAWNED", 1),
+        _marker("ECHO_SPAWNED", 2),
+        _marker("ECHO_SHATTERED", 3),
+        _marker("VICTORY", 4, boss_phase=3),
+    ])
+    assert engaged.echo_spawns == 2
+    assert engaged.echo_shatters == 1
+    assert engaged.echo_shatter_rate == 0.5
+    assert "ECHOES_SPAWNED_WITH_ZERO_SHATTERS" not in engaged.diagnostic_flags
