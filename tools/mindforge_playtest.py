@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,70 @@ def _git_commit() -> str | None:
         return value or None
     except (OSError, subprocess.CalledProcessError):
         return None
+
+
+def _ask_rating(label: str) -> int | None:
+    while True:
+        value = input(f"{label} [1-5, Enter to skip]: ").strip()
+        if not value:
+            return None
+        try:
+            rating = int(value)
+        except ValueError:
+            print("Please enter an integer from 1 to 5, or press Enter to skip.")
+            continue
+        if 1 <= rating <= 5:
+            return rating
+        print("Please enter an integer from 1 to 5, or press Enter to skip.")
+
+
+def _ask_yes_no(label: str) -> bool | None:
+    while True:
+        value = input(f"{label} [y/n, Enter to skip]: ").strip().lower()
+        if not value:
+            return None
+        if value in {"y", "yes"}:
+            return True
+        if value in {"n", "no"}:
+            return False
+        print("Please enter y, n, or press Enter to skip.")
+
+
+def _ask_text(label: str) -> str | None:
+    value = input(f"{label} [Enter to skip]: ").strip()
+    return value or None
+
+
+def _write_human_review(output_dir: Path, capture_report) -> None:
+    if not sys.stdin.isatty():
+        print("Skipping --prompt-review because stdin is not interactive.")
+        return
+
+    print("\nHuman P2 review. These answers stay separate from machine telemetry and do not auto-pass P2.")
+    try:
+        review = {
+            "schema": "mindforge.playtest_review.v1",
+            "generated_utc": utc_now(),
+            "session_id": capture_report.session_id,
+            "git_commit": capture_report.git_commit,
+            "marker_sha256": capture_report.marker_sha256,
+            "outcome": capture_report.outcome,
+            "clarity_1_to_5": _ask_rating("How clear were the controls and encounter goals?"),
+            "responsiveness_1_to_5": _ask_rating("How responsive did movement/aim/combat feel?"),
+            "enjoyment_1_to_5": _ask_rating("How enjoyable was the encounter?"),
+            "intentionally_targeted_echo": _ask_yes_no("Could you intentionally aim at and attack an Echo node?"),
+            "could_explain_bci_role": _ask_yes_no("Could you explain what EEG controls versus what your hands control?"),
+            "favorite_moment": _ask_text("Favorite moment"),
+            "confusing_moment": _ask_text("Most confusing or frustrating moment"),
+            "next_improvement": _ask_text("One change you most want next"),
+        }
+    except (EOFError, KeyboardInterrupt):
+        print("\nHuman review skipped; machine evidence remains intact.")
+        return
+
+    path = output_dir / "review.json"
+    path.write_text(json.dumps(review, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"Human review: {path}")
 
 
 def capture(args: argparse.Namespace) -> int:
@@ -108,6 +173,9 @@ def capture(args: argparse.Namespace) -> int:
     print(json.dumps(capture_report.to_dict(), indent=2, sort_keys=True))
     print(json.dumps(encounter.to_dict(), indent=2, sort_keys=True))
 
+    if args.prompt_review:
+        _write_human_review(output_dir, capture_report)
+
     if count == 0:
         return 3
     if not capture_report.controller_only_declared:
@@ -130,6 +198,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-seconds", type=float, default=900.0, help="maximum active-session capture duration")
     parser.add_argument("--idle-seconds", type=float, default=30.0, help="stop if an active session emits no markers this long")
     parser.add_argument("--require-terminal", action="store_true", help="return non-zero unless VICTORY or DEFEAT is observed")
+    parser.add_argument(
+        "--prompt-review",
+        action="store_true",
+        help="after capture, optionally write a separate human-reported review.json; never affects P2 pass/fail",
+    )
     parser.add_argument("--verbose", action="store_true")
     return parser
 
