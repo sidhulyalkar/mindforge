@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Mindforge.Combat;
 using Mindforge.Neural;
@@ -24,6 +25,8 @@ namespace Mindforge.Telemetry
         [SerializeField] private NeuralLinkContingency linkContingency;
         [SerializeField] private ProjectileNearMissSensor nearMissSensor;
 
+        private readonly List<CombatantVitals> _observedEchoVitals = new List<CombatantVitals>();
+
         private void OnEnable()
         {
             ResolveReferences();
@@ -32,6 +35,7 @@ namespace Mindforge.Telemetry
             {
                 combat.ActionAccepted += OnCombatAction;
                 combat.CombatOutcome += OnCombatOutcome;
+                combat.NeuralPayoffObserved += OnNeuralPayoffObserved;
             }
             if (bloom != null)
             {
@@ -65,6 +69,7 @@ namespace Mindforge.Telemetry
             if (flux != null) flux.Changed += OnFluxChanged;
             if (linkContingency != null) linkContingency.DegradationStateChanged += OnLinkState;
             if (nearMissSensor != null) nearMissSensor.NearMissAwarded += OnNearMiss;
+            ObserveEchoVitals();
         }
 
         private void ResolveReferences()
@@ -84,7 +89,20 @@ namespace Mindforge.Telemetry
             {
                 if (candidate == null) continue;
                 if (candidate.Team == CombatTeam.Guardian && playerVitals == null) playerVitals = candidate;
-                if (candidate.Team == CombatTeam.Enemy && bossVitals == null) bossVitals = candidate;
+                if (candidate.Team == CombatTeam.Enemy && candidate.GetComponent<FracturedSignalDirector>() != null)
+                    bossVitals = candidate;
+            }
+        }
+
+        private void ObserveEchoVitals()
+        {
+            FracturedEchoNode[] echoes = Object.FindObjectsOfType<FracturedEchoNode>(true);
+            foreach (FracturedEchoNode echo in echoes)
+            {
+                CombatantVitals vitals = echo != null ? echo.Vitals : null;
+                if (vitals == null || _observedEchoVitals.Contains(vitals)) continue;
+                _observedEchoVitals.Add(vitals);
+                vitals.Damaged += OnEchoDamaged;
             }
         }
 
@@ -95,6 +113,7 @@ namespace Mindforge.Telemetry
             {
                 combat.ActionAccepted -= OnCombatAction;
                 combat.CombatOutcome -= OnCombatOutcome;
+                combat.NeuralPayoffObserved -= OnNeuralPayoffObserved;
             }
             if (bloom != null)
             {
@@ -125,6 +144,9 @@ namespace Mindforge.Telemetry
                 playerVitals.Damaged -= OnPlayerDamaged;
                 playerVitals.Died -= OnPlayerDied;
             }
+            foreach (CombatantVitals echoVitals in _observedEchoVitals)
+                if (echoVitals != null) echoVitals.Damaged -= OnEchoDamaged;
+            _observedEchoVitals.Clear();
             if (flux != null) flux.Changed -= OnFluxChanged;
             if (linkContingency != null) linkContingency.DegradationStateChanged -= OnLinkState;
             if (nearMissSensor != null) nearMissSensor.NearMissAwarded -= OnNearMiss;
@@ -138,7 +160,13 @@ namespace Mindforge.Telemetry
         private void OnAuraApplied(string target) => sender?.Emit("NEURAL_BUFF_APPLIED", "neural_payoff", target: target, bossPhase: Phase);
         private void OnConcord() => sender?.Emit("CONCORD_ESTABLISHED", "neural_payoff", bossPhase: Phase);
         private void OnNearMiss() => sender?.Emit("NEAR_MISS", "combat_outcome", reason: "THREAD_THE_NEEDLE", bossPhase: Phase);
-        private void OnEchoSpawned() => sender?.Emit("ECHO_SPAWNED", "boss_phase", bossPhase: Phase);
+
+        private void OnEchoSpawned()
+        {
+            sender?.Emit("ECHO_SPAWNED", "boss_phase", bossPhase: Phase);
+            ObserveEchoVitals();
+        }
+
         private void OnEchoShattered() => sender?.Emit("ECHO_SHATTERED", "combat_outcome", reason: "PLAYER_PRIORITY_TARGET", bossPhase: Phase);
 
         private void OnBossAttackTelegraphed(string pattern, int projectileCount, bool heavy)
@@ -178,6 +206,36 @@ namespace Mindforge.Telemetry
                 "combat_outcome",
                 reason: packet.Heavy ? "HEAVY" : "LIGHT",
                 value: Mathf.Max(0f, packet.Damage),
+                bossPhase: Phase);
+            EmitNeuralDamageBonus(packet, "boss");
+        }
+
+        private void OnEchoDamaged(DamagePacket packet)
+        {
+            EmitNeuralDamageBonus(packet, "echo");
+        }
+
+        private void EmitNeuralDamageBonus(DamagePacket packet, string target)
+        {
+            if (packet.NeuralBonusDamage <= 0f || string.IsNullOrEmpty(packet.NeuralPayoffKind)) return;
+            sender?.Emit(
+                "NEURAL_DAMAGE_BONUS_REALIZED",
+                "neural_payoff",
+                target: target,
+                reason: packet.NeuralPayoffKind,
+                value: packet.NeuralBonusDamage,
+                bossPhase: Phase);
+        }
+
+        private void OnNeuralPayoffObserved(string kind, float value)
+        {
+            if (value <= 0f || string.IsNullOrEmpty(kind)) return;
+            sender?.Emit(
+                "NEURAL_GUARD_HEAL_REALIZED",
+                "neural_payoff",
+                target: "guardian",
+                reason: kind,
+                value: value,
                 bossPhase: Phase);
         }
 
