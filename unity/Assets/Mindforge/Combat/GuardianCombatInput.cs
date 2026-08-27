@@ -8,15 +8,14 @@ namespace Mindforge.Combat
     /// command frame can be recorded/replayed by GuardianInputTape.
     ///
     /// Precision aim is player-owned. Mouse movement activates world-space pointer
-    /// aim; arrow keys provide a keyboard-only directional aim path. The serialized
-    /// aimTarget is now a fallback/lock target rather than the default authority for
-    /// every attack. The resolved aim vector is stored in GuardianCommandFrame, so
-    /// record/replay preserves the exact conventional-input decision.
+    /// aim; arrow keys provide a keyboard-only directional aim path. Neural evidence
+    /// never originates attack, guard, aim or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
         [SerializeField] private GuardianMotor motor;
         [SerializeField] private GuardianCombatController combat;
+        [SerializeField] private GuardianSwordShieldController physicalCombat;
         [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private Transform aimTarget;
         [SerializeField] private GuardianInputTape inputTape;
@@ -34,6 +33,9 @@ namespace Mindforge.Combat
         private bool _counterLatched;
         private bool _dashLatched;
         private bool _bloomLatched;
+        private bool _swordAttackLatched;
+        private bool _guardHeld;
+        private bool _guardDownLatched;
         private long _fixedInputTick;
 
         private Vector3 _pointerScreen;
@@ -49,12 +51,17 @@ namespace Mindforge.Combat
         public Vector3 CurrentAimPoint => _currentAimPoint;
         public bool PrecisionAimActive { get; private set; }
 
-        public void SetCombatActionsEnabled(bool enabled) => CombatActionsEnabled = enabled;
+        public void SetCombatActionsEnabled(bool enabled)
+        {
+            CombatActionsEnabled = enabled;
+            if (!enabled) physicalCombat?.SetGuardHeld(false, _currentAimDirection);
+        }
 
         private void Start()
         {
             ResolveTape();
             if (aimCamera == null) aimCamera = Camera.main;
+            if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
             _currentAimPoint = transform.position + transform.forward * 6f;
         }
 
@@ -80,6 +87,11 @@ namespace Mindforge.Combat
             }
             _pointerScreen = pointer;
 
+            // Physical-arsenal controls are additive in v1 so the existing ranged
+            // verbs remain available while sword/shield feel is qualified in Unity.
+            _swordAttackLatched |= Input.GetMouseButtonDown(0);
+            _guardDownLatched |= Input.GetMouseButtonDown(1);
+            _guardHeld = Input.GetMouseButton(1);
             _fireHeld = Input.GetKey(KeyCode.Space);
             _cleaveLatched |= Input.GetKeyDown(KeyCode.F);
             _counterLatched |= Input.GetKeyDown(KeyCode.C);
@@ -106,6 +118,9 @@ namespace Mindforge.Combat
                 counter_down = _counterLatched,
                 dash_down = _dashLatched,
                 bloom_down = _bloomLatched,
+                sword_attack_down = _swordAttackLatched,
+                guard_held = _guardHeld,
+                guard_down = _guardDownLatched,
             };
 
             // One-shot device edges are consumed by exactly one fixed command frame.
@@ -113,14 +128,13 @@ namespace Mindforge.Combat
             _counterLatched = false;
             _dashLatched = false;
             _bloomLatched = false;
+            _swordAttackLatched = false;
+            _guardDownLatched = false;
 
             ResolveTape();
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
 
-            // Presentation follows the same post-tape command that gameplay receives.
-            // In replay mode we no longer display a live mouse vector while combat is
-            // consuming recorded aim.
             UpdateResolvedAimPresentation(command, liveAimPoint, precisionAim);
             Apply(command);
         }
@@ -217,16 +231,20 @@ namespace Mindforge.Combat
             if (command == null) return;
             motor.SetMoveInput(command.Move);
 
-            // Signal-loss contingency leaves ordinary movement available but prevents
-            // a paused boss from becoming a free damage/Flux opportunity. Replay does
-            // not bypass this authority gate.
-            if (!CombatActionsEnabled) return;
-
             Vector3 aim = command.Aim;
             aim.y = 0f;
             if (aim.sqrMagnitude < 0.01f) aim = transform.forward;
+            if (aim.sqrMagnitude < 0.01f) aim = Vector3.forward;
             aim.Normalize();
 
+            if (!CombatActionsEnabled)
+            {
+                physicalCombat?.SetGuardHeld(false, aim);
+                return;
+            }
+
+            physicalCombat?.SetGuardHeld(command.guard_held, aim);
+            if (command.sword_attack_down) physicalCombat?.TryLightAttack(aim);
             if (command.fire_held) combat.FirePulse(aim);
             if (command.cleave_down) combat.RiftCleave(aim);
             if (command.counter_down) combat.BeginCounter();
