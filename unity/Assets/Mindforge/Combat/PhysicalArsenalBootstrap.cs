@@ -100,12 +100,20 @@ namespace Mindforge.Combat
                 shieldLight);
 
             GuardianSwordShieldController physical = guardian.AddComponent<GuardianSwordShieldController>();
-            Transform target = Object.FindObjectOfType<FracturedSignalDirector>(true)?.transform;
+            FracturedSignalDirector boss = Object.FindObjectOfType<FracturedSignalDirector>(true);
+            Transform target = boss != null ? boss.transform : null;
             FluxMeter flux = guardian.GetComponent<FluxMeter>();
             HitStopController hitStop = Object.FindObjectOfType<HitStopController>(true);
             CombatTuning tuning = FindAsset<CombatTuning>();
             physical.ConfigureRuntime(resonance, flux, target, shieldHitbox, hitStop, tuning);
             shieldHitbox.Configure(physical, shieldCollider);
+
+            if (boss != null)
+            {
+                FracturedSignalMeleeDirector melee = boss.GetComponent<FracturedSignalMeleeDirector>();
+                if (melee == null) melee = boss.gameObject.AddComponent<FracturedSignalMeleeDirector>();
+                melee.ConfigureRuntime(boss, guardian.transform, physical, guardian.GetComponent<GuardianMotor>());
+            }
 
             GuardianArmamentPresentationDriver driver = arsenalRoot.AddComponent<GuardianArmamentPresentationDriver>();
             driver.Configure(
@@ -119,7 +127,7 @@ namespace Mindforge.Combat
             if (guardian.GetComponent<PhysicalArsenalMarkerBridge>() == null)
                 guardian.AddComponent<PhysicalArsenalMarkerBridge>();
 
-            Debug.Log("[Mindforge] Physical arsenal v1 installed: Aetherblade Longsword + Verdant Ward Shield + Warden Weave.");
+            Debug.Log("[Mindforge] Physical arsenal v1 installed: Aetherblade Longsword + Verdant Ward Shield + Warden Weave + close-range Fractured Signal patterns.");
         }
 
         private static Transform NewChild(string name, Transform parent, Vector3 localPosition)
