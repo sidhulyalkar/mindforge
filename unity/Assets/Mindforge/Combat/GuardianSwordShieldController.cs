@@ -57,6 +57,7 @@ namespace Mindforge.Combat
         [SerializeField] private float maxGuardAbsorptionBonus = 0.17f;
         [SerializeField] private float maxGuardStabilityBonus = 0.45f;
         [SerializeField] private float perfectGuardStaminaMultiplier = 0.45f;
+        [SerializeField] private float concordPerfectGuardDamageMultiplier = 1.25f;
 
         private readonly Collider[] _hits = new Collider[48];
         private readonly HashSet<int> _hitThisSwing = new HashSet<int>();
@@ -239,15 +240,21 @@ namespace Mindforge.Combat
 
             if (perfect && primaryTarget != null)
             {
-                float reflectedDamage = tuning != null ? tuning.reflectedDamage : Mathf.Max(18f, projectile.Damage);
+                float baselineDamage = tuning != null ? tuning.reflectedDamage : Mathf.Max(18f, projectile.Damage);
+                float baselinePoise = tuning != null ? tuning.reflectedPoise : 18f;
+                bool concord = auras != null && auras.ConcordActive;
+                float concordMultiplier = concord ? Mathf.Max(1f, concordPerfectGuardDamageMultiplier) : 1f;
+                float reflectedDamage = baselineDamage * concordMultiplier;
+                float reflectedPoise = baselinePoise * concordMultiplier;
+                float concordBonusDamage = concord ? Mathf.Max(0f, reflectedDamage - baselineDamage) : 0f;
                 projectile.ReflectTowards(
                     primaryTarget,
                     tuning != null ? tuning.bloomReleaseSpeed : 20f,
                     reflectedDamage,
-                    tuning != null ? tuning.reflectedPoise : 18f,
+                    reflectedPoise,
                     0,
-                    auras != null && auras.ConcordActive ? "CONCORD_COUNTER_DAMAGE" : null,
-                    auras != null && auras.ConcordActive ? reflectedDamage * 0.20f : 0f);
+                    concord ? "CONCORD_COUNTER_DAMAGE" : null,
+                    concordBonusDamage);
                 flux?.Award(tuning != null ? tuning.counterFlux : 0.45f, "Perfect Shield Guard");
                 hitStop?.Pulse(tuning != null ? tuning.parryHitStop : 0.02f);
                 PerfectGuard?.Invoke();
