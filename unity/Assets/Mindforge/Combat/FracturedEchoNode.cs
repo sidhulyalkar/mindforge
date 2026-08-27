@@ -23,11 +23,8 @@ namespace Mindforge.Combat
         private bool _externalPaused;
         private bool _shattered;
 
-        /// <summary>
-        /// Semantic lifecycle evidence only. Consumers may observe that the player
-        /// destroyed an Echo, but the event never changes combat authority.
-        /// </summary>
         public event Action Shattered;
+        public CombatantVitals Vitals => vitals;
 
         public void Initialize(Transform boss, Transform player, FluxMeter playerFlux, float phase)
         {
