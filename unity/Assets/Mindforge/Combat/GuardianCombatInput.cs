@@ -92,19 +92,15 @@ namespace Mindforge.Combat
             if (motor == null || combat == null) return;
             _fixedInputTick++;
 
-            Vector3 aim = ResolveAimDirection(out Vector3 aimPoint, out bool precisionAim);
-            _currentAimDirection = aim;
-            _currentAimPoint = aimPoint;
-            PrecisionAimActive = precisionAim;
-
+            Vector3 liveAim = ResolveAimDirection(out Vector3 liveAimPoint, out bool precisionAim);
             GuardianCommandFrame live = new GuardianCommandFrame
             {
                 tick = _fixedInputTick,
                 move_x = _move.x,
                 move_y = _move.y,
-                aim_x = aim.x,
-                aim_y = aim.y,
-                aim_z = aim.z,
+                aim_x = liveAim.x,
+                aim_y = liveAim.y,
+                aim_z = liveAim.z,
                 fire_held = _fireHeld,
                 cleave_down = _cleaveLatched,
                 counter_down = _counterLatched,
@@ -121,6 +117,11 @@ namespace Mindforge.Combat
             ResolveTape();
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
+
+            // Presentation follows the same post-tape command that gameplay receives.
+            // In replay mode we no longer display a live mouse vector while combat is
+            // consuming recorded aim.
+            UpdateResolvedAimPresentation(command, liveAimPoint, precisionAim);
             Apply(command);
         }
 
@@ -183,6 +184,32 @@ namespace Mindforge.Combat
             aimPoint = transform.position + fallback * 6f;
             precisionAim = false;
             return fallback;
+        }
+
+        private void UpdateResolvedAimPresentation(
+            GuardianCommandFrame command,
+            Vector3 liveAimPoint,
+            bool livePrecisionAim)
+        {
+            if (command == null) return;
+            Vector3 direction = command.Aim;
+            direction.y = 0f;
+            if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
+            if (direction.sqrMagnitude < 0.01f) direction = Vector3.forward;
+            direction.Normalize();
+            _currentAimDirection = direction;
+
+            bool replay = inputTape != null && inputTape.Mode == GuardianInputTapeMode.Replay;
+            if (replay)
+            {
+                _currentAimPoint = transform.position + direction * 6f;
+                PrecisionAimActive = true;
+            }
+            else
+            {
+                _currentAimPoint = liveAimPoint;
+                PrecisionAimActive = livePrecisionAim;
+            }
         }
 
         private void Apply(GuardianCommandFrame command)
