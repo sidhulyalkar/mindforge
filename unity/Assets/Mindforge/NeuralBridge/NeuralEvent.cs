@@ -52,6 +52,7 @@ namespace Mindforge.Neural
         public bool IsV2 => string.Equals(schema, SchemaV2, StringComparison.Ordinal);
         public bool IsSelection => string.Equals(@event, "AURA_SELECTED", StringComparison.Ordinal);
         public bool IsAbstain => string.Equals(@event, "ABSTAIN", StringComparison.Ordinal);
+        public bool IsHeartbeat => string.Equals(@event, "BCI_HEARTBEAT", StringComparison.Ordinal);
         public bool IsLost => string.Equals(@event, "BCI_LOST", StringComparison.Ordinal);
         public bool IsRecovered => string.Equals(@event, "BCI_RECOVERED", StringComparison.Ordinal);
         public bool IsParticipantStop => string.Equals(@event, "PARTICIPANT_STOP", StringComparison.Ordinal);

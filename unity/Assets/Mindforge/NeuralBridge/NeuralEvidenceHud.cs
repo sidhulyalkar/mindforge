@@ -59,6 +59,15 @@ namespace Mindforge.Neural
         private void OnNeuralEvidence(NeuralEvent evt)
         {
             if (evt == null) return;
+
+            // A heartbeat is transport evidence, not classifier evidence. Preserve the
+            // last meaningful score/state presentation while still updating provenance.
+            if (evt.IsHeartbeat)
+            {
+                UpdateMode(evt);
+                return;
+            }
+
             _targetSight = evt.has_evidence ? Mathf.Clamp01(evt.sight_score) : 0f;
             _targetGuard = evt.has_evidence ? Mathf.Clamp01(evt.guard_score) : 0f;
             _targetQuality = Mathf.Clamp01(evt.quality);
@@ -79,12 +88,15 @@ namespace Mindforge.Neural
 
             if (scoreText != null)
                 scoreText.text = $"Sight {evt.sight_score:F3}  Guard {evt.guard_score:F3}  Δ {evt.margin:F3}  Q {evt.quality:F2}";
-            if (modeText != null)
-            {
-                string mode = string.IsNullOrEmpty(evt.source_mode) ? "UNKNOWN" : evt.source_mode.ToUpperInvariant();
-                string schema = evt.IsV2 ? "v2" : "v1";
-                modeText.text = $"{mode} · {evt.paradigm} · {schema}";
-            }
+            UpdateMode(evt);
+        }
+
+        private void UpdateMode(NeuralEvent evt)
+        {
+            if (modeText == null || evt == null) return;
+            string mode = string.IsNullOrEmpty(evt.source_mode) ? "UNKNOWN" : evt.source_mode.ToUpperInvariant();
+            string schema = evt.IsV2 ? "v2" : "v1";
+            modeText.text = $"{mode} · {evt.paradigm} · {schema}";
         }
     }
 }

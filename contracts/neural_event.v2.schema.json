@@ -14,7 +14,7 @@
     "schema": {"const": "mindforge.neural_event.v2"},
     "seq": {"type": "integer", "minimum": 0},
     "monotonic_ns": {"type": "integer", "minimum": 0},
-    "event": {"enum": ["AURA_SELECTED", "ABSTAIN", "BCI_LOST", "BCI_RECOVERED", "PARTICIPANT_STOP", "CALIBRATION_SERVICE_READY", "CALIBRATION_HEARTBEAT", "CALIBRATION_READY", "CALIBRATION_FAILED"]},
+    "event": {"enum": ["AURA_SELECTED", "ABSTAIN", "BCI_HEARTBEAT", "BCI_LOST", "BCI_RECOVERED", "PARTICIPANT_STOP", "CALIBRATION_SERVICE_READY", "CALIBRATION_HEARTBEAT", "CALIBRATION_READY", "CALIBRATION_FAILED"]},
     "target": {"type": ["string", "null"], "enum": ["sight", "guard", null]},
     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     "quality": {"type": "number", "minimum": 0, "maximum": 1},

@@ -33,11 +33,19 @@ class DecisionSimulator:
     disconnect behavior without implying physiological validity.
     """
 
-    def __init__(self, config: DecisionSimulationConfig | None = None, *, session_id: str | None = None):
+    def __init__(
+        self,
+        config: DecisionSimulationConfig | None = None,
+        *,
+        session_id: str | None = None,
+        calibration_id: str | None = None,
+        initial_seq: int = 0,
+    ):
         self.config = config or DecisionSimulationConfig()
         self.rng = np.random.default_rng(self.config.seed)
-        self.seq = 0
+        self.seq = max(0, int(initial_seq))
         self.session_id = session_id or f"dev-{int(time.time())}"
+        self.calibration_id = calibration_id or None
 
     def next(self, state: str | AuraTarget) -> NeuralEvent:
         self.seq += 1
@@ -62,6 +70,7 @@ class DecisionSimulator:
                 margin=0.0,
                 source_mode=SourceMode.SIMULATED_DECISION.value,
                 session_id=self.session_id,
+                calibration_id=self.calibration_id,
                 authority_ttl_ms=self.config.authority_ttl_ms,
             )
 
@@ -82,6 +91,7 @@ class DecisionSimulator:
             margin=abs(winner - loser),
             source_mode=SourceMode.SIMULATED_DECISION.value,
             session_id=self.session_id,
+            calibration_id=self.calibration_id,
             authority_ttl_ms=self.config.authority_ttl_ms,
         )
 
@@ -96,6 +106,7 @@ class DecisionSimulator:
             reason=reason,
             source_mode=SourceMode.SIMULATED_DECISION.value,
             session_id=self.session_id,
+            calibration_id=self.calibration_id,
             authority_ttl_ms=0,
         )
 
@@ -121,7 +132,7 @@ class NeuralEventTape:
 
     schema = "mindforge.neural_tape.v1"
 
-    def __init__(self, entries: Iterable[TapeEntry] = ()): 
+    def __init__(self, entries: Iterable[TapeEntry] = ()):
         self.entries = tuple(sorted(entries, key=lambda item: item.offset_s))
         if any(not math.isfinite(item.offset_s) or item.offset_s < 0.0 for item in self.entries):
             raise ValueError("tape offsets must be finite and non-negative")
@@ -164,7 +175,13 @@ class NeuralEventTape:
         }, separators=(",", ":"), sort_keys=True) for entry in self.entries]
         path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
-    def replay_events(self, *, initial_seq: int = 0, session_id: str | None = None) -> Iterator[TapeEntry]:
+    def replay_events(
+        self,
+        *,
+        initial_seq: int = 0,
+        session_id: str | None = None,
+        calibration_id: str | None = None,
+    ) -> Iterator[TapeEntry]:
         replay_session = session_id or f"decision-replay-{int(time.time())}"
         for index, entry in enumerate(self.entries, start=1):
             original = entry.event
@@ -178,5 +195,6 @@ class NeuralEventTape:
                     decoder_time_ns=0,
                     source_mode=SourceMode.DECISION_REPLAY.value,
                     session_id=replay_session,
+                    calibration_id=calibration_id or original.calibration_id,
                 ),
             )
