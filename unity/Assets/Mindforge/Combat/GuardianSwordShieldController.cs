@@ -252,7 +252,8 @@ namespace Mindforge.Combat
                     IsAttacking ? _attackAim : _guardAim,
                     SightResonance,
                     GuardResonance,
-                    GuardCoverageScale);
+                    GuardCoverageScale,
+                    _comboStep);
             }
         }
 
@@ -274,7 +275,11 @@ namespace Mindforge.Combat
             float sweepDegrees = weapon.sweepDegrees * sweepMultiplier;
             float from = -sweepDegrees * 0.5f;
             float to = sweepDegrees * 0.5f;
-            if (_comboStep == 2) { float tmp = from; from = -to; to = -tmp; }
+            if (_comboStep == 2)
+            {
+                from = sweepDegrees * 0.5f;
+                to = -sweepDegrees * 0.5f;
+            }
             float angle = Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, activeT));
             Vector3 bladeDirection = Quaternion.AngleAxis(angle, Vector3.up) * _attackAim;
             float resonanceValue = Mathf.Clamp01(SightResonance);
