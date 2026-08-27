@@ -49,7 +49,11 @@ namespace Mindforge.Presentation
 
         private void Update()
         {
-            if (playerVitals == null || bossVitals == null || flux == null || bossDirector == null)
+            // The physical arsenal self-installs AfterSceneLoad and Unity does not
+            // guarantee ordering among peers at the same phase. Keep resolving until
+            // both the original encounter state and the additive arsenal are bound.
+            if (playerVitals == null || bossVitals == null || flux == null || bossDirector == null ||
+                stamina == null || loadout == null || physicalCombat == null || resonance == null)
             {
                 Unsubscribe();
                 Resolve();
