@@ -229,13 +229,16 @@ namespace Mindforge.Combat
         {
             if (_externalPaused || _captured || _consumed || other == null) return;
 
-            // A raised shield is a physical collision surface, not an invulnerability
-            // flag on the Guardian. It gets first authority over the impact it caught.
             GuardianShieldHitbox shield = other.GetComponentInParent<GuardianShieldHitbox>();
             if (shield != null && shield.TryResolveProjectile(this, point)) return;
 
             CombatantVitals receiver = other.GetComponentInParent<CombatantVitals>();
             if (receiver == null || !receiver.IsAlive || receiver.Team == team) return;
+
+            // A dodge i-frame is a miss, not damage prevention after impact. Leave the
+            // projectile alive so it physically continues through the transient target.
+            if (receiver.IsTemporarilyInvulnerable) return;
+
             Vector3 impulse = _body.velocity.sqrMagnitude > 0.01f ? _body.velocity.normalized * 1.5f : Vector3.zero;
             receiver.ReceiveDamage(new DamagePacket(
                 damage,
