@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#070914" />
+  <title>Mindforge: Combat Ecosystem Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">BR41N.IO COMBAT + BCI VERTICAL SLICE</p>
+        <h1>Mindforge: The First Guardian</h1>
+        <p class="subtitle">A neural-attention action game built around the Soul Wisp.</p>
+      </div>
+      <div class="status-stack">
+        <div class="badge">SIMULATED BCI</div>
+        <div class="badge badge-soft" id="fpsBadge">120 Hz SIM</div>
+      </div>
+    </header>
+
+    <section class="game-wrap">
+      <canvas id="game" width="1440" height="810" aria-label="Mindforge game arena"></canvas>
+      <div id="intro" class="panel">
+        <p class="eyebrow">SOUL WISP CALIBRATION</p>
+        <h2>Fight with your hands. Allocate power with attention.</h2>
+        <p>
+          The Wisp splits into <strong>Blue / Sight</strong> and <strong>Green / Guard</strong> around enemies.
+          In the hardware build, visually attending the frequency-coded aura drives the BCI selection.
+          This browser prototype uses <kbd>Q</kbd> and <kbd>E</kbd> as simulated decoder evidence.
+        </p>
+        <div class="controls-grid">
+          <span><kbd>WASD</kbd> momentum movement</span>
+          <span><kbd>Space</kbd> Pulse Shot</span>
+          <span><kbd>F</kbd> Rift Cleave</span>
+          <span><kbd>C</kbd> Counter Pulse</span>
+          <span><kbd>Shift</kbd> Phase Dash</span>
+          <span><kbd>R</kbd> Gravity Bloom</span>
+          <span><kbd>Q</kbd> simulated Sight</span>
+          <span><kbd>E</kbd> simulated Guard</span>
+        </div>
+        <p class="microcopy">
+          Near-miss enemy attacks and perfect counters to build <strong>Flux</strong>. Spend full Flux on Gravity Bloom.
+          Overlap Sight + Guard to unlock <strong>Concord</strong> and mutate the special attack.
+        </p>
+        <button id="startButton">Awaken the Wisp</button>
+      </div>
+    </section>
+
+    <section class="telemetry telemetry-six">
+      <div><span>Blue evidence</span><meter id="blueEvidence" min="0" max="1" value="0"></meter><strong id="blueValue">0.00</strong></div>
+      <div><span>Green evidence</span><meter id="greenEvidence" min="0" max="1" value="0"></meter><strong id="greenValue">0.00</strong></div>
+      <div><span>Neural state</span><strong id="neuralState">CALIBRATION</strong></div>
+      <div><span>Last event</span><strong id="lastEvent">none</strong></div>
+      <div><span>Flux</span><strong id="fluxValue">0.00 / 3</strong></div>
+      <div><span>Combat state</span><strong id="combatState">AWAKENING</strong></div>
+    </section>
+
+    <section class="ability-legend" aria-label="Combat abilities">
+      <article><strong>Pulse Shot</strong><span>Fast ranged pressure. Sight makes shots pierce and accelerate.</span></article>
+      <article><strong>Rift Cleave</strong><span>Short-range arc with heavy poise damage and knockback.</span></article>
+      <article><strong>Counter Pulse</strong><span>180 ms parry field. Reflects projectiles and grants Flux.</span></article>
+      <article><strong>Phase Dash</strong><span>Momentum burst. Thread close to attacks to harvest Flux.</span></article>
+      <article><strong>Gravity Bloom</strong><span>Consumes full Flux, bends hostile projectiles, then detonates them back.</span></article>
+      <article><strong>Concord</strong><span>Natural Sight + Guard overlap. Upgrades Gravity Bloom into Twin Eclipse.</span></article>
+    </section>
+
+    <p class="footnote">
+      Browser VEP modulation is for game-feel testing only. It is not a qualified EEG stimulus generator.
+      The competition path requires synchronized Unity stimuli, physical display timing measurement, real Unicorn EEG,
+      participant calibration, and moving-target/full-combat qualification.
+    </p>
+  </main>
+  <script src="core.js"></script>
+  <script src="combat.js"></script>
+  <script src="render.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
