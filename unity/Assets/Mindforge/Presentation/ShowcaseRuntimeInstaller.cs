@@ -45,9 +45,6 @@ namespace Mindforge.Presentation
             if (boss.GetComponent<FracturedSignalAvatar>() == null)
                 boss.gameObject.AddComponent<FracturedSignalAvatar>();
 
-            // The melee authority is installed by PhysicalArsenalBootstrap. Wait a
-            // bounded number of frames for runtime bootstrap ordering, then attach only
-            // its visual telegraph observer.
             FracturedSignalMeleeDirector melee = null;
             for (int frame = 0; frame < 60 && melee == null; frame++)
             {
@@ -69,9 +66,15 @@ namespace Mindforge.Presentation
             if (post == null) post = gameObject.AddComponent<ShowcasePostProcessing>();
             post.Configure(camera, presentation);
 
+            if (GetComponent<CinematicRuntimeMaterialOverride>() == null)
+                gameObject.AddComponent<CinematicRuntimeMaterialOverride>();
+            if (GetComponent<CinematicArtOverrideInstaller>() == null)
+                gameObject.AddComponent<CinematicArtOverrideInstaller>();
+
             Debug.Log(
-                "[Mindforge:Showcase] Integrated presentation installed: Guardian avatar, " +
-                "Fractured Signal avatar, truthful melee telegraphs, tactical camera, semantic VFX and URP post stack.");
+                "[Mindforge:Showcase] Integrated cinematic presentation installed: Guardian and Fractured Signal " +
+                "presentation, truthful melee telegraphs, tactical camera, semantic VFX, URP post stack, " +
+                "PBR material rebinding and optional authored-art overrides.");
         }
     }
 }
