@@ -6,9 +6,9 @@ continuously acquires LSL EEG, fits session-specific thresholds, emits calibrati
 status heartbeats, then continues with the exact NeuralEvent stream used by combat.
 No raw EEG is written to disk.
 
-When and only when source_mode=simulation, this tool may also drive the neurOS
-Phantom Unicorn localhost control port so REST/SIGHT/GUARD calibration labels and
-synthetic EEG state cannot drift apart during a golden-path rehearsal.
+When and only when source_mode is an explicit synthetic source, this tool may drive
+the neurOS Phantom Unicorn localhost control port so REST/SIGHT/GUARD calibration
+labels and synthetic EEG state cannot drift apart during a golden-path rehearsal.
 """
 from __future__ import annotations
 
@@ -114,8 +114,13 @@ def main() -> None:
     markers.bind((args.marker_host, args.marker_port))
     markers.setblocking(False)
 
+    # Keep synthetic authority opt-in painfully explicit. In particular, LIVE must
+    # never inherit simulator control merely because a stream happens to be named
+    # UnicornMock. The legacy simulation label remains accepted for old workflows.
+    legacy_simulation = args.source_mode == "simulation"
+    explicit_synthetic_eeg = args.source_mode == "synthetic_eeg"
     phantom_enabled = (
-        args.source_mode in {"simulation", "synthetic_eeg"}
+        (legacy_simulation or explicit_synthetic_eeg)
         and not args.disable_phantom_control
         and args.stream_name == "UnicornMock"
     )

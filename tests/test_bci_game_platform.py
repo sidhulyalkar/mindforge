@@ -145,12 +145,14 @@ def test_contract_files_and_unity_boundary_encode_platform_invariants():
 
     receiver = (ROOT / "unity/Assets/Mindforge/NeuralBridge/UdpNeuralReceiver.cs").read_text()
     neural_event = (ROOT / "unity/Assets/Mindforge/NeuralBridge/NeuralEvent.cs").read_text()
+    marker_model = (ROOT / "unity/Assets/Mindforge/Telemetry/GameMarker.cs").read_text()
     sender = (ROOT / "unity/Assets/Mindforge/Telemetry/UdpGameMarkerSender.cs").read_text()
     bootstrap = (ROOT / "unity/Assets/Mindforge/Telemetry/MindforgePlatformBootstrap.cs").read_text()
     assert "HasSupportedSchema" in receiver
     assert "AuthorityExpired" in receiver
     assert "authority_ttl_ms" in neural_event
-    assert "mindforge.game_marker.v1" in sender
+    assert 'SchemaV1 = "mindforge.game_marker.v1"' in marker_model
+    assert "GameMarker marker = new GameMarker" in sender
     assert "RuntimeInitializeOnLoadMethod" in bootstrap
-    combined = (receiver + neural_event + sender).lower()
+    combined = (receiver + neural_event + marker_model + sender).lower()
     assert "raw_eeg" not in combined
