@@ -22,20 +22,31 @@ namespace Mindforge.Presentation
         private static void Install()
         {
             if (FindObjectOfType<GuardianEquipmentMenu>(true) != null) return;
-            GuardianEquipmentLoadout loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
-            if (loadout == null) return;
-            GuardianEquipmentMenu menu = new GameObject("MindforgeEquipmentMenu").AddComponent<GuardianEquipmentMenu>();
-            menu.loadout = loadout;
-            menu.stamina = loadout.GetComponent<GuardianStamina>();
+            new GameObject("MindforgeEquipmentMenu").AddComponent<GuardianEquipmentMenu>();
+        }
+
+        public void Configure(GuardianEquipmentLoadout equipment, GuardianStamina staminaBudget)
+        {
+            loadout = equipment;
+            stamina = staminaBudget;
+        }
+
+        private void Resolve()
+        {
+            if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
+            if (stamina == null && loadout != null) stamina = loadout.GetComponent<GuardianStamina>();
+            if (stamina == null) stamina = FindObjectOfType<GuardianStamina>(true);
         }
 
         private void Update()
         {
+            Resolve();
             if (Input.GetKeyDown(toggleKey)) _visible = !_visible;
         }
 
         private void OnGUI()
         {
+            Resolve();
             if (!_visible || loadout == null) return;
             EnsureStyles();
             float width = Mathf.Min(620f, Screen.width - 80f);
@@ -59,7 +70,7 @@ namespace Mindforge.Presentation
                     : string.Empty);
             DrawSlot(ref y, x, inner, "ARMOR", loadout.Armor?.displayName ?? "Unequipped",
                 loadout.Armor != null
-                    ? $"{loadout.Armor.weightClass} · {loadout.Armor.massKg:F1} kg · physical mitigation {loadout.Armor.physicalMitigation:P0}"
+                    ? $"{loadout.Armor.weightClass} · {loadout.Armor.massKg:F1} kg · load capacity {loadout.Armor.equipCapacityKg:F0} kg"
                     : string.Empty);
 
             y += 8f;
@@ -88,8 +99,8 @@ namespace Mindforge.Presentation
             GUI.Label(new Rect(x, y, inner, 84f),
                 "BUILD PHILOSOPHY\nEquipment changes reach, commitment, stamina and defense. Neural Sight/Guard amplifies the equipped tool you actively use; it never equips, swings, blocks or dodges for you.", _body);
             y += 94f;
-            GUI.Label(new Rect(x, y, inner, 36f),
-                "v1 ships one qualified kit. Weapon, shield and armor families are data-backed for future inventory expansion.", _body);
+            GUI.Label(new Rect(x, y, inner, 46f),
+                "v1 ships one physically active sword/shield kit. Armor is load-bearing in v1; armor damage mitigation remains a future qualified mechanic rather than an unimplemented displayed stat.", _body);
         }
 
         private void DrawSlot(ref float y, float x, float width, string slot, string item, string stats)
