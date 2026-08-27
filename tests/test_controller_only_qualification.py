@@ -14,6 +14,7 @@ def test_controller_only_qualification_is_explicit_and_excluded_from_release_bui
     awakening = read("Calibration", "AwakeningCalibrationDirector.cs")
 
     assert bootstrap.startswith("#if UNITY_EDITOR || DEVELOPMENT_BUILD")
+    assert "using Mindforge.Combat;" in bootstrap
     assert 'CommandLineFlag = "-mindforge-controller-only"' in bootstrap
     assert 'EnvironmentVariable = "MINDFORGE_CONTROLLER_ONLY"' in bootstrap
     assert "KeyCode.F8" in bootstrap

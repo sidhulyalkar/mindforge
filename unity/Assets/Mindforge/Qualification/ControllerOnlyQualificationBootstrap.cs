@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 using Mindforge.Calibration;
+using Mindforge.Combat;
 using Mindforge.Neural;
 using Mindforge.SoulWisp;
 using Mindforge.Telemetry;
