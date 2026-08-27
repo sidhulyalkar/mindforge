@@ -30,6 +30,18 @@ class EncounterReport:
     echo_shatters: int
     echo_shatter_rate: float | None
 
+    physical_arsenal_ready: bool
+    equipment_load_class: str | None
+    equipped_mass_kg: float | None
+    sword_attacks: int
+    sword_hits: int
+    sword_hit_rate: float | None
+    shield_raises: int
+    shield_blocks: int
+    perfect_guards: int
+    guard_breaks: int
+    shield_chip_damage_total: float
+
     boss_attack_telegraphs: int
     boss_attacks_fired: int
     fan_attacks_fired: int
@@ -60,6 +72,7 @@ class EncounterReport:
     realized_neural_bonus_damage_total: float
     sight_pulse_bonus_damage: float
     sight_cleave_bonus_damage: float
+    sight_sword_bonus_damage: float
     concord_counter_bonus_damage: float
     twin_eclipse_bonus_damage: float
     neural_damage_bonus_to_boss: float
@@ -131,12 +144,7 @@ def _degraded_seconds(markers: list[GameMarker]) -> float:
 def _recent_primary_pattern_before_damage(
     markers: list[GameMarker], *, lookback_seconds: float = 2.25
 ) -> tuple[int, int, int]:
-    """Count recent primary boss patterns before damage without claiming causation.
-
-    Projectiles have travel time and Echoes fire independently, so these are exposure
-    diagnostics only. They answer "what primary pattern had just fired?", not "what
-    definitely caused the hit?".
-    """
+    """Count recent primary boss patterns before damage without claiming causation."""
     fan = 0
     radial = 0
     unmatched = 0
@@ -180,6 +188,16 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
     echo_spawns = _count(ordered, "ECHO_SPAWNED")
     echo_shatters = _count(ordered, "ECHO_SHATTERED")
 
+    arsenal_markers = [marker for marker in ordered if marker.event == "PHYSICAL_ARSENAL_READY"]
+    arsenal = arsenal_markers[-1] if arsenal_markers else None
+    sword_attacks = _count(ordered, "SWORD_LIGHT")
+    sword_hits = _count(ordered, "SWORD_HIT")
+    shield_raises = _count(ordered, "SHIELD_RAISED")
+    shield_blocks = _count(ordered, "SHIELD_BLOCK")
+    perfect_guards = _count(ordered, "PERFECT_GUARD")
+    guard_breaks = _count(ordered, "GUARD_BROKEN")
+    shield_chip_total = _sum_event(ordered, "SHIELD_BLOCK")
+
     telegraphs = [marker for marker in ordered if marker.event == "BOSS_ATTACK_TELEGRAPH"]
     attacks = [marker for marker in ordered if marker.event == "BOSS_ATTACK_FIRED"]
     fan_attacks = sum((marker.reason or "").upper().startswith("FAN_") for marker in attacks)
@@ -213,6 +231,12 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         flags.append("COUNTERS_ATTEMPTED_WITH_ZERO_REFLECTS")
     if cleaves >= 4 and cleave_hits == 0:
         flags.append("CLEAVES_ATTEMPTED_WITH_ZERO_HITS")
+    if arsenal is not None and sword_attacks >= 5 and sword_hits == 0:
+        flags.append("SWORD_ATTACKS_WITH_ZERO_HITS")
+    if arsenal is not None and shield_raises >= 3 and shield_blocks == 0 and perfect_guards == 0:
+        flags.append("SHIELD_RAISED_WITH_ZERO_BLOCKS")
+    if arsenal is not None and guard_breaks >= 3:
+        flags.append("REPEATED_GUARD_BREAKS")
     if echo_spawns > 0 and echo_shatters == 0 and outcome != "INCOMPLETE":
         flags.append("ECHOES_SPAWNED_WITH_ZERO_SHATTERS")
     if _count(ordered, "SIGNAL_BREAK") == 0 and outcome != "INCOMPLETE":
@@ -247,6 +271,17 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         echo_spawns=echo_spawns,
         echo_shatters=echo_shatters,
         echo_shatter_rate=_rate(echo_shatters, echo_spawns),
+        physical_arsenal_ready=arsenal is not None,
+        equipment_load_class=(arsenal.reason or None) if arsenal is not None else None,
+        equipped_mass_kg=max(0.0, float(arsenal.value)) if arsenal is not None else None,
+        sword_attacks=sword_attacks,
+        sword_hits=sword_hits,
+        sword_hit_rate=_rate(sword_hits, sword_attacks),
+        shield_raises=shield_raises,
+        shield_blocks=shield_blocks,
+        perfect_guards=perfect_guards,
+        guard_breaks=guard_breaks,
+        shield_chip_damage_total=shield_chip_total,
         boss_attack_telegraphs=len(telegraphs),
         boss_attacks_fired=len(attacks),
         fan_attacks_fired=fan_attacks,
@@ -274,6 +309,7 @@ def analyze_encounter(markers: Iterable[GameMarker], *, marker_path: str = "memo
         realized_neural_bonus_damage_total=realized_neural_bonus_damage_total,
         sight_pulse_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="SIGHT_PULSE_DAMAGE"),
         sight_cleave_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="SIGHT_CLEAVE_DAMAGE"),
+        sight_sword_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="SIGHT_SWORD_DAMAGE"),
         concord_counter_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="CONCORD_COUNTER_DAMAGE"),
         twin_eclipse_bonus_damage=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", reason="TWIN_ECLIPSE_DAMAGE"),
         neural_damage_bonus_to_boss=_sum_event(ordered, "NEURAL_DAMAGE_BONUS_REALIZED", target="boss"),
