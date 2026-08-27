@@ -34,7 +34,8 @@ def test_stale_link_is_fairly_paused_not_free_damage():
     assert "SetCombatActionsEnabled(false)" in gate
     assert "gravityBloom?.SetExternalPause(true)" in gate
     assert "SetProjectilePause(true)" in gate
-    assert "if (!CombatActionsEnabled) return;" in input_src
+    assert "if (!CombatActionsEnabled)" in input_src
+    assert "physicalCombat?.SetGuardHeld(false" in input_src
     assert "public void SetExternalPause(bool paused)" in boss
     assert "echo?.SetExternalPause(paused)" in boss
     assert "_externalPaused" in echo
