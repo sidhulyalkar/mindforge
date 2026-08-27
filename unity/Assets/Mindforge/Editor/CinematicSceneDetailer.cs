@@ -29,9 +29,7 @@ namespace Mindforge.Editor
             Material basalt = Require("ArenaBasalt");
             Material stone = Require("ObsidianArchitecture");
             Material metal = Require("GuardianMetal");
-            Material cyan = Require("AetherCyan");
             Material violet = Require("FractureViolet");
-            Material ember = Require("FractureEmber");
 
             ApplyMaterialByName(arena.transform, "DuelFloor", basalt);
             ApplyMaterialByName(arena.transform, "InnerDais", metal);
@@ -46,7 +44,7 @@ namespace Mindforge.Editor
             BuildPeripheralRubble(root.transform, basalt, stone);
             BuildRuinedSilhouette(root.transform, stone, metal, violet);
             BuildReflectionVolume(root.transform);
-            ConfigureLighting(root.transform, cyan, violet, ember);
+            ConfigureLighting(root.transform);
             ConfigureSkyAndFog();
             ConfigureRendererProbeUsage(arena.transform);
 
@@ -157,7 +155,7 @@ namespace Mindforge.Editor
             probe.shadowDistance = 32f;
         }
 
-        private static void ConfigureLighting(Transform parent, Material cyan, Material violet, Material ember)
+        private static void ConfigureLighting(Transform parent)
         {
             Light key = GameObject.Find("KeyLight")?.GetComponent<Light>();
             if (key != null)
@@ -256,7 +254,11 @@ namespace Mindforge.Editor
         private static void ApplyMaterialContains(Transform root, string token, Material material)
         {
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
-                if (renderer.transform.parent != null && renderer.transform.parent.name.Contains(token)) renderer.sharedMaterial = material;
+            {
+                bool selfMatches = renderer.gameObject.name.Contains(token);
+                bool parentMatches = renderer.transform.parent != null && renderer.transform.parent.name.Contains(token);
+                if (selfMatches || parentMatches) renderer.sharedMaterial = material;
+            }
         }
 
         private static GameObject Primitive(
