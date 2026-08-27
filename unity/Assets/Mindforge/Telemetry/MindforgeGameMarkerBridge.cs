@@ -73,6 +73,15 @@ namespace Mindforge.Telemetry
             if (linkContingency != null) linkContingency.DegradationStateChanged += OnLinkState;
             if (nearMissSensor != null) nearMissSensor.NearMissAwarded += OnNearMiss;
             ObserveEchoVitals();
+
+            // Capability marker makes zero-payoff diagnostics backward compatible.
+            // Old session tapes that predate this ledger are not retroactively judged
+            // as if they could have emitted realized-payoff evidence.
+            sender?.Emit(
+                "NEURAL_PAYOFF_LEDGER_READY",
+                "neural_payoff",
+                reason: "CONSERVATIVE_DIRECT_DAMAGE_AND_HEAL_V1",
+                bossPhase: Phase);
         }
 
         private void Update()
@@ -181,42 +190,22 @@ namespace Mindforge.Telemetry
 
         private void OnBossAttackTelegraphed(string pattern, int projectileCount, bool heavy)
         {
-            sender?.Emit(
-                "BOSS_ATTACK_TELEGRAPH",
-                "boss_pattern",
-                reason: $"{pattern}_{(heavy ? "HEAVY" : "LIGHT")}",
-                value: projectileCount,
-                bossPhase: Phase);
+            sender?.Emit("BOSS_ATTACK_TELEGRAPH", "boss_pattern", reason: $"{pattern}_{(heavy ? "HEAVY" : "LIGHT")}", value: projectileCount, bossPhase: Phase);
         }
 
         private void OnBossAttackFired(string pattern, int projectileCount, bool heavy)
         {
-            sender?.Emit(
-                "BOSS_ATTACK_FIRED",
-                "boss_pattern",
-                reason: $"{pattern}_{(heavy ? "HEAVY" : "LIGHT")}",
-                value: projectileCount,
-                bossPhase: Phase);
+            sender?.Emit("BOSS_ATTACK_FIRED", "boss_pattern", reason: $"{pattern}_{(heavy ? "HEAVY" : "LIGHT")}", value: projectileCount, bossPhase: Phase);
         }
 
         private void OnPlayerDamaged(DamagePacket packet)
         {
-            sender?.Emit(
-                "PLAYER_DAMAGED",
-                "combat_outcome",
-                reason: packet.Heavy ? "HEAVY" : "LIGHT",
-                value: Mathf.Max(0f, packet.Damage),
-                bossPhase: Phase);
+            sender?.Emit("PLAYER_DAMAGED", "combat_outcome", reason: packet.Heavy ? "HEAVY" : "LIGHT", value: Mathf.Max(0f, packet.Damage), bossPhase: Phase);
         }
 
         private void OnBossDamaged(DamagePacket packet)
         {
-            sender?.Emit(
-                "BOSS_DAMAGED",
-                "combat_outcome",
-                reason: packet.Heavy ? "HEAVY" : "LIGHT",
-                value: Mathf.Max(0f, packet.Damage),
-                bossPhase: Phase);
+            sender?.Emit("BOSS_DAMAGED", "combat_outcome", reason: packet.Heavy ? "HEAVY" : "LIGHT", value: Mathf.Max(0f, packet.Damage), bossPhase: Phase);
             EmitNeuralDamageBonus(packet, "boss");
         }
 
@@ -225,13 +214,7 @@ namespace Mindforge.Telemetry
         private void EmitNeuralDamageBonus(DamagePacket packet, string target)
         {
             if (packet.NeuralBonusDamage <= 0f || string.IsNullOrEmpty(packet.NeuralPayoffKind)) return;
-            sender?.Emit(
-                "NEURAL_DAMAGE_BONUS_REALIZED",
-                "neural_payoff",
-                target: target,
-                reason: packet.NeuralPayoffKind,
-                value: packet.NeuralBonusDamage,
-                bossPhase: Phase);
+            sender?.Emit("NEURAL_DAMAGE_BONUS_REALIZED", "neural_payoff", target: target, reason: packet.NeuralPayoffKind, value: packet.NeuralBonusDamage, bossPhase: Phase);
         }
 
         private void OnNeuralPayoffObserved(string kind, float value)
@@ -244,42 +227,22 @@ namespace Mindforge.Telemetry
                     _guardRegenFlushAt = Time.time + Mathf.Max(0.1f, guardHealMarkerInterval);
                 return;
             }
-
-            sender?.Emit(
-                "NEURAL_GUARD_HEAL_REALIZED",
-                "neural_payoff",
-                target: "guardian",
-                reason: kind,
-                value: value,
-                bossPhase: Phase);
+            sender?.Emit("NEURAL_GUARD_HEAL_REALIZED", "neural_payoff", target: "guardian", reason: kind, value: value, bossPhase: Phase);
         }
 
         private void FlushGuardRegen()
         {
             if (_guardRegenPending <= 0f) return;
-            sender?.Emit(
-                "NEURAL_GUARD_HEAL_REALIZED",
-                "neural_payoff",
-                target: "guardian",
-                reason: "GUARD_REGEN_REALIZED",
-                value: _guardRegenPending,
-                bossPhase: Phase);
+            sender?.Emit("NEURAL_GUARD_HEAL_REALIZED", "neural_payoff", target: "guardian", reason: "GUARD_REGEN_REALIZED", value: _guardRegenPending, bossPhase: Phase);
             _guardRegenPending = 0f;
             _guardRegenFlushAt = 0f;
         }
 
-        private void OnBloomActivated(bool concord)
-        {
-            sender?.Emit(concord ? "TWIN_ECLIPSE_CHARGE" : "GRAVITY_BLOOM_CHARGE", "combat_action", bossPhase: Phase);
-        }
+        private void OnBloomActivated(bool concord) => sender?.Emit(concord ? "TWIN_ECLIPSE_CHARGE" : "GRAVITY_BLOOM_CHARGE", "combat_action", bossPhase: Phase);
 
         private void OnBloomReleased(bool concord, int captured)
         {
-            sender?.Emit(
-                concord ? "TWIN_ECLIPSE_RELEASE" : "GRAVITY_BLOOM_RELEASE",
-                "combat_outcome",
-                value: captured,
-                bossPhase: Phase);
+            sender?.Emit(concord ? "TWIN_ECLIPSE_RELEASE" : "GRAVITY_BLOOM_RELEASE", "combat_outcome", value: captured, bossPhase: Phase);
         }
 
         private void OnBossPhase(int phase) => sender?.Emit("BOSS_PHASE", "boss_phase", value: phase, bossPhase: phase);
@@ -297,14 +260,7 @@ namespace Mindforge.Telemetry
             sender?.Emit("DEFEAT", "session", bossPhase: Phase);
         }
 
-        private void OnFluxChanged(float before, float after, string reason)
-        {
-            sender?.Emit("FLUX_CHANGED", "flux", reason: reason, value: after, bossPhase: Phase);
-        }
-
-        private void OnLinkState(bool degraded)
-        {
-            sender?.Emit(degraded ? "BCI_DEGRADED" : "BCI_RECOVERED", "neural_link", bossPhase: Phase);
-        }
+        private void OnFluxChanged(float before, float after, string reason) => sender?.Emit("FLUX_CHANGED", "flux", reason: reason, value: after, bossPhase: Phase);
+        private void OnLinkState(bool degraded) => sender?.Emit(degraded ? "BCI_DEGRADED" : "BCI_RECOVERED", "neural_link", bossPhase: Phase);
     }
 }
