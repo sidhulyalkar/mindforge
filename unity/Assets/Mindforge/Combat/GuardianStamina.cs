@@ -16,11 +16,13 @@ namespace Mindforge.Combat
 
         private float _value;
         private float _recoverAfter;
+        private float _recoveryMultiplier = 1f;
 
         public float Value => _value;
         public float Max => Mathf.Max(1f, maxStamina);
         public float Ratio => Mathf.Clamp01(_value / Max);
         public float DodgeBaseCost => dodgeBaseCost;
+        public float RecoveryMultiplier => _recoveryMultiplier;
 
         public event Action<float, float, string> Changed;
         public event Action Exhausted;
@@ -29,11 +31,14 @@ namespace Mindforge.Combat
 
         private void Update()
         {
-            if (Time.time < _recoverAfter || _value >= Max) return;
+            if (Time.time < _recoverAfter || _value >= Max || _recoveryMultiplier <= 0f) return;
             float before = _value;
-            _value = Mathf.Min(Max, _value + Mathf.Max(0f, recoveryPerSecond) * Time.deltaTime);
+            _value = Mathf.Min(Max, _value + Mathf.Max(0f, recoveryPerSecond) * _recoveryMultiplier * Time.deltaTime);
             if (!Mathf.Approximately(before, _value)) Changed?.Invoke(before, _value, "RECOVERY");
         }
+
+        public void SetRecoveryMultiplier(float multiplier)
+            => _recoveryMultiplier = Mathf.Clamp(multiplier, 0f, 2f);
 
         public bool CanSpend(float amount) => _value + 0.0001f >= Mathf.Max(0f, amount);
 
