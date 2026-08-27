@@ -48,10 +48,12 @@ namespace Mindforge.Calibration
 
         public string SessionId => _sessionId;
         public bool CalibrationReady { get; private set; }
+        public bool ControllerOnlyQualificationActive { get; private set; }
         public event Action<string> CalibrationStageChanged;
 
         private void OnEnable()
         {
+            ControllerOnlyQualificationActive = false;
             if (receiver != null) receiver.EventReceived += OnNeuralEvent;
             guardianInput?.SetCombatActionsEnabled(false);
             soulWisp?.SetTarget(null);
@@ -68,12 +70,13 @@ namespace Mindforge.Calibration
 
         private void Update()
         {
+            if (ControllerOnlyQualificationActive) return;
             if (_failed && _serviceReady && Input.GetKeyDown(retryKey)) BeginCalibration();
         }
 
         private void OnNeuralEvent(NeuralEvent evt)
         {
-            if (evt == null) return;
+            if (ControllerOnlyQualificationActive || evt == null) return;
             if (evt.IsCalibrationServiceReady)
             {
                 _serviceReady = true;
@@ -111,7 +114,7 @@ namespace Mindforge.Calibration
 
         public void BeginCalibration()
         {
-            if (!_serviceReady || _running) return;
+            if (ControllerOnlyQualificationActive || !_serviceReady || _running) return;
             guardianInput?.SetCombatActionsEnabled(false);
             soulWisp?.SetTarget(null);
             if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(true);
@@ -121,6 +124,36 @@ namespace Mindforge.Calibration
             _failed = false;
             _running = true;
             StartCoroutine(RunProtocol());
+        }
+
+        /// <summary>
+        /// Opens the real combat encounter for P2 game-only qualification without
+        /// inventing calibration success. This method is unavailable to release
+        /// player builds and is only called by the explicitly labelled qualification
+        /// bootstrap.
+        /// </summary>
+        public bool EnterControllerOnlyQualification()
+        {
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+            return false;
+#else
+            StopAllCoroutines();
+            _running = false;
+            _failed = false;
+            _serviceReady = false;
+            CalibrationReady = false;
+            ControllerOnlyQualificationActive = true;
+
+            SetDisplay(false, false);
+            if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(false);
+            if (arenaRoot != null) arenaRoot.SetActive(true);
+            soulWisp?.SetTarget(combatTarget);
+            guardianInput?.SetCombatActionsEnabled(true);
+            linkContingency?.Disarm();
+            SetStatus("P2 CONTROLLER-ONLY QUALIFICATION · BCI DISABLED");
+            CalibrationStageChanged?.Invoke("controller_only");
+            return true;
+#endif
         }
 
         private IEnumerator RunProtocol()

@@ -1,6 +1,6 @@
 # Mindforge Development Roadmap
 
-This roadmap is intentionally ordered by **evidence and player value**, not by feature count.
+This roadmap is ordered by **evidence and player value**, not feature count.
 
 The project already has enough BCI vocabulary. The fastest route to a competition-winning and field-useful system is to make the existing two-class design extraordinarily playable, observable, reproducible and physically qualified.
 
@@ -17,13 +17,9 @@ The design rule remains:
 
 > **Hands own precision. The brain owns transformation.**
 
-## Development sequence
+## Phase A — promote the platform through reality
 
-### Phase A — Promote the platform through reality
-
-Goal: turn architecture into observed evidence before adding presentation complexity.
-
-#### P0 — software contracts
+### P0 — software contracts
 
 Automated in GitHub Actions.
 
@@ -36,7 +32,7 @@ Evidence:
 
 Pass condition: tests > 0, failures = 0, errors = 0.
 
-#### P1 — clean-checkout Unity assembly
+### P1 — clean-checkout Unity assembly
 
 Run:
 
@@ -45,8 +41,6 @@ python tools/run_unity_gate.py
 ```
 
 This must use the exact editor pinned by `unity/ProjectSettings/ProjectVersion.txt`.
-
-The qualification path is intentionally cold-start:
 
 ```text
 clean checkout
@@ -62,46 +56,86 @@ serialized-reference validation
 Gate 1 JSON + editor log
 ```
 
-A committed pre-generated scene is not accepted as a substitute for this test.
+A committed pre-generated scene is not accepted as a substitute.
 
 Pass condition:
 
-- Unity process exits 0;
+- Unity exits 0;
 - `CompetitionGateValidator` passes;
-- observed Unity version equals the pinned version exactly;
-- the report was regenerated during the current invocation.
+- observed editor version equals the pinned version exactly;
+- the Gate 1 report was regenerated during the current invocation.
 
-#### P2 — controller-only encounter
+### P2 — controller-only encounter
 
-No neural source is needed.
+P2 is now explicitly **BCI-free** rather than relying on a fake calibration source.
 
-The first real game-quality milestone is one complete Fractured Signal fight that a new player can understand and finish using conventional input.
+Start capture:
 
-Record at minimum:
+```bash
+python tools/mindforge_playtest.py --require-terminal
+```
 
-- completion / defeat;
-- encounter duration;
-- damage taken;
-- successful counters;
-- near misses;
-- Gravity Bloom uses;
-- Signal Break count;
-- Twin Eclipse opportunities, even if manually triggered for game-feel evaluation.
+Then press Play in the Unity Editor and press **F8**.
+
+The development-only controller qualification bootstrap:
+
+- disables `UdpNeuralReceiver`;
+- disables `DualAuraCombatDirector`;
+- disarms `NeuralLinkContingency`;
+- opens the real competition arena;
+- keeps a persistent `P2 CONTROLLER-ONLY · BCI DISABLED` label visible;
+- emits `QUALIFICATION_MODE / CONTROLLER_ONLY_NO_BCI`.
+
+The bootstrap is excluded from non-development player builds.
+
+Each P2 run should produce:
+
+```text
+markers.jsonl
+encounter.json
+capture.json
+```
+
+`capture.json` binds the evidence to one Unity session, records the stop reason and Git head when available, and hashes the marker stream. Cross-session marker contamination is rejected.
+
+The encounter report tracks:
+
+- terminal outcome and duration;
+- Pulse Shot / Cleave use;
+- cleave hit rate;
+- Counter Pulse attempts and reflects;
+- near misses and dashes;
+- player/boss damage pressure;
+- Signal Break cadence;
+- Gravity Bloom and Twin Eclipse use;
+- Concord and neural payoff markers if present;
+- BCI degradation if a non-P2 run is analyzed;
+- diagnostic flags for suspicious fight patterns.
+
+It does **not** generate a synthetic fun score.
 
 Target experience:
 
-- onboarding to meaningful control in under ~60–90 s;
-- a full competition encounter in roughly 4–6 minutes;
+- meaningful control learned in roughly 60–90 s or less;
+- complete competition encounter roughly 4–6 minutes;
 - readable boss escalation rather than raw projectile density;
-- at least one memorable resource-conversion moment before the finale.
+- at least one memorable threat→resource→weapon conversion moment;
+- player can explain why they were hit.
 
 These are design targets, not physiological claims.
 
-#### P3 — simulated decision end-to-end
+### P3 — simulated decision end-to-end
 
-Use `simulated_decision` through the production NeuralEvent receiver.
+Use `simulated_decision` through the production NeuralEvent receiver **and the real Awakening handshake**:
 
-The purpose is not decoder validation. It is to stress:
+```bash
+python tools/mindforge_dev.py decision --calibrate \
+  --script sight:3,abstain:1,guard:3,lost:1,recovered:1,sight:3,guard:3 \
+  --hz 4 \
+  --output-tape experiments/tapes/p3-neural.jsonl
+```
+
+Stress:
 
 - delayed selection;
 - abstention;
@@ -110,19 +144,35 @@ The purpose is not decoder validation. It is to stress:
 - authority TTL expiry;
 - repeated Sight/Guard cadence;
 - Concord timing;
-- BCI status readability while the player is busy.
+- status readability during combat.
 
-A recommended adversarial script is:
+A P3 pass means every state has a fair, understandable gameplay consequence. It does not validate EEG.
+
+### P4 — deterministic replay reproduction
+
+Conventional input is captured on the authoritative fixed simulation using `mindforge.guardian_input_tape.v1`.
+
+Development Player recording:
 
 ```text
-Sight → abstain → Guard → stale selection → lost → recovered → Sight → Guard
+-mindforgeInputMode record
 ```
 
-A P3 pass means every state has a fair, understandable gameplay consequence.
+Replay:
 
-#### P4 — replay reproduction
+```text
+-mindforgeInputMode replay -mindforgeInputTape <path>
+```
 
-Capture a reference GameMarker stream, replay the same neural decision tape, and compare semantic consequences:
+Replay exhaustion returns neutral commands and never falls back to live input.
+
+Neural decision replay uses:
+
+```bash
+python tools/mindforge_dev.py replay experiments/tapes/p3-neural.jsonl --speed 1.0
+```
+
+Compare semantic Unity consequences:
 
 ```bash
 python tools/mindforge_qualify.py compare-markers \
@@ -132,13 +182,11 @@ python tools/mindforge_qualify.py compare-markers \
   --enforce
 ```
 
-Timestamps, sequence IDs and session IDs are ignored. Gameplay semantics are not.
+Timestamps, transport sequences and session IDs are ignored. Gameplay semantics are not. Exact semantic equality is the gate; similarity is diagnostic only.
 
-An exact match is the gate. Similarity is diagnostic only and cannot create a pass.
+### P5 — neurOS synthetic EEG closed loop
 
-#### P5 — neurOS synthetic EEG closed loop
-
-Now replace the decision fixture with a simulated participant/sensor world:
+Replace the decision fixture with the simulated participant/sensor world:
 
 ```text
 neurOS participant
@@ -152,11 +200,9 @@ neurOS participant
  → GameMarker
 ```
 
-Important: P5 validates integration robustness under a declared synthetic world. It does not validate human SSVEP physiology.
+Use P5 to attack assumptions with:
 
-Use P5 to attack assumptions:
-
-- weak responder;
+- weak responders;
 - alpha overlap;
 - blink contamination;
 - controller/movement artifact;
@@ -167,39 +213,36 @@ Use P5 to attack assumptions:
 - source silence;
 - recovery.
 
-### Phase B — make the game excellent
+P5 validates integration robustness under a declared synthetic world. It does not validate human SSVEP physiology.
 
-Once P1–P5 are repeatable, most development time should move into game feel.
+## Phase B — make the game excellent
 
-#### B1 — Guardian feel
+P2 should start this phase immediately after P1. P3–P5 should continue as regression/adversarial lanes while most iteration time moves toward game quality.
+
+### B1 — Guardian feel
 
 Priorities:
 
-- movement acceleration / stopping readability;
+- acceleration, stopping and movement readability;
 - dash trajectory and invulnerability communication;
 - aim assistance that helps without feeling magnetic;
 - shot cadence and impact confirmation;
 - cleave range readability;
 - Counter Pulse timing feedback;
-- controller rumble only where it cannot contaminate EEG evidence accumulation.
+- controller rumble only where it cannot contaminate EEG accumulation.
 
-The player should be able to understand why they were hit.
-
-#### B2 — Fractured Signal choreography
+### B2 — Fractured Signal choreography
 
 Treat the boss as a teacher, not a particle emitter.
 
-Phase I should teach one threat grammar at a time.
+- Phase I teaches threat grammars individually.
+- Phase II combines learned grammars and introduces Echo nodes as spatial priorities.
+- Phase III creates controlled overload by composition, not merely projectile count.
+- Signal Break is punctuation: relief, damage opportunity and visual reset.
 
-Phase II should combine already-learned grammars and introduce Echo nodes as spatial priorities.
+### B3 — Soul Wisp readability
 
-Phase III should create controlled overload through combinations, not by simply increasing projectile count.
-
-Signal Break should function as punctuation: relief, damage opportunity and visual reset.
-
-#### B3 — Soul Wisp readability
-
-The Wisp needs three visually distinct layers:
+The Wisp should preserve three layers:
 
 ```text
 coded VEP core       scientific stimulus
@@ -207,32 +250,28 @@ feedback shell       quality / evidence state
 fantasy body         character / emotion / payoff
 ```
 
-The coded core must remain boringly controlled. The fantasy shell can be beautiful.
+Without reading the judge HUD, a player should understand:
 
-A player should understand, without reading a debug HUD:
-
-- which aura is currently available;
+- which aura is available;
 - whether evidence is accumulating;
 - whether a selection was accepted;
 - whether the system abstained;
 - whether the neural link is degraded;
-- whether Concord is active or in grace;
+- whether Concord is active/in grace;
 - whether Twin Eclipse is ready.
 
-#### B4 — Concord and Twin Eclipse payoff
+### B4 — Concord and Twin Eclipse payoff
 
-This is likely Mindforge's signature loop and should receive disproportionate polish.
-
-Desired rhythm:
+This is likely Mindforge's signature loop and deserves disproportionate polish.
 
 ```text
 attention investment
     ↓
 Sight + Guard overlap
     ↓
-CONCORD established
+CONCORD
     ↓
-eyes return fully to combat
+eyes return to combat
     ↓
 manual skill builds Flux
     ↓
@@ -241,23 +280,21 @@ full Flux
 TWIN ECLIPSE
 ```
 
-The BCI should create the strategic condition. The player's hands should earn the spectacular payoff.
+The BCI creates the strategic condition. The player's hands earn the spectacular payoff.
 
-### Phase C — calibration as part of the game
+## Phase C — calibration becomes part of the game
 
-Calibration should stop feeling like a diagnostics screen pasted in front of a game.
-
-The Awakening should simultaneously:
+Awakening should simultaneously:
 
 - teach Sight;
 - teach Guard;
-- acquire labeled EEG;
+- acquire labelled EEG;
 - estimate decoder thresholds;
 - communicate signal quality;
 - establish the Soul Wisp narratively;
-- make failure/retry understandable without blaming the participant.
+- make retry understandable without blaming the participant.
 
-Calibration UX should distinguish:
+Distinguish at least:
 
 ```text
 SERVICE NOT READY
@@ -271,28 +308,17 @@ CALIBRATION NEEDS RETRY
 
 Never collapse all failure modes into “BCI failed.”
 
-### Phase D — physical qualification
+## Phase D — physical qualification
 
-Only after the software loop is stable should we spend scarce human/headset time.
+Only after P1–P5 are repeatable should scarce physical/headset time dominate development.
 
-#### P6 — fault rehearsal
+### P6 — fault rehearsal
 
-Deliberately induce:
+Deliberately induce render stalls, UDP silence, old packets, queue pressure, decoder abstention bursts and application focus changes. Neural loss must never create unfair combat authority.
 
-- render stalls;
-- UDP silence;
-- old packets;
-- queue pressure;
-- decoder abstention bursts;
-- application focus changes.
+### P7 — measured display
 
-The participant must never receive unfair damage because the neural subsystem vanished.
-
-#### P7 — measured display
-
-Use photodiode evidence to measure the actually emitted luminance sequence.
-
-Required claims should be narrow:
+Use photodiode evidence to measure the actually emitted luminance sequence:
 
 - observed frequency;
 - frequency error;
@@ -300,21 +326,21 @@ Required claims should be narrow:
 - contrast;
 - dropped/irregular transitions.
 
-Do not promote software phase calculations into physical display claims.
+Software phase calculations are not physical display claims.
 
-#### P8 — real Unicorn acquisition
+### P8 — real Unicorn acquisition
 
-Verify on the actual competition machine:
+Verify on the competition machine:
 
 - stream identity;
 - channel order;
 - sample rate;
-- physical units / scaling;
+- physical units/scaling;
 - timestamps;
 - drop behavior;
 - reconnect behavior.
 
-#### P9–P13 — human progression
+### P9–P13 — human progression
 
 Advance monotonically:
 
@@ -326,27 +352,23 @@ stationary discrimination
  → full encounter
 ```
 
-Do not jump directly to the boss fight because a stationary calibration looked promising.
+Do not jump directly to the boss because stationary calibration looked promising.
 
 ## Metrics that matter
 
 ### Game metrics
 
-Track:
-
 - time to first meaningful action;
 - encounter completion rate;
-- median encounter duration;
+- encounter duration;
 - damage sources;
 - counter success;
 - near-miss conversion;
 - Signal Break cadence;
 - Gravity Bloom / Twin Eclipse usage;
-- deaths that occur during attention shifts.
+- deaths during attention shifts.
 
 ### Neural-system metrics
-
-Track:
 
 - accepted selections/minute;
 - abstention fraction;
@@ -356,27 +378,25 @@ Track:
 - stale authority drops;
 - link degradation duration;
 - calibration retries;
-- source mode and calibration/model identity.
+- source mode and model/calibration identity.
 
-### Human-experience metrics
-
-Ask simple questions after sessions:
+### Human-experience questions
 
 - Did the BCI feel useful or merely novel?
 - Did you understand when it was uncertain?
 - Did looking at the Wisp make the fight unfair?
 - Did Sight and Guard create meaningful decisions?
 - Did Twin Eclipse feel earned?
-- Would you choose to play another round?
+- Would you play another round?
 
-The final question is brutal and valuable.
+The last question has teeth.
 
 ## What not to build yet
 
-Until the current loop is deeply validated, avoid:
+Until the reference loop is deeply validated, avoid:
 
 - a third SSVEP target;
-- motor imagery locomotion;
+- motor-imagery locomotion;
 - P300 menus;
 - emotion classification;
 - foundation-model inference in the control path;
@@ -384,32 +404,16 @@ Until the current loop is deeply validated, avoid:
 - online multiplayer;
 - generalized plugin systems that slow competition development.
 
-These can become future platform extensions after the reference loop is proven.
+## Immediate queue
 
-## How Mindforge becomes a field example
-
-The project should eventually ship five things together:
-
-1. **A genuinely good playable game.**
-2. **Versioned BCI/game contracts.**
-3. **A no-headset development ladder.**
-4. **Reproducible qualification artifacts.**
-5. **A public failure/claim boundary that distinguishes simulation, hardware and human evidence.**
-
-That combination is more valuable than having the largest model zoo.
-
-## Immediate development queue
-
-In order:
-
-1. run the new clean-checkout Unity Gate 1 locally on the pinned editor;
-2. repair any compile/serialization failures without weakening the gate;
-3. complete one controller-only encounter and tune obvious game-feel failures;
-4. record a P3 simulated-decision session with outbound GameMarkers;
-5. add deterministic player-input capture/replay so P4 can become fully automatic;
-6. connect neurOS Phantom through the same evidence bundle for P5;
-7. only then begin physical display and Unicorn sessions;
-8. move the majority of remaining competition time into presentation, onboarding, boss feel, audio and repeated human playtesting.
+1. run P1 on the pinned Unity editor and repair compile/serialization defects without weakening the gate;
+2. run the first P2 bundle with `mindforge_playtest.py --require-terminal` and the explicit F8 controller-only mode;
+3. iterate movement, telegraphs, counter feel, hit confirmation, boss pacing, camera, audio and Twin Eclipse presentation from repeated P2 sessions;
+4. run P3 against the improved fight and repair any unfair attention/uncertainty interactions;
+5. record conventional input plus neural authority and make P4 semantic replay exact;
+6. connect neurOS Phantom through the same observable loop for P5;
+7. only then begin P6–P13 physical/human qualification;
+8. preserve the majority of remaining competition time for presentation, onboarding and repeated human playtesting rather than expanding the BCI vocabulary.
 
 The north star is not “the most complicated BCI game.”
 
