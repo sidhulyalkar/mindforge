@@ -61,8 +61,9 @@ def test_photodiode_patch_is_phase_locked_and_qualification_only():
     assert "VepAuraStimulus stimulus = ActiveStimulus" in patch
     assert "stimulus.IsHighPhase" in patch
     assert "StimulusSource.Sight" in patch and "StimulusSource.Guard" in patch
-    assert "toggleKey = KeyCode.F10" in patch
+    assert "toggleKey = KeyCode.F9" in patch
     assert "switchSourceKey = KeyCode.F11" in patch
+    assert "F10 is reserved" in patch
     assert "additional peripheral SSVEP stimulus" in patch
     assert "public bool IsHighPhase" in stimulus
     assert "Time.realtimeSinceStartupAsDouble" in stimulus
