@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.Combat;
+using Mindforge.SoulWisp;
 
 namespace Mindforge.Presentation
 {
@@ -19,11 +20,17 @@ namespace Mindforge.Presentation
         public const string JudgeLensFlag = "-mindforge-judge-lens";
 
         [SerializeField] private GuardianCombatInput input;
+        [SerializeField] private GuardianCombatController combat;
+        [SerializeField] private FluxMeter flux;
+        [SerializeField] private AuraBuffController auras;
         [SerializeField] private AwakeningCalibrationDirector calibration;
-        [SerializeField] private float combatGuideSeconds = 14f;
+        [SerializeField] private float combatGuideSeconds = 28f;
 
         private bool _judgeLens;
         private bool _combatObserved;
+        private bool _pulseUsed;
+        private bool _cleaveUsed;
+        private bool _counterUsed;
         private double _combatGuideUntil;
         private GUIStyle _crosshairStyle;
         private GUIStyle _centerStyle;
@@ -39,7 +46,18 @@ namespace Mindforge.Presentation
             GameObject root = new GameObject("MindforgePlayerAgencyGuide");
             PlayerAgencyGuide guide = root.AddComponent<PlayerAgencyGuide>();
             guide.input = input;
-            guide.calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            guide.Resolve();
+        }
+
+        private void OnEnable()
+        {
+            Resolve();
+            Subscribe();
+        }
+
+        private void OnDisable()
+        {
+            if (combat != null) combat.ActionAccepted -= OnCombatAction;
         }
 
         private void Start()
@@ -47,10 +65,30 @@ namespace Mindforge.Presentation
             _judgeLens = CommandLineContains(JudgeLensFlag);
         }
 
-        private void Update()
+        private void Resolve()
         {
             if (input == null) input = FindObjectOfType<GuardianCombatInput>(true);
+            if (combat == null) combat = FindObjectOfType<GuardianCombatController>(true);
+            if (flux == null) flux = FindObjectOfType<FluxMeter>(true);
+            if (auras == null) auras = FindObjectOfType<AuraBuffController>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+        }
+
+        private void Subscribe()
+        {
+            if (combat == null) return;
+            combat.ActionAccepted -= OnCombatAction;
+            combat.ActionAccepted += OnCombatAction;
+        }
+
+        private void Update()
+        {
+            if (input == null || combat == null || calibration == null)
+            {
+                if (combat != null) combat.ActionAccepted -= OnCombatAction;
+                Resolve();
+                Subscribe();
+            }
 
             if (Input.GetKeyDown(KeyCode.F10))
                 _judgeLens = !_judgeLens;
@@ -59,6 +97,16 @@ namespace Mindforge.Presentation
             {
                 _combatObserved = true;
                 _combatGuideUntil = Time.realtimeSinceStartupAsDouble + Mathf.Max(1f, combatGuideSeconds);
+            }
+        }
+
+        private void OnCombatAction(string action)
+        {
+            switch (action)
+            {
+                case "PULSE_SHOT": _pulseUsed = true; break;
+                case "RIFT_CLEAVE": _cleaveUsed = true; break;
+                case "COUNTER_PULSE": _counterUsed = true; break;
             }
         }
 
@@ -82,17 +130,37 @@ namespace Mindforge.Presentation
                     new Rect(left, Screen.height - 74f, width, 48f),
                     "AWAKENING  |  BRAIN: attend BLUE for Sight offense, GREEN for Guard recovery  |  HANDS keep precision");
             }
-            else if (Time.realtimeSinceStartupAsDouble <= _combatGuideUntil)
+            else
             {
-                GUI.Box(
-                    new Rect(left, Screen.height - 74f, width, 48f),
-                    "WASD move  |  MOUSE / ARROWS aim  |  SPACE Pulse  |  F Cleave  |  C Counter  |  SHIFT Dash  |  R Bloom");
+                string lesson = CurrentLesson();
+                if (!string.IsNullOrEmpty(lesson))
+                    GUI.Box(new Rect(left, Screen.height - 74f, width, 48f), lesson);
             }
 
             GUI.Label(new Rect(Screen.width - 176f, Screen.height - 34f, 160f, 22f), "F10  JUDGE LENS", _centerStyle);
 
             if (_judgeLens)
                 DrawJudgeLens();
+        }
+
+        private string CurrentLesson()
+        {
+            // Only the foundational prompts expire. Contextual payoff prompts are
+            // still useful later because they appear when the player has earned them.
+            bool guideWindow = Time.realtimeSinceStartupAsDouble <= _combatGuideUntil;
+
+            if (auras != null && auras.ConcordActive && flux != null && flux.IsFull)
+                return "CONCORD ACTIVE  |  R TWIN ECLIPSE  |  your brain created the window, your hand chooses when to cash it in";
+
+            if (flux != null && flux.IsFull)
+                return "FLUX FULL  |  R GRAVITY BLOOM  |  capture hostile projectiles, then return them";
+
+            if (!guideWindow) return null;
+            if (!_pulseUsed)
+                return "WASD move  |  MOUSE / ARROWS aim  |  SPACE Pulse  |  aim away from the boss to choose Echo targets";
+            if (!_cleaveUsed || !_counterUsed)
+                return "F Cleave up close  |  C Counter incoming crimson projectiles  |  SHIFT Dash through danger";
+            return "BUILD FLUX  |  near miss, perfect Counter, and Signal Break feed your R ability";
         }
 
         private void DrawAimReticle()
