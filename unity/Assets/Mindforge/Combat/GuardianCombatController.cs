@@ -20,15 +20,19 @@ namespace Mindforge.Combat
         [SerializeField] private Transform primaryTarget;
         [SerializeField] private LayerMask damageMask;
         [SerializeField] private LayerMask projectileMask;
+        [SerializeField] private float guardHealEvidenceInterval = 0.75f;
 
         private readonly Collider[] _hits = new Collider[48];
         private readonly HashSet<int> _reflectedThisWindow = new HashSet<int>();
         private float _lastShot = -999f, _lastCleave = -999f, _lastCounter = -999f;
         private float _counterUntil;
         private string _lastAura;
+        private float _guardHealPending;
+        private float _guardHealFlushAt;
 
         public event Action<string> ActionAccepted;
         public event Action<string> CombatOutcome;
+        public event Action<string, float> NeuralPayoffObserved;
 
         public bool ConcordActive => auras != null && auras.ConcordActive;
         public Transform PrimaryTarget { get => primaryTarget; set => primaryTarget = value; }
@@ -46,8 +50,31 @@ namespace Mindforge.Combat
         private void Update()
         {
             if (Time.time < _counterUntil) ScanCounterProjectiles();
+
             if (auras != null && auras.GuardActive && vitals != null)
-                vitals.Heal(auras.HealingPerSecond * Time.deltaTime);
+            {
+                float restored = vitals.Heal(auras.HealingPerSecond * Time.deltaTime);
+                if (restored > 0f)
+                {
+                    _guardHealPending += restored;
+                    if (_guardHealFlushAt <= 0f)
+                        _guardHealFlushAt = Time.time + Mathf.Max(0.1f, guardHealEvidenceInterval);
+                }
+                if (_guardHealPending > 0f && Time.time >= _guardHealFlushAt)
+                    FlushGuardHealing("GUARD_REGEN_REALIZED");
+            }
+            else if (_guardHealPending > 0f)
+            {
+                FlushGuardHealing("GUARD_REGEN_REALIZED");
+            }
+        }
+
+        private void FlushGuardHealing(string kind)
+        {
+            if (_guardHealPending > 0f)
+                NeuralPayoffObserved?.Invoke(kind, _guardHealPending);
+            _guardHealPending = 0f;
+            _guardHealFlushAt = 0f;
         }
 
         private void OnAuraApplied(string target)
@@ -64,10 +91,18 @@ namespace Mindforge.Combat
             bool sight = auras != null && auras.SightActive;
             float speed = sight ? tuning.sightShotSpeed : tuning.shotSpeed;
             float damage = sight ? tuning.sightShotDamage : tuning.shotDamage;
+            float neuralBonusDamage = sight ? Mathf.Max(0f, damage - tuning.shotDamage) : 0f;
             int pierce = sight ? 1 : 0;
             Vector3 origin = muzzle != null ? muzzle.position : transform.position + Vector3.up;
             MindforgeProjectile p = Instantiate(projectilePrefab, origin, Quaternion.LookRotation(aimDirection.normalized));
-            p.Configure(CombatTeam.Guardian, aimDirection.normalized * speed, damage, tuning.shotPoise, pierce);
+            p.Configure(
+                CombatTeam.Guardian,
+                aimDirection.normalized * speed,
+                damage,
+                tuning.shotPoise,
+                pierce,
+                sight ? "SIGHT_PULSE_DAMAGE" : null,
+                neuralBonusDamage);
             ActionAccepted?.Invoke("PULSE_SHOT");
             return true;
         }
@@ -77,8 +112,9 @@ namespace Mindforge.Combat
             if (tuning == null || Time.time - _lastCleave < tuning.cleaveCooldown) return false;
             _lastCleave = Time.time;
             ActionAccepted?.Invoke("RIFT_CLEAVE");
-            float range = tuning.cleaveRange * (auras != null && auras.SightActive ? 1.18f : 1f);
-            float halfArc = tuning.cleaveArcDegrees * (auras != null && auras.SightActive ? 1.12f : 1f) * 0.5f;
+            bool sight = auras != null && auras.SightActive;
+            float range = tuning.cleaveRange * (sight ? 1.18f : 1f);
+            float halfArc = tuning.cleaveArcDegrees * (sight ? 1.12f : 1f) * 0.5f;
             int count = Physics.OverlapSphereNonAlloc(transform.position, range, _hits, damageMask, QueryTriggerInteraction.Collide);
             bool hit = false;
             for (int i = 0; i < count; i++)
@@ -89,13 +125,17 @@ namespace Mindforge.Combat
                 delta.y = 0f;
                 if (delta.sqrMagnitude < 0.01f || Vector3.Angle(aimDirection, delta) > halfArc) continue;
                 float multiplier = auras != null ? auras.DamageMultiplier : 1f;
+                float totalDamage = tuning.cleaveDamage * multiplier;
+                float neuralBonusDamage = sight ? Mathf.Max(0f, totalDamage - tuning.cleaveDamage) : 0f;
                 receiver.ReceiveDamage(new DamagePacket(
-                    tuning.cleaveDamage * multiplier,
+                    totalDamage,
                     tuning.cleavePoise,
                     delta.normalized * tuning.cleaveImpulse,
                     _hits[i].ClosestPoint(transform.position),
                     CombatTeam.Guardian,
-                    true));
+                    true,
+                    sight ? "SIGHT_CLEAVE_DAMAGE" : null,
+                    neuralBonusDamage));
                 hit = true;
             }
             if (hit)
@@ -128,14 +168,24 @@ namespace Mindforge.Combat
             {
                 MindforgeProjectile p = _hits[i].GetComponentInParent<MindforgeProjectile>();
                 if (p == null || !p.IsHostileToGuardian || !_reflectedThisWindow.Add(p.GetInstanceID())) continue;
+                bool concord = ConcordActive;
+                float baselineDamage = tuning.reflectedDamage;
+                float reflectedDamage = baselineDamage * (concord ? 1.25f : 1f);
                 p.ReflectTowards(
                     primaryTarget,
                     tuning.bloomReleaseSpeed,
-                    tuning.reflectedDamage * (ConcordActive ? 1.25f : 1f),
-                    tuning.reflectedPoise * (ConcordActive ? 1.25f : 1f),
-                    auras != null && auras.SightActive ? 1 : 0);
+                    reflectedDamage,
+                    tuning.reflectedPoise * (concord ? 1.25f : 1f),
+                    auras != null && auras.SightActive ? 1 : 0,
+                    concord ? "CONCORD_COUNTER_DAMAGE" : null,
+                    concord ? Mathf.Max(0f, reflectedDamage - baselineDamage) : 0f);
                 flux?.Award(tuning.counterFlux, "Perfect Counter");
-                if (auras != null && auras.GuardActive) vitals?.Heal(2.4f);
+                if (auras != null && auras.GuardActive && vitals != null)
+                {
+                    float restored = vitals.Heal(2.4f);
+                    if (restored > 0f)
+                        NeuralPayoffObserved?.Invoke("GUARD_COUNTER_HEAL_REALIZED", restored);
+                }
                 reflectedAny = true;
             }
 
