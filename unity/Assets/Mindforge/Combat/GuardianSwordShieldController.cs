@@ -36,6 +36,7 @@ namespace Mindforge.Combat
     {
         [SerializeField] private GuardianEquipmentLoadout loadout;
         [SerializeField] private GuardianStamina stamina;
+        [SerializeField] private GuardianMotor motor;
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private NeuralFocusResonance resonance;
         [SerializeField] private CombatantVitals vitals;
@@ -51,6 +52,11 @@ namespace Mindforge.Combat
         [SerializeField] private float attackRecoverySeconds = 0.12f;
         [SerializeField] private float sightReachBonus = 0.42f;
         [SerializeField] private float referenceSwingMomentum = 37.5f;
+        [SerializeField, Range(0.2f, 1f)] private float attackingMoveMultiplier = 0.78f;
+
+        [Header("Shield physical stance")]
+        [SerializeField, Range(0.2f, 1f)] private float guardMoveMultiplier = 0.70f;
+        [SerializeField, Range(0f, 1f)] private float guardStaminaRecoveryMultiplier = 0.34f;
 
         [Header("Shield neural modulation")]
         [SerializeField] private float maxGuardCoverageBonus = 0.78f;
@@ -78,6 +84,8 @@ namespace Mindforge.Combat
 
         public bool IsGuarding => _guardHeld;
         public bool IsAttacking => Time.time < _attackEndsAt;
+        public bool CanDodge => !IsAttacking && Time.time >= _attackRecoveryUntil;
+        public float MovementMultiplier => IsGuarding ? guardMoveMultiplier : IsAttacking ? attackingMoveMultiplier : 1f;
         public float SightResonance => auras != null && auras.SightActive && resonance != null ? resonance.Sight : 0f;
         public float GuardResonance => auras != null && auras.GuardActive && resonance != null ? resonance.Guard : 0f;
         public float GuardCoverageScale => 1f + Mathf.Clamp01(GuardResonance) * maxGuardCoverageBonus;
@@ -86,6 +94,7 @@ namespace Mindforge.Combat
         {
             if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
             if (stamina == null) stamina = GetComponent<GuardianStamina>();
+            if (motor == null) motor = GetComponent<GuardianMotor>();
             if (auras == null) auras = GetComponent<AuraBuffController>();
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
         }
@@ -110,12 +119,13 @@ namespace Mindforge.Combat
         {
             _guardHeld = false;
             shieldHitbox?.SetGuardActive(false);
+            stamina?.SetRecoveryMultiplier(1f);
         }
 
         public bool TryLightAttack(Vector3 aimDirection)
         {
             WeaponSpec weapon = loadout != null ? loadout.MainHand : null;
-            if (weapon == null || stamina == null || _guardHeld || Time.time < _attackRecoveryUntil) return false;
+            if (weapon == null || stamina == null || _guardHeld || (motor != null && motor.IsDashing) || Time.time < _attackRecoveryUntil) return false;
             if (!stamina.TrySpend(weapon.staminaCost, "SWORD_LIGHT")) return false;
 
             Vector3 aim = Vector3.ProjectOnPlane(aimDirection, Vector3.up);
@@ -134,11 +144,12 @@ namespace Mindforge.Combat
             Vector3 aim = Vector3.ProjectOnPlane(aimDirection, Vector3.up);
             if (aim.sqrMagnitude > 0.01f) _guardAim = aim.normalized;
 
-            bool canGuard = held && !IsAttacking && stamina != null && stamina.Value > 0.01f;
+            bool canGuard = held && !IsAttacking && (motor == null || !motor.IsDashing) && stamina != null && stamina.Value > 0.01f;
             if (_guardHeld == canGuard) return;
             _guardHeld = canGuard;
             if (_guardHeld) _guardStartedAt = Time.time;
             shieldHitbox?.SetGuardActive(_guardHeld);
+            stamina?.SetRecoveryMultiplier(_guardHeld ? guardStaminaRecoveryMultiplier : 1f);
             GuardChanged?.Invoke(_guardHeld);
         }
 
@@ -283,6 +294,7 @@ namespace Mindforge.Combat
             if (!_guardHeld) return;
             _guardHeld = false;
             shieldHitbox?.SetGuardActive(false);
+            stamina?.SetRecoveryMultiplier(1f);
             GuardChanged?.Invoke(false);
             GuardBroken?.Invoke();
         }
