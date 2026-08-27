@@ -179,7 +179,7 @@ namespace Mindforge.Combat
         {
             if (_externalPaused) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
-            telegraph?.ShowRadial(origin, heavy);
+            telegraph?.ShowRadial(origin, count, heavy);
             yield return new WaitForSeconds(delay);
             telegraph?.Clear();
             if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
