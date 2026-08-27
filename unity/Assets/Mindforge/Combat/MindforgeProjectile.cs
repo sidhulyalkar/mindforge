@@ -31,6 +31,8 @@ namespace Mindforge.Combat
         private Transform _captureAnchor;
         private float _capturePhase;
         private MaterialPropertyBlock _visualBlock;
+        private string _neuralPayoffKind;
+        private float _neuralBonusDamage;
 
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorProperty = Shader.PropertyToID("_Color");
@@ -56,18 +58,34 @@ namespace Mindforge.Combat
             Destroy(gameObject, lifetime);
         }
 
-        public void Configure(CombatTeam newTeam, Vector3 velocity, float newDamage, float newPoise, int newPierce = 0)
+        public void Configure(
+            CombatTeam newTeam,
+            Vector3 velocity,
+            float newDamage,
+            float newPoise,
+            int newPierce = 0,
+            string neuralPayoffKind = null,
+            float neuralBonusDamage = 0f)
         {
             team = newTeam;
             damage = newDamage;
             poiseDamage = newPoise;
             pierce = newPierce;
             _reflected = false;
+            _neuralPayoffKind = neuralPayoffKind;
+            _neuralBonusDamage = Mathf.Clamp(neuralBonusDamage, 0f, Mathf.Max(0f, newDamage));
             _body.velocity = velocity;
             ApplyVisualIdentity();
         }
 
-        public void ReflectTowards(Transform target, float speed, float newDamage, float newPoise, int extraPierce = 0)
+        public void ReflectTowards(
+            Transform target,
+            float speed,
+            float newDamage,
+            float newPoise,
+            int extraPierce = 0,
+            string neuralPayoffKind = null,
+            float neuralBonusDamage = 0f)
         {
             if (target == null) return;
             ReleaseFromCapture();
@@ -76,6 +94,8 @@ namespace Mindforge.Combat
             poiseDamage = newPoise;
             pierce = Mathf.Max(pierce, extraPierce);
             _reflected = true;
+            _neuralPayoffKind = neuralPayoffKind;
+            _neuralBonusDamage = Mathf.Clamp(neuralBonusDamage, 0f, Mathf.Max(0f, newDamage));
             Vector3 direction = (target.position - transform.position).normalized;
             _body.velocity = direction * speed;
             ApplyVisualIdentity();
@@ -86,8 +106,6 @@ namespace Mindforge.Combat
             if (_externalPaused == paused) return;
             _externalPaused = paused;
 
-            // Captured projectiles are already kinematic/non-colliding. Their orbit
-            // simply stops while externally paused and resumes with the Bloom.
             if (_captured) return;
 
             if (paused)
@@ -194,7 +212,15 @@ namespace Mindforge.Combat
             CombatantVitals receiver = other.GetComponentInParent<CombatantVitals>();
             if (receiver == null || !receiver.IsAlive || receiver.Team == team) return;
             Vector3 impulse = _body.velocity.sqrMagnitude > 0.01f ? _body.velocity.normalized * 1.5f : Vector3.zero;
-            receiver.ReceiveDamage(new DamagePacket(damage, poiseDamage, impulse, point, team, poiseDamage >= 15f));
+            receiver.ReceiveDamage(new DamagePacket(
+                damage,
+                poiseDamage,
+                impulse,
+                point,
+                team,
+                poiseDamage >= 15f,
+                _neuralPayoffKind,
+                _neuralBonusDamage));
             if (pierce > 0) pierce--; else Destroy(gameObject);
         }
     }
