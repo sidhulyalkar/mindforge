@@ -35,6 +35,7 @@ namespace Mindforge.Combat
         [Range(0.05f, 2f)] public float stability = 0.82f;
         [Min(0f)] public float guardStaminaScale = 1.25f;
         [Min(0f)] public float baseCoverageScale = 1f;
+        [Range(30f, 180f)] public float coverageDegrees = 112f;
         [Min(0f)] public float perfectGuardWindowSeconds = 0.18f;
     }
 
