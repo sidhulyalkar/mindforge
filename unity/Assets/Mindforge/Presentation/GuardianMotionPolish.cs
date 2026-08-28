@@ -18,6 +18,11 @@ namespace Mindforge.Presentation
         [SerializeField] private GuardianSwordShieldController combat;
         [SerializeField] private CombatantVitals vitals;
 
+        [Header("Locomotion cadence")]
+        [SerializeField] private float fullStrideReferenceSpeed = 11.2f;
+        [SerializeField] private float minimumStrideHz = 1.45f;
+        [SerializeField] private float maximumStrideHz = 4.10f;
+
         private Transform _visualRoot;
         private Transform _bodyMotion;
         private Transform _torsoMotion;
@@ -165,11 +170,17 @@ namespace Mindforge.Presentation
 
             Vector3 velocity = motor != null ? Vector3.ProjectOnPlane(motor.Velocity, Vector3.up) : Vector3.zero;
             float speed = velocity.magnitude;
-            float move01 = Mathf.Clamp01(speed / 6.2f);
-            float acceleration = Mathf.Clamp((speed - _lastSpeed) / Mathf.Max(0.001f, dt), -18f, 18f);
+            float move01 = Mathf.Clamp01(speed / Mathf.Max(0.1f, fullStrideReferenceSpeed));
+            float acceleration = Mathf.Clamp((speed - _lastSpeed) / Mathf.Max(0.001f, dt), -24f, 24f);
             _lastSpeed = speed;
 
-            float strideHz = Mathf.Lerp(1.35f, 2.75f, move01);
+            // World-space translation now reaches a much faster traversal envelope. Keep
+            // visual foot cadence proportional to actual velocity so higher speed reads as
+            // an intentional sprint/run rather than procedural moonwalking.
+            float strideHz = Mathf.Lerp(
+                Mathf.Max(0.1f, minimumStrideHz),
+                Mathf.Max(minimumStrideHz, maximumStrideHz),
+                move01);
             _locomotionPhase += dt * strideHz * Mathf.PI * 2f;
             float step = Mathf.Sin(_locomotionPhase);
             float doubleStep = Mathf.Abs(Mathf.Sin(_locomotionPhase));
@@ -199,9 +210,9 @@ namespace Mindforge.Presentation
             _hitImpulse = Damp(_hitImpulse, 0f, 5.8f, dt);
             _dashImpulse = Damp(_dashImpulse, 0f, 4.5f, dt);
 
-            float pelvisBob = doubleStep * 0.026f * move01;
-            float lateral = step * 0.028f * move01;
-            float accelerationLean = Mathf.Clamp(acceleration * 0.30f, -5.5f, 5.5f);
+            float pelvisBob = doubleStep * 0.030f * move01;
+            float lateral = step * 0.032f * move01;
+            float accelerationLean = Mathf.Clamp(acceleration * 0.26f, -6.5f, 6.5f);
             float combatLean = -anticipation * 5.5f + contact * 8.5f * finisher - recovery * 2.0f;
             float recoilPitch = -_blockImpulse * 4f - _perfectGuardImpulse * 7f + _guardBreakImpulse * 12f + _hitImpulse * 9f;
             float dashPitch = _dashImpulse * 14f;
@@ -210,13 +221,13 @@ namespace Mindforge.Presentation
             _bodyMotion.localRotation = Quaternion.Euler(
                 accelerationLean + combatLean + recoilPitch + dashPitch,
                 contact * comboSide * 7f * finisher + _turnVelocity * 2.5f,
-                -step * 1.8f * move01 - contact * comboSide * 4.5f * finisher + _hitImpulse * 3f);
+                -step * 2.2f * move01 - contact * comboSide * 4.5f * finisher + _hitImpulse * 3f);
 
             if (_torsoMotion != null)
             {
                 _torsoMotion.localRotation = Quaternion.Euler(
                     contact * 3f * finisher,
-                    -step * 2.5f * move01 + contact * comboSide * 8f,
+                    -step * 3.0f * move01 + contact * comboSide * 8f,
                     guarding ? -2.5f : _turnVelocity * -1.8f);
             }
             if (_headMotion != null)
@@ -229,7 +240,7 @@ namespace Mindforge.Presentation
             if (_leftArmMotion != null)
             {
                 _leftArmMotion.localRotation = Quaternion.Euler(
-                    guarding ? -6f - _blockImpulse * 9f : step * 1.5f * move01,
+                    guarding ? -6f - _blockImpulse * 9f : step * 2.2f * move01,
                     guarding ? -5f : 0f,
                     guarding ? -4f - _perfectGuardImpulse * 7f : 0f);
             }
@@ -241,13 +252,13 @@ namespace Mindforge.Presentation
                     contact * comboSide * 5f);
             }
             if (_leftLegMotion != null)
-                _leftLegMotion.localRotation = Quaternion.Euler(0f, step * 1.5f * move01, -step * 1.4f * move01);
+                _leftLegMotion.localRotation = Quaternion.Euler(step * 3.2f * move01, step * 1.8f * move01, -step * 2.2f * move01);
             if (_rightLegMotion != null)
-                _rightLegMotion.localRotation = Quaternion.Euler(0f, -step * 1.5f * move01, step * 1.4f * move01);
+                _rightLegMotion.localRotation = Quaternion.Euler(-step * 3.2f * move01, -step * 1.8f * move01, step * 2.2f * move01);
             if (_mantleMotion != null)
             {
-                float inertia = Mathf.Clamp(speed * 1.1f + _dashImpulse * 10f + contact * 5f, 0f, 16f);
-                _mantleMotion.localRotation = Quaternion.Euler(inertia, -_turnVelocity * 5f, step * 2.2f * move01);
+                float inertia = Mathf.Clamp(speed * 1.15f + _dashImpulse * 10f + contact * 5f, 0f, 18f);
+                _mantleMotion.localRotation = Quaternion.Euler(inertia, -_turnVelocity * 5f, step * 2.6f * move01);
             }
         }
 
