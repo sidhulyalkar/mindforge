@@ -16,7 +16,11 @@ namespace Mindforge.World
         [SerializeField] private CombatantVitals playerVitals;
         [SerializeField] private GuardianStamina guardIntegrity;
         [SerializeField] private GuardianTargetLock targetLock;
-        [SerializeField] private GuardianSwordShieldController combatState;
+        [SerializeField] private GuardianCombatInput playerInput;
+        [SerializeField] private GuardianMotor playerMotor;
+        [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private GuardianCombatController secondaryCombat;
+        [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private Transform respawnPoint;
         [SerializeField] private Transform interactionPoint;
         [SerializeField] private NullWardEncounterDirector world;
@@ -28,6 +32,10 @@ namespace Mindforge.World
         private bool _active;
         private bool _respawnPending;
         private long _respawnAtTick;
+        private bool _authoritySuspended;
+        private bool _inputWasEnabled;
+        private bool _motorWasEnabled;
+        private bool _physicalWasEnabled;
         private GUIStyle _promptStyle;
 
         public event Action Activated;
@@ -60,7 +68,7 @@ namespace Mindforge.World
             playerVitals = vitals;
             guardIntegrity = integrity;
             targetLock = lockState;
-            combatState = guardian != null ? guardian.GetComponent<GuardianSwordShieldController>() : null;
+            ResolveGuardianAuthority();
             respawnPoint = spawn;
             interactionPoint = interaction;
             world = director;
@@ -104,6 +112,7 @@ namespace Mindforge.World
         {
             if (!_active) PrimeAsStartingCheckpoint();
             world?.ResetOrdinaryEncounters();
+            ResetOwnedCombatWindows();
             RestoreGuardian(false);
             markers?.Emit("CHECKPOINT_REST", "world", target: "MEMORY_FORGE", reason: "CONVENTIONAL_INTERACTION");
         }
@@ -114,6 +123,7 @@ namespace Mindforge.World
             _respawnPending = true;
             _respawnAtTick = FixedTick + Mathf.Max(1, respawnDelayTicks);
             targetLock?.SetLocked(false);
+            SuspendGuardianAuthority();
             world?.PrepareForRespawn();
             markers?.Emit("CHECKPOINT_RESPAWN_PENDING", "world", target: "MEMORY_FORGE", reason: "GUARDIAN_DEFEATED");
         }
@@ -121,6 +131,7 @@ namespace Mindforge.World
         private void RestoreGuardian(bool relocate)
         {
             Resolve();
+            ResetOwnedCombatWindows();
             playerVitals?.ResetForCheckpoint(true);
             guardIntegrity?.ResetFull();
             targetLock?.SetLocked(false);
@@ -141,6 +152,49 @@ namespace Mindforge.World
                 }
                 Physics.SyncTransforms();
             }
+
+            ResumeGuardianAuthority();
+        }
+
+        private void SuspendGuardianAuthority()
+        {
+            ResolveGuardianAuthority();
+            if (_authoritySuspended) return;
+            _authoritySuspended = true;
+
+            _inputWasEnabled = playerInput != null && playerInput.enabled;
+            _motorWasEnabled = playerMotor != null && playerMotor.enabled;
+            _physicalWasEnabled = physicalCombat != null && physicalCombat.enabled;
+
+            ResetOwnedCombatWindows();
+            if (playerMotor != null) playerMotor.SetMoveInput(Vector2.zero);
+            if (playerBody != null)
+            {
+                playerBody.velocity = Vector3.zero;
+                playerBody.angularVelocity = Vector3.zero;
+            }
+            if (playerInput != null) playerInput.enabled = false;
+            if (playerMotor != null) playerMotor.enabled = false;
+            if (physicalCombat != null) physicalCombat.enabled = false; // OnDisable clears guard, combo and attack commitment.
+        }
+
+        private void ResumeGuardianAuthority()
+        {
+            if (!_authoritySuspended) return;
+            if (physicalCombat != null && _physicalWasEnabled) physicalCombat.enabled = true;
+            if (playerMotor != null && _motorWasEnabled)
+            {
+                playerMotor.enabled = true;
+                playerMotor.SetMoveInput(Vector2.zero);
+            }
+            if (playerInput != null && _inputWasEnabled) playerInput.enabled = true;
+            _authoritySuspended = false;
+        }
+
+        private void ResetOwnedCombatWindows()
+        {
+            secondaryCombat?.ResetForCheckpoint();
+            bloom?.ResetForCheckpoint();
         }
 
         private bool PlayerInRange()
@@ -152,7 +206,7 @@ namespace Mindforge.World
         }
 
         private bool CanInteract()
-            => combatState == null || combatState.ActionState == GuardianActionState.Locomotion;
+            => physicalCombat == null || physicalCombat.ActionState == GuardianActionState.Locomotion;
 
         private void Resolve()
         {
@@ -162,8 +216,18 @@ namespace Mindforge.World
                 if (playerVitals == null) playerVitals = player.GetComponent<CombatantVitals>();
                 if (guardIntegrity == null) guardIntegrity = player.GetComponent<GuardianStamina>();
                 if (targetLock == null) targetLock = player.GetComponent<GuardianTargetLock>();
-                if (combatState == null) combatState = player.GetComponent<GuardianSwordShieldController>();
             }
+            ResolveGuardianAuthority();
+        }
+
+        private void ResolveGuardianAuthority()
+        {
+            if (player == null) return;
+            if (playerInput == null) playerInput = player.GetComponent<GuardianCombatInput>();
+            if (playerMotor == null) playerMotor = player.GetComponent<GuardianMotor>();
+            if (physicalCombat == null) physicalCombat = player.GetComponent<GuardianSwordShieldController>();
+            if (secondaryCombat == null) secondaryCombat = player.GetComponent<GuardianCombatController>();
+            if (bloom == null) bloom = player.GetComponent<GravityBloomAbility>();
         }
 
         private void Subscribe()
