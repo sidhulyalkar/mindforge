@@ -35,6 +35,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private float companionCatchupDistance = 5.4f;
         [SerializeField] private float companionTeleportDistance = 10.5f;
         [SerializeField] private float companionCombatBias = 0.30f;
+        [SerializeField] private float companionWanderArcRadians = 2.15f;
 
         [Header("Free combat gaze anchors")]
         [Range(0f, 1f)]
@@ -152,7 +153,8 @@ namespace Mindforge.SoulWisp
                 Mathf.Max(0.15f, companionNearRadius),
                 Mathf.Max(companionNearRadius + 0.1f, companionFarRadius),
                 Mathf.SmoothStep(0f, 1f, radiusNoise));
-            float angle = (angleNoise * 2f - 1f) * Mathf.PI +
+            float wanderArc = Mathf.Clamp(companionWanderArcRadians, 0.5f, Mathf.PI);
+            float angle = Mathf.Lerp(-wanderArc, wanderArc, angleNoise) +
                           Mathf.Sin(t * 1.37f + curlNoise * Mathf.PI) * 0.42f;
 
             Camera cam = Camera.main;
