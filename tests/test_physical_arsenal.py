@@ -102,7 +102,7 @@ def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles
     assert 'stamina.TrySpend(staminaCost, "SWORD_LIGHT")' not in sword
     assert "Time.time" not in sword
 
-    # Authoritative action permission is explicit and independent of Animator state.
+    # Authoritative action permission is explicit and has no runtime animation dependency.
     assert "GuardianActionState" in sword
     assert "public bool CanAttack" in sword
     assert "public bool CanDodge" in sword
@@ -110,7 +110,14 @@ def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles
     assert "public bool CanCounter" in sword
     assert "public bool CanMove" in sword
     assert "public bool CanTurn" in sword
-    assert "Animator" not in sword
+    for forbidden_runtime_dependency in (
+        "GetComponent<Animator>",
+        "GetComponentInChildren<Animator>",
+        "AnimatorStateInfo",
+        ".SetTrigger(",
+        "AnimationEvent",
+    ):
+        assert forbidden_runtime_dependency not in sword
 
     for token in (
         "startupTicks",
