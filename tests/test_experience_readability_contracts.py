@@ -91,9 +91,10 @@ def test_onboarding_is_staged_around_laptop_physical_combat_then_arcane_options(
     assert "CurrentLesson()" in guide
     assert "WASD MOVE" in guide
     assert "ARROWS / MOUSE AIM" in guide
+    assert "T ENEMY FOCUS" in guide
+    assert "focus changes camera only" in guide
     assert "F SWORD" in guide
     assert "SPACE DASH" in guide
-    assert "movement and dashes are unlimited" in guide
     assert "RMB / E HOLD SHIELD" in guide
     assert "PERFECT GUARD reflect" in guide
     assert "SHIFT PULSE SHOT" in guide
