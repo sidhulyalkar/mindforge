@@ -3,13 +3,14 @@ using Mindforge.Calibration;
 using Mindforge.Combat;
 using Mindforge.Journey;
 using Mindforge.SoulWisp;
+using Mindforge.World;
 
 namespace Mindforge.Presentation
 {
     /// <summary>
     /// Gameplay-first, non-authoritative encounter HUD. Guardian state persists through
-    /// the authored journey; the Fractured Signal bar appears only after the final boss
-    /// threshold activates boss authority.
+    /// exploration; the Fractured Signal bar appears only after the active world flow
+    /// has actually crossed the final boss threshold.
     /// </summary>
     public sealed class CombatStateHud : MonoBehaviour
     {
@@ -20,6 +21,7 @@ namespace Mindforge.Presentation
         [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private FracturedSignalDirector bossDirector;
         [SerializeField] private FirstJourneyDirector journey;
+        [SerializeField] private NullWardEncounterDirector nullWard;
         [SerializeField] private AwakeningCalibrationDirector calibration;
         [SerializeField] private GuardianStamina guardIntegrity;
         [SerializeField] private GuardianEquipmentLoadout loadout;
@@ -59,7 +61,7 @@ namespace Mindforge.Presentation
         private void Update()
         {
             if (playerVitals == null || flux == null || guardIntegrity == null || loadout == null ||
-                physicalCombat == null || resonance == null || journey == null)
+                physicalCombat == null || resonance == null || (journey == null && nullWard == null))
             {
                 Unsubscribe();
                 Resolve();
@@ -80,6 +82,7 @@ namespace Mindforge.Presentation
             if (bloom == null) bloom = FindObjectOfType<GravityBloomAbility>(true);
             if (bossDirector == null) bossDirector = FindObjectOfType<FracturedSignalDirector>(true);
             if (journey == null) journey = FindObjectOfType<FirstJourneyDirector>(true);
+            if (nullWard == null) nullWard = FindObjectOfType<NullWardEncounterDirector>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
             if (guardIntegrity == null) guardIntegrity = FindObjectOfType<GuardianStamina>(true);
             if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
@@ -210,6 +213,7 @@ namespace Mindforge.Presentation
         private bool BossHudVisible()
         {
             if (bossVitals == null || !bossVitals.IsAlive || bossDirector == null) return false;
+            if (nullWard != null) return nullWard.BossActive;
             if (journey != null) return journey.BossActive;
             return bossDirector.gameObject.activeInHierarchy;
         }
