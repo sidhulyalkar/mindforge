@@ -26,29 +26,24 @@ def _marker(event: str, seq: int, *, boss_phase: int = 2) -> GameMarker:
     )
 
 
-def test_guardian_precision_aim_is_mouse_or_arrow_owned_and_wasd_movement_is_replayable():
+def test_guardian_third_person_heading_and_wasd_are_replayable():
     source = (ROOT / "unity/Assets/Mindforge/Combat/GuardianCombatInput.cs").read_text(encoding="utf-8")
 
-    assert "Player-owned aim" in source or "Mouse owns precision aim" in source
-    assert "ScreenPointToRay" in source
-    assert "new Plane(Vector3.up, transform.position)" in source
+    assert "Third-person combat heading" in source
     assert "SampleWasdMovement" in source
-    assert "SampleArrowAim" in source
+    assert "SampleArrowAim" not in source
     assert "Input.GetAxisRaw" not in source
     for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
         assert key in source
-    for key in ("KeyCode.UpArrow", "KeyCode.DownArrow", "KeyCode.LeftArrow", "KeyCode.RightArrow"):
-        assert key in source
-    assert "WASD: camera-relative movement" in source
-    assert "Arrow keys OR mouse: aim" in source
+
+    assert "Mouse/trackpad or arrow keys: orbit camera" in source
+    assert "T: conventional target lock" in source
+    assert "GuardianTargetLock targetLock" in source
+    assert "targetLock.Locked" in source
+    assert "targetLock.DirectionFrom(transform.position)" in source
+    assert "Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up)" in source
     assert "PrecisionAimActive" in source
     assert "CurrentAimPoint" in source
-    assert "KeyboardAimActive" in source
-
-    # Held arrows override pointer aim only while they are held, then mouse precision
-    # aim resumes. Boss lock remains a fallback rather than primary authority.
-    assert source.index("if (_keyboardAim.sqrMagnitude > 0.01f)") < source.index("if (mouseAimEnabled && _mouseAimActive")
-    assert source.index("if (mouseAimEnabled && _mouseAimActive") < source.index("if (aimTarget != null)")
 
     assert "aim_x = liveAim.x" in source
     assert "aim_y = liveAim.y" in source
@@ -65,16 +60,16 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: WASD move · arrows/mouse aim · T camera focus · sword · shield · dash · skills",
+        "HANDS: WASD move · mouse/arrows camera · T target lock · sword · shield · dodge · skills",
         "BCI: bounded blade/shield resonance after accepted Sight/Guard",
-        "EEG never swings, raises guard, aims, dodges, fires, or parries",
+        "EEG never moves, locks a target, rotates the camera, swings, blocks, dodges, fires, or parries",
         "KeyCode.F10",
         "JudgeLensFlag",
         "PrecisionAimActive",
         "CurrentAimPoint",
         "TargetFocusActive",
-        "TARGET FOCUS",
-        "T  ENEMY FOCUS",
+        "TARGET LOCK",
+        "T  LOCK ON",
     ):
         assert token in guide
 
