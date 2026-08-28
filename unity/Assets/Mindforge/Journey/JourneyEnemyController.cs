@@ -51,6 +51,10 @@ namespace Mindforge.Journey
         [SerializeField] private float retreatDistance = 1.15f;
         [SerializeField] private float strafeStrength = 0.18f;
 
+        [Header("Aerial combat fairness")]
+        [SerializeField] private float meleeVerticalReach = 1.45f;
+        [SerializeField] private float projectileTargetHeight = 0.85f;
+
         [Header("Deterministic attack brain · 120 Hz")]
         [SerializeField, Min(1)] private int decisionCadenceTicks = 10;
         [SerializeField, Min(1)] private int firstAttackDelayTicks = 78;
@@ -76,6 +80,7 @@ namespace Mindforge.Journey
         private JourneyEnemyAttackKind _pendingAttack;
         private int _pendingAttackIndex = -1;
         private Vector3 _lockedAttackDirection;
+        private Vector3 _lockedProjectileDirection;
         private long[] _attackCooldownUntil = Array.Empty<long>();
         private uint _rngState;
         private bool _deathHandled;
@@ -199,6 +204,7 @@ namespace Mindforge.Journey
             _pendingAttackIndex = -1;
             _desiredMove = Vector3.zero;
             _lockedAttackDirection = Vector3.zero;
+            _lockedProjectileDirection = Vector3.zero;
 
             transform.SetPositionAndRotation(_spawnPosition, _spawnRotation);
             _home = _spawnPosition;
@@ -371,6 +377,7 @@ namespace Mindforge.Journey
             _lockedAttackDirection = toPlayer;
             if (_lockedAttackDirection.sqrMagnitude < 0.001f) _lockedAttackDirection = transform.forward;
             _lockedAttackDirection.Normalize();
+            _lockedProjectileDirection = ResolveProjectileAimDirection();
             _attackResolveTick = FixedTick + attack.TelegraphTicks;
             if (attackIndex < _attackCooldownUntil.Length)
                 _attackCooldownUntil[attackIndex] = FixedTick + attack.CooldownTicks;
@@ -382,10 +389,21 @@ namespace Mindforge.Journey
         private void TrackPendingAttack(Vector3 toPlayer)
         {
             EnemyAttackDefinition attack = CurrentAttackDefinition;
-            if (attack == null || attack.TrackingStrength <= 0f || toPlayer.sqrMagnitude < 0.001f) return;
-            Vector3 desired = toPlayer.normalized;
+            if (attack == null || attack.TrackingStrength <= 0f) return;
+
             float t = Mathf.Clamp01(attack.TrackingStrength * 8f * Time.fixedDeltaTime);
-            _lockedAttackDirection = Vector3.Slerp(_lockedAttackDirection, desired, t).normalized;
+            if (attack.Type == EnemyAttackType.Projectile || attack.Type == EnemyAttackType.Burst)
+            {
+                Vector3 desiredProjectile = ResolveProjectileAimDirection();
+                if (desiredProjectile.sqrMagnitude > 0.001f)
+                    _lockedProjectileDirection = Vector3.Slerp(_lockedProjectileDirection, desiredProjectile, t).normalized;
+            }
+
+            if (toPlayer.sqrMagnitude > 0.001f)
+            {
+                Vector3 desired = toPlayer.normalized;
+                _lockedAttackDirection = Vector3.Slerp(_lockedAttackDirection, desired, t).normalized;
+            }
         }
 
         private void ResolvePendingAttack()
@@ -413,6 +431,10 @@ namespace Mindforge.Journey
         {
             ResolveDependencies();
             if (player == null || playerVitals == null || !playerVitals.IsAlive) return;
+
+            float verticalDelta = Mathf.Abs((player.position.y + 0.85f) - (transform.position.y + 0.80f));
+            if (verticalDelta > Mathf.Max(0.4f, meleeVerticalReach)) return;
+
             Vector3 delta = Planar(player.position - transform.position);
             float distance = delta.magnitude;
             if (!attack.RangeValid(distance) || distance <= 0.001f) return;
@@ -450,12 +472,15 @@ namespace Mindforge.Journey
                 : transform.position + Vector3.up * 0.75f;
             int count = attack.ProjectileCount;
             float spread = attack.ProjectileSpreadDegrees;
+            Vector3 baseDirection = _lockedProjectileDirection.sqrMagnitude > 0.001f
+                ? _lockedProjectileDirection.normalized
+                : ResolveProjectileAimDirection();
 
             for (int i = 0; i < count; i++)
             {
                 float centered = count <= 1 ? 0f : i - (count - 1) * 0.5f;
                 float angle = count <= 1 ? 0f : centered * spread / Mathf.Max(1f, count - 1);
-                Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * _lockedAttackDirection;
+                Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * baseDirection;
                 direction = direction.normalized;
                 MindforgeProjectile p = Instantiate(
                     projectilePrefab,
@@ -467,6 +492,18 @@ namespace Mindforge.Journey
                     attack.Damage,
                     attack.PoiseDamage);
             }
+        }
+
+        private Vector3 ResolveProjectileAimDirection()
+        {
+            if (player == null) return transform.forward;
+            Vector3 origin = projectileOrigin != null
+                ? projectileOrigin.position
+                : transform.position + Vector3.up * 0.75f;
+            Vector3 target = player.position + Vector3.up * Mathf.Max(0f, projectileTargetHeight);
+            Vector3 delta = target - origin;
+            if (delta.sqrMagnitude < 0.001f) return transform.forward;
+            return delta.normalized;
         }
 
         private void ResolveRetreat(EnemyAttackDefinition attack)
@@ -521,7 +558,7 @@ namespace Mindforge.Journey
             Vector3 origin = projectileOrigin != null
                 ? projectileOrigin.position
                 : transform.position + Vector3.up * 0.9f;
-            Vector3 target = player.position + Vector3.up * 0.85f;
+            Vector3 target = player.position + Vector3.up * Mathf.Max(0f, projectileTargetHeight);
             Vector3 delta = target - origin;
             float distance = delta.magnitude;
             if (distance <= 0.05f) return true;
@@ -633,6 +670,7 @@ namespace Mindforge.Journey
                     desiredDistance = 1.72f;
                     retreatDistance = 1.0f;
                     strafeStrength = 0.16f;
+                    meleeVerticalReach = 1.35f;
                     firstAttackDelayTicks = 86;
                     defeatFluxReward = 0.12f;
                     attackDefinitions = new[]
@@ -661,6 +699,7 @@ namespace Mindforge.Journey
                     desiredDistance = 2.05f;
                     retreatDistance = 1.25f;
                     strafeStrength = 0.28f;
+                    meleeVerticalReach = 1.70f;
                     firstAttackDelayTicks = 96;
                     defeatFluxReward = 0.55f;
                     attackDefinitions = new[]
@@ -692,6 +731,7 @@ namespace Mindforge.Journey
                     desiredDistance = 1.85f;
                     retreatDistance = 0.95f;
                     strafeStrength = 0.34f;
+                    meleeVerticalReach = 1.50f;
                     firstAttackDelayTicks = 82;
                     defeatFluxReward = 0.22f;
                     attackDefinitions = new[]
