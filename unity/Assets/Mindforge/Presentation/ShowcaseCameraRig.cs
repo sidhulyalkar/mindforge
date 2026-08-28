@@ -26,6 +26,7 @@ namespace Mindforge.Presentation
         [SerializeField] private float lockDistance = 5.20f;
         [SerializeField] private float shoulderOffset = 0.70f;
         [SerializeField] private float freeLookAhead = 5.6f;
+        [SerializeField] private float gameplayFieldOfView = 58f;
         [SerializeField] private float initialYaw = 0f;
         [SerializeField] private float initialPitch = 12f;
         [SerializeField] private float minPitch = -10f;
@@ -238,6 +239,10 @@ namespace Mindforge.Presentation
 
             if (gameplayCamera != null)
             {
+                // Keep FOV fixed rather than speed-reactive. A wider constant projection
+                // improves traversal readability without changing VEP target angular size
+                // as a function of movement speed or jump state.
+                gameplayCamera.fieldOfView = Mathf.Clamp(gameplayFieldOfView, 45f, 75f);
                 gameplayCamera.nearClipPlane = 0.06f;
                 gameplayCamera.farClipPlane = 140f;
             }
