@@ -212,7 +212,7 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
 
     assert '"WARDEN LOADOUT"' in menu
     assert '"COMBAT CONTROLS"' in menu
-    assert '"GUARD INTEGRITY' in menu
+    assert "GUARD INTEGRITY" in menu
     assert '"WASD / ARROWS"' in menu
     assert '"SPACE"' in menu
     assert '"F"' in menu
