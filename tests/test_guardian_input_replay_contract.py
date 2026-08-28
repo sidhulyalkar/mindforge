@@ -3,10 +3,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMBAT = ROOT / "unity" / "Assets" / "Mindforge" / "Combat"
+PRESENTATION = ROOT / "unity" / "Assets" / "Mindforge" / "Presentation"
 
 
 def read(name: str) -> str:
     return (COMBAT / name).read_text(encoding="utf-8")
+
+
+def read_presentation(name: str) -> str:
+    return (PRESENTATION / name).read_text(encoding="utf-8")
 
 
 def test_guardian_input_tape_is_fixed_tick_versioned_and_fail_neutral():
@@ -38,8 +43,10 @@ def test_guardian_input_recording_does_not_write_per_tick():
     assert "File.WriteAllText" in tape[tape.index("public string SaveRecording"):]
 
 
-def test_guardian_combat_input_samples_direct_keys_in_update_and_executes_on_fixed_tick():
+def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_tick():
     source = read("GuardianCombatInput.cs")
+    camera = read_presentation("ShowcaseCameraRig.cs")
+    lock = read("GuardianTargetLock.cs")
     update_start = source.index("private void Update()")
     fixed_start = source.index("private void FixedUpdate()")
     apply_start = source.index("private void Apply(")
@@ -48,13 +55,18 @@ def test_guardian_combat_input_samples_direct_keys_in_update_and_executes_on_fix
     fixed_body = source[fixed_start:apply_start]
     apply_body = source[apply_start:]
 
-    # Update is device sampling/latching only. Movement deliberately bypasses legacy
-    # Input Manager axes so a clean laptop project cannot lose WASD configuration.
+    # Update is conventional action sampling/latching only. Movement deliberately
+    # bypasses legacy axes. Third-person orbit belongs to the camera, and target-lock
+    # ownership belongs to GuardianTargetLock rather than this fixed-tick command path.
     assert "Input.GetAxisRaw" not in update_body
     for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
         assert key in update_body
     for key in ("KeyCode.UpArrow", "KeyCode.DownArrow", "KeyCode.LeftArrow", "KeyCode.RightArrow"):
-        assert key in update_body
+        assert key not in update_body
+        assert key in camera
+    assert "toggleKey = KeyCode.T" in lock
+    assert "Input.GetKeyDown(toggleKey)" in lock
+    assert "Input.GetKeyDown(KeyCode.T)" not in update_body
     assert "Input.GetKeyDown" in update_body
     assert "Input.GetMouseButtonDown" in update_body
     assert "combat.FirePulse" not in update_body
