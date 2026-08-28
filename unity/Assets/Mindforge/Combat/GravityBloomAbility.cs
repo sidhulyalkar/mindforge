@@ -64,6 +64,23 @@ namespace Mindforge.Combat
             }
         }
 
+        public void ResetForCheckpoint()
+        {
+            for (int i = 0; i < _captured.Count; i++)
+            {
+                MindforgeProjectile projectile = _captured[i];
+                if (projectile != null) projectile.ReleaseFromCapture();
+            }
+            _captured.Clear();
+            _capturedIds.Clear();
+            _active = false;
+            _concord = false;
+            _externalPaused = false;
+            _pauseStartedTick = 0L;
+            _endTick = long.MinValue / 4;
+            _lastUseTick = long.MinValue / 4;
+        }
+
         public bool TryActivate()
         {
             if (_externalPaused || tuning == null || flux == null || !flux.IsFull) return false;
