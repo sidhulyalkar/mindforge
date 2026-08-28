@@ -30,41 +30,99 @@ namespace Mindforge.Combat
             GameObject arsenalRoot = new GameObject("PhysicalArsenalRig");
             arsenalRoot.transform.SetParent(guardian.transform, false);
 
-            Color sight = new Color(0.20f, 0.55f, 1f);
+            Color sight = new Color(0.18f, 0.62f, 1f);
+            Color sightHot = new Color(0.38f, 0.92f, 1f);
             Color guard = new Color(0.18f, 1f, 0.52f);
-            Material swordMaterial = CreateEmissionMaterial("MindforgeRuntimeSword", new Color(0.48f, 0.62f, 0.92f), sight);
-            Material shieldMaterial = CreateEmissionMaterial("MindforgeRuntimeShield", new Color(0.24f, 0.42f, 0.34f), guard);
+            Material bladeCoreMaterial = CreatePbrMaterial(
+                "AetherbladeForgedCore",
+                new Color(0.025f, 0.050f, 0.095f),
+                0.92f,
+                0.72f,
+                new Color(0.04f, 0.18f, 0.42f));
+            Material bladeEdgeMaterial = CreatePbrMaterial(
+                "AetherbladeEnergyEdge",
+                new Color(0.06f, 0.28f, 0.52f),
+                0.35f,
+                0.86f,
+                sightHot * 3.2f);
+            Material hiltMaterial = CreatePbrMaterial(
+                "AetherbladeHilt",
+                new Color(0.055f, 0.065f, 0.085f),
+                0.88f,
+                0.58f,
+                new Color(0.03f, 0.08f, 0.16f));
+            Material gripMaterial = CreatePbrMaterial(
+                "AetherbladeGrip",
+                new Color(0.055f, 0.040f, 0.050f),
+                0.12f,
+                0.32f,
+                Color.black);
+            Material shieldMaterial = CreatePbrMaterial(
+                "MindforgeRuntimeShield",
+                new Color(0.08f, 0.20f, 0.16f),
+                0.72f,
+                0.54f,
+                guard * 1.15f);
             Material trailMaterial = CreateTrailMaterial();
 
             Transform swordRoot = NewChild("SwordRoot", arsenalRoot.transform, new Vector3(0.34f, 0.55f, 0.16f));
+
             GameObject blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            blade.name = "Aetherblade";
+            blade.name = "AetherbladeCore";
             blade.transform.SetParent(swordRoot, false);
-            blade.transform.localPosition = new Vector3(0f, 0f, 0.92f);
-            blade.transform.localScale = new Vector3(0.11f, 0.055f, 0.92f);
+            blade.transform.localPosition = new Vector3(0f, 0f, 1.05f);
+            blade.transform.localScale = new Vector3(0.13f, 0.055f, 1.55f);
             DisableCollider(blade);
             Renderer swordRenderer = blade.GetComponent<Renderer>();
-            if (swordRenderer != null) swordRenderer.sharedMaterial = swordMaterial;
+            if (swordRenderer != null) swordRenderer.sharedMaterial = bladeCoreMaterial;
 
-            GameObject hilt = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            hilt.name = "AetherbladeHilt";
-            hilt.transform.SetParent(swordRoot, false);
-            hilt.transform.localPosition = new Vector3(0f, 0f, -0.04f);
-            hilt.transform.localScale = new Vector3(0.38f, 0.09f, 0.08f);
-            DisableCollider(hilt);
-            Renderer hiltRenderer = hilt.GetComponent<Renderer>();
-            if (hiltRenderer != null) hiltRenderer.sharedMaterial = swordMaterial;
+            // Thin luminous rails provide a readable blade silhouette without making
+            // the whole weapon a uniformly glowing rectangle.
+            CreateBladeRail("AetherbladeEdgeL", blade.transform, -0.43f, bladeEdgeMaterial);
+            CreateBladeRail("AetherbladeEdgeR", blade.transform, 0.43f, bladeEdgeMaterial);
+            CreateBladeRail("AetherbladeSpine", blade.transform, 0f, bladeEdgeMaterial, 0.075f, 0.20f);
 
-            Transform swordTip = NewChild("SwordEnergyTip", swordRoot, new Vector3(0f, 0f, 1.86f));
+            GameObject guardBar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            guardBar.name = "AetherbladeCrossguard";
+            guardBar.transform.SetParent(swordRoot, false);
+            guardBar.transform.localPosition = new Vector3(0f, 0f, 0.18f);
+            guardBar.transform.localScale = new Vector3(0.58f, 0.105f, 0.10f);
+            DisableCollider(guardBar);
+            Renderer guardRenderer = guardBar.GetComponent<Renderer>();
+            if (guardRenderer != null) guardRenderer.sharedMaterial = hiltMaterial;
+
+            GameObject grip = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            grip.name = "AetherbladeGrip";
+            grip.transform.SetParent(swordRoot, false);
+            grip.transform.localPosition = new Vector3(0f, 0f, -0.12f);
+            grip.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            grip.transform.localScale = new Vector3(0.075f, 0.25f, 0.075f);
+            DisableCollider(grip);
+            Renderer gripRenderer = grip.GetComponent<Renderer>();
+            if (gripRenderer != null) gripRenderer.sharedMaterial = gripMaterial;
+
+            GameObject pommel = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            pommel.name = "AetherbladePommel";
+            pommel.transform.SetParent(swordRoot, false);
+            pommel.transform.localPosition = new Vector3(0f, 0f, -0.48f);
+            pommel.transform.localScale = Vector3.one * 0.16f;
+            DisableCollider(pommel);
+            Renderer pommelRenderer = pommel.GetComponent<Renderer>();
+            if (pommelRenderer != null) pommelRenderer.sharedMaterial = bladeEdgeMaterial;
+
+            Transform swordTip = NewChild("SwordEnergyTip", swordRoot, new Vector3(0f, 0f, 1.88f));
             TrailRenderer trail = swordTip.gameObject.AddComponent<TrailRenderer>();
             trail.sharedMaterial = trailMaterial;
-            trail.time = 0.18f;
-            trail.minVertexDistance = 0.035f;
+            trail.time = 0.20f;
+            trail.minVertexDistance = 0.028f;
             trail.emitting = false;
+            trail.startColor = sightHot;
+            trail.endColor = new Color(sight.r, sight.g, sight.b, 0f);
             Light swordLight = swordTip.gameObject.AddComponent<Light>();
             swordLight.type = LightType.Point;
-            swordLight.range = 2.4f;
-            swordLight.intensity = 0.2f;
+            swordLight.color = sightHot;
+            swordLight.range = 2.8f;
+            swordLight.intensity = 0.28f;
 
             Transform shieldRoot = NewChild("ShieldRoot", arsenalRoot.transform, new Vector3(-0.28f, 0.54f, 0.75f));
             GameObject shieldVisual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -127,7 +185,19 @@ namespace Mindforge.Combat
             if (guardian.GetComponent<PhysicalArsenalMarkerBridge>() == null)
                 guardian.AddComponent<PhysicalArsenalMarkerBridge>();
 
-            Debug.Log("[Mindforge] Physical arsenal v1 installed: Aetherblade Longsword + Verdant Ward Shield + Warden Weave + close-range Fractured Signal patterns.");
+            Debug.Log("[Mindforge] Physical arsenal installed: forged Aetherblade + Verdant Ward + Warden Weave. Basic sword/dodge actions are unrestricted; shield pressure uses Guard Integrity.");
+        }
+
+        private static void CreateBladeRail(string name, Transform parent, float x, Material material, float width = 0.12f, float height = 0.72f)
+        {
+            GameObject rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rail.name = name;
+            rail.transform.SetParent(parent, false);
+            rail.transform.localPosition = new Vector3(x, 0f, 0f);
+            rail.transform.localScale = new Vector3(width, height, 0.985f);
+            DisableCollider(rail);
+            Renderer renderer = rail.GetComponent<Renderer>();
+            if (renderer != null) renderer.sharedMaterial = material;
         }
 
         private static Transform NewChild(string name, Transform parent, Vector3 localPosition)
@@ -144,16 +214,18 @@ namespace Mindforge.Combat
             if (collider != null) collider.enabled = false;
         }
 
-        private static Material CreateEmissionMaterial(string name, Color baseColor, Color emission)
+        private static Material CreatePbrMaterial(string name, Color baseColor, float metallic, float smoothness, Color emission)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             Material material = new Material(shader) { name = name };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
             else if (material.HasProperty("_Color")) material.SetColor("_Color", baseColor);
+            if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", Mathf.Clamp01(metallic));
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", Mathf.Clamp01(smoothness));
             if (material.HasProperty("_EmissionColor"))
             {
                 material.EnableKeyword("_EMISSION");
-                material.SetColor("_EmissionColor", emission * 1.2f);
+                material.SetColor("_EmissionColor", emission);
             }
             return material;
         }
@@ -161,7 +233,10 @@ namespace Mindforge.Combat
         private static Material CreateTrailMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
-            return new Material(shader) { name = "MindforgeRuntimeEnergyTrail" };
+            Material material = new Material(shader) { name = "MindforgeRuntimeEnergyTrail" };
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", new Color(0.18f, 0.72f, 1f, 0.88f));
+            if (material.HasProperty("_Color")) material.SetColor("_Color", new Color(0.18f, 0.72f, 1f, 0.88f));
+            return material;
         }
 
         private static void CreateShieldOutline(Transform parent, Material material, Color color)
