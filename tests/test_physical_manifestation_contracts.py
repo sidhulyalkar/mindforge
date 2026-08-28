@@ -14,7 +14,7 @@ def test_unity_is_a_pinned_urp_project_boundary():
     version = read(UNITY / "ProjectSettings" / "ProjectVersion.txt")
     manifest = json.loads(read(UNITY / "Packages" / "manifest.json"))
     configurator = read(MF / "Editor" / "CompetitionProjectConfigurator.cs")
-    assert "2022.3.76f1" in version
+    assert "2022.3.62f3" in version
     assert manifest["dependencies"]["com.unity.render-pipelines.universal"] == "14.0.11"
     assert manifest["dependencies"]["com.unity.ugui"] == "1.0.0"
     assert "GraphicsSettings.defaultRenderPipeline = pipeline" in configurator
