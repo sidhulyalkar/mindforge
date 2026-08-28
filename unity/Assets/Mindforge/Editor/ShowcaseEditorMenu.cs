@@ -88,6 +88,7 @@ namespace Mindforge.Editor
                 // Signal Cathedral threshold without translating Arena V3 rune geometry.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
+                NullWardVisualInfrastructureBuilder.ApplyOpenScene();
             }
             finally
             {
@@ -106,8 +107,9 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Null Ward cinematic slice ready. The controller-only path now runs from " +
                 "the Memory Forge through the Synapse Causeway and Null Market, includes an eastern maintenance " +
                 "loop with a persistent shortcut, opens the Protocol Veil after the required encounters, and " +
-                "hands the existing Arena V3 to The Fractured Signal. Runtime installs the third-person camera, " +
-                "conventional multi-target lock, pooled presentation effects and stable Wisp gaze anchors.");
+                "hands the existing Arena V3 to The Fractured Signal. The visual V2 pass adds collider-free " +
+                "static architectural detail, shared-material instancing and authored-art anchors. Runtime " +
+                "installs the third-person camera, conventional multi-target lock, pooled effects and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
