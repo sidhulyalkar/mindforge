@@ -25,6 +25,8 @@ namespace Mindforge.Combat
         {
             Health = maxHealth;
             if (guardianMotor == null) guardianMotor = GetComponent<GuardianMotor>();
+            if (poise == null) poise = GetComponent<PoiseSystem>();
+            if (body == null) body = GetComponent<Rigidbody>();
         }
 
         public void ReceiveDamage(DamagePacket packet)
@@ -71,6 +73,22 @@ namespace Mindforge.Combat
             float before = Health;
             Health = Mathf.Min(maxHealth, Health + amount);
             return Mathf.Max(0f, Health - before);
+        }
+
+        /// <summary>
+        /// Explicit deterministic reconstruction surface for checkpoints/encounter resets.
+        /// It does not emit Died/Damaged and does not create neural evidence.
+        /// </summary>
+        public void ResetForCheckpoint(bool restoreHealth = true)
+        {
+            if (restoreHealth) Health = Mathf.Max(0f, maxHealth);
+            poise?.ResetFull();
+            if (body != null)
+            {
+                body.velocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.WakeUp();
+            }
         }
     }
 }
