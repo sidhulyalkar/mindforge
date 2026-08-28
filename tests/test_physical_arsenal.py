@@ -160,13 +160,16 @@ def test_continuous_neural_resonance_cannot_issue_conventional_player_commands()
     assert all(token not in resonance for token in forbidden)
 
 
-def test_keyboard_first_commands_are_fixed_tick_recordable_and_old_tapes_remain_supported():
+def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_supported():
     combat_input = read("Combat", "GuardianCombatInput.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
     assert "Input.GetAxisRaw" not in combat_input
     assert "SampleWasdMovement" in combat_input
-    assert "SampleArrowAim" in combat_input
+    assert "SampleArrowAim" not in combat_input
+    assert "GuardianTargetLock targetLock" in combat_input
+    assert "targetLock.DirectionFrom(transform.position)" in combat_input
+    assert "Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
     assert "Input.GetKeyDown(KeyCode.F)" in combat_input
     assert "Input.GetKey(KeyCode.LeftShift)" in combat_input
@@ -215,12 +218,13 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     assert '"AETHER PARRY' in hud
 
     assert '"WARDEN LOADOUT"' in menu
-    assert '"COMBAT CONTROLS"' in menu
+    assert '"THIRD-PERSON CONTROLS"' in menu
     assert "GUARD INTEGRITY" in menu
     assert '"WASD"' in menu
-    assert '"ARROWS / MOUSE"' in menu
+    assert '"MOUSE / ARROWS"' in menu
+    assert '"T"' in menu
     assert '"SPACE"' in menu
-    assert '"F"' in menu
+    assert '"F / LMB"' in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
 
     assert '"SWORD_PARRY"' in bridge
