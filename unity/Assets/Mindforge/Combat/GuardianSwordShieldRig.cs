@@ -4,9 +4,9 @@ using Mindforge.Presentation;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Procedural placeholder rig for the competition slice. Gameplay collision uses
-    /// the same bounded resonance scales, while production meshes/animations can later
-    /// replace these transforms without changing combat authority.
+    /// Procedural visual rig for the competition slice. Gameplay collision uses the
+    /// same bounded resonance scales, while production meshes/animations can replace
+    /// these transforms without changing combat authority.
     /// </summary>
     public sealed class GuardianSwordShieldRig : MonoBehaviour
     {
@@ -131,26 +131,29 @@ namespace Mindforge.Combat
                 shieldRoot.localPosition = localForward.normalized * shieldForwardOffset + Vector3.up * 0.54f + Vector3.left * 0.28f;
             }
 
-            Color sightColor = palette != null ? palette.sightTarget : new Color(0.20f, 0.55f, 1f);
+            Color sightColor = palette != null ? palette.sightTarget : new Color(0.18f, 0.62f, 1f);
+            Color sightHot = Color.Lerp(sightColor, new Color(0.55f, 0.96f, 1f), 0.62f);
             Color guardColor = palette != null ? palette.guardTarget : new Color(0.18f, 1f, 0.52f);
-            ApplyRenderer(swordRenderer, _swordBlock, sightColor, sight, attacking ? 1f : 0.62f);
-            ApplyRenderer(shieldRenderer, _shieldBlock, guardColor, guard, guarding ? 1f : 0.34f);
+            ApplySwordRenderer(swordRenderer, _swordBlock, sightColor, sightHot, sight, attacking ? 1f : 0.50f);
+            ApplyShieldRenderer(shieldRenderer, _shieldBlock, guardColor, guard, guarding ? 1f : 0.30f);
 
             if (swordTrail != null)
             {
                 swordTrail.emitting = attacking;
                 float finisher = attacking && comboStep >= 3 ? 1.30f : 1f;
-                swordTrail.widthMultiplier = Mathf.Lerp(0.05f, 0.18f, sight) * finisher;
-                Color trail = Color.Lerp(new Color(sightColor.r, sightColor.g, sightColor.b, 0.18f), sightColor, sight);
+                swordTrail.widthMultiplier = Mathf.Lerp(0.045f, 0.19f, sight) * finisher;
+                Color trail = Color.Lerp(new Color(0.10f, 0.38f, 0.82f, 0.34f), sightHot, Mathf.Lerp(0.22f, 1f, sight));
                 swordTrail.startColor = trail;
                 swordTrail.endColor = new Color(trail.r, trail.g, trail.b, 0f);
+                swordTrail.time = Mathf.Lerp(0.14f, 0.27f, sight) * (comboStep >= 3 ? 1.15f : 1f);
             }
 
             if (swordLight != null)
             {
-                swordLight.color = sightColor;
+                swordLight.color = Color.Lerp(new Color(0.12f, 0.34f, 0.78f), sightHot, sight);
                 float finisher = attacking && comboStep >= 3 ? 1.35f : 1f;
-                swordLight.intensity = (attacking ? Mathf.Lerp(0.35f, 3.1f, sight) : Mathf.Lerp(0.08f, 0.8f, sight)) * finisher;
+                swordLight.intensity = (attacking ? Mathf.Lerp(0.55f, 3.4f, sight) : Mathf.Lerp(0.14f, 0.95f, sight)) * finisher;
+                swordLight.range = Mathf.Lerp(2.0f, 3.4f, sight);
             }
             if (shieldLight != null)
             {
@@ -160,13 +163,30 @@ namespace Mindforge.Combat
             }
         }
 
-        private void ApplyRenderer(Renderer renderer, MaterialPropertyBlock block, Color color, float resonance, float stateWeight)
+        private void ApplySwordRenderer(Renderer renderer, MaterialPropertyBlock block, Color sightColor, Color sightHot, float resonance, float stateWeight)
         {
             if (renderer == null || block == null) return;
-            float glow = Mathf.Lerp(0.45f, maxEmissionMultiplier, Mathf.Clamp01(resonance)) * Mathf.Clamp01(stateWeight);
+            float r = Mathf.Clamp01(resonance);
+            Color forged = new Color(0.022f, 0.045f, 0.085f);
+            Color chargedSteel = Color.Lerp(new Color(0.06f, 0.19f, 0.38f), sightColor, 0.52f);
+            Color surface = Color.Lerp(forged, chargedSteel, Mathf.SmoothStep(0f, 1f, r));
+            float glow = Mathf.Lerp(0.16f, maxEmissionMultiplier, r) * Mathf.Lerp(0.55f, 1f, Mathf.Clamp01(stateWeight));
             renderer.GetPropertyBlock(block);
-            block.SetColor(BaseColor, Color.Lerp(Color.white * 0.55f, color, Mathf.Clamp01(resonance * 0.8f)));
-            block.SetColor(ColorProperty, Color.Lerp(Color.white * 0.55f, color, Mathf.Clamp01(resonance * 0.8f)));
+            block.SetColor(BaseColor, surface);
+            block.SetColor(ColorProperty, surface);
+            block.SetColor(EmissionColor, Color.Lerp(sightColor, sightHot, r) * glow);
+            renderer.SetPropertyBlock(block);
+        }
+
+        private void ApplyShieldRenderer(Renderer renderer, MaterialPropertyBlock block, Color color, float resonance, float stateWeight)
+        {
+            if (renderer == null || block == null) return;
+            float r = Mathf.Clamp01(resonance);
+            float glow = Mathf.Lerp(0.20f, maxEmissionMultiplier, r) * Mathf.Clamp01(stateWeight);
+            Color baseShield = Color.Lerp(new Color(0.055f, 0.16f, 0.12f), color * 0.52f, r);
+            renderer.GetPropertyBlock(block);
+            block.SetColor(BaseColor, baseShield);
+            block.SetColor(ColorProperty, baseShield);
             block.SetColor(EmissionColor, color * glow);
             renderer.SetPropertyBlock(block);
         }
