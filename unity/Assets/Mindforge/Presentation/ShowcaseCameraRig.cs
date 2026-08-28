@@ -53,6 +53,7 @@ namespace Mindforge.Presentation
         [SerializeField] private float collisionPadding = 0.16f;
         [SerializeField] private LayerMask collisionMask = ~0;
 
+        private readonly RaycastHit[] _collisionHits = new RaycastHit[12];
         private Vector3 _positionVelocity;
         private float _yaw;
         private float _pitch;
@@ -225,20 +226,40 @@ namespace Mindforge.Presentation
             if (distance <= 0.01f) return desired;
 
             Vector3 direction = delta / distance;
-            if (Physics.SphereCast(
+            int count = Physics.SphereCastNonAlloc(
                 pivot,
                 Mathf.Max(0.05f, collisionRadius),
                 direction,
-                out RaycastHit hit,
+                _collisionHits,
                 distance,
                 collisionMask,
-                QueryTriggerInteraction.Ignore))
+                QueryTriggerInteraction.Ignore);
+
+            bool foundWorldHit = false;
+            float nearest = distance;
+            for (int i = 0; i < count; i++)
             {
-                float resolved = Mathf.Max(0.35f, hit.distance - Mathf.Max(0.02f, collisionPadding));
+                Collider collider = _collisionHits[i].collider;
+                if (collider == null || IsGuardianHierarchy(collider.transform)) continue;
+                float hitDistance = _collisionHits[i].distance;
+                if (hitDistance < 0f || hitDistance >= nearest) continue;
+                nearest = hitDistance;
+                foundWorldHit = true;
+            }
+
+            if (foundWorldHit)
+            {
+                float resolved = Mathf.Max(0.35f, nearest - Mathf.Max(0.02f, collisionPadding));
                 return pivot + direction * resolved;
             }
 
             return desired;
+        }
+
+        private bool IsGuardianHierarchy(Transform candidate)
+        {
+            if (guardian == null || candidate == null) return false;
+            return candidate == guardian || candidate.IsChildOf(guardian);
         }
 
         private void InitializeOrbitFromScene()
