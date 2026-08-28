@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Mindforge.SoulWisp;
 
 namespace Mindforge.Presentation
 {
@@ -8,7 +9,8 @@ namespace Mindforge.Presentation
     /// Presentation-only binder that upgrades the procedural vertical slice to the
     /// editor-authored PBR material library after runtime bootstrap has created the
     /// character, boss and physical armament visuals. It never touches colliders,
-    /// combat state, damage, input or neural authority.
+    /// combat state, damage, input or neural authority. Coded VEP renderers are an
+    /// explicit exclusion and retain their independently qualified rendering contract.
     /// </summary>
     public sealed class CinematicRuntimeMaterialOverride : MonoBehaviour
     {
@@ -34,6 +36,9 @@ namespace Mindforge.Presentation
             Renderer[] renderers = FindObjectsOfType<Renderer>(true);
             foreach (Renderer renderer in renderers)
             {
+                if (renderer == null || renderer.GetComponentInParent<VepAuraStimulus>() != null)
+                    continue;
+
                 string name = renderer.gameObject.name;
                 Material selected = null;
 
@@ -53,7 +58,8 @@ namespace Mindforge.Presentation
                 else if (name == "VerdantWard")
                     selected = guard;
 
-                if (selected != null) renderer.sharedMaterial = selected;
+                if (selected == null) continue;
+                renderer.sharedMaterial = selected;
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
                 renderer.reflectionProbeUsage = ReflectionProbeUsage.BlendProbesAndSkybox;
@@ -62,11 +68,12 @@ namespace Mindforge.Presentation
 
             foreach (LineRenderer line in FindObjectsOfType<LineRenderer>(true))
             {
+                if (line == null || line.GetComponentInParent<VepAuraStimulus>() != null) continue;
                 if (line.gameObject.name.StartsWith("FractureRing_") && ring != null)
                     line.sharedMaterial = ring;
             }
 
-            Debug.Log("[Mindforge:Cinematic] Runtime presentation rebound to generated PBR surface library.");
+            Debug.Log("[Mindforge:Cinematic] Runtime presentation rebound to generated PBR surface library; coded VEP renderers preserved.");
         }
     }
 }
