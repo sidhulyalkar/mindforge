@@ -46,7 +46,10 @@ namespace Mindforge.Combat
             float baselineActual = Mathf.Min(before, baselineDamage);
             float realizedBonus = Mathf.Max(0f, actualDamage - baselineActual);
 
-            if (body != null && packet.Impulse.sqrMagnitude > 0.001f)
+            // Kinematic bodies intentionally ignore physics impulses. Avoid issuing an
+            // unsupported AddForce call so boss/checkpoint lifecycles do not spam Unity's
+            // Console while preserving the exact realized gameplay behavior.
+            if (body != null && !body.isKinematic && packet.Impulse.sqrMagnitude > 0.001f)
                 body.AddForce(packet.Impulse, ForceMode.VelocityChange);
             poise?.Apply(packet.PoiseDamage);
 
@@ -83,7 +86,7 @@ namespace Mindforge.Combat
         {
             if (restoreHealth) Health = Mathf.Max(0f, maxHealth);
             poise?.ResetFull();
-            if (body != null)
+            if (body != null && !body.isKinematic)
             {
                 body.velocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
