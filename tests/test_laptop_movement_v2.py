@@ -32,9 +32,13 @@ def test_movement_uses_target_velocity_response_and_third_person_facing():
     motor = read("Combat", "GuardianMotor.cs")
 
     assert "Vector3.MoveTowards" in motor
-    assert "minimumAcceleration = 58f" in motor
-    assert "deceleration = 76f" in motor
-    assert "reversalAcceleration = 92f" in motor
+    assert "minimumAcceleration = 82f" in motor
+    assert "deceleration = 94f" in motor
+    assert "reversalAcceleration = 122f" in motor
+    assert "forwardSpeedMultiplier = 1.55f" in motor
+    assert "strafeSpeedMultiplier = 1.22f" in motor
+    assert "backwardSpeedMultiplier = 1.05f" in motor
+    assert "DirectionalSpeedMultiplier(_moveInput)" in motor
     assert "_body.AddForce" not in motor
     assert "_body.WakeUp()" in motor
     assert "Vector3.ClampMagnitude(right * _moveInput.x + forward * _moveInput.y, 1f)" in motor
