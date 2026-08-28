@@ -89,6 +89,21 @@ def test_gravity_bloom_capture_and_pause_windows_are_fixed_tick():
     assert "Time.deltaTime" not in bloom
 
 
+def test_null_ward_world_progression_uses_fixed_simulation_ticks():
+    world = read("World", "NullWardEncounterDirector.cs")
+
+    assert "private void FixedUpdate()" in world
+    assert "private void Update()" not in world
+    for token in (
+        "BeginZone(i)",
+        "CompleteZone(i)",
+        "RequiredZonesCleared()",
+        "UnlockProtocol()",
+        "StartBossEncounter()",
+    ):
+        assert token in world
+
+
 def test_null_ward_reuses_shared_cinematic_material_vocabulary():
     builder = read("Editor", "NullWardSceneBuilder.cs")
 
