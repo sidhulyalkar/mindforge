@@ -111,8 +111,8 @@ namespace Mindforge.World
         public void RestAndReconstruct()
         {
             if (!_active) PrimeAsStartingCheckpoint();
-            world?.ResetOrdinaryEncounters();
             ResetOwnedCombatWindows();
+            world?.ResetOrdinaryEncounters();
             RestoreGuardian(false);
             markers?.Emit("CHECKPOINT_REST", "world", target: "MEMORY_FORGE", reason: "CONVENTIONAL_INTERACTION");
         }
@@ -195,6 +195,19 @@ namespace Mindforge.World
         {
             secondaryCombat?.ResetForCheckpoint();
             bloom?.ResetForCheckpoint();
+            ClearTransientProjectiles();
+        }
+
+        private static void ClearTransientProjectiles()
+        {
+            MindforgeProjectile[] projectiles = UnityEngine.Object.FindObjectsOfType<MindforgeProjectile>(true);
+            for (int i = 0; i < projectiles.Length; i++)
+            {
+                MindforgeProjectile projectile = projectiles[i];
+                if (projectile == null) continue;
+                projectile.SetExternalPause(true);
+                UnityEngine.Object.Destroy(projectile.gameObject);
+            }
         }
 
         private bool PlayerInRange()
