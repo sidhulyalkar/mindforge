@@ -252,6 +252,10 @@ namespace Mindforge.Combat
             ResolvePhysicalState();
             if (tuning == null || _body == null) return;
 
+            // Contacts can push the dynamic capsule but may not rotate its authored facing.
+            // Yaw is an explicit player/lock-on state resolved below by MoveRotation.
+            _body.angularVelocity = Vector3.zero;
+
             float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
             UpdateGroundState(dt);
             ConsumeBufferedJump();
@@ -380,7 +384,7 @@ namespace Mindforge.Combat
             for (int i = 0; i < count; i++)
             {
                 RaycastHit hit = _groundHits[i];
-                if (hit.collider == null || IsSelfCollider(hit.collider)) continue;
+                if (hit.collider == null || IsSelfCollider(hit.collider) || IsDynamicCombatantCollider(hit.collider)) continue;
                 if (hit.normal.y < minimumNormalY) continue;
                 if (hit.distance < 0f || hit.distance >= nearest) continue;
                 nearest = hit.distance;
@@ -413,6 +417,12 @@ namespace Mindforge.Combat
             if (candidate == null) return false;
             Transform t = candidate.transform;
             return t == transform || t.IsChildOf(transform);
+        }
+
+        private static bool IsDynamicCombatantCollider(Collider candidate)
+        {
+            if (candidate == null) return false;
+            return candidate.GetComponentInParent<CombatantVitals>() != null;
         }
 
         private void ConsumeBufferedJump()
