@@ -50,7 +50,15 @@ The visual pass creates five presentation anchors:
 
 to create/select `Resources/Cinematic/NullWardArtProfile`.
 
-The runtime binder strips Rigidbody, Collider, Joint, and every `Mindforge.*` MonoBehaviour from imported room art. Authored room prefabs are therefore rendering payloads, not alternate world implementations.
+The runtime binder treats imported room prefabs as an untrusted rendering payload. It strips:
+
+- Rigidbody / Collider / Joint;
+- Rigidbody2D / Collider2D / Joint2D;
+- Camera;
+- AudioListener;
+- every custom `MonoBehaviour`, regardless of namespace.
+
+Animator, Renderer, Light, Cloth, ParticleSystem, AudioSource and pure visual components remain available. If a room needs scripted presentation, that behavior should be deliberately bound from Mindforge rather than inherited from an asset-pack prefab.
 
 When authored art is supplied, only the corresponding collider-free V2 detail root may be hidden. Base collision/authority geometry remains present.
 
@@ -58,7 +66,7 @@ When authored art is supplied, only the corresponding collider-free V2 detail ro
 
 `Mindforge → Showcase → Audit Presentation Budget`
 
-still writes the additive-compatible `mindforge.presentation_budget.v1` report, but now includes per-zone budgets for:
+writes the additive-compatible `mindforge.presentation_budget.v1` report and now includes per-zone budgets for:
 
 - renderer count;
 - material slots;
@@ -71,7 +79,32 @@ still writes the additive-compatible `mindforge.presentation_budget.v1` report, 
 
 The global audit also reports triangle estimate, transparent-slot pressure, and batching-static coverage.
 
-The intent is not to turn art direction into a synthetic score. It gives profiling sessions a repeatable inventory and makes regressions attributable to a district.
+The one-click cinematic build calls this audit automatically after gate validation and before entering Play Mode.
+
+### Controller-only runtime performance evidence
+
+`PresentationPerformanceProbe` exists only under `UNITY_EDITOR || DEVELOPMENT_BUILD` and arms only after `ControllerOnlyQualificationBootstrap.Active`.
+
+After a warmup it records a bounded window using Unity `ProfilerRecorder` counters for:
+
+- Main Thread;
+- Draw Calls Count;
+- Batches Count;
+- SetPass Calls Count;
+- Triangles Count;
+- GC Allocated In Frame.
+
+Per-frame measurement writes to preallocated storage. Sorting, JSON creation and file I/O happen only after the sample window closes.
+
+The Editor report is:
+
+`experiments/reports/presentation-runtime-latest.json`
+
+with schema:
+
+`mindforge.presentation_runtime.v1`
+
+It records mean/p95/max main-thread time, draw/batch/SetPass/triangle summaries, GC allocated per frame, Unity version, graphics device and render resolution. The probe does not change quality, target frame rate, fixed timestep, gameplay or neural state.
 
 ## BCI rendering boundary
 
@@ -104,13 +137,14 @@ Keep the generated Null Ward as the authority/reference skeleton.
 For one district at a time:
 
 1. export or author set dressing against the zone anchor;
-2. keep collision out of the art prefab;
+2. keep collision and custom scripts out of the art prefab;
 3. bind the prefab in `NullWardArtProfile`;
 4. rebuild and run the cinematic Showcase;
-5. run the presentation budget audit;
-6. inspect Unity Profiler + Frame Debugger;
-7. capture representative gameplay frames;
-8. revise lighting/material hierarchy before adding more particle density.
+5. inspect the automatically emitted presentation-budget report;
+6. allow the controller-only runtime probe to finish its sample window;
+7. inspect Unity Profiler + Frame Debugger;
+8. capture representative gameplay frames;
+9. revise lighting/material hierarchy before adding more particle density.
 
 This allows multiple art agents to work independently without creating scene-merge conflicts.
 
@@ -132,11 +166,12 @@ A prettier frame that reverses that order is a regression.
 
 Source contracts and CI can establish architecture, authority isolation, and regression protection. They cannot establish visual quality or performance.
 
-Before promotion, run the exact branch in the pinned Unity editor and capture:
+Before promotion, run the exact branch in Unity `2022.3.62f3` and capture:
 
 - compiler/import result;
 - cinematic Showcase screenshot/video;
 - presentation budget JSON;
+- runtime presentation JSON;
 - CPU/GPU frame timing;
 - GC allocation during ordinary combat and VFX bursts;
 - Frame Debugger draw/batch inspection;
