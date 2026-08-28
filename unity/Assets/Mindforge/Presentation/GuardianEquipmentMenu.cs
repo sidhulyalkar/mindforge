@@ -6,7 +6,7 @@ namespace Mindforge.Presentation
     /// <summary>
     /// Readable competition loadout screen. The current build is intentionally
     /// descriptive rather than an inventory editor: one qualified kit, immediately
-    /// legible combat rules, and a clear path to future item swapping.
+    /// legible third-person combat rules, and a clear path to future item swapping.
     /// </summary>
     public sealed class GuardianEquipmentMenu : MonoBehaviour
     {
@@ -78,7 +78,7 @@ namespace Mindforge.Presentation
             float y = panel.y + 22f;
             GUI.Label(new Rect(x, y, panel.width - 56f, 38f), "WARDEN LOADOUT", _title);
             GUI.Label(new Rect(x, y + 36f, panel.width - 56f, 24f),
-                "Physical combat build · hands own every action · neural focus amplifies the equipped tool", _subtitle);
+                "Third-person physical combat · hands own movement, camera, lock-on and every action · neural focus amplifies equipment", _subtitle);
             GUI.Label(new Rect(panel.xMax - 150f, y + 4f, 122f, 24f), "TAB  CLOSE", _key);
             y += 78f;
 
@@ -101,37 +101,37 @@ namespace Mindforge.Presentation
                     ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor currently contributes physical load; mitigation remains intentionally unclaimed."
                     : "No armor equipped");
 
-            Rect rules = new Rect(rightX, y, rightWidth, 252f);
+            Rect rules = new Rect(rightX, y, rightWidth, 274f);
             Fill(rules, Card);
             Stroke(rules, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
-            GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "COMBAT CONTROLS", _section);
-            float ky = rules.y + 48f;
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "ARROWS / MOUSE", "Aim");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "T", "Enemy focus camera");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Directional dash");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F", "Sword / combo / bullet parry");
+            GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "THIRD-PERSON CONTROLS", _section);
+            float ky = rules.y + 50f;
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move relative to camera");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "MOUSE / ARROWS", "Orbit camera");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "T", "Lock / unlock enemy");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Directional dodge");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F / LMB", "Sword / combo / bullet parry");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT", "Pulse Shot");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "RMB / E", "Shield");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "Q · C · R", "Cleave · Counter · Bloom");
 
-            Rect neural = new Rect(rightX, y + 266f, rightWidth, 102f);
+            Rect neural = new Rect(rightX, y + 288f, rightWidth, 112f);
             Fill(neural, Card);
             Stroke(neural, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(neural.x + 16f, neural.y + 12f, neural.width - 32f, 24f), "NEURAL RESONANCE", _section);
-            GUI.Label(new Rect(neural.x + 16f, neural.y + 40f, neural.width - 32f, 58f),
-                "BLUE / Sight → blade amplification\nGREEN / Guard → shield amplification\nT focus is camera-only; EEG never aims or acts for you.", _body);
+            GUI.Label(new Rect(neural.x + 16f, neural.y + 40f, neural.width - 32f, 64f),
+                "BLUE / Sight → blade length, energy and bounded damage\nGREEN / Guard → shield coverage, stability and absorption\nEEG never moves, rotates camera, locks targets, swings, blocks or dodges.", _body);
 
-            float summaryY = y + 390f;
-            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 126f);
+            float summaryY = y + 418f;
+            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 114f);
             Fill(summary, new Color(0.050f, 0.060f, 0.080f, 0.98f));
             Stroke(summary, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 12f, summary.width - 32f, 24f), "CURRENT PHYSICAL PROFILE", _section);
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 10f, summary.width - 32f, 24f), "CURRENT PHYSICAL PROFILE", _section);
             string integrity = guardIntegrity != null ? $"{guardIntegrity.Value:F0} / {guardIntegrity.Max:F0}" : "-";
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 43f, summary.width - 32f, 22f),
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 39f, summary.width - 32f, 22f),
                 $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   GUARD INTEGRITY {integrity}", _item);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 72f, summary.width - 32f, 42f),
-                "Movement, dashes and ordinary sword attacks are unrestricted. Difficulty comes from enemy patterns, spacing, timing, HP and defensive decisions rather than a movement stamina tax.", _muted);
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 68f, summary.width - 32f, 38f),
+                "Movement, camera orbit, target lock, dashes and ordinary sword attacks are conventional player controls. Difficulty comes from enemy patterns, spacing, timing, HP and defense rather than a movement stamina tax.", _muted);
         }
 
         private void DrawLoadoutCard(Rect rect, string slot, string item, Color accent, string details)
@@ -146,9 +146,9 @@ namespace Mindforge.Presentation
 
         private void DrawControl(ref float y, float x, float width, string key, string action)
         {
-            GUI.Label(new Rect(x, y, 122f, 22f), key, _key);
-            GUI.Label(new Rect(x + 130f, y, width - 130f, 22f), action, _body);
-            y += 24f;
+            GUI.Label(new Rect(x, y, 128f, 22f), key, _key);
+            GUI.Label(new Rect(x + 136f, y, width - 136f, 22f), action, _body);
+            y += 27f;
         }
 
         private static void Fill(Rect rect, Color color)
