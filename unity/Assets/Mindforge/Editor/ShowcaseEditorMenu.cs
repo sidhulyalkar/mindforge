@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using Mindforge.Qualification;
+using Mindforge.EditorTools;
 
 namespace Mindforge.Editor
 {
@@ -101,6 +102,7 @@ namespace Mindforge.Editor
             }
 
             CompetitionGateValidator.ValidateAndWrite(false);
+            PresentationBudgetAudit.Run();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
@@ -108,8 +110,10 @@ namespace Mindforge.Editor
                 "the Memory Forge through the Synapse Causeway and Null Market, includes an eastern maintenance " +
                 "loop with a persistent shortcut, opens the Protocol Veil after the required encounters, and " +
                 "hands the existing Arena V3 to The Fractured Signal. The visual V2 pass adds collider-free " +
-                "static architectural detail, shared-material instancing and authored-art anchors. Runtime " +
-                "installs the third-person camera, conventional multi-target lock, pooled effects and stable Wisp gaze anchors.");
+                "static architectural detail, static batching/occlusion eligibility and authored-art anchors. " +
+                "A presentation-budget report is emitted before Play Mode; controller-only runtime performance " +
+                "evidence is emitted during play. Runtime installs the third-person camera, conventional " +
+                "multi-target lock, pooled effects and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
