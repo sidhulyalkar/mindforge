@@ -46,10 +46,12 @@ def test_movement_uses_target_velocity_response_and_third_person_facing():
     assert "GuardianTargetLock targetLock" in motor
     assert "freeTurnSharpness" in motor
     assert "lockedTurnSharpness" in motor
+    assert "airTurnSharpness" in motor
     assert "UpdateFacing(desiredDir)" in motor
     assert "targetLock.DirectionFrom(transform.position)" in motor
     assert "_body.MoveRotation" in motor
-    assert "~RigidbodyConstraints.FreezeRotationY" in motor
+    assert "RigidbodyConstraints.FreezePositionY" in motor
+    assert "_body.constraints &= ~(RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezePositionY)" in motor
 
 
 def test_dashes_are_unlimited_directional_and_can_buffer_chains():
@@ -71,7 +73,7 @@ def test_showcase_focuses_game_view_when_play_mode_starts():
     assert "PlayModeStateChange.EnteredPlayMode" in editor
     assert 'GetType("UnityEditor.GameView")' in editor
     assert "gameView?.Focus()" in editor
-    assert "WASD moves; mouse/arrows orbit camera; T locks target; Space dodges" in editor
+    assert "Space jumps; Ctrl/Alt dodges" in editor
 
 
 def test_laptop_control_copy_matches_third_person_mapping():
@@ -80,9 +82,10 @@ def test_laptop_control_copy_matches_third_person_mapping():
 
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
-    assert "T LOCK ON" in guide
-    assert "SPACE DODGE" in guide
+    assert "SPACE JUMP" in guide
+    assert "CTRL / ALT DODGE" in guide
     assert '"WASD", "Move relative to camera"' in menu
     assert '"MOUSE / ARROWS", "Orbit camera"' in menu
+    assert '"SPACE", "Jump · tap/hold changes height"' in menu
+    assert '"CTRL / ALT", "Directional dodge"' in menu
     assert '"T", "Lock / unlock enemy"' in menu
-    assert '"SPACE", "Directional dodge"' in menu
