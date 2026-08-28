@@ -30,8 +30,7 @@ namespace Mindforge.Presentation
             Transform ward = null;
             for (int frame = 0; frame < 120 && ward == null; frame++)
             {
-                GameObject root = GameObject.Find(WardRootName);
-                if (root != null) ward = root.transform;
+                ward = FindWardRootIncludingInactive();
                 if (ward == null) yield return null;
             }
             if (ward == null)
@@ -79,6 +78,18 @@ namespace Mindforge.Presentation
                 if (zoneDetail != null) zoneDetail.gameObject.SetActive(false);
             }
             return true;
+        }
+
+        private static Transform FindWardRootIncludingInactive()
+        {
+            Transform[] transforms = FindObjectsOfType<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                Transform candidate = transforms[i];
+                if (candidate != null && candidate.name == WardRootName)
+                    return candidate;
+            }
+            return null;
         }
 
         private static void StripAuthority(GameObject visualRoot)
