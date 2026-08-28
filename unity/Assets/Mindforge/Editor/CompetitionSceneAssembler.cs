@@ -330,7 +330,7 @@ namespace Mindforge.Editor
         private static Text CreateText(string name, Transform parent, string value, int size, TextAnchor alignment, Vector2 min, Vector2 max)
         {
             GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text)); go.transform.SetParent(parent, false); RectTransform rt = (RectTransform)go.transform; rt.anchorMin = min; rt.anchorMax = max; rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-            Text text = go.GetComponent<Text>(); text.text = value; text.fontSize = size; text.alignment = alignment; text.color = Color.white; text.font = Resources.GetBuiltinResource<Font>("Arial.ttf"); return text;
+            Text text = go.GetComponent<Text>(); text.text = value; text.fontSize = size; text.alignment = alignment; text.color = Color.white; text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); return text;
         }
 
         private static GameObject Child(string name, Transform parent, Vector3 localPosition)
