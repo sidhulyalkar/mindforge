@@ -2,29 +2,66 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PRESENTATION = ROOT / "unity" / "Assets" / "Mindforge" / "Presentation"
+UNITY = ROOT / "unity" / "Assets" / "Mindforge"
 
 
-def read(name: str) -> str:
-    return (PRESENTATION / name).read_text(encoding="utf-8")
+def read(*parts: str) -> str:
+    return UNITY.joinpath(*parts).read_text(encoding="utf-8")
 
 
-def test_enemy_focus_is_explicit_player_controlled_camera_composition_only():
-    camera = read("ShowcaseCameraRig.cs")
+def test_target_lock_is_conventional_player_state_and_neural_agnostic():
+    lock = read("Combat", "GuardianTargetLock.cs")
 
-    assert "targetFocusToggleKey = KeyCode.T" in camera
-    assert "public bool TargetFocusActive" in camera
-    assert "public Transform FocusTarget" in camera
-    assert "public void SetTargetFocus(bool active)" in camera
-    assert "Input.GetKeyDown(targetFocusToggleKey)" in camera
-    assert "targetFocusGuardianWeight" in camera
-    assert "targetFocusMotionLeadSeconds" in camera
-    assert "targetFocusFieldOfView" in camera
-    assert "TargetFocusChanged" in camera
-    assert "Camera composition only; player aim and combat authority unchanged" in camera
+    assert "toggleKey = KeyCode.T" in lock
+    assert "public bool Locked" in lock
+    assert "public Transform Target" in lock
+    assert "public void SetLocked(bool locked)" in lock
+    assert "Input.GetKeyDown(toggleKey)" in lock
+    assert "lockRange = 28f" in lock
+    assert "breakRange = 34f" in lock
+    assert "LockChanged" in lock
+    assert "conventional player input" in lock
 
     for forbidden in (
-        "GuardianCombatInput",
+        "NeuralEvent",
+        "UdpNeuralReceiver",
+        "DualAuraCombatDirector",
+        "FirePulse(",
+        "TryLightAttack(",
+        "RequestDash(",
+        "SetGuardHeld(",
+        "TryApply(",
+    ):
+        assert forbidden not in lock
+
+
+def test_camera_is_third_person_orbit_and_consumes_lock_without_owning_it():
+    camera = read("Presentation", "ShowcaseCameraRig.cs")
+
+    for token in (
+        "Third-person ARPG camera",
+        "pivotHeight = 1.42f",
+        "freeDistance = 5.25f",
+        "lockDistance = 5.85f",
+        "shoulderOffset = 0.62f",
+        'Input.GetAxis("Mouse X")',
+        'Input.GetAxis("Mouse Y")',
+        "arrowYawSpeed = 105f",
+        "arrowPitchSpeed = 72f",
+        "GuardianTargetLock targetLock",
+        "TargetFocusActive => targetLock != null && targetLock.Locked",
+        "Physics.SphereCast",
+        "CursorLockMode.Locked",
+        "lockYawSharpness",
+        "lockLookWeight",
+    ):
+        assert token in camera
+
+    # T belongs to GuardianTargetLock, not the presentation camera.
+    assert "Input.GetKeyDown(targetFocusToggleKey)" not in camera
+    assert "Input.GetKeyDown(KeyCode.T)" not in camera
+
+    for forbidden in (
         "GuardianCombatController",
         "GuardianSwordShieldController",
         "FirePulse(",
@@ -39,9 +76,9 @@ def test_enemy_focus_is_explicit_player_controlled_camera_composition_only():
 
 
 def test_arena_visibility_lifts_blacks_without_becoming_gameplay_authority():
-    visibility = read("ArenaVisibilityDirector.cs")
-    installer = read("ShowcaseRuntimeInstaller.cs")
-    post = read("ShowcasePostProcessing.cs")
+    visibility = read("Presentation", "ArenaVisibilityDirector.cs")
+    installer = read("Presentation", "ShowcaseRuntimeInstaller.cs")
+    post = read("Presentation", "ShowcasePostProcessing.cs")
 
     assert "RenderSettings.ambientMode = AmbientMode.Trilight" in visibility
     assert "RenderSettings.fogDensity" in visibility
@@ -70,16 +107,25 @@ def test_arena_visibility_lifts_blacks_without_becoming_gameplay_authority():
         assert forbidden not in visibility
 
 
-def test_focus_mode_is_discoverable_and_visually_marks_target_without_aiming_for_player():
-    guide = read("PlayerAgencyGuide.cs")
-    menu = read("GuardianEquipmentMenu.cs")
+def test_lock_mode_is_discoverable_and_creates_stable_bci_gaze_anchors():
+    guide = read("Presentation", "PlayerAgencyGuide.cs")
+    menu = read("Presentation", "GuardianEquipmentMenu.cs")
+    wisp = read("SoulWisp", "SoulWispController.cs")
 
-    assert "T ENEMY FOCUS" in guide
-    assert "TARGET FOCUS" in guide
+    assert "T LOCK ON" in guide
+    assert "TARGET LOCK" in guide
     assert "cameraRig.TargetFocusActive" in guide
     assert "cameraRig.FocusTarget" in guide
-    assert '"T", "Enemy focus camera"' in menu
-    assert "T focus is camera-only" in menu
+    assert '"T", "Lock / unlock enemy"' in menu
+    assert "EEG never moves, rotates camera, locks targets" in menu
+
+    assert "StableLockAnchorsActive" in wisp
+    assert "lockedHorizontalSeparation = 1.18f" in wisp
+    assert "PlaceStableLockedTargets" in wisp
+    assert "anchor - right * lockedHorizontalSeparation" in wisp
+    assert "anchor + right * lockedHorizontalSeparation" in wisp
+    assert "VepAuraStimulus" in wisp
+    assert "this changes position only" in wisp
 
     for forbidden in (
         ".TryLightAttack(",
