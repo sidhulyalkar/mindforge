@@ -8,11 +8,10 @@ namespace Mindforge.Combat
 {
     /// <summary>
     /// Competition boss scheduler built around cognitive pacing rather than a flat
-    /// difficulty ramp. External neural-link pauses suppress enemy authority without
-    /// granting the Guardian a free damage window.
-    ///
-    /// Projectile and melee patterns share this scheduler so entering sword range adds
-    /// embodied pressure without creating unreadable overlapping authority loops.
+    /// difficulty ramp. Gameplay cadence and telegraph commitment run on the fixed
+    /// simulation clock; presentation may animate independently between those facts.
+    /// External neural-link pauses suppress enemy authority without granting the
+    /// Guardian a free damage window.
     /// </summary>
     public sealed class FracturedSignalDirector : MonoBehaviour
     {
@@ -40,6 +39,7 @@ namespace Mindforge.Combat
         [SerializeField] private int radialCount = 12;
         [SerializeField] private int maxEchoes = 3;
 
+        private static readonly WaitForFixedUpdate FixedStep = new WaitForFixedUpdate();
         private readonly List<FracturedEchoNode> _echoes = new List<FracturedEchoNode>();
         private int _attackIndex;
         private int _lastPhase;
@@ -119,6 +119,7 @@ namespace Mindforge.Combat
         private void OnSignalBreak()
         {
             telegraph?.Clear();
+            // Sensory relief is presentation. It deliberately does not schedule combat.
             soulWisp?.RestStimuli(signalBreakVisualRestSeconds);
         }
 
@@ -126,17 +127,10 @@ namespace Mindforge.Combat
         {
             while (true)
             {
-                if (vitals == null || !vitals.IsAlive || _externalPaused)
+                if (!AttackAuthorityAvailable())
                 {
                     telegraph?.Clear();
-                    yield return null;
-                    continue;
-                }
-
-                if (vitals.Poise != null && vitals.Poise.Broken)
-                {
-                    telegraph?.Clear();
-                    yield return null;
+                    yield return FixedStep;
                     continue;
                 }
 
@@ -148,15 +142,15 @@ namespace Mindforge.Combat
                 }
 
                 yield return ExecutePattern(phase);
-                if (_externalPaused) continue;
+                if (!AttackAuthorityAvailable()) continue;
                 float interval = phase == 1 ? phaseOneInterval : phase == 2 ? phaseTwoInterval : phaseThreeInterval;
-                yield return new WaitForSeconds(interval);
+                yield return WaitCombatTicks(SecondsToTicks(interval));
             }
         }
 
         private IEnumerator ExecutePattern(int phase)
         {
-            if (_externalPaused) yield break;
+            if (!AttackAuthorityAvailable()) yield break;
             _attackIndex++;
             FracturedSignalMeleeDirector melee = ResolveMelee();
 
@@ -177,7 +171,7 @@ namespace Mindforge.Combat
                 if (index == 0)
                 {
                     SpawnEchoIfNeeded();
-                    yield return new WaitForSeconds(phaseTwoTelegraph * 0.65f);
+                    yield return WaitCombatTicks(SecondsToTicks(phaseTwoTelegraph * 0.65f));
                 }
                 else if (index == 1)
                     yield return TelegraphAndFan(3, 16f, 12f, phaseTwoTelegraph, false);
@@ -194,7 +188,7 @@ namespace Mindforge.Combat
             if (phaseThreeIndex == 0)
             {
                 SpawnEchoIfNeeded();
-                yield return new WaitForSeconds(phaseThreeTelegraph * 0.55f);
+                yield return WaitCombatTicks(SecondsToTicks(phaseThreeTelegraph * 0.55f));
             }
             else if (phaseThreeIndex == 1 || phaseThreeIndex == 4)
             {
@@ -222,34 +216,56 @@ namespace Mindforge.Combat
 
         private IEnumerator TelegraphAndFan(int count, float speed, float spreadDegrees, float delay, bool heavy)
         {
-            if (player == null || projectilePrefab == null || _externalPaused) yield break;
+            if (player == null || projectilePrefab == null || !AttackAuthorityAvailable()) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             Vector3 center = (player.position - origin).normalized;
             AttackTelegraphed?.Invoke("FAN", count, heavy);
             telegraph?.ShowFan(origin, center, count, spreadDegrees, heavy);
-            yield return new WaitForSeconds(delay);
+            yield return WaitCombatTicks(SecondsToTicks(delay));
             telegraph?.Clear();
-            if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
+            if (!AttackAuthorityAvailable()) yield break;
             AttackFired?.Invoke("FAN", count, heavy);
             SpawnAimedFan(count, speed, spreadDegrees, heavy);
         }
 
         private IEnumerator TelegraphAndRadial(int count, float speed, float delay, bool heavy)
         {
-            if (_externalPaused) yield break;
+            if (!AttackAuthorityAvailable()) yield break;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             AttackTelegraphed?.Invoke("RADIAL", count, heavy);
             telegraph?.ShowRadial(origin, count, heavy);
-            yield return new WaitForSeconds(delay);
+            yield return WaitCombatTicks(SecondsToTicks(delay));
             telegraph?.Clear();
-            if (_externalPaused || (vitals != null && vitals.Poise != null && vitals.Poise.Broken)) yield break;
+            if (!AttackAuthorityAvailable()) yield break;
             AttackFired?.Invoke("RADIAL", count, heavy);
             SpawnRadial(count, speed, heavy);
         }
 
+        private IEnumerator WaitCombatTicks(int ticks)
+        {
+            int remaining = Mathf.Max(1, ticks);
+            while (remaining-- > 0)
+            {
+                yield return FixedStep;
+                if (!AttackAuthorityAvailable()) yield break;
+            }
+        }
+
+        private bool AttackAuthorityAvailable()
+        {
+            if (vitals == null || !vitals.IsAlive || _externalPaused) return false;
+            return vitals.Poise == null || !vitals.Poise.Broken;
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
+        }
+
         private void SpawnAimedFan(int count, float speed, float spreadDegrees, bool heavy)
         {
-            if (player == null || projectilePrefab == null || _externalPaused) return;
+            if (player == null || projectilePrefab == null || !AttackAuthorityAvailable()) return;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             Vector3 center = (player.position - origin).normalized;
             for (int i = 0; i < count; i++)
@@ -262,7 +278,7 @@ namespace Mindforge.Combat
 
         private void SpawnRadial(int count, float speed, bool heavy)
         {
-            if (_externalPaused) return;
+            if (!AttackAuthorityAvailable()) return;
             Vector3 origin = projectileOrigin != null ? projectileOrigin.position : transform.position;
             for (int i = 0; i < count; i++)
             {
@@ -274,14 +290,14 @@ namespace Mindforge.Combat
 
         private void Spawn(Vector3 origin, Vector3 direction, float speed, float damage)
         {
-            if (_externalPaused) return;
+            if (!AttackAuthorityAvailable()) return;
             MindforgeProjectile p = Instantiate(projectilePrefab, origin, Quaternion.LookRotation(direction));
             p.Configure(CombatTeam.Enemy, direction.normalized * speed, damage, 0f);
         }
 
         private void SpawnEchoIfNeeded()
         {
-            if (echoPrefab == null || player == null || _externalPaused) return;
+            if (echoPrefab == null || player == null || !AttackAuthorityAvailable()) return;
             _echoes.RemoveAll(item => item == null);
             if (_echoes.Count >= Mathf.Max(1, maxEchoes)) return;
             float phase = (_echoes.Count / (float)Mathf.Max(1, maxEchoes)) * Mathf.PI * 2f + _attackIndex * 0.43f;
