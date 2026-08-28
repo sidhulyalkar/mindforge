@@ -26,21 +26,23 @@ def _marker(event: str, seq: int, *, boss_phase: int = 2) -> GameMarker:
     )
 
 
-def test_guardian_precision_aim_is_player_owned_and_replayable():
+def test_guardian_precision_aim_is_mouse_owned_and_keyboard_movement_is_replayable():
     source = (ROOT / "unity/Assets/Mindforge/Combat/GuardianCombatInput.cs").read_text(encoding="utf-8")
 
-    assert "Player-owned aim" in source
+    assert "Player-owned aim" in source or "Mouse owns precision aim" in source
     assert "ScreenPointToRay" in source
     assert "new Plane(Vector3.up, transform.position)" in source
-    assert "KeyCode.RightArrow" in source
-    assert "KeyCode.LeftArrow" in source
-    assert "KeyCode.UpArrow" in source
-    assert "KeyCode.DownArrow" in source
+    assert 'Input.GetAxisRaw("Horizontal")' in source
+    assert 'Input.GetAxisRaw("Vertical")' in source
+    assert "WASD or arrows: movement" in source
     assert "PrecisionAimActive" in source
     assert "CurrentAimPoint" in source
 
-    assert source.index("if (_keyboardAim.sqrMagnitude > 0.01f)") < source.index("if (aimTarget != null)")
+    # Mouse precision aim is resolved before the boss-lock fallback. Arrow keys now
+    # belong to movement and must not create a second, conflicting aim authority.
     assert source.index("if (mouseAimEnabled && _mouseAimActive") < source.index("if (aimTarget != null)")
+    assert "_keyboardAim" not in source
+    assert "KeyCode.RightArrow" not in source
 
     assert "aim_x = liveAim.x" in source
     assert "aim_y = liveAim.y" in source
@@ -57,9 +59,9 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: move, aim, sword, shield, roll, skills",
+        "HANDS: move, aim, sword, shield, dodge, skills",
         "BCI: bounded blade/shield resonance after accepted Sight/Guard",
-        "EEG never swings, raises guard, aims, rolls, fires, or parries",
+        "EEG never swings, raises guard, aims, dodges, fires, or parries",
         "KeyCode.F10",
         "JudgeLensFlag",
         "PrecisionAimActive",
