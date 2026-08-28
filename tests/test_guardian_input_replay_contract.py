@@ -38,7 +38,7 @@ def test_guardian_input_recording_does_not_write_per_tick():
     assert "File.WriteAllText" in tape[tape.index("public string SaveRecording"):]
 
 
-def test_guardian_combat_input_samples_in_update_and_executes_on_fixed_tick():
+def test_guardian_combat_input_samples_direct_keys_in_update_and_executes_on_fixed_tick():
     source = read("GuardianCombatInput.cs")
     update_start = source.index("private void Update()")
     fixed_start = source.index("private void FixedUpdate()")
@@ -48,8 +48,13 @@ def test_guardian_combat_input_samples_in_update_and_executes_on_fixed_tick():
     fixed_body = source[fixed_start:apply_start]
     apply_body = source[apply_start:]
 
-    # Update is device sampling/latching only. Gameplay authority is fixed-tick.
-    assert "Input.GetAxisRaw" in update_body
+    # Update is device sampling/latching only. Movement deliberately bypasses legacy
+    # Input Manager axes so a clean laptop project cannot lose WASD configuration.
+    assert "Input.GetAxisRaw" not in update_body
+    for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
+        assert key in update_body
+    for key in ("KeyCode.UpArrow", "KeyCode.DownArrow", "KeyCode.LeftArrow", "KeyCode.RightArrow"):
+        assert key in update_body
     assert "Input.GetKeyDown" in update_body
     assert "Input.GetMouseButtonDown" in update_body
     assert "combat.FirePulse" not in update_body
