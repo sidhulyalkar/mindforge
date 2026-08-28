@@ -205,9 +205,9 @@ def test_authored_route_contains_all_teaching_spaces_and_keeps_final_arena_in_pl
     assert "new Vector3(-1.25f, -0.30f, -63.0f)" in builder
     assert "new Vector3(1.65f, -0.30f, -52.8f)" in builder
 
-    # The journey stops authoring opaque floor geometry before Arena V3's outer floor.
-    # This prevents coplanar renderer/collider overlap at the final threshold.
-    assert 'Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -12.45f), new Vector3(15f, 0.50f, 7.5f)' in builder
+    # Base ArenaFloor is centered at z=1 with full Z scale 24, so its -Z boundary is -11.
+    # WardenFloor ends exactly there: center -13.6 with length 5.2 => [-16.2, -11.0].
+    assert 'Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -13.6f), new Vector3(15f, 0.50f, 5.2f)' in builder
     assert '"BossApproachFloor"' not in builder
 
     assert "ArenaEnvironmentV3Builder.BuildOpenScene();" in menu
