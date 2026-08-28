@@ -54,6 +54,7 @@ namespace Mindforge.Combat
         [SerializeField] private FluxMeter flux;
         [SerializeField] private CombatTuning tuning;
         [SerializeField] private Transform primaryTarget;
+        [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private GuardianShieldHitbox shieldHitbox;
         [SerializeField] private GuardianSwordShieldRig rig;
         [SerializeField] private HitStopController hitStop;
@@ -122,6 +123,7 @@ namespace Mindforge.Combat
         public bool CanDodge => !IsAttacking && Time.time >= _attackRecoveryUntil;
         public float MovementMultiplier => IsGuarding ? guardMoveMultiplier : IsAttacking ? attackingMoveMultiplier : 1f;
         public int ComboStep => _comboStep;
+        public Transform CurrentConventionalTarget => CombatTargetResolver.Resolve(targetLock, primaryTarget);
         public float AttackProgress
         {
             get
@@ -141,6 +143,7 @@ namespace Mindforge.Combat
             if (motor == null) motor = GetComponent<GuardianMotor>();
             if (auras == null) auras = GetComponent<AuraBuffController>();
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
         }
 
         public void ConfigureRuntime(
@@ -156,8 +159,11 @@ namespace Mindforge.Combat
             primaryTarget = target;
             shieldHitbox = hitbox;
             hitStop = stop;
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
             if (combatTuning != null) tuning = combatTuning;
         }
+
+        public void SetFallbackTarget(Transform target) => primaryTarget = target;
 
         private void OnDisable()
         {
@@ -335,7 +341,11 @@ namespace Mindforge.Combat
 
         private bool TrySwordParry(MindforgeProjectile projectile, WeaponSpec weapon, float sight)
         {
-            if (!swordParryEnabled || projectile == null || !projectile.IsHostileToGuardian || primaryTarget == null) return false;
+            if (!swordParryEnabled || projectile == null || !projectile.IsHostileToGuardian) return false;
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            Transform target = CombatTargetResolver.Resolve(targetLock, primaryTarget);
+            if (target == null) return false;
+
             int id = projectile.GetInstanceID();
             if (_parriedProjectilesThisSwing.Contains(id)) return true;
             if (_projectileParriesThisSwing >= Mathf.Max(1, maxProjectileParriesPerSwing)) return false;
@@ -348,7 +358,7 @@ namespace Mindforge.Combat
             float reflectedDamage = baseline + bonus;
             float speed = Mathf.Max(14f, projectile.Speed * Mathf.Max(1f, swordParrySpeedMultiplier));
             projectile.ReflectTowards(
-                primaryTarget,
+                target,
                 speed,
                 reflectedDamage,
                 Mathf.Max(1f, swordParryPoise),
@@ -379,7 +389,9 @@ namespace Mindforge.Combat
                 return false;
             }
 
-            if (perfect && primaryTarget != null)
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            Transform target = CombatTargetResolver.Resolve(targetLock, primaryTarget);
+            if (perfect && target != null)
             {
                 float baselineDamage = tuning != null ? tuning.reflectedDamage : Mathf.Max(18f, projectile.Damage);
                 float baselinePoise = tuning != null ? tuning.reflectedPoise : 18f;
@@ -389,7 +401,7 @@ namespace Mindforge.Combat
                 float reflectedPoise = baselinePoise * concordMultiplier;
                 float concordBonusDamage = concord ? Mathf.Max(0f, reflectedDamage - baselineDamage) : 0f;
                 projectile.ReflectTowards(
-                    primaryTarget,
+                    target,
                     tuning != null ? tuning.bloomReleaseSpeed : 20f,
                     reflectedDamage,
                     reflectedPoise,
@@ -450,7 +462,11 @@ namespace Mindforge.Combat
 
             if (perfect)
             {
-                CombatantVitals targetVitals = primaryTarget != null ? primaryTarget.GetComponent<CombatantVitals>() : null;
+                CombatantVitals nearbyAttacker = CombatTargetResolver.FindEnemyNear(attackerPosition, 2.6f);
+                Transform conventional = CombatTargetResolver.Resolve(targetLock, primaryTarget);
+                CombatantVitals targetVitals = nearbyAttacker != null
+                    ? nearbyAttacker
+                    : conventional != null ? conventional.GetComponentInParent<CombatantVitals>() : null;
                 float retaliationPoise = Mathf.Max(8f, incomingPoise * 0.85f);
                 targetVitals?.Poise?.Apply(retaliationPoise);
                 flux?.Award(tuning != null ? tuning.counterFlux : 0.45f, "Perfect Melee Guard");
