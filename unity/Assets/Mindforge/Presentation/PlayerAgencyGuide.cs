@@ -177,11 +177,11 @@ namespace Mindforge.Presentation
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   SPACE JUMP   ·   CTRL / ALT DODGE   ·   F SWORD";
+                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK ON   ·   SPACE JUMP   ·   CTRL / ALT DODGE   ·   F SWORD   |   third-person combat";
             if (!_shieldRaised)
                 return "RMB / E HOLD SHIELD   |   T lock-on keeps you facing the threat while WASD strafes around it";
             if (!_shieldBlocked)
-                return "READ THE TELEGRAPH   |   block with RMB/E, dodge with Ctrl/Alt, jump terrain with Space, or time a PERFECT GUARD";
+                return "READ THE TELEGRAPH   |   block with RMB/E, dodge with Ctrl/Alt, jump terrain with Space, or time a PERFECT GUARD reflect";
             if (!_pulseUsed)
                 return "SHIFT PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   orbit, punish, disengage";
             if (!_cleaveUsed || !_counterUsed)
