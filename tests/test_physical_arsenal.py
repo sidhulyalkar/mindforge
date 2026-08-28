@@ -62,6 +62,9 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
     assert "loadout.RollSpeedMultiplier" in motor
     assert "loadout.RollDurationMultiplier" in motor
     assert "loadout.MoveSpeedMultiplier" in motor
+    assert "tuning.dashCooldown" not in motor
+    assert "dashInputBufferSeconds" in motor
+    assert "Vector3.MoveTowards" in motor
     assert "stamina.DodgeBaseCost" not in motor
     assert 'stamina.TrySpend(staminaCost, "DODGE_ROLL")' not in motor
 
@@ -161,8 +164,9 @@ def test_keyboard_first_commands_are_fixed_tick_recordable_and_old_tapes_remain_
     combat_input = read("Combat", "GuardianCombatInput.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
-    assert 'Input.GetAxisRaw("Horizontal")' in combat_input
-    assert 'Input.GetAxisRaw("Vertical")' in combat_input
+    assert "Input.GetAxisRaw" not in combat_input
+    assert "SampleWasdMovement" in combat_input
+    assert "SampleArrowAim" in combat_input
     assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
     assert "Input.GetKeyDown(KeyCode.F)" in combat_input
     assert "Input.GetKey(KeyCode.LeftShift)" in combat_input
@@ -213,7 +217,8 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     assert '"WARDEN LOADOUT"' in menu
     assert '"COMBAT CONTROLS"' in menu
     assert "GUARD INTEGRITY" in menu
-    assert '"WASD / ARROWS"' in menu
+    assert '"WASD"' in menu
+    assert '"ARROWS / MOUSE"' in menu
     assert '"SPACE"' in menu
     assert '"F"' in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
