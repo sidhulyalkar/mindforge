@@ -146,6 +146,7 @@ namespace Mindforge.Journey
 
         public void Arm()
         {
+            ResolveDependencies();
             if (!IsAlive) return;
             _armed = true;
             _pendingAttack = JourneyEnemyAttackKind.None;
@@ -188,6 +189,10 @@ namespace Mindforge.Journey
             if (!_armed || _externalPaused || !IsAlive || player == null || playerVitals == null || !playerVitals.IsAlive)
                 return;
             if (vitals.Poise != null && vitals.Poise.Broken) return;
+
+            // PhysicalArsenalBootstrap may add GuardianSwordShieldController after the
+            // editor-authored journey is serialized. Resolve it lazily before attacks.
+            if (playerDefense == null) ResolveDependencies();
 
             Vector3 toPlayer = Planar(player.position - transform.position);
             float distance = toPlayer.magnitude;
@@ -304,6 +309,7 @@ namespace Mindforge.Journey
 
         private void ResolveMelee()
         {
+            ResolveDependencies();
             if (player == null || playerVitals == null || !playerVitals.IsAlive) return;
             Vector3 delta = Planar(player.position - transform.position);
             float distance = delta.magnitude;
@@ -383,6 +389,11 @@ namespace Mindforge.Journey
         {
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
             if (body == null) body = GetComponent<Rigidbody>();
+            if (player == null) return;
+            if (playerVitals == null) playerVitals = player.GetComponent<CombatantVitals>();
+            if (playerMotor == null) playerMotor = player.GetComponent<GuardianMotor>();
+            if (playerDefense == null) playerDefense = player.GetComponent<GuardianSwordShieldController>();
+            if (playerFlux == null) playerFlux = player.GetComponent<FluxMeter>();
         }
 
         private void ConfigureBody()
