@@ -29,11 +29,17 @@ namespace Mindforge.Presentation
         private static readonly int Speed = Animator.StringToHash("Speed");
         private static readonly int MoveX = Animator.StringToHash("MoveX");
         private static readonly int MoveY = Animator.StringToHash("MoveY");
+        private static readonly int VerticalSpeed = Animator.StringToHash("VerticalSpeed");
+        private static readonly int Grounded = Animator.StringToHash("Grounded");
+        private static readonly int Airborne = Animator.StringToHash("Airborne");
         private static readonly int Attack = Animator.StringToHash("Attack");
         private static readonly int AttackProgress = Animator.StringToHash("AttackProgress");
         private static readonly int ComboStep = Animator.StringToHash("ComboStep");
         private static readonly int Guard = Animator.StringToHash("Guard");
         private static readonly int Dodge = Animator.StringToHash("Dodge");
+        private static readonly int Jump = Animator.StringToHash("Jump");
+        private static readonly int Land = Animator.StringToHash("Land");
+        private static readonly int LandingImpact = Animator.StringToHash("LandingImpact");
         private static readonly int SightResonance = Animator.StringToHash("SightResonance");
         private static readonly int GuardResonance = Animator.StringToHash("GuardResonance");
         private static readonly int Hit = Animator.StringToHash("Hit");
@@ -116,7 +122,12 @@ namespace Mindforge.Presentation
                 combat.PerfectGuard += OnPerfectGuard;
                 combat.GuardBroken += OnGuardBreak;
             }
-            if (motor != null) motor.DashStarted += OnDodge;
+            if (motor != null)
+            {
+                motor.DashStarted += OnDodge;
+                motor.Jumped += OnJump;
+                motor.Landed += OnLand;
+            }
             if (vitals != null) vitals.Damaged += OnHit;
             _subscribed = true;
         }
@@ -130,7 +141,12 @@ namespace Mindforge.Presentation
                 combat.PerfectGuard -= OnPerfectGuard;
                 combat.GuardBroken -= OnGuardBreak;
             }
-            if (motor != null) motor.DashStarted -= OnDodge;
+            if (motor != null)
+            {
+                motor.DashStarted -= OnDodge;
+                motor.Jumped -= OnJump;
+                motor.Landed -= OnLand;
+            }
             if (vitals != null) vitals.Damaged -= OnHit;
             _subscribed = false;
         }
@@ -146,7 +162,8 @@ namespace Mindforge.Presentation
             }
 
             animator.applyRootMotion = false;
-            Vector3 velocity = motor != null ? Vector3.ProjectOnPlane(motor.Velocity, Vector3.up) : Vector3.zero;
+            Vector3 worldVelocity = motor != null ? motor.Velocity : Vector3.zero;
+            Vector3 velocity = Vector3.ProjectOnPlane(worldVelocity, Vector3.up);
             Vector3 aim = input != null ? Vector3.ProjectOnPlane(input.CurrentAimDirection, Vector3.up) : transform.forward;
             if (aim.sqrMagnitude < 0.01f) aim = transform.forward;
             aim.Normalize();
@@ -155,10 +172,14 @@ namespace Mindforge.Presentation
             float forward = Vector3.Dot(velocity, aim);
             float strafe = Vector3.Dot(velocity, right);
             float speed = velocity.magnitude;
+            bool grounded = motor == null || motor.IsGrounded;
 
             SetFloat(Speed, speed, 0.08f);
             SetFloat(MoveX, strafe, 0.08f);
             SetFloat(MoveY, forward, 0.08f);
+            SetFloat(VerticalSpeed, worldVelocity.y, 0.04f);
+            SetBool(Grounded, grounded);
+            SetBool(Airborne, !grounded);
             SetBool(Attack, combat != null && combat.IsAttacking);
             SetFloat(AttackProgress, combat != null ? combat.AttackProgress : 0f, 0.02f);
             SetInt(ComboStep, combat != null ? combat.ComboStep : 0);
@@ -197,6 +218,14 @@ namespace Mindforge.Presentation
         private void OnPerfectGuard() => SetTrigger(PerfectGuard);
         private void OnGuardBreak() => SetTrigger(GuardBreak);
         private void OnDodge() => SetTrigger(Dodge);
+        private void OnJump() => SetTrigger(Jump);
+
+        private void OnLand(float impactSpeed)
+        {
+            SetFloat(LandingImpact, impactSpeed, 0f);
+            SetTrigger(Land);
+        }
+
         private void OnHit(DamagePacket packet) => SetTrigger(Hit);
     }
 }

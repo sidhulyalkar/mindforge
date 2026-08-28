@@ -18,8 +18,9 @@ def test_guardian_input_tape_is_fixed_tick_versioned_and_fail_neutral():
     tape = read("GuardianInputTape.cs")
     assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
     assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
-    assert "schema = GuardianInputTape.SchemaV2" in tape
-    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2" in tape
+    assert 'SchemaV3 = "mindforge.guardian_input_tape.v3"' in tape
+    assert "schema = GuardianInputTape.SchemaV3" in tape
+    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3" in tape
     assert "GuardianInputTapeMode.Live" in tape
     assert "GuardianInputTapeMode.Record" in tape
     assert "GuardianInputTapeMode.Replay" in tape
@@ -31,6 +32,7 @@ def test_guardian_input_tape_is_fixed_tick_versioned_and_fail_neutral():
     assert "replay exhausted; returning neutral commands" in tape
     assert "RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)" in tape
     assert "sword_attack_down" in tape and "guard_held" in tape and "guard_down" in tape
+    assert "jump_down" in tape and "jump_held" in tape
 
 
 def test_guardian_input_recording_does_not_write_per_tick():
@@ -55,9 +57,6 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     fixed_body = source[fixed_start:apply_start]
     apply_body = source[apply_start:]
 
-    # Update is conventional action sampling/latching only. Movement deliberately
-    # bypasses legacy axes. Third-person orbit belongs to the camera, and target-lock
-    # ownership belongs to GuardianTargetLock rather than this fixed-tick command path.
     assert "Input.GetAxisRaw" not in update_body
     for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
         assert key in update_body
@@ -67,23 +66,30 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "toggleKey = KeyCode.T" in lock
     assert "Input.GetKeyDown(toggleKey)" in lock
     assert "Input.GetKeyDown(KeyCode.T)" not in update_body
-    assert "Input.GetKeyDown" in update_body
-    assert "Input.GetMouseButtonDown" in update_body
+    assert "Input.GetKeyDown(KeyCode.Space)" in update_body
+    assert "Input.GetKey(KeyCode.Space)" in update_body
+    assert "Input.GetKeyDown(KeyCode.LeftControl)" in update_body
+    assert "Input.GetKeyDown(KeyCode.LeftAlt)" in update_body
     assert "combat.FirePulse" not in update_body
     assert "combat.RiftCleave" not in update_body
     assert "motor.RequestDash" not in update_body
+    assert "motor.RequestJump" not in update_body
     assert "physicalCombat?.TryLightAttack" not in update_body
 
     assert "GuardianCommandFrame" in fixed_body
+    assert "jump_down = _jumpLatched" in fixed_body
+    assert "jump_held = _jumpHeld" in fixed_body
     assert "_cleaveLatched = false" in fixed_body
     assert "_counterLatched = false" in fixed_body
     assert "_dashLatched = false" in fixed_body
+    assert "_jumpLatched = false" in fixed_body
     assert "_bloomLatched = false" in fixed_body
     assert "_swordAttackLatched = false" in fixed_body
     assert "_guardDownLatched = false" in fixed_body
     assert "inputTape.Resolve" in fixed_body
 
     assert "motor.SetMoveInput(command.Move)" in apply_body
+    assert "motor.SetJumpHeld(command.jump_held)" in apply_body
     assert "if (!CombatActionsEnabled)" in apply_body
     assert "physicalCombat?.SetGuardHeld(false, aim)" in apply_body
     assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in apply_body
@@ -95,11 +101,15 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in apply_body
     assert "if (command.fire_held) combat.FirePulse(aim);" in apply_body
     assert "motor.RequestDash(aim)" in apply_body
+    assert "motor.RequestJump()" in apply_body
 
-    # One fixed command frame may commit at most one action. Preserve the explicit
-    # refusal/arbitration order so held Pulse cannot tunnel under higher-priority moves.
+    # The disabled-combat branch intentionally permits conventional traversal, so scope
+    # the action-arbitration order to the normal combat branch rather than matching its
+    # earlier traversal-only jump handler.
+    arbitration = apply_body[apply_body.index("// One fixed command frame owns at most one committed action."):]
     order = (
         "if (command.dash_down",
+        "if (command.jump_down",
         "physicalCombat?.SetGuardHeld(command.guard_held, aim)",
         "if (command.sword_attack_down)",
         "physicalCombat.ActionState != GuardianActionState.Locomotion",
@@ -108,7 +118,7 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
         "if (command.bloom_down",
         "if (command.fire_held)",
     )
-    indices = [apply_body.index(token) for token in order]
+    indices = [arbitration.index(token) for token in order]
     assert indices == sorted(indices)
 
 

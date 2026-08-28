@@ -220,11 +220,15 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
     assert "targetLock.DirectionFrom(transform.position)" in combat_input
     assert "Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
+    assert "Input.GetKeyDown(KeyCode.LeftControl)" in combat_input
+    assert "Input.GetKeyDown(KeyCode.LeftAlt)" in combat_input
     assert "Input.GetKeyDown(KeyCode.F)" in combat_input
     assert "Input.GetKey(KeyCode.LeftShift)" in combat_input
     assert "Input.GetKey(KeyCode.E)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Q)" in combat_input
     assert "sword_attack_down = _swordAttackLatched" in combat_input
+    assert "jump_down = _jumpLatched" in combat_input
+    assert "jump_held = _jumpHeld" in combat_input
     assert "guard_held = _guardHeld" in combat_input
     assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in combat_input
     assert "physicalCombat.TryLightAttack(aim)" in combat_input
@@ -235,8 +239,11 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
 
     assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
     assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
-    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2" in tape
+    assert 'SchemaV3 = "mindforge.guardian_input_tape.v3"' in tape
+    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3" in tape
     assert "sword_attack_down = sword_attack_down" in tape
+    assert "jump_down = jump_down" in tape
+    assert "jump_held = jump_held" in tape
     assert "guard_held = guard_held" in tape
 
 
@@ -266,7 +273,8 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     assert "shieldLight.intensity" in rig
 
     assert '"GUARD"' in hud
-    assert '"F  SWORD   SPACE  DODGE   SHIFT  PULSE   TAB  BUILD"' in hud
+    assert '"F SWORD · SPACE JUMP · CTRL/ALT DODGE"' in hud
+    assert "SPACE  DODGE" not in hud
     assert '"HP {bossVitals.Health:F0} / {bossVitals.MaxHealth:F0}"' in hud
     assert '"AETHER PARRY' in hud
 
@@ -277,6 +285,7 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     assert '"MOUSE / ARROWS"' in menu
     assert '"T"' in menu
     assert '"SPACE"' in menu
+    assert '"CTRL / ALT"' in menu
     assert '"F / LMB"' in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
 

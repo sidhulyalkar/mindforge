@@ -102,11 +102,7 @@ def test_guardian_forward_travel_is_fast_and_reaches_speed_quickly_on_fixed_tick
     ):
         assert token in motor
 
-    # Camera-relative vector input remains clamped, so diagonal movement does not add an
-    # accidental sqrt(2) speed bonus on top of the directional profile.
     assert "Vector3.ClampMagnitude(right * _moveInput.x + forward * _moveInput.y, 1f)" in motor
-
-    # Movement feel changes must not introduce render-frame gameplay timing.
     assert "private void Update()" not in motor
     assert "Time.deltaTime" not in motor
 
@@ -118,7 +114,7 @@ def test_guardian_forward_travel_is_fast_and_reaches_speed_quickly_on_fixed_tick
         assert forbidden not in motor
 
 
-def test_procedural_stride_cadence_scales_with_new_world_space_speed():
+def test_procedural_stride_cadence_scales_with_speed_and_stops_cycling_in_air():
     polish = read("Presentation", "GuardianMotionPolish.cs")
 
     for token in (
@@ -127,17 +123,21 @@ def test_procedural_stride_cadence_scales_with_new_world_space_speed():
         "maximumStrideHz = 4.10f",
         "speed / Mathf.Max(0.1f, fullStrideReferenceSpeed)",
         "float strideHz = Mathf.Lerp(",
-        "_locomotionPhase += dt * strideHz * Mathf.PI * 2f",
-        "intentional sprint/run rather than procedural moonwalking",
+        "if (grounded) _locomotionPhase += dt * strideHz * Mathf.PI * 2f",
+        "bool grounded = motor == null || motor.IsGrounded",
+        "groundedMove01",
+        "rise01",
+        "fall01",
     ):
         assert token in polish
 
-    # Presentation cadence can react to motor velocity, but it never feeds back into
-    # movement or combat authority.
+    # Presentation cadence can react to motor velocity/grounding, but never feeds back
+    # into movement or combat authority.
     for forbidden in (
         "body.MovePosition(",
         "body.velocity =",
         "RequestDash(",
+        "RequestJump(",
         "ReceiveDamage(",
         "TryLightAttack(",
         "TryApply(",

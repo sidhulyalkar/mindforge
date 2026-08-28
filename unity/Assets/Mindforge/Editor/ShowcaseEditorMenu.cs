@@ -53,7 +53,7 @@ namespace Mindforge.Editor
             if (gameViewType == null) return;
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
             gameView?.Focus();
-            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; T locks target; Space dodges; G interacts.");
+            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; Space jumps; Ctrl/Alt dodges; T locks target; G interacts.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -90,6 +90,7 @@ namespace Mindforge.Editor
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
+                NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
             }
             finally
             {
@@ -108,12 +109,12 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Null Ward cinematic slice ready. The controller-only path now runs from " +
                 "the Memory Forge through the Synapse Causeway and Null Market, includes an eastern maintenance " +
-                "loop with a persistent shortcut, opens the Protocol Veil after the required encounters, and " +
-                "hands the existing Arena V3 to The Fractured Signal. The visual V2 pass adds collider-free " +
-                "static architectural detail, static batching/occlusion eligibility and authored-art anchors. " +
-                "A presentation-budget report is emitted before Play Mode; controller-only runtime performance " +
-                "evidence is emitted during play. Runtime installs the third-person camera, conventional " +
-                "multi-target lock, pooled effects and stable Wisp gaze anchors.");
+                "loop with a persistent shortcut and optional jump line, opens the Protocol Veil after the required " +
+                "encounters, and hands the existing Arena V3 to The Fractured Signal. The visual V2 pass adds " +
+                "collider-free static architectural detail, static batching/occlusion eligibility and authored-art " +
+                "anchors. A presentation-budget report is emitted before Play Mode; controller-only runtime " +
+                "performance evidence is emitted during play. Runtime installs the tighter third-person camera, " +
+                "conventional multi-target lock, grounded jump/dodge motor, pooled effects and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
