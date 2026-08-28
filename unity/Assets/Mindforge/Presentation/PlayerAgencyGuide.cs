@@ -177,13 +177,13 @@ namespace Mindforge.Presentation
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK ON   ·   SPACE JUMP   ·   CTRL / ALT DODGE   ·   F SWORD   |   third-person combat";
+                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK   ·   SPACE JUMP ×2 / HOLD HOVER   ·   SHIFT DASH / AIR DASH   ·   F SWORD";
             if (!_shieldRaised)
                 return "RMB / E HOLD SHIELD   |   T lock-on keeps you facing the threat while WASD strafes around it";
             if (!_shieldBlocked)
-                return "READ THE TELEGRAPH   |   block with RMB/E, dodge with Ctrl/Alt, jump terrain with Space, or time a PERFECT GUARD reflect";
+                return "READ THE TELEGRAPH   |   block with RMB/E, SHIFT through danger, or jump above low pressure and hover briefly to reposition";
             if (!_pulseUsed)
-                return "SHIFT PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   orbit, punish, disengage";
+                return "X / MMB PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   air dash to change lanes mid-combat";
             if (!_cleaveUsed || !_counterUsed)
                 return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   neural focus amplifies tools you already control";
             return "BUILD FLUX   |   near miss, sword/shield parry, Echo pressure and Signal Break create your high-impact R windows";
@@ -246,9 +246,9 @@ namespace Mindforge.Presentation
                 : "BCI: bounded blade/shield resonance after accepted Sight/Guard";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: WASD move · mouse/arrows camera · T lock · Space jump · Ctrl/Alt dodge · sword · shield · skills", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 66f, width - 32f, 42f), bci, _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never moves, jumps, locks a target, rotates the camera, swings, blocks, dodges, fires, or parries", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 38f), "HANDS: WASD move · camera · T lock · Space jump/double-jump/hover · Shift dash/air-dash · sword · shield · skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 78f, width - 32f, 32f), bci, _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 112f, width - 32f, 40f), "EEG never moves, jumps, hovers, air-dashes, locks a target, rotates the camera, swings, blocks, fires, or parries", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 156f, width - 32f, 20f), "T is conventional target lock · F10 hides this explainer", _leftStyle);
         }
 
