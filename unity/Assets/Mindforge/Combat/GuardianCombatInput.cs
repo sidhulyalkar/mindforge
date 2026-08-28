@@ -73,6 +73,27 @@ namespace Mindforge.Combat
             _currentAimPoint = transform.position + transform.forward * freeAimDistance;
         }
 
+        private void OnDisable()
+        {
+            // Authority suspension must not preserve an edge-trigger from the frame before
+            // death/checkpoint/calibration. Otherwise a re-enabled component can issue a
+            // phantom jump, dodge or attack on its first fixed command frame.
+            _move = Vector2.zero;
+            _fireHeld = false;
+            _cleaveLatched = false;
+            _counterLatched = false;
+            _dashLatched = false;
+            _jumpLatched = false;
+            _jumpHeld = false;
+            _bloomLatched = false;
+            _swordAttackLatched = false;
+            _guardHeld = false;
+            _guardDownLatched = false;
+            motor?.SetMoveInput(Vector2.zero);
+            motor?.SetJumpHeld(false);
+            physicalCombat?.SetGuardHeld(false, _currentAimDirection);
+        }
+
         private void Update()
         {
             // WASD is sampled directly so movement never depends on Unity Input Manager
