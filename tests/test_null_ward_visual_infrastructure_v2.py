@@ -30,7 +30,6 @@ def test_visual_v2_detail_is_collider_free_shared_material_and_static_optimized(
         '"AetherCyan"',
         '"WispVerdant"',
         '"FracturedRing"',
-        "material.enableInstancing = true",
         "StaticEditorFlags.BatchingStatic",
         "StaticEditorFlags.OccluderStatic",
         "StaticEditorFlags.OccludeeStatic",
@@ -39,6 +38,11 @@ def test_visual_v2_detail_is_collider_free_shared_material_and_static_optimized(
         "renderer.shadowCastingMode = castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off",
     ):
         assert token in source
+
+    # URP Lit is normally SRP-Batcher compatible. Do not churn shared material assets
+    # by blindly toggling GPU instancing, which Unity documents as a separate path that
+    # does not combine with the ordinary SRP Batcher GameObject path.
+    assert "enableInstancing" not in source
 
     # Dynamic/semantic renderers must never be frozen into environment batching.
     for token in (
