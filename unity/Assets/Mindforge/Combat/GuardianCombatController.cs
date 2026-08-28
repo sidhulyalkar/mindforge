@@ -18,6 +18,7 @@ namespace Mindforge.Combat
         [SerializeField] private MindforgeProjectile projectilePrefab;
         [SerializeField] private Transform muzzle;
         [SerializeField] private Transform primaryTarget;
+        [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private LayerMask damageMask;
         [SerializeField] private LayerMask projectileMask;
 
@@ -33,6 +34,12 @@ namespace Mindforge.Combat
 
         public bool ConcordActive => auras != null && auras.ConcordActive;
         public Transform PrimaryTarget { get => primaryTarget; set => primaryTarget = value; }
+        public Transform CurrentConventionalTarget => CombatTargetResolver.Resolve(targetLock, primaryTarget);
+
+        private void Awake()
+        {
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+        }
 
         private void OnEnable()
         {
@@ -139,9 +146,13 @@ namespace Mindforge.Combat
         private void ScanCounterProjectiles()
         {
             if (tuning == null) return;
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            Transform target = CombatTargetResolver.Resolve(targetLock, primaryTarget);
+            if (target == null) return;
+
             int count = Physics.OverlapSphereNonAlloc(transform.position, tuning.counterRadius, _hits, projectileMask, QueryTriggerInteraction.Collide);
             bool reflectedAny = false;
-            Vector3 impactDirection = primaryTarget != null ? primaryTarget.position - transform.position : transform.forward;
+            Vector3 impactDirection = target.position - transform.position;
 
             for (int i = 0; i < count; i++)
             {
@@ -151,7 +162,7 @@ namespace Mindforge.Combat
                 float baselineDamage = tuning.reflectedDamage;
                 float reflectedDamage = baselineDamage * (concord ? 1.25f : 1f);
                 p.ReflectTowards(
-                    primaryTarget,
+                    target,
                     tuning.bloomReleaseSpeed,
                     reflectedDamage,
                     tuning.reflectedPoise * (concord ? 1.25f : 1f),
