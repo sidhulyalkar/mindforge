@@ -10,10 +10,11 @@ namespace Mindforge.Combat
     /// - WASD: camera-relative movement
     /// - Mouse/trackpad or arrow keys: orbit camera (handled by ShowcaseCameraRig)
     /// - T: conventional target lock (handled by GuardianTargetLock)
-    /// - Space: jump
-    /// - Left Ctrl / Left Alt: directional dodge/dash
+    /// - Space: jump / double jump; hold while descending to hover / slow fall
+    /// - Left/Right Shift: directional dodge / air dash
+    /// - Left Ctrl / Left Alt: compatibility dodge aliases
     /// - F or LMB: sword light/combo/parry
-    /// - Left/Right Shift: Pulse Shot
+    /// - X or MMB: Pulse Shot
     /// - RMB or E: shield
     /// - Q: Rift Cleave
     /// - C: Counter Pulse
@@ -21,7 +22,7 @@ namespace Mindforge.Combat
     ///
     /// Free combat heading follows the camera. Locked combat heading follows the locked
     /// enemy. Neural evidence never originates movement, target lock, attack, guard,
-    /// camera orbit, aim, jump or dodge commands.
+    /// camera orbit, aim, jump, hover or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -103,15 +104,23 @@ namespace Mindforge.Combat
 
             _jumpLatched |= Input.GetKeyDown(KeyCode.Space);
             _jumpHeld = Input.GetKey(KeyCode.Space);
-            _dashLatched |= Input.GetKeyDown(KeyCode.LeftControl) ||
+
+            // Shift is the primary traversal dodge on both ground and air. Ctrl/Alt are
+            // retained as compatibility aliases so old muscle memory and demos do not break.
+            _dashLatched |= Input.GetKeyDown(KeyCode.LeftShift) ||
+                            Input.GetKeyDown(KeyCode.RightShift) ||
+                            Input.GetKeyDown(KeyCode.LeftControl) ||
                             Input.GetKeyDown(KeyCode.RightControl) ||
                             Input.GetKeyDown(KeyCode.LeftAlt) ||
                             Input.GetKeyDown(KeyCode.RightAlt);
+
             _swordAttackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
             bool guardPressed = Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(1);
             _guardDownLatched |= guardPressed;
             _guardHeld = Input.GetKey(KeyCode.E) || Input.GetMouseButton(1);
-            _fireHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+            // Pulse moved off Shift so dash owns the high-frequency traversal key.
+            _fireHeld = Input.GetKey(KeyCode.X) || Input.GetMouseButton(2);
             _cleaveLatched |= Input.GetKeyDown(KeyCode.Q);
             _counterLatched |= Input.GetKeyDown(KeyCode.C);
             _bloomLatched |= Input.GetKeyDown(KeyCode.R);
@@ -262,9 +271,9 @@ namespace Mindforge.Combat
                 return;
             }
 
-            // One fixed command frame owns at most one committed action. Dodge has first
-            // refusal, then jump, guard, sword/combo, and finally one special. Held Pulse
-            // is intentionally lowest priority so it cannot layer underneath one-shot moves.
+            // One fixed command frame owns at most one committed action. Dash has first
+            // refusal on ground and in air, then jump/double-jump, guard, sword/combo,
+            // and finally one special. Held Pulse is intentionally lowest priority.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
                 physicalCombat?.SetGuardHeld(false, aim);
