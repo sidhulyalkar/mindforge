@@ -89,6 +89,7 @@ namespace Mindforge.Editor
                 // Signal Cathedral threshold without translating Arena V3 rune geometry.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
+                NullWardEnemySilhouetteBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
             }
@@ -110,11 +111,11 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Null Ward cinematic slice ready. The controller-only path now runs from " +
                 "the Memory Forge through the Synapse Causeway and Null Market, includes an eastern maintenance " +
                 "loop with a persistent shortcut and optional jump line, opens the Protocol Veil after the required " +
-                "encounters, and hands the existing Arena V3 to The Fractured Signal. The visual V2 pass adds " +
-                "collider-free static architectural detail, static batching/occlusion eligibility and authored-art " +
-                "anchors. A presentation-budget report is emitted before Play Mode; controller-only runtime " +
-                "performance evidence is emitted during play. Runtime installs the tighter third-person camera, " +
-                "conventional multi-target lock, grounded jump/dodge motor, pooled effects and stable Wisp gaze anchors.");
+                "encounters, and hands the existing Arena V3 to The Fractured Signal. Ordinary Null Ward enemies " +
+                "now receive archetype-specific collider-free silhouettes before the visual V2 architectural pass. " +
+                "A presentation-budget report is emitted before Play Mode; controller-only runtime performance " +
+                "evidence is emitted during play. Runtime installs the tighter third-person camera, conventional " +
+                "multi-target lock, grounded jump/dodge motor, pooled effects and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
