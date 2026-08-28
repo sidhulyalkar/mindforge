@@ -11,18 +11,27 @@ namespace Mindforge.Combat
 
         public float Current { get; private set; }
         public float Max => maxPoise;
-        public bool Broken => Time.time < _brokenUntil;
-        public float BreakRemaining => Mathf.Max(0f, _brokenUntil - Time.time);
+        public bool Broken => FixedTick < _brokenUntilTick;
+        public float BreakRemaining => Mathf.Max(0f, (_brokenUntilTick - FixedTick) * Time.fixedDeltaTime);
 
-        private float _brokenUntil;
+        private long _brokenUntilTick = long.MinValue / 4;
         public event Action BrokenEvent;
 
-        private void Awake() => Current = maxPoise;
+        private long FixedTick
+        {
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
 
-        private void Update()
+        private void Awake() => ResetFull();
+
+        private void FixedUpdate()
         {
             if (Broken) return;
-            Current = Mathf.Min(maxPoise, Current + recoveryPerSecond * Time.deltaTime);
+            Current = Mathf.Min(maxPoise, Current + recoveryPerSecond * Time.fixedDeltaTime);
         }
 
         public bool Apply(float amount)
@@ -31,9 +40,21 @@ namespace Mindforge.Combat
             Current = Mathf.Max(0f, Current - amount);
             if (Current > 0f) return false;
             Current = maxPoise;
-            _brokenUntil = Time.time + breakDuration;
+            _brokenUntilTick = FixedTick + SecondsToTicks(Mathf.Max(0f, breakDuration));
             BrokenEvent?.Invoke();
             return true;
+        }
+
+        public void ResetFull()
+        {
+            Current = Mathf.Max(0f, maxPoise);
+            _brokenUntilTick = long.MinValue / 4;
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
     }
 }
