@@ -114,7 +114,7 @@ namespace Mindforge.World
             if (bossVitals != null) bossVitals.Died -= OnBossDied;
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
             if (!_initialized) InitializeWorld();
             if (_completed || player == null || playerVitals == null || !playerVitals.IsAlive) return;
