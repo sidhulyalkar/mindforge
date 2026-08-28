@@ -12,10 +12,10 @@ namespace Mindforge.Editor
     /// <summary>
     /// Additive visual-infrastructure pass for the shipping Null Ward scene.
     ///
-    /// It creates collider-free modular detail and authored-art anchors, enables GPU
-    /// instancing on the shared cinematic material vocabulary, and marks only proven
-    /// static architectural MeshRenderers for Unity static batching/occlusion systems.
+    /// It creates collider-free modular detail and authored-art anchors and marks only
+    /// proven static architectural MeshRenderers for Unity static batching/occlusion.
     /// Gameplay actors, gates, Echoes, LineRenderers and particle renderers are excluded.
+    /// Shared URP materials are not mutated by this pass.
     /// </summary>
     public static class NullWardVisualInfrastructureBuilder
     {
@@ -27,16 +27,6 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        private static readonly string[] SharedMaterialNames =
-        {
-            "ArenaBasalt",
-            "ObsidianArchitecture",
-            "GuardianMetal",
-            "AetherCyan",
-            "WispVerdant",
-            "FracturedRing",
-        };
-
         [MenuItem("Mindforge/Showcase/Apply Null Ward Visual Infrastructure V2", priority = 25)]
         public static void ApplyOpenScene()
         {
@@ -44,7 +34,6 @@ namespace Mindforge.Editor
             if (ward == null)
                 throw new InvalidOperationException("Build the Null Ward before applying visual infrastructure V2.");
 
-            EnableSharedMaterialInstancing();
             CreateArtAnchors(ward.transform);
             BuildStaticDetail(ward.transform);
             OptimizeStaticScenery(ward.transform);
@@ -54,22 +43,8 @@ namespace Mindforge.Editor
             EditorSceneManager.SaveOpenScenes();
             AssetDatabase.SaveAssets();
             Debug.Log(
-                "[Mindforge:NullWardVisualV2] Static detail, production-art anchors, shared-material instancing " +
-                "and static batching/occlusion flags applied without changing gameplay or BCI authority.");
-        }
-
-        private static void EnableSharedMaterialInstancing()
-        {
-            for (int i = 0; i < SharedMaterialNames.Length; i++)
-            {
-                Material material = CinematicMaterialAuthoring.Load(SharedMaterialNames[i]);
-                if (material == null) continue;
-                if (!material.enableInstancing)
-                {
-                    material.enableInstancing = true;
-                    EditorUtility.SetDirty(material);
-                }
-            }
+                "[Mindforge:NullWardVisualV2] Static detail, production-art anchors and " +
+                "static batching/occlusion flags applied without changing gameplay, shared material assets or BCI authority.");
         }
 
         private static void CreateArtAnchors(Transform ward)
@@ -128,8 +103,6 @@ namespace Mindforge.Editor
 
         private static void BuildMemoryForgeDetail(Transform parent, Material metal, Material cyan, Material viridian)
         {
-            // Tall reconstruction fins create a readable sanctuary silhouette without
-            // adding collision or another realtime-light stack.
             for (int i = 0; i < 7; i++)
             {
                 float angle = (-78f + i * 26f) * Mathf.Deg2Rad;
