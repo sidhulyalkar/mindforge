@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -25,11 +26,33 @@ namespace Mindforge.Editor
             BuildScene();
             EditorPrefs.SetBool(ShowcasePreviewBootstrap.EditorPreferenceKey, true);
             Selection.activeGameObject = GameObject.Find("Guardian");
+
+            // Starting Play Mode from a menu can leave keyboard focus on the Scene,
+            // Console or Inspector window. Register before entering play so the Game
+            // view explicitly receives WASD/arrow/Space input on laptops.
+            EditorApplication.playModeStateChanged -= FocusGameViewWhenPlayStarts;
+            EditorApplication.playModeStateChanged += FocusGameViewWhenPlayStarts;
             EditorApplication.delayCall += () =>
             {
                 if (!EditorApplication.isPlayingOrWillChangePlaymode)
                     EditorApplication.isPlaying = true;
             };
+        }
+
+        private static void FocusGameViewWhenPlayStarts(PlayModeStateChange state)
+        {
+            if (state != PlayModeStateChange.EnteredPlayMode) return;
+            EditorApplication.playModeStateChanged -= FocusGameViewWhenPlayStarts;
+            EditorApplication.delayCall += FocusGameView;
+        }
+
+        private static void FocusGameView()
+        {
+            Type gameViewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.GameView");
+            if (gameViewType == null) return;
+            EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
+            gameView?.Focus();
+            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; arrows/mouse aim; Space dashes.");
         }
 
         // Preserve the old menu path as an explicit alias so existing docs/workflows do
