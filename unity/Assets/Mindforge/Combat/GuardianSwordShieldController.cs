@@ -15,6 +15,26 @@ namespace Mindforge.Combat
         GuardBroken = 4,
     }
 
+    /// <summary>
+    /// Small authoritative action vocabulary. It exists so gameplay can answer action
+    /// permission questions without consulting Animator state, animation events or VFX.
+    /// </summary>
+    public enum GuardianActionState
+    {
+        Locomotion = 0,
+        AttackStartup = 1,
+        AttackActive = 2,
+        AttackRecovery = 3,
+        Guard = 4,
+        PerfectGuardRecovery = 5,
+        Counter = 6,
+        Dodge = 7,
+        Stagger = 8,
+        GuardBreak = 9,
+        Interaction = 10,
+        Dead = 11,
+    }
+
     public sealed class GuardianShieldHitbox : MonoBehaviour
     {
         [SerializeField] private GuardianSwordShieldController owner;
@@ -42,6 +62,9 @@ namespace Mindforge.Combat
     /// remains a defensive pressure budget so holding the shield forever is not free.
     /// Accepted neural state may only modulate bounded properties of an action the
     /// player has already chosen.
+    ///
+    /// Combat commitment is fixed-tick authoritative. Animation/VFX are presentation
+    /// consumers and never grant contact, invulnerability, guarding or combo permission.
     /// </summary>
     public sealed class GuardianSwordShieldController : MonoBehaviour
     {
@@ -61,16 +84,12 @@ namespace Mindforge.Combat
         [SerializeField] private LayerMask damageMask = ~0;
 
         [Header("Sword physics")]
-        [SerializeField] private float attackRecoverySeconds = 0.12f;
         [SerializeField] private float sightReachBonus = 0.42f;
         [SerializeField] private float referenceSwingMomentum = 37.5f;
-        [SerializeField, Range(0.2f, 1f)] private float attackingMoveMultiplier = 0.78f;
 
-        [Header("Sword light chain")]
-        [SerializeField, Range(0.2f, 0.9f)] private float comboQueueOpensAt = 0.48f;
-        [SerializeField] private float comboResetSeconds = 0.72f;
-        [SerializeField] private float finisherDamageMultiplier = 1.28f;
-        [SerializeField] private float finisherPoiseMultiplier = 1.55f;
+        [Header("Sword light chain · 120 Hz fixed-tick authority")]
+        [SerializeField] private AttackDefinition[] lightChain;
+        [SerializeField, Min(1)] private int comboResetTicks = 86;
 
         [Header("Sword projectile parry")]
         [SerializeField] private bool swordParryEnabled = true;
@@ -84,6 +103,8 @@ namespace Mindforge.Combat
         [SerializeField, Range(0.2f, 1f)] private float guardMoveMultiplier = 0.70f;
         [SerializeField, Range(0f, 1f)] private float guardIntegrityRecoveryMultiplier = 0.34f;
         [SerializeField, Range(0f, 1f)] private float guardBreakDamageLeak = 0.62f;
+        [SerializeField, Min(1)] private int guardBreakLockTicks = 42;
+        [SerializeField, Range(0f, 1f)] private float guardBreakMoveMultiplier = 0.28f;
 
         [Header("Shield neural modulation")]
         [SerializeField] private float maxGuardCoverageBonus = 0.78f;
@@ -97,11 +118,12 @@ namespace Mindforge.Combat
         private readonly HashSet<int> _hitThisSwing = new HashSet<int>();
         private readonly HashSet<int> _parriedProjectilesThisSwing = new HashSet<int>();
         private bool _guardHeld;
-        private float _guardStartedAt = -999f;
-        private float _attackStartedAt = -999f;
-        private float _attackEndsAt = -999f;
-        private float _attackRecoveryUntil = -999f;
-        private float _comboResetAt = -999f;
+        private long _guardStartedTick = long.MinValue / 4;
+        private long _guardBreakUntilTick = long.MinValue / 4;
+        private long _attackStartedTick = long.MinValue / 4;
+        private long _attackCommitEndTick = long.MinValue / 4;
+        private long _attackRecoveryUntilTick = long.MinValue / 4;
+        private long _comboResetTick = long.MinValue / 4;
         private Vector3 _attackAim = Vector3.forward;
         private Vector3 _guardAim = Vector3.forward;
         private int _comboStep;
@@ -118,18 +140,66 @@ namespace Mindforge.Combat
         public event Action GuardBroken;
         public event Action<GuardStrikeResult, float, float> MeleeGuardResolved;
 
+        private long FixedTick
+        {
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
+
+        private AttackDefinition CurrentAttackDefinition
+        {
+            get
+            {
+                EnsureAttackDefinitions();
+                int index = _comboStep - 1;
+                return index >= 0 && index < lightChain.Length ? lightChain[index] : null;
+            }
+        }
+
+        private long AttackElapsedTicks => FixedTick - _attackStartedTick;
+
         public bool IsGuarding => _guardHeld;
-        public bool IsAttacking => Time.time < _attackEndsAt;
-        public bool CanDodge => !IsAttacking && Time.time >= _attackRecoveryUntil;
-        public float MovementMultiplier => IsGuarding ? guardMoveMultiplier : IsAttacking ? attackingMoveMultiplier : 1f;
+        public bool IsAttacking => FixedTick < _attackCommitEndTick;
+        public bool IsAttackActive => IsAttacking && CurrentAttackDefinition != null && CurrentAttackDefinition.IsActive(AttackElapsedTicks);
+        public bool IsAttackRecovering => !IsAttacking && FixedTick < _attackRecoveryUntilTick;
+        public GuardianActionState ActionState => ResolveActionState();
+        public bool CanAttack => ActionState == GuardianActionState.Locomotion;
+        public bool CanDodge => ActionState == GuardianActionState.Locomotion || ActionState == GuardianActionState.Guard;
+        public bool CanGuard => ActionState == GuardianActionState.Locomotion || ActionState == GuardianActionState.Guard;
+        public bool CanCounter => ActionState == GuardianActionState.Locomotion;
+        public bool CanMove => ActionState != GuardianActionState.Dead;
+        public bool CanTurn => ActionState != GuardianActionState.Dead && ActionState != GuardianActionState.GuardBreak;
+        public float MovementMultiplier
+        {
+            get
+            {
+                if (ActionState == GuardianActionState.GuardBreak) return Mathf.Clamp01(guardBreakMoveMultiplier);
+                if (IsGuarding) return guardMoveMultiplier;
+                AttackDefinition attack = CurrentAttackDefinition;
+                return IsAttacking && attack != null ? attack.MovementMultiplier : 1f;
+            }
+        }
+        public float TurnMultiplier
+        {
+            get
+            {
+                AttackDefinition attack = CurrentAttackDefinition;
+                return IsAttacking && attack != null ? attack.TurnMultiplier : ActionState == GuardianActionState.GuardBreak ? 0.25f : 1f;
+            }
+        }
         public int ComboStep => _comboStep;
         public Transform CurrentConventionalTarget => CombatTargetResolver.Resolve(targetLock, primaryTarget);
+        public string CurrentAttackId => CurrentAttackDefinition != null ? CurrentAttackDefinition.Id : string.Empty;
+        public string CurrentAttackPresentationId => CurrentAttackDefinition != null ? CurrentAttackDefinition.PresentationId : string.Empty;
         public float AttackProgress
         {
             get
             {
-                if (!IsAttacking) return 0f;
-                return Mathf.Clamp01((Time.time - _attackStartedAt) / Mathf.Max(0.01f, _attackEndsAt - _attackStartedAt));
+                AttackDefinition attack = CurrentAttackDefinition;
+                return IsAttacking && attack != null ? attack.AttackProgress(AttackElapsedTicks) : 0f;
             }
         }
         public float SightResonance => auras != null && auras.SightActive && resonance != null ? resonance.Sight : 0f;
@@ -144,6 +214,7 @@ namespace Mindforge.Combat
             if (auras == null) auras = GetComponent<AuraBuffController>();
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
             if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            EnsureAttackDefinitions();
         }
 
         public void ConfigureRuntime(
@@ -161,6 +232,7 @@ namespace Mindforge.Combat
             hitStop = stop;
             if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
             if (combatTuning != null) tuning = combatTuning;
+            EnsureAttackDefinitions();
         }
 
         public void SetFallbackTarget(Transform target) => primaryTarget = target;
@@ -169,12 +241,15 @@ namespace Mindforge.Combat
         {
             _guardHeld = false;
             _comboQueued = false;
+            _attackCommitEndTick = long.MinValue / 4;
+            _attackRecoveryUntilTick = long.MinValue / 4;
             shieldHitbox?.SetGuardActive(false);
             stamina?.SetRecoveryMultiplier(1f);
         }
 
         public bool TryLightAttack(Vector3 aimDirection)
         {
+            EnsureAttackDefinitions();
             WeaponSpec weapon = loadout != null ? loadout.MainHand : null;
             if (weapon == null || _guardHeld || (motor != null && motor.IsDashing)) return false;
 
@@ -184,7 +259,8 @@ namespace Mindforge.Combat
 
             if (IsAttacking)
             {
-                if (_comboStep < 3 && AttackProgress >= Mathf.Clamp01(comboQueueOpensAt))
+                AttackDefinition current = CurrentAttackDefinition;
+                if (_comboStep < lightChain.Length && current != null && current.ComboBufferOpen(AttackElapsedTicks))
                 {
                     _comboQueued = true;
                     _attackAim = aim;
@@ -193,23 +269,26 @@ namespace Mindforge.Combat
                 return false;
             }
 
-            if (Time.time < _attackRecoveryUntil) return false;
-            if (Time.time > _comboResetAt) _comboStep = 0;
-            int next = Mathf.Clamp(_comboStep + 1, 1, 3);
+            if (!CanAttack) return false;
+            if (FixedTick > _comboResetTick) _comboStep = 0;
+            int next = Mathf.Clamp(_comboStep + 1, 1, lightChain.Length);
             return BeginSwordStep(next, aim, weapon);
         }
 
         private bool BeginSwordStep(int step, Vector3 aim, WeaponSpec weapon)
         {
-            _comboStep = Mathf.Clamp(step, 1, 3);
+            EnsureAttackDefinitions();
+            if (weapon == null || lightChain == null || lightChain.Length == 0) return false;
+            _comboStep = Mathf.Clamp(step, 1, lightChain.Length);
+            AttackDefinition attack = CurrentAttackDefinition;
+            if (attack == null) return false;
+
             _comboQueued = false;
             _attackAim = aim.sqrMagnitude > 0.01f ? aim.normalized : transform.forward;
-            _attackStartedAt = Time.time;
-            float durationMultiplier = _comboStep == 1 ? 0.92f : _comboStep == 2 ? 0.96f : 1.10f;
-            float duration = Mathf.Max(0.08f, weapon.lightAttackSeconds * durationMultiplier);
-            _attackEndsAt = _attackStartedAt + duration;
-            _attackRecoveryUntil = _attackEndsAt + Mathf.Max(0f, attackRecoverySeconds) * (_comboStep == 3 ? 1.55f : 1f);
-            _comboResetAt = _attackRecoveryUntil + Mathf.Max(0.1f, comboResetSeconds);
+            _attackStartedTick = FixedTick;
+            _attackCommitEndTick = _attackStartedTick + attack.CommitmentTicks;
+            _attackRecoveryUntilTick = _attackStartedTick + attack.TotalTicks;
+            _comboResetTick = _attackRecoveryUntilTick + Mathf.Max(1, comboResetTicks);
             _hitThisSwing.Clear();
             _parriedProjectilesThisSwing.Clear();
             _projectileParriesThisSwing = 0;
@@ -223,12 +302,12 @@ namespace Mindforge.Combat
             Vector3 aim = Vector3.ProjectOnPlane(aimDirection, Vector3.up);
             if (aim.sqrMagnitude > 0.01f) _guardAim = aim.normalized;
 
-            bool canGuard = held && !IsAttacking && (motor == null || !motor.IsDashing) && stamina != null && stamina.Value > 0.01f;
+            bool canGuard = held && CanGuard && stamina != null && stamina.Value > 0.01f;
             if (_guardHeld == canGuard) return;
             _guardHeld = canGuard;
             if (_guardHeld)
             {
-                _guardStartedAt = Time.time;
+                _guardStartedTick = FixedTick;
                 _comboStep = 0;
                 _comboQueued = false;
             }
@@ -239,6 +318,8 @@ namespace Mindforge.Combat
 
         private void FixedUpdate()
         {
+            EnsureAttackDefinitions();
+
             if (IsAttacking)
             {
                 ResolveSwordSweep();
@@ -246,7 +327,7 @@ namespace Mindforge.Combat
             else if (_comboQueued)
             {
                 WeaponSpec weapon = loadout != null ? loadout.MainHand : null;
-                if (weapon != null && _comboStep < 3)
+                if (weapon != null && _comboStep < lightChain.Length)
                     BeginSwordStep(_comboStep + 1, _attackAim, weapon);
                 else
                     _comboQueued = false;
@@ -271,20 +352,14 @@ namespace Mindforge.Combat
         private void ResolveSwordSweep()
         {
             WeaponSpec weapon = loadout != null ? loadout.MainHand : null;
-            if (weapon == null) return;
-            float duration = Mathf.Max(0.08f, _attackEndsAt - _attackStartedAt);
-            float progress = AttackProgress;
+            AttackDefinition attack = CurrentAttackDefinition;
+            if (weapon == null || attack == null || !attack.IsActive(AttackElapsedTicks)) return;
 
-            const float activeStart = 0.24f;
-            const float activeEnd = 0.72f;
-            if (progress < activeStart || progress > activeEnd) return;
-
-            float activeT = Mathf.InverseLerp(activeStart, activeEnd, progress);
-            float sweepMultiplier = _comboStep == 3 ? 1.16f : _comboStep == 2 ? 1.04f : 1f;
-            float sweepDegrees = weapon.sweepDegrees * sweepMultiplier;
+            float activeT = attack.ActiveProgress(AttackElapsedTicks);
+            float sweepDegrees = weapon.sweepDegrees * attack.SweepMultiplier;
             float from = -sweepDegrees * 0.5f;
             float to = sweepDegrees * 0.5f;
-            if (_comboStep == 2)
+            if (attack.ReverseSweep)
             {
                 from = sweepDegrees * 0.5f;
                 to = -sweepDegrees * 0.5f;
@@ -292,25 +367,24 @@ namespace Mindforge.Combat
             float angle = Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, activeT));
             Vector3 bladeDirection = Quaternion.AngleAxis(angle, Vector3.up) * _attackAim;
             float resonanceValue = Mathf.Clamp01(SightResonance);
-            float reach = weapon.reachMeters * (1f + sightReachBonus * resonanceValue) * (_comboStep == 3 ? 1.08f : 1f);
+            float reach = weapon.reachMeters * (1f + sightReachBonus * resonanceValue) * attack.ReachMultiplier;
             Vector3 root = transform.position + Vector3.up * 0.58f;
             Vector3 tip = root + bladeDirection.normalized * reach;
-            float radius = Mathf.Max(0.05f, weapon.bladeRadius) * (_comboStep == 3 ? 1.18f : 1f);
+            float radius = Mathf.Max(0.05f, weapon.bladeRadius) * (attack.Heavy ? 1.18f : 1f);
             int count = Physics.OverlapCapsuleNonAlloc(root, tip, radius, _hits, damageMask, QueryTriggerInteraction.Collide);
 
-            float angularVelocity = Mathf.Deg2Rad * Mathf.Max(1f, sweepDegrees) / duration;
+            float activeSeconds = Mathf.Max(Time.fixedDeltaTime, attack.ActiveTicks * Time.fixedDeltaTime);
+            float angularVelocity = Mathf.Deg2Rad * Mathf.Max(1f, sweepDegrees) / activeSeconds;
             float swingMomentum = Mathf.Max(0.01f, weapon.massKg) * Mathf.Max(0.25f, reach) * angularVelocity;
             float impactScale = Mathf.Clamp(swingMomentum / Mathf.Max(1f, referenceSwingMomentum), 0.78f, 1.28f);
             float neuralMultiplier = auras != null && auras.SightActive
                 ? 1f + Mathf.Max(0f, auras.sightDamageMultiplier - 1f) * resonanceValue
                 : 1f;
-            float comboDamage = _comboStep == 1 ? 0.92f : _comboStep == 2 ? 1f : Mathf.Max(1f, finisherDamageMultiplier);
-            float comboPoise = _comboStep == 1 ? 0.90f : _comboStep == 2 ? 1f : Mathf.Max(1f, finisherPoiseMultiplier);
-            float baseDamage = weapon.baseDamage * impactScale * comboDamage;
+            float baseDamage = weapon.baseDamage * impactScale * attack.DamageMultiplier;
             float damage = baseDamage * neuralMultiplier;
             float bonusDamage = Mathf.Max(0f, damage - baseDamage);
-            float poise = weapon.poiseDamage * Mathf.Lerp(0.88f, 1.18f, impactScale) * comboPoise;
-            float impulse = Mathf.Clamp(swingMomentum * 0.18f * (_comboStep == 3 ? 1.35f : 1f), 3f, 11.5f);
+            float poise = weapon.poiseDamage * Mathf.Lerp(0.88f, 1.18f, impactScale) * attack.PoiseMultiplier;
+            float impulse = Mathf.Clamp(swingMomentum * 0.18f * attack.KnockbackMultiplier, 3f, 11.5f);
 
             for (int i = 0; i < count; i++)
             {
@@ -331,10 +405,10 @@ namespace Mindforge.Combat
                     delta.sqrMagnitude > 0.01f ? delta.normalized * impulse : bladeDirection.normalized * impulse,
                     hit.ClosestPoint(tip),
                     CombatTeam.Guardian,
-                    _comboStep == 3,
+                    attack.Heavy,
                     bonusDamage > 0f ? "SIGHT_SWORD_DAMAGE" : null,
                     bonusDamage));
-                hitStop?.Pulse(tuning != null ? (_comboStep == 3 ? tuning.heavyHitStop : tuning.lightHitStop) : (_comboStep == 3 ? 0.055f : 0.02f));
+                hitStop?.Pulse(tuning != null ? (attack.Heavy ? tuning.heavyHitStop : tuning.lightHitStop) : (attack.Heavy ? 0.055f : 0.02f));
                 SwordHit?.Invoke(damage, bonusDamage);
             }
         }
@@ -485,7 +559,10 @@ namespace Mindforge.Combat
         }
 
         private bool IsPerfectGuardWindow(ShieldSpec shield)
-            => Time.time - _guardStartedAt <= Mathf.Max(0.02f, shield.perfectGuardWindowSeconds);
+        {
+            int perfectTicks = SecondsToTicks(Mathf.Max(0.02f, shield.perfectGuardWindowSeconds));
+            return FixedTick - _guardStartedTick <= perfectTicks;
+        }
 
         private void ApplyShieldChip(float chip, Vector3 point, bool heavy)
         {
@@ -503,10 +580,41 @@ namespace Mindforge.Combat
         {
             if (!_guardHeld) return;
             _guardHeld = false;
+            _guardBreakUntilTick = FixedTick + Mathf.Max(1, guardBreakLockTicks);
             shieldHitbox?.SetGuardActive(false);
             stamina?.SetRecoveryMultiplier(1f);
             GuardChanged?.Invoke(false);
             GuardBroken?.Invoke();
+        }
+
+        private GuardianActionState ResolveActionState()
+        {
+            if (vitals != null && !vitals.IsAlive) return GuardianActionState.Dead;
+            if (FixedTick < _guardBreakUntilTick) return GuardianActionState.GuardBreak;
+            if (motor != null && motor.IsDashing) return GuardianActionState.Dodge;
+            if (IsAttacking)
+            {
+                AttackDefinition attack = CurrentAttackDefinition;
+                if (attack != null && attack.IsActive(AttackElapsedTicks)) return GuardianActionState.AttackActive;
+                return GuardianActionState.AttackStartup;
+            }
+            if (IsAttackRecovering) return GuardianActionState.AttackRecovery;
+            if (_guardHeld) return GuardianActionState.Guard;
+            return GuardianActionState.Locomotion;
+        }
+
+        private void EnsureAttackDefinitions()
+        {
+            if (lightChain != null && lightChain.Length >= 3 &&
+                lightChain[0] != null && lightChain[1] != null && lightChain[2] != null)
+                return;
+            lightChain = AttackDefinition.CreateDefaultLightChain();
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
     }
 }
