@@ -37,7 +37,11 @@ def test_urp14_fidelity_profile_raises_quality_without_changing_simulation_rate(
         '"UnityEngine.Rendering.Universal.ScreenSpaceAmbientOcclusion"',
         '"UnityEngine.Rendering.Universal.ScreenSpaceShadows"',
         'SetFloat(ao, "m_Settings.Intensity", 1.35f',
-        "QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable",
+        "QualitySettings.shadows = UnityEngine.ShadowQuality.All",
+        "QualitySettings.shadowResolution = UnityEngine.ShadowResolution.VeryHigh",
+        "QualitySettings.shadowProjection = UnityEngine.ShadowProjection.StableFit",
+        "QualitySettings.anisotropicFiltering = UnityEngine.AnisotropicFiltering.ForceEnable",
+        "QualitySettings.skinWeights = UnityEngine.SkinWeights.FourBones",
         "Application.targetFrameRate = 120",
     ):
         assert token in source
