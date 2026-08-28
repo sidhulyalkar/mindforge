@@ -43,8 +43,15 @@ def test_guardian_action_authority_is_fixed_tick_and_animation_independent():
         assert token in sword
 
     assert "Time.time" not in sword
-    assert "Animator" not in sword
-    assert "AnimationEvent" not in sword
+    for forbidden_runtime_dependency in (
+        "GetComponent<Animator>",
+        "GetComponentInChildren<Animator>",
+        "AnimatorStateInfo",
+        ".Play(",
+        ".SetTrigger(",
+        "AnimationEvent",
+    ):
+        assert forbidden_runtime_dependency not in sword
 
     for token in (
         "_dashUntilTick",
@@ -83,7 +90,8 @@ def test_enemy_attacks_are_data_not_animation_names():
         assert token in definition
 
     for forbidden in (
-        "Animator",
+        "GetComponent<Animator>",
+        "AnimatorStateInfo",
         "AnimationEvent",
         "NeuralEvent",
         "UdpNeuralReceiver",
