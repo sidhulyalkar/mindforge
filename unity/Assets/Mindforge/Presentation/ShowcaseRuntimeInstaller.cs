@@ -75,6 +75,8 @@ namespace Mindforge.Presentation
             if (cameraRig == null) cameraRig = cameraRigObject.AddComponent<ShowcaseCameraRig>();
             cameraRig.Configure(guardian.transform, boss.transform, guardian.GetComponent<GuardianMotor>(), camera);
 
+            if (GetComponent<ArenaVisibilityDirector>() == null)
+                gameObject.AddComponent<ArenaVisibilityDirector>();
             if (GetComponent<CombatVfxOrchestrator>() == null)
                 gameObject.AddComponent<CombatVfxOrchestrator>();
             ShowcasePostProcessing post = GetComponent<ShowcasePostProcessing>();
@@ -87,10 +89,11 @@ namespace Mindforge.Presentation
                 gameObject.AddComponent<CinematicArtOverrideInstaller>();
 
             Debug.Log(
-                "[Mindforge:Showcase] Animation/graphics v3 installed: coherent Guardian body hierarchy, additive weight and recoil, " +
-                "production Animator contracts, armament afterimages/motes, grounded locomotion particles, " +
-                "Fractured Signal secondary motion, truthful telegraphs, tactical camera, semantic VFX, " +
-                "cinematic URP, PBR rebinding and optional authored-art overrides.");
+                "[Mindforge:Showcase] Presentation stack installed: readable Arena V3 lighting, T enemy-focus camera, " +
+                "coherent Guardian body hierarchy, additive weight/recoil, production Animator contracts, " +
+                "armament afterimages/motes, grounded locomotion particles, Fractured Signal secondary motion, " +
+                "truthful telegraphs, tactical camera, cinematic URP and PBR rebinding. " +
+                "Enemy focus is camera composition only; player aim/combat authority remain conventional.");
         }
     }
 }
