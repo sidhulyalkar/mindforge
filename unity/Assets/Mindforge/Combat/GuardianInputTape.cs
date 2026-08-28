@@ -33,6 +33,11 @@ namespace Mindforge.Combat
         public bool guard_held;
         public bool guard_down;
 
+        // v3 traversal controls. Old v1/v2 tapes deserialize these as false and remain
+        // replayable; jump authority is still resolved only on fixed simulation ticks.
+        public bool jump_down;
+        public bool jump_held;
+
         public Vector2 Move => new Vector2(move_x, move_y);
         public Vector3 Aim => new Vector3(aim_x, aim_y, aim_z);
 
@@ -54,6 +59,8 @@ namespace Mindforge.Combat
                 sword_attack_down = sword_attack_down,
                 guard_held = guard_held,
                 guard_down = guard_down,
+                jump_down = jump_down,
+                jump_held = jump_held,
             };
         }
 
@@ -64,7 +71,7 @@ namespace Mindforge.Combat
     [Serializable]
     public sealed class GuardianInputTapeEnvelope
     {
-        public string schema = GuardianInputTape.SchemaV2;
+        public string schema = GuardianInputTape.SchemaV3;
         public string session_id;
         public string generated_utc;
         public int fixed_hz;
@@ -81,6 +88,7 @@ namespace Mindforge.Combat
     {
         public const string SchemaV1 = "mindforge.guardian_input_tape.v1";
         public const string SchemaV2 = "mindforge.guardian_input_tape.v2";
+        public const string SchemaV3 = "mindforge.guardian_input_tape.v3";
 
         [SerializeField] private GuardianInputTapeMode mode = GuardianInputTapeMode.Live;
         [SerializeField] private string tapePath;
@@ -151,7 +159,7 @@ namespace Mindforge.Combat
             if (_tape != null) return;
             _tape = new GuardianInputTapeEnvelope
             {
-                schema = SchemaV2,
+                schema = SchemaV3,
                 session_id = MindforgeSessionContext.GameSessionId,
                 generated_utc = DateTime.UtcNow.ToString("O"),
                 fixed_hz = _fixedHz,
@@ -164,7 +172,9 @@ namespace Mindforge.Combat
             if (!File.Exists(path))
                 throw new FileNotFoundException("Guardian input replay tape not found", path);
             _tape = JsonUtility.FromJson<GuardianInputTapeEnvelope>(File.ReadAllText(path));
-            if (_tape == null || (_tape.schema != SchemaV1 && _tape.schema != SchemaV2) || _tape.frames == null)
+            if (_tape == null ||
+                (_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3) ||
+                _tape.frames == null)
                 throw new InvalidDataException($"Unsupported or malformed Guardian input tape: {path}");
             _replayIndex = 0;
             Debug.Log($"[Mindforge] Guardian input replay loaded: {path} schema={_tape.schema} frames={_tape.frames.Count}");
