@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -100,12 +101,21 @@ namespace Mindforge.Presentation
                 Destroy(collider);
             foreach (Joint joint in visualRoot.GetComponentsInChildren<Joint>(true))
                 Destroy(joint);
-            foreach (Rigidbody2D body in visualRoot.GetComponentsInChildren<Rigidbody2D>(true))
-                Destroy(body);
-            foreach (Collider2D collider in visualRoot.GetComponentsInChildren<Collider2D>(true))
-                Destroy(collider);
-            foreach (Joint2D joint in visualRoot.GetComponentsInChildren<Joint2D>(true))
-                Destroy(joint);
+
+            // Physics2D is an optional Unity module in this project. Directly naming
+            // Rigidbody2D / Collider2D / Joint2D creates a compile-time dependency on
+            // UnityEngine.Physics2DModule, which is exactly the opposite of what an
+            // optional art-import firewall should do. Inspect the inheritance chain by
+            // fully-qualified type name instead so 2D physics is stripped when present
+            // while a pure 3D project compiles without the Physics2D module installed.
+            Component[] components = visualRoot.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                Component component = components[i];
+                if (component != null && IsOptionalPhysics2DComponent(component.GetType()))
+                    Destroy(component);
+            }
+
             foreach (Camera camera in visualRoot.GetComponentsInChildren<Camera>(true))
                 Destroy(camera);
             foreach (AudioListener listener in visualRoot.GetComponentsInChildren<AudioListener>(true))
@@ -118,6 +128,21 @@ namespace Mindforge.Presentation
             // components are not MonoBehaviours and remain available for presentation.
             foreach (MonoBehaviour behaviour in visualRoot.GetComponentsInChildren<MonoBehaviour>(true))
                 if (behaviour != null) Destroy(behaviour);
+        }
+
+        private static bool IsOptionalPhysics2DComponent(Type type)
+        {
+            for (Type cursor = type; cursor != null; cursor = cursor.BaseType)
+            {
+                string fullName = cursor.FullName;
+                if (fullName == "UnityEngine.Rigidbody2D" ||
+                    fullName == "UnityEngine.Collider2D" ||
+                    fullName == "UnityEngine.Joint2D")
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
