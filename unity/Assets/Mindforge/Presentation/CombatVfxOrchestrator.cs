@@ -7,6 +7,9 @@ namespace Mindforge.Presentation
     /// Semantic presentation layer for combat consequences. It subscribes to already-
     /// authoritative events and turns them into distinct impact languages; it cannot
     /// deal damage, spend stamina, move actors, apply neural state or award Flux.
+    ///
+    /// Short-lived effects are emitted through PresentationFxPool so combat spikes do
+    /// not create/destroy ParticleSystem and LineRenderer GameObjects per consequence.
     /// </summary>
     public sealed class CombatVfxOrchestrator : MonoBehaviour
     {
@@ -17,8 +20,7 @@ namespace Mindforge.Presentation
         [SerializeField] private FracturedSignalDirector bossDirector;
         [SerializeField] private CombatPresentationDirector presentation;
 
-        private Material _particleMaterial;
-        private Material _ringMaterial;
+        private PresentationFxPool _fxPool;
         private bool _subscribed;
         private float _resolveAfter;
 
@@ -50,6 +52,7 @@ namespace Mindforge.Presentation
             if (input == null) input = FindObjectOfType<GuardianCombatInput>(true);
             if (bossDirector == null) bossDirector = FindObjectOfType<FracturedSignalDirector>(true);
             if (presentation == null) presentation = FindObjectOfType<CombatPresentationDirector>(true);
+            if (_fxPool == null) _fxPool = PresentationFxPool.GetOrCreate();
 
             CombatantVitals[] all = FindObjectsOfType<CombatantVitals>(true);
             foreach (CombatantVitals candidate in all)
@@ -171,117 +174,21 @@ namespace Mindforge.Presentation
 
         private void SpawnBurst(Vector3 position, Color color, int count, float speed, float size)
         {
-            GameObject go = new GameObject("MindforgeImpactBurst");
-            go.transform.position = position;
-            ParticleSystem ps = go.AddComponent<ParticleSystem>();
-            ParticleSystem.MainModule main = ps.main;
-            main.duration = 0.35f;
-            main.loop = false;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(0.16f, 0.38f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(speed * 0.55f, speed);
-            main.startSize = new ParticleSystem.MinMaxCurve(size * 0.55f, size * 1.25f);
-            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.Lerp(color, Color.white, 0.35f));
-            main.maxParticles = 80;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.stopAction = ParticleSystemStopAction.Destroy;
-
-            ParticleSystem.EmissionModule emission = ps.emission;
-            emission.rateOverTime = 0f;
-            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)Mathf.Clamp(count, 1, 72)) });
-
-            ParticleSystem.ShapeModule shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Sphere;
-            shape.radius = 0.14f;
-
-            ParticleSystemRenderer renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = ParticleMaterial();
-            renderer.renderMode = ParticleSystemRenderMode.Billboard;
-            ps.Play();
+            if (_fxPool == null) _fxPool = PresentationFxPool.GetOrCreate();
+            _fxPool?.EmitBurst(position, color, count, speed, size);
         }
 
-        private void SpawnRing(Vector3 position, Vector3 normal, Color color, float startRadius, float endRadius, float lifetime, float width)
+        private void SpawnRing(
+            Vector3 position,
+            Vector3 normal,
+            Color color,
+            float startRadius,
+            float endRadius,
+            float lifetime,
+            float width)
         {
-            GameObject go = new GameObject("MindforgeImpactRing");
-            go.transform.position = position;
-            Vector3 n = normal.sqrMagnitude > 0.01f ? normal.normalized : Vector3.up;
-            go.transform.rotation = Quaternion.FromToRotation(Vector3.up, n);
-            LineRenderer line = go.AddComponent<LineRenderer>();
-            line.sharedMaterial = RingMaterial();
-            line.useWorldSpace = false;
-            line.loop = true;
-            line.positionCount = 48;
-            line.widthMultiplier = width;
-            ShowcaseTransientRing ring = go.AddComponent<ShowcaseTransientRing>();
-            ring.Configure(line, color, startRadius, endRadius, lifetime);
-        }
-
-        private Material ParticleMaterial()
-        {
-            if (_particleMaterial != null) return _particleMaterial;
-            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
-                            Shader.Find("Particles/Standard Unlit") ??
-                            Shader.Find("Sprites/Default");
-            _particleMaterial = new Material(shader) { name = "MindforgeImpactParticleMaterial" };
-            return _particleMaterial;
-        }
-
-        private Material RingMaterial()
-        {
-            if (_ringMaterial != null) return _ringMaterial;
-            Shader shader = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
-            _ringMaterial = new Material(shader) { name = "MindforgeImpactRingMaterial" };
-            return _ringMaterial;
-        }
-
-        private void OnDestroy()
-        {
-            if (_particleMaterial != null) Destroy(_particleMaterial);
-            if (_ringMaterial != null) Destroy(_ringMaterial);
-        }
-    }
-
-    public sealed class ShowcaseTransientRing : MonoBehaviour
-    {
-        private LineRenderer _line;
-        private Color _color;
-        private float _startRadius;
-        private float _endRadius;
-        private float _lifetime;
-        private float _age;
-        private float _baseWidth;
-
-        public void Configure(LineRenderer line, Color color, float startRadius, float endRadius, float lifetime)
-        {
-            _line = line;
-            _color = color;
-            _startRadius = Mathf.Max(0.01f, startRadius);
-            _endRadius = Mathf.Max(_startRadius, endRadius);
-            _lifetime = Mathf.Max(0.05f, lifetime);
-            _baseWidth = line != null ? line.widthMultiplier : 0.05f;
-            Draw(_startRadius, 1f);
-        }
-
-        private void Update()
-        {
-            _age += Time.unscaledDeltaTime;
-            float t = Mathf.Clamp01(_age / _lifetime);
-            float eased = 1f - Mathf.Pow(1f - t, 2f);
-            Draw(Mathf.Lerp(_startRadius, _endRadius, eased), 1f - t);
-            if (_age >= _lifetime) Destroy(gameObject);
-        }
-
-        private void Draw(float radius, float alpha)
-        {
-            if (_line == null) return;
-            for (int i = 0; i < _line.positionCount; i++)
-            {
-                float a = i / (float)_line.positionCount * Mathf.PI * 2f;
-                _line.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius));
-            }
-            Color faded = new Color(_color.r, _color.g, _color.b, Mathf.Clamp01(alpha));
-            _line.startColor = faded;
-            _line.endColor = faded;
-            _line.widthMultiplier = _baseWidth * Mathf.Lerp(1f, 0.20f, 1f - alpha);
+            if (_fxPool == null) _fxPool = PresentationFxPool.GetOrCreate();
+            _fxPool?.EmitRing(position, normal, color, startRadius, endRadius, lifetime, width);
         }
     }
 }
