@@ -48,6 +48,47 @@ def test_fractured_signal_melee_telegraphs_use_same_fixed_clock():
     assert "WaitForSeconds" not in melee
 
 
+def test_guardian_secondary_combat_windows_and_realized_healing_are_fixed_tick():
+    combat = read("Combat", "GuardianCombatController.cs")
+
+    for token in (
+        "private void FixedUpdate()",
+        "_lastShotTick",
+        "_lastCleaveTick",
+        "_lastCounterTick",
+        "_counterUntilTick",
+        "SecondsToTicks(tuning.shotCooldown)",
+        "SecondsToTicks(tuning.cleaveCooldown)",
+        "SecondsToTicks(tuning.counterCooldown)",
+        "SecondsToTicks(tuning.counterWindow)",
+        "HealingPerSecond * Time.fixedDeltaTime",
+        "if (FixedTick < _counterUntilTick) ScanCounterProjectiles()",
+    ):
+        assert token in combat
+
+    assert "Time.time" not in combat
+    assert "Time.deltaTime" not in combat
+    assert "private void Update()" not in combat
+
+
+def test_gravity_bloom_capture_and_pause_windows_are_fixed_tick():
+    bloom = read("Combat", "GravityBloomAbility.cs")
+
+    for token in (
+        "_pauseStartedTick",
+        "_endTick",
+        "_lastUseTick",
+        "SecondsToTicks(tuning.bloomCooldown)",
+        "SecondsToTicks(duration)",
+        "if (FixedTick >= _endTick) Detonate()",
+        "_endTick += Math.Max(0L, FixedTick - _pauseStartedTick)",
+    ):
+        assert token in bloom
+
+    assert "Time.time" not in bloom
+    assert "Time.deltaTime" not in bloom
+
+
 def test_null_ward_reuses_shared_cinematic_material_vocabulary():
     builder = read("Editor", "NullWardSceneBuilder.cs")
 
