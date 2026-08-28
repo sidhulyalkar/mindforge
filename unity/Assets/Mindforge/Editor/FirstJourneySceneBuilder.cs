@@ -277,10 +277,10 @@ namespace Mindforge.Editor
 
         private static void BuildWardenChamber(Transform parent, Material deepStone, Material stone, Material copper, Material hostile, Material warden)
         {
-            // Stop the authored journey floor just before Arena V3 begins. The final
-            // approach deliberately relies on the existing arena floor so there is no
-            // coplanar renderer/collider stack where the two environments meet.
-            Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -12.45f), new Vector3(15f, 0.50f, 7.5f), deepStone, true);
+            // The base competition ArenaFloor spans z=-11..13. End the authored
+            // journey floor exactly at z=-11 so there is one authoritative floor surface
+            // at every point and no coplanar static-collider or renderer overlap.
+            Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -13.6f), new Vector3(15f, 0.50f, 5.2f), deepStone, true);
             Primitive("WardenWall_L", PrimitiveType.Cube, parent, new Vector3(-7.65f, 1.6f, -12.45f), new Vector3(0.70f, 4.4f, 7.5f), stone, true);
             Primitive("WardenWall_R", PrimitiveType.Cube, parent, new Vector3(7.65f, 1.6f, -12.45f), new Vector3(0.70f, 4.4f, 7.5f), stone, true);
             CreateCircle("WardenOuterRing", parent, new Vector3(0f, -0.25f, -10.8f), 4.2f, 64, 0.045f, copper);
