@@ -83,13 +83,15 @@ namespace Mindforge.Editor
             JourneyGate wardenGate = CreateGate("WardenThresholdSeal", root.transform, -6.8f, 10.8f, copper, hostile);
             JourneyGate bossSeal = CreateGate("BossArenaSeal", root.transform, -4.1f, 11.2f, copper, warden);
 
+            // The first Hollow starts close to the lesson trigger. The second waits by
+            // the cavern exit so a new player gets a real 1v1 before pressure escalates.
             JourneyEnemyController cavernHollowA = CreateEnemy(
                 "Cavern_Hollow_A", JourneyEnemyArchetype.Hollow, root.transform,
-                new Vector3(-1.25f, -0.30f, -61.2f), guardian.transform, playerVitals, playerMotor, defense,
+                new Vector3(-1.25f, -0.30f, -63.0f), guardian.transform, playerVitals, playerMotor, defense,
                 projectile, playerFlux, hostile, stone, 46f, 44f);
             JourneyEnemyController cavernHollowB = CreateEnemy(
                 "Cavern_Hollow_B", JourneyEnemyArchetype.Hollow, root.transform,
-                new Vector3(1.65f, -0.30f, -56.2f), guardian.transform, playerVitals, playerMotor, defense,
+                new Vector3(1.65f, -0.30f, -52.8f), guardian.transform, playerVitals, playerMotor, defense,
                 projectile, playerFlux, hostile, stone, 48f, 46f);
 
             JourneyEnemyController houseHollow = CreateEnemy(
@@ -275,9 +277,12 @@ namespace Mindforge.Editor
 
         private static void BuildWardenChamber(Transform parent, Material deepStone, Material stone, Material copper, Material hostile, Material warden)
         {
-            Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -11.2f), new Vector3(15f, 0.50f, 10f), deepStone, true);
-            Primitive("WardenWall_L", PrimitiveType.Cube, parent, new Vector3(-7.65f, 1.6f, -11.2f), new Vector3(0.70f, 4.4f, 10f), stone, true);
-            Primitive("WardenWall_R", PrimitiveType.Cube, parent, new Vector3(7.65f, 1.6f, -11.2f), new Vector3(0.70f, 4.4f, 10f), stone, true);
+            // Stop the authored journey floor just before Arena V3 begins. The final
+            // approach deliberately relies on the existing arena floor so there is no
+            // coplanar renderer/collider stack where the two environments meet.
+            Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -12.45f), new Vector3(15f, 0.50f, 7.5f), deepStone, true);
+            Primitive("WardenWall_L", PrimitiveType.Cube, parent, new Vector3(-7.65f, 1.6f, -12.45f), new Vector3(0.70f, 4.4f, 7.5f), stone, true);
+            Primitive("WardenWall_R", PrimitiveType.Cube, parent, new Vector3(7.65f, 1.6f, -12.45f), new Vector3(0.70f, 4.4f, 7.5f), stone, true);
             CreateCircle("WardenOuterRing", parent, new Vector3(0f, -0.25f, -10.8f), 4.2f, 64, 0.045f, copper);
             CreateCircle("WardenHostileRing", parent, new Vector3(0f, -0.24f, -10.8f), 2.8f, 56, 0.035f, hostile);
             for (int i = 0; i < 6; i++)
@@ -294,7 +299,8 @@ namespace Mindforge.Editor
 
         private static void BuildFinalApproach(Transform parent, Material stone, Material copper, Material cyan, Material teal)
         {
-            Primitive("BossApproachFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -3.5f), new Vector3(11f, 0.50f, 7f), stone, true);
+            // Arena V3 already owns the floor here. Add only architectural guidance so
+            // the transition stays visually rich without duplicate floor authority.
             Primitive("BossApproachPier_L", PrimitiveType.Cube, parent, new Vector3(-5.5f, 1.0f, -3.5f), new Vector3(0.65f, 2.6f, 7f), stone, true);
             Primitive("BossApproachPier_R", PrimitiveType.Cube, parent, new Vector3(5.5f, 1.0f, -3.5f), new Vector3(0.65f, 2.6f, 7f), stone, true);
             Primitive("BossApproachCopper_L", PrimitiveType.Cube, parent, new Vector3(-4.8f, 0.05f, -3.4f), new Vector3(0.07f, 0.07f, 6.4f), copper, false);
