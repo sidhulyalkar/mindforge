@@ -116,3 +116,30 @@ def test_guardian_forward_travel_is_fast_and_reaches_speed_quickly_on_fixed_tick
         "TryApply(",
     ):
         assert forbidden not in motor
+
+
+def test_procedural_stride_cadence_scales_with_new_world_space_speed():
+    polish = read("Presentation", "GuardianMotionPolish.cs")
+
+    for token in (
+        "fullStrideReferenceSpeed = 11.2f",
+        "minimumStrideHz = 1.45f",
+        "maximumStrideHz = 4.10f",
+        "speed / Mathf.Max(0.1f, fullStrideReferenceSpeed)",
+        "float strideHz = Mathf.Lerp(",
+        "_locomotionPhase += dt * strideHz * Mathf.PI * 2f",
+        "intentional sprint/run rather than procedural moonwalking",
+    ):
+        assert token in polish
+
+    # Presentation cadence can react to motor velocity, but it never feeds back into
+    # movement or combat authority.
+    for forbidden in (
+        "body.MovePosition(",
+        "body.velocity =",
+        "RequestDash(",
+        "ReceiveDamage(",
+        "TryLightAttack(",
+        "TryApply(",
+    ):
+        assert forbidden not in polish
