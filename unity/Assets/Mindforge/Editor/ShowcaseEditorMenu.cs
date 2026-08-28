@@ -69,7 +69,12 @@ namespace Mindforge.Editor
             }
             finally
             {
-                if (arena != null && !arenaWasActive) arena.SetActive(false);
+                if (arena != null && !arenaWasActive)
+                {
+                    arena.SetActive(false);
+                    EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+                    EditorSceneManager.SaveOpenScenes();
+                }
             }
 
             CompetitionGateValidator.ValidateAndWrite(false);
