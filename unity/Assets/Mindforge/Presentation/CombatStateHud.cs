@@ -1,13 +1,15 @@
 using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.Combat;
+using Mindforge.Journey;
 using Mindforge.SoulWisp;
 
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Gameplay-first, non-authoritative encounter HUD. Health is shown numerically as
-    /// well as visually so damage/hit-point behavior can be validated during play.
+    /// Gameplay-first, non-authoritative encounter HUD. Guardian state persists through
+    /// the authored journey; the Fractured Signal bar appears only after the final boss
+    /// threshold activates boss authority.
     /// </summary>
     public sealed class CombatStateHud : MonoBehaviour
     {
@@ -17,6 +19,7 @@ namespace Mindforge.Presentation
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private FracturedSignalDirector bossDirector;
+        [SerializeField] private FirstJourneyDirector journey;
         [SerializeField] private AwakeningCalibrationDirector calibration;
         [SerializeField] private GuardianStamina guardIntegrity;
         [SerializeField] private GuardianEquipmentLoadout loadout;
@@ -55,15 +58,15 @@ namespace Mindforge.Presentation
 
         private void Update()
         {
-            if (playerVitals == null || bossVitals == null || flux == null || bossDirector == null ||
-                guardIntegrity == null || loadout == null || physicalCombat == null || resonance == null)
+            if (playerVitals == null || flux == null || guardIntegrity == null || loadout == null ||
+                physicalCombat == null || resonance == null || journey == null)
             {
                 Unsubscribe();
                 Resolve();
                 Subscribe();
             }
 
-            if (bossDirector != null && bossDirector.Phase != _lastObservedPhase)
+            if (BossHudVisible() && bossDirector != null && bossDirector.Phase != _lastObservedPhase)
             {
                 _lastObservedPhase = bossDirector.Phase;
                 ShowBanner($"FRACTURED SIGNAL · PHASE {_lastObservedPhase}", 1.35f);
@@ -76,6 +79,7 @@ namespace Mindforge.Presentation
             if (auras == null) auras = FindObjectOfType<AuraBuffController>(true);
             if (bloom == null) bloom = FindObjectOfType<GravityBloomAbility>(true);
             if (bossDirector == null) bossDirector = FindObjectOfType<FracturedSignalDirector>(true);
+            if (journey == null) journey = FindObjectOfType<FirstJourneyDirector>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
             if (guardIntegrity == null) guardIntegrity = FindObjectOfType<GuardianStamina>(true);
             if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
@@ -173,13 +177,18 @@ namespace Mindforge.Presentation
         private void OnBloomReleased(bool concord, int captured)
             => ShowBanner(concord ? $"TWIN ECLIPSE · {captured} RETURNED" : $"BLOOM · {captured} RETURNED", concord ? 1.45f : 0.9f);
 
-        private void OnSignalBreak() => ShowBanner("SIGNAL BREAK · ATTACK NOW", 1.2f);
+        private void OnSignalBreak()
+        {
+            if (BossHudVisible()) ShowBanner("SIGNAL BREAK · ATTACK NOW", 1.2f);
+        }
+
         private void OnPerfectGuard() => ShowBanner("PERFECT GUARD · REFLECT", 0.65f);
         private void OnSwordParry(float damage) => ShowBanner($"AETHER PARRY · {damage:F0} REFLECT DAMAGE", 0.58f);
         private void OnGuardBroken() => ShowBanner("GUARD BROKEN · REPOSITION", 0.9f);
 
         private void OnPhaseChanged(int phase)
         {
+            if (!BossHudVisible()) return;
             _lastObservedPhase = phase;
             ShowBanner($"FRACTURED SIGNAL · PHASE {phase}", 1.35f);
         }
@@ -192,19 +201,32 @@ namespace Mindforge.Presentation
 
         private bool ControllerOnly() => calibration != null && calibration.ControllerOnlyQualificationActive;
 
+        private bool CombatWorldOpen()
+        {
+            if (calibration == null) return true;
+            return calibration.CalibrationReady || calibration.ControllerOnlyQualificationActive;
+        }
+
+        private bool BossHudVisible()
+        {
+            if (bossVitals == null || !bossVitals.IsAlive || bossDirector == null) return false;
+            if (journey != null) return journey.BossActive;
+            return bossDirector.gameObject.activeInHierarchy;
+        }
+
         private void OnGUI()
         {
             EnsureStyles();
-            if (playerVitals == null || bossVitals == null || !bossVitals.IsAlive) return;
+            if (playerVitals == null || !CombatWorldOpen()) return;
 
-            DrawBossState();
+            if (BossHudVisible()) DrawBossState();
             DrawPlayerState();
             DrawStrategicState();
 
             if (!string.IsNullOrEmpty(_bannerText) && Time.realtimeSinceStartupAsDouble < _bannerUntil)
             {
                 float width = Mathf.Min(680f, Screen.width - 60f);
-                Rect r = new Rect((Screen.width - width) * 0.5f, 92f, width, 44f);
+                Rect r = new Rect((Screen.width - width) * 0.5f, BossHudVisible() ? 92f : 100f, width, 44f);
                 Fill(r, new Color(0.025f, 0.035f, 0.055f, 0.94f));
                 Stroke(r, new Color(0.28f, 0.52f, 0.90f, 0.75f), 1f);
                 GUI.Label(r, _bannerText, _banner);
@@ -213,13 +235,14 @@ namespace Mindforge.Presentation
 
         private void DrawBossState()
         {
+            if (!BossHudVisible()) return;
             float width = Mathf.Min(660f, Screen.width - 80f);
             float x = (Screen.width - width) * 0.5f;
             float y = 18f;
             Rect panel = new Rect(x, y, width, 72f);
             Fill(panel, Panel);
             GUI.Label(new Rect(x + 14f, y + 7f, width - 28f, 20f),
-                $"THE FRACTURED SIGNAL    ·    PHASE {(bossDirector != null ? bossDirector.Phase : 0)}", _phase);
+                $"THE FRACTURED SIGNAL    ·    PHASE {bossDirector.Phase}", _phase);
             GUI.Label(new Rect(x + 14f, y + 29f, 104f, 18f), $"HP {bossVitals.Health:F0} / {bossVitals.MaxHealth:F0}", _small);
             DrawBar(new Rect(x + 120f, y + 32f, width - 134f, 12f), Ratio(bossVitals.Health, bossVitals.MaxHealth), new Color(0.95f, 0.16f, 0.28f));
             float poise = bossVitals.Poise != null ? Ratio(bossVitals.Poise.Current, bossVitals.Poise.Max) : 0f;
