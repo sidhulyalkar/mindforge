@@ -40,24 +40,18 @@ namespace Mindforge.Presentation
                 yield break;
             }
 
-            bool anyBound = false;
-            anyBound |= BindZone(ward, "NullWard_ArtAnchor_MemoryForge", "AuthoredMemoryForge", _profile.memoryForge);
-            anyBound |= BindZone(ward, "NullWard_ArtAnchor_Causeway", "AuthoredSynapseCauseway", _profile.synapseCauseway);
-            anyBound |= BindZone(ward, "NullWard_ArtAnchor_Market", "AuthoredNullMarket", _profile.nullMarket);
-            anyBound |= BindZone(ward, "NullWard_ArtAnchor_Maintenance", "AuthoredMaintenanceLoop", _profile.maintenanceLoop);
-            anyBound |= BindZone(ward, "NullWard_ArtAnchor_Cathedral", "AuthoredSignalCathedral", _profile.signalCathedral);
-
-            if (anyBound && _profile.hideProceduralDetailWhenAnyZoneIsBound)
-            {
-                Transform detail = ward.Find(DetailRootName);
-                if (detail != null) detail.gameObject.SetActive(false);
-            }
+            BindZone(ward, "NullWard_ArtAnchor_MemoryForge", "AuthoredMemoryForge", "Detail_MemoryForge", _profile.memoryForge);
+            BindZone(ward, "NullWard_ArtAnchor_Causeway", "AuthoredSynapseCauseway", "Detail_Causeway", _profile.synapseCauseway);
+            BindZone(ward, "NullWard_ArtAnchor_Market", "AuthoredNullMarket", "Detail_Market", _profile.nullMarket);
+            BindZone(ward, "NullWard_ArtAnchor_Maintenance", "AuthoredMaintenanceLoop", "Detail_Maintenance", _profile.maintenanceLoop);
+            BindZone(ward, "NullWard_ArtAnchor_Cathedral", "AuthoredSignalCathedral", "Detail_Cathedral", _profile.signalCathedral);
         }
 
-        private static bool BindZone(
+        private bool BindZone(
             Transform ward,
             string anchorName,
             string instanceName,
+            string proceduralDetailName,
             NullWardArtProfile.ZoneBinding binding)
         {
             if (ward == null || binding == null || binding.visualPrefab == null) return false;
@@ -67,14 +61,23 @@ namespace Mindforge.Presentation
                 Debug.LogWarning($"[Mindforge:NullWardArt] Missing presentation anchor {anchorName}; rebuild the cinematic Showcase.");
                 return false;
             }
-            if (anchor.Find(instanceName) != null) return true;
 
-            GameObject visual = Instantiate(binding.visualPrefab, anchor);
-            visual.name = instanceName;
-            visual.transform.localPosition = binding.localPosition;
-            visual.transform.localRotation = Quaternion.Euler(binding.localEuler);
-            visual.transform.localScale = binding.localScale == Vector3.zero ? Vector3.one : binding.localScale;
-            StripAuthority(visual);
+            if (anchor.Find(instanceName) == null)
+            {
+                GameObject visual = Instantiate(binding.visualPrefab, anchor);
+                visual.name = instanceName;
+                visual.transform.localPosition = binding.localPosition;
+                visual.transform.localRotation = Quaternion.Euler(binding.localEuler);
+                visual.transform.localScale = binding.localScale == Vector3.zero ? Vector3.one : binding.localScale;
+                StripAuthority(visual);
+            }
+
+            if (_profile.hideProceduralDetailForBoundZones)
+            {
+                Transform detailRoot = ward.Find(DetailRootName);
+                Transform zoneDetail = detailRoot != null ? detailRoot.Find(proceduralDetailName) : null;
+                if (zoneDetail != null) zoneDetail.gameObject.SetActive(false);
+            }
             return true;
         }
 
