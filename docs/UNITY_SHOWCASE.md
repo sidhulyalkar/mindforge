@@ -1,317 +1,290 @@
-# Mindforge Unity Combat Showcase
+# Mindforge Unity First-Journey Showcase
 
-This document is the shortest path from a fresh checkout to the current designed combat vertical slice.
+This is the shortest path from a fresh checkout to the current third-person Mindforge vertical slice.
 
-The showcase is intentionally split into two modes:
+The showcase has two deliberately separate modes:
 
-1. **Controller-only showcase** for game feel, visuals, collision, camera, boss readability, stamina, sword and shield validation.
-2. **Calibrated neural mode** for real Sight/Guard authority and BCI evidence.
+1. **Controller-only preview** for controls, camera, traversal, combat feel, enemy readability, environment and boss validation.
+2. **Calibrated neural mode** for real Sight/Guard SSVEP authority and BCI evidence.
 
-The controller-only path never fabricates neural evidence or calibration success.
+The controller-only path never fabricates calibration success or neural evidence.
 
 ## Required Unity version
 
-Open the repository's `unity/` directory as the Unity project using:
+Open the repository's `unity/` directory with:
 
-- **Unity 2022.3.76f1**
-- Universal Render Pipeline package pinned by the project (`14.0.11`)
+- **Unity 2022.3.62f3 LTS**
+- Universal Render Pipeline **14.0.11**, pinned by the project
 
-Do not upgrade the project on first import. A Unity upgrade changes too many variables at once and invalidates the intended Gate-1 environment.
+The `ProjectVersion.txt` and qualification runner now use the same editor version that has been observed compiling the project on the development Mac. Do not migrate the project to Unity 6 during qualification.
 
-## Fresh import
+## Fresh import or update
 
-1. Clone or check out the branch containing the showcase work.
-2. Open **Unity Hub**.
-3. Choose **Add project from disk**.
-4. Select the repository's `unity/` directory, not the repository root.
-5. Open it with **2022.3.76f1**.
-6. Allow the initial package import / script compilation to finish.
-7. If Unity asks to enter Safe Mode because of compile errors, capture the first compiler error before making any manual edits. The exact branch should be fixed in source rather than repaired ad hoc in the generated scene.
+From the repository root:
 
-## One-click gameplay preview
+```bash
+git switch main
+git pull --ff-only origin main
+git rev-parse HEAD
+```
 
-From the Unity menu choose:
+Then return to Unity and allow package/script compilation to finish. If Unity enters Safe Mode or shows a red Console error, stop and capture the **first** compiler error. Fix source rather than editing generated scene objects by hand.
 
-**Mindforge → Showcase → Build + Play Combat Showcase**
+## One-click preview
 
-That command performs the intended preview workflow:
+Stop Play Mode, clear the Console, then choose:
 
-1. rebuilds the deterministic competition scene;
-2. adds the static showcase environment;
-3. runs the existing scene validator;
-4. saves generated assets and scene state;
-5. enters Play Mode;
-6. enters the existing development-only controller qualification path with BCI explicitly disabled.
+**Mindforge → Showcase → Build + Play Cinematic Showcase**
 
-The final scene remains at the normal competition scene path created by `CompetitionSceneAssembler`.
+The command performs the full current authoring pipeline:
 
-You can also use:
+```text
+cinematic URP configuration
+        ↓
+deterministic PBR material authoring
+        ↓
+competition scene assembly
+        ↓
+showcase + cinematic detail passes
+        ↓
+Arena Environment V3
+        ↓
+First Journey authoring
+        ↓
+scene validation
+        ↓
+Play Mode
+        ↓
+explicit controller-only preview
+        ↓
+Game view receives keyboard/mouse focus
+```
 
-- **Mindforge → Showcase → Rebuild Showcase Scene** to rebuild without entering Play Mode;
-- **Mindforge → Showcase → Open Showcase Scene** to open the current generated scene;
-- **F8** while playing in the Editor to enter the existing controller-only qualification path manually.
+The generated scene remains `Assets/Mindforge/Scenes/Mindforge_Competition.unity`.
 
-## What should appear
-
-### Awakening / environment
-
-The authored showcase layer adds:
-
-- a dark basalt duel arena;
-- concentric emissive floor rings;
-- radial floor seams;
-- broken fracture monoliths around the perimeter;
-- dark horizon architecture;
-- restrained blue/violet rim lights;
-- atmospheric fog and tri-light ambient treatment;
-- a redesigned Awakening dais and calibration rings.
-
-The scenery is deliberately non-authoritative. Existing floor/collision/gameplay objects remain the source of physical truth.
-
-### Guardian
-
-The placeholder capsule renderer is hidden at runtime and replaced visually by a procedural Warden silhouette with:
-
-- armored torso and pelvis;
-- helmet, visor and crown fin;
-- pauldrons;
-- articulated visual arms and legs;
-- gauntlet accents;
-- mantle / back cloth;
-- emissive aether chest and visor details;
-- movement, guard, sword, roll and damage-reaction presentation.
-
-The original Guardian collider and Rigidbody remain authoritative.
-
-### Physical loadout
-
-The first qualified design target is intentionally one coherent build:
-
-- **Aetherblade Longsword**
-- **Verdant Ward Shield**
-- **Warden Weave**
-
-Press **Tab** to open the current read-only Guardian Build screen. It exposes the real equipment-data/load contract without pretending a full authored inventory already exists.
-
-### The Fractured Signal
-
-The original boss collider/vitals/scheduler remain authoritative, while its runtime body becomes:
-
-- an emissive fracture core;
-- multiple rotating energy rings;
-- orbiting shards;
-- phase-responsive coloration;
-- telegraph charge animation;
-- damage pulse;
-- phase escalation lighting.
-
-The boss now mixes ranged and close-range vocabulary through a single scheduler. Melee is not a second overlapping attack loop.
-
-## Controls
+## Current physical control grammar
 
 | Input | Action |
 |---|---|
-| WASD | Move |
-| Mouse movement | World-space precision aim |
-| Arrow keys | Keyboard precision aim fallback |
-| Left mouse | Aetherblade light attack / queue next combo step |
-| Right mouse (hold) | Raise and hold Verdant Ward |
-| Left Shift | Dodge roll |
-| Space | Pulse Shot |
-| F | Rift Cleave |
+| WASD | Camera-relative movement |
+| Mouse / trackpad | Free third-person camera orbit |
+| Arrow keys, unlocked | Laptop camera-orbit fallback |
+| T | Conventional target lock / unlock |
+| Left / Right arrow, locked | Cycle target |
+| Mouse wheel, locked | Cycle target |
+| Space | Unlimited directional dodge / dash |
+| F or Left Mouse | Aetherblade light attack / queue combo / blade parry |
+| E or Right Mouse (hold) | Verdant Ward shield |
+| Shift | Pulse Shot |
+| Q | Rift Cleave |
 | C | Counter Pulse |
 | R | Gravity Bloom / Twin Eclipse when eligible |
-| Tab | Guardian Build screen |
-| F8 | Controller-only qualification in Editor |
-| F9 | Qualification photodiode patch toggle |
+| Tab | Warden Loadout |
+| Esc | Release mouse cursor in Editor |
+| F8 | Explicit controller-only qualification |
+| F9 | Photodiode patch toggle |
 | F10 | Judge Lens |
-| F11 | Photodiode source: Sight / Guard |
+| F11 | Photodiode source Sight / Guard |
+| F12 | Display qualification |
 
-The sword/shield inputs are fixed-tick command inputs and are included in Guardian input-tape v2.
+Ordinary movement, sword attacks and directional dashes are **not stamina-gated** in the current design. Defensive shield pressure uses **Guard Integrity**.
 
-## Sword validation
+The authority boundary remains strict: neural evidence cannot move, orbit the camera, target-lock, attack, guard, dodge or fire for the player.
 
-The Aetherblade is not a distance-button attack. During its active contact window it sweeps a capsule volume along the rendered attack direction.
+## The authored journey
 
-Validate all three light-chain steps:
+The current controller-only Showcase opens the combat world and places the Guardian at the beginning of a short directed expedition:
 
-1. **Step 1**: fast opening sweep;
-2. **Step 2**: sweep reverses direction;
-3. **Step 3**: wider, heavier finisher with higher commitment, poise and impact presentation.
+```text
+The Listening Cavern
+        ↓
+The Ruined House
+        ↓
+The Cellar
+        ↓
+The Signal Warden
+        ↓
+Fractured Signal threshold
+        ↓
+Arena V3 boss fight
+```
 
-Check that:
+The journey is authored under the combat arena root so Awakening/calibration remains untouched. The final Arena V3 stays at its existing qualified location; the journey extends backward from it.
 
-- clicking once does not accidentally execute a full combo;
-- a second/third click must arrive during the queue window;
-- stamina is spent when each actual step begins, not when a future step is merely queued;
-- one enemy cannot be hit repeatedly by the same swing;
-- step-two visual direction matches step-two hit direction;
-- step-three hit stop feels stronger without becoming sluggish;
-- a roll cannot be started through an active sword commitment;
-- the sword trail follows the actual weapon sweep.
+### The Listening Cavern
 
-## Shield validation
-
-The Verdant Ward is a physical forward-facing defense.
-
-Validate:
-
-- RMB raises a real shield trigger in front of the Guardian;
-- movement slows while guarding;
-- stamina recovery is strongly reduced while guarding;
-- projectile contact reaches the shield before the body;
-- ordinary blocks spend stamina and may leak chip damage;
-- insufficient stamina breaks the guard;
-- attacks from outside the shield's forward coverage can flank the player;
-- raising guard shortly before contact creates the short perfect-guard window;
-- perfect projectile guard reflects the projectile;
-- perfect melee guard applies boss poise pressure rather than inventing free direct damage.
-
-A raised shield is not global invulnerability.
-
-## Dodge validation
-
-Roll motion and roll invulnerability are intentionally different windows.
+Purpose: teach third-person locomotion without a tutorial wall.
 
 Validate:
 
-- Shift consumes stamina;
-- equip load changes roll movement;
-- the invulnerability window remains bounded independently of the motion duration;
-- guard drops when a roll begins;
-- a projectile overlapping during a valid i-frame passes through rather than disappearing;
-- attacks cannot be initiated through a committed roll.
+- `W` follows camera-forward;
+- rotating the camera changes the direction represented by `W`;
+- `T` locks the first Hollow;
+- locked `A/D` strafes while the Guardian continues facing the enemy;
+- `Space` dodges in held WASD direction;
+- `F` produces only one sword step unless another input is queued;
+- the first Hollow behaves as a readable 1v1;
+- the second Hollow waits farther toward the cavern exit rather than immediately collapsing the lesson into a 2v1;
+- the exit seal cannot be bypassed before both required enemies are defeated.
 
-## Boss melee validation
+### The Ruined House
 
-Entering sword distance unlocks close-range Fractured Signal attacks inside the existing scheduler.
+Purpose: introduce mixed melee/ranged pressure and target switching.
 
-### Fracture Cleave
+Validate:
 
-The red/orange wedge is the actual locked evaluation geometry.
+- Hollow and Shardcaster are visually distinct;
+- target cycling selects only living active enemies;
+- line-of-sight/cover causes projectiles to hit the environment rather than pass through it;
+- RMB/E shield behaves directionally;
+- perfect guard can reflect a projectile;
+- an Aetherblade contact-window slash can physically parry a hostile projectile;
+- reflected projectiles follow the **currently locked conventional enemy**, not a hidden boss reference.
 
-Try to produce each outcome intentionally:
+### The Cellar
 
-- **SPACED**: leave range;
-- **SIDESTEPPED**: leave the locked wedge;
-- **DODGED**: remain geometrically inside but cross contact during roll i-frames;
-- **BLOCKED**: face the attack and absorb it with adequate stamina;
-- **PERFECT_GUARD**: raise the shield shortly before contact;
-- **GUARD_BROKEN**: absorb more pressure than remaining stamina supports;
-- **FLANKED**: hold guard while facing outside shield coverage;
-- **HIT**: take the strike directly.
+Purpose: ask the player to combine movement, target choice and reflection mechanics.
 
-### Fracture Slam
+Validate:
 
-The warning ring is the actual damage radius. Crossing outside the ring before resolve must result in spacing, not a hidden hit.
+- three enemies remain readable rather than attacking as an incoherent simultaneous wall;
+- telegraphs visibly precede authority;
+- dodge i-frames allow a projectile to continue through rather than consuming it as a fake hit;
+- `C` Counter Pulse reflects nearby hostile projectiles;
+- Flux builds from intended actions;
+- `R` Gravity Bloom captures and returns projectiles when eligible;
+- target switching remains stable in the tighter camera space.
 
-## Camera / readability validation
+### The Signal Warden
 
-The tactical camera observes player and boss rather than controlling either.
+Purpose: physical mastery check before the boss.
 
-Check that it:
+Validate:
 
-- keeps both actors readable at ordinary fighting distance;
-- gives the player slightly more framing weight;
-- leads movement subtly rather than lagging behind the Guardian;
-- backs up when player/boss separation grows;
-- does not fight `CombatPresentationDirector` impact kick;
-- does not make the SSVEP targets unreadable in combat.
+- the Warden alternates readable melee and ranged burst pressure;
+- only one pending enemy attack authority exists at a time;
+- attack windup, contact and recovery are visually distinguishable;
+- the player can intentionally dodge, block, perfect-guard or punish recovery;
+- killing the Warden opens the final path and provides a short pacing breath before the boss.
 
-## Semantic combat VFX
+### Boss threshold
 
-Different outcomes intentionally use different visual words:
+The Fractured Signal is authored inactive until the journey is complete.
 
-- sword contact → blue/white cut burst;
-- Sight-amplified sword contact → stronger blue energy response;
-- shield block → green ward burst;
-- perfect guard → violet/green high-contrast counter burst;
-- guard break → red fracture burst;
-- player hit → red/orange impact;
-- boss phase change → large boss-centered fracture ring;
-- heavy boss attack → orange danger pulse.
+Validate:
 
-The effects observe outcomes only. They cannot deal damage or award gameplay resources.
+- no boss projectile or boss HUD appears during earlier rooms;
+- the approach is open only after the Warden stage is cleared;
+- crossing the final threshold activates the boss and closes the arena seal **behind** the Guardian;
+- the boss bar appears only when boss authority is active;
+- target lock and Soul Wisp anchor cleanly transfer to The Fractured Signal.
 
-## Neural manifestation validation
+## Third-person camera validation
 
-The showcase's key BCI fantasy remains:
+Unlocked camera:
 
-**hands choose the action; neural evidence may amplify the already-chosen equipment state.**
+- remains behind and slightly above the Guardian;
+- supports full horizontal orbit;
+- ignores the Guardian's own colliders during camera collision;
+- retracts for actual world geometry;
+- recovers smoothly after leaving a wall;
+- preserves a readable Guardian silhouette.
 
-In a calibrated/SIMULATION/REPLAY neural run:
+Locked camera:
 
-### Sight
+- keeps Guardian and current enemy coherently framed;
+- supports forward, backpedal and strafe combat;
+- does not secretly create target lock;
+- does not consume arrows as camera orbit while they are being used to cycle targets;
+- maintains enough enemy screen stability for future gaze/SSVEP placement.
 
-Accepted Sight plus stronger fresh continuous evidence should visibly:
+## BCI target presentation validation
 
-- extend the blade;
-- slightly widen it;
-- brighten blue emission;
-- strengthen the trail/light;
-- increase bounded gameplay reach by the corresponding contract;
-- attribute only realized incremental damage through `SIGHT_SWORD_DAMAGE`.
+The Soul Wisp follows conventional target selection.
 
-### Guard
+Unlocked or without a valid combat target, it returns to its non-combat behavior. While `T` lock is active, Sight and Guard settle into stable camera-relative positions around the currently locked enemy.
 
-Accepted Guard plus stronger fresh continuous evidence should visibly:
+The two coded targets remain:
 
-- enlarge the shield manifestation;
-- increase green emission;
-- widen bounded physical coverage;
-- improve stability;
-- improve absorption.
+- **Sight / blue / 10 Hz**
+- **Guard / green / 12 Hz**
 
-EEG never raises the shield, swings the sword, aims, rolls or performs a parry.
+Target lock changes **position**, not coded VEP frequency. The luminance timing remains owned by `VepAuraStimulus`.
 
-## VEP / VFX separation
+In controller-only mode the game may show the visual language, but no EEG/neural authority is accepted. The qualification banner must remain explicit.
 
-The moving decorative Wisp shell and armament effects are downstream feedback. They must remain distinct from the coded 10 Hz / 12 Hz stimulus core.
+## Combat validation
 
-- **F9** toggles the photodiode qualification patch.
-- **F10** toggles Judge Lens and no longer controls the patch.
-- **F11** changes the photodiode source.
+### Aetherblade
 
-Physical photodiode measurement and participant testing are still required before claiming the moving combat presentation preserves physiological SSVEP performance.
+Validate the three-step chain:
 
-## Current visual-fidelity boundary
+- step 1: fast opening sweep;
+- step 2: reverse-direction sweep;
+- step 3: wider/heavier finisher with more recovery commitment.
 
-This branch is designed to make the complete game loop visible and critiqueable in Unity without requiring external commercial assets.
+Also validate:
 
-The procedural Guardian, boss and arena are **production-architecture / vertical-slice visuals**, not a claim that the project has final AAA character art. The important replacement seams already exist:
+- movement and ordinary sword use remain unrestricted by stamina;
+- one swing cannot repeatedly damage the same enemy;
+- the active swept capsule agrees with the rendered swing direction;
+- hostile projectiles are reflected only when they intersect the active blade volume;
+- hit stop is crisp and does not make camera control feel sticky;
+- Sight can amplify bounded reach/damage only after accepted Sight authority.
 
-- authoritative collision is separate from character meshes;
-- sword/shield rules are separate from their presentation transforms;
-- camera is presentation-only;
-- semantic VFX listen to outcomes;
-- environment decoration is editor-only scenery;
-- neural authority is separate from continuous feedback;
-- the coded VEP core is separate from decorative feedback.
+### Verdant Ward
 
-That means authored character models, animation clips, Shader Graph/VFX Graph assets, sound design and environment art can replace the current procedural presentation without rewriting combat or evidence authority.
+Validate:
 
-## Recommended validation order
+- shield coverage is directional;
+- movement is slower while guarding;
+- Guard Integrity is spent by absorbed pressure rather than by ordinary locomotion;
+- insufficient integrity causes guard break;
+- flanking attacks can bypass coverage;
+- perfect projectile guard reflects;
+- perfect melee guard applies poise pressure rather than invented direct damage;
+- Guard neural state only amplifies bounded shield properties after accepted Guard authority.
 
-1. Run the repository's software CI on the exact branch head.
-2. Open in Unity **2022.3.76f1**.
-3. Use **Mindforge → Showcase → Build + Play Combat Showcase**.
-4. Confirm zero C# compiler errors.
-5. Confirm scene validation completes.
-6. Complete several controller-only fights.
-7. Record control/readability/fun observations before tuning numbers.
-8. Run a calibrated/simulated neural session and validate armament resonance separately.
-9. Only after the physical loop is fun, expand inventory and authored art breadth.
+### Directional dodge
 
-## What source code alone still cannot prove
+Validate:
 
-Even after a green software gate, source inspection cannot prove:
+- held WASD has dash-direction priority;
+- stationary dash falls back to combat heading;
+- dash commands can be chained without a stamina or arbitrary cooldown tax;
+- the bounded i-frame is shorter than the whole visible movement;
+- attack commitment prevents impossible mid-contact teleporting;
+- movement after the dash resumes naturally.
 
-- Unity C# compilation on your installed editor;
-- final render correctness on your GPU/display;
-- good combat feel;
-- fair timing under actual player behavior;
-- photodiode-qualified 10/12 Hz output;
-- participant SSVEP accuracy/comfort;
-- authored AAA asset fidelity.
+## What counts as a successful pull test
 
-Those are exactly the things this showcase workflow is intended to make easy to observe next.
+Do **not** call the new slice Unity-qualified merely because source tests are green.
+
+The first real Editor gate is:
+
+1. Unity 2022.3.62f3 imports the pulled head;
+2. Console reaches zero red compiler errors;
+3. the one-click Showcase completes scene authoring;
+4. no red runtime errors appear on entering Play Mode;
+5. Guardian appears at the Listening Cavern start;
+6. the route can progress cavern → house → cellar → Warden → boss;
+7. locks/gates do not soft-lock the run;
+8. the boss remains dormant until the final threshold.
+
+If any step fails, capture the **first red Console error** or a short recording of the behavioral failure and fix that exact head in source.
+
+## Next quality gates after the route works
+
+Once the journey is mechanically traversable in real Unity, tune in this order:
+
+1. third-person movement/camera feel;
+2. enemy telegraph/recovery timing;
+3. room width, cover and encounter pacing;
+4. Guardian locomotion/combat animation;
+5. enemy visual silhouettes/animation;
+6. weapon and contact VFX;
+7. environment material/lighting polish;
+8. BCI orb placement under real gaze constraints;
+9. calibrated synthetic/physical BCI qualification.
+
+That order prevents a beautiful scene from hiding a controller that still feels wrong.
