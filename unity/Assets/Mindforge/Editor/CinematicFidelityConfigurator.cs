@@ -145,16 +145,16 @@ namespace Mindforge.Editor
 
         private static void ConfigureQualitySettings()
         {
-            QualitySettings.shadows = ShadowQuality.All;
+            QualitySettings.shadows = UnityEngine.ShadowQuality.All;
             QualitySettings.shadowResolution = UnityEngine.ShadowResolution.VeryHigh;
-            QualitySettings.shadowProjection = ShadowProjection.StableFit;
+            QualitySettings.shadowProjection = UnityEngine.ShadowProjection.StableFit;
             QualitySettings.shadowDistance = 52f;
             QualitySettings.shadowCascades = 4;
             QualitySettings.lodBias = Mathf.Max(QualitySettings.lodBias, 2.0f);
             QualitySettings.maximumLODLevel = 0;
-            QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
+            QualitySettings.anisotropicFiltering = UnityEngine.AnisotropicFiltering.ForceEnable;
             QualitySettings.realtimeReflectionProbes = true;
-            QualitySettings.skinWeights = SkinWeights.FourBones;
+            QualitySettings.skinWeights = UnityEngine.SkinWeights.FourBones;
             QualitySettings.vSyncCount = 1;
             Application.targetFrameRate = 120;
         }
