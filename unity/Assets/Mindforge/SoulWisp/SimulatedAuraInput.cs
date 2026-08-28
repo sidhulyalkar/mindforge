@@ -2,6 +2,7 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
+using Object = UnityEngine.Object;
 using Mindforge.Calibration;
 using Mindforge.Telemetry;
 
