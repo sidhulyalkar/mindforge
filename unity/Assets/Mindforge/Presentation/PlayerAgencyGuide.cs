@@ -8,7 +8,7 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Non-authoritative presentation for the competition build. It teaches the
-    /// keyboard-first control contract without changing combat or neural authority.
+    /// third-person physical control contract without changing combat or neural authority.
     /// </summary>
     public sealed class PlayerAgencyGuide : MonoBehaviour
     {
@@ -159,7 +159,7 @@ namespace Mindforge.Presentation
                     GUI.Box(new Rect(left, Screen.height - 74f, width, 48f), lesson);
             }
 
-            string focusState = cameraRig != null && cameraRig.TargetFocusActive ? "T  FOCUS ON" : "T  ENEMY FOCUS";
+            string focusState = cameraRig != null && cameraRig.TargetFocusActive ? "T  LOCKED" : "T  LOCK ON";
             GUI.Label(new Rect(18f, Screen.height - 34f, 180f, 22f), focusState, _centerStyle);
             GUI.Label(new Rect(Screen.width - 176f, Screen.height - 34f, 160f, 22f), "F10  JUDGE LENS", _centerStyle);
             if (_judgeLens) DrawJudgeLens();
@@ -177,15 +177,15 @@ namespace Mindforge.Presentation
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD MOVE   ·   ARROWS / MOUSE AIM   ·   T ENEMY FOCUS   ·   SPACE DASH   ·   F SWORD   |   focus changes camera only";
+                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK ON   ·   SPACE DODGE   ·   F SWORD   |   third-person combat";
             if (!_shieldRaised)
-                return "RMB / E HOLD SHIELD   |   GREEN Guard resonance enlarges and stabilizes it, but your hand decides when it is raised";
+                return "RMB / E HOLD SHIELD   |   lock-on keeps you facing the threat while WASD strafes around it";
             if (!_shieldBlocked)
-                return "READ THE TELEGRAPH   |   block with RMB/E, or raise guard just before impact for a PERFECT GUARD reflect";
+                return "READ THE TELEGRAPH   |   block with RMB/E, dodge with Space, or time a PERFECT GUARD reflect";
             if (!_pulseUsed)
-                return "SHIFT PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   keep moving between openings";
+                return "SHIFT PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   orbit, punish, disengage";
             if (!_cleaveUsed || !_counterUsed)
-                return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   the BCI amplifies your tools; it never replaces movement or timing";
+                return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   neural focus amplifies tools you already control";
             return "BUILD FLUX   |   near miss, sword/shield parry, Echo pressure and Signal Break create your high-impact R windows";
         }
 
@@ -214,14 +214,12 @@ namespace Mindforge.Presentation
 
             float x = screen.x;
             float y = Screen.height - screen.y;
-            const float size = 54f;
-            const float arm = 13f;
+            const float size = 58f;
+            const float arm = 14f;
             const float thickness = 2f;
             Color before = GUI.color;
             GUI.color = new Color(0.12f, 0.82f, 1f, 0.92f);
 
-            // Four clean corner brackets keep the target spatially obvious without
-            // covering telegraphs or turning focus mode into a giant HUD widget.
             GUI.DrawTexture(new Rect(x - size * 0.5f, y - size * 0.5f, arm, thickness), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(x - size * 0.5f, y - size * 0.5f, thickness, arm), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(x + size * 0.5f - arm, y - size * 0.5f, arm, thickness), Texture2D.whiteTexture);
@@ -232,13 +230,13 @@ namespace Mindforge.Presentation
             GUI.DrawTexture(new Rect(x + size * 0.5f - thickness, y + size * 0.5f - arm, thickness, arm), Texture2D.whiteTexture);
             GUI.color = before;
 
-            GUI.Label(new Rect(x - 70f, y - size * 0.5f - 28f, 140f, 22f), "TARGET FOCUS", _focusStyle);
+            GUI.Label(new Rect(x - 70f, y - size * 0.5f - 28f, 140f, 22f), "TARGET LOCK", _focusStyle);
         }
 
         private void DrawJudgeLens()
         {
-            const float width = 480f;
-            const float height = 180f;
+            const float width = 500f;
+            const float height = 184f;
             float left = Screen.width - width - 18f;
             float top = 18f;
             GUI.Box(new Rect(left, top, width, height), string.Empty);
@@ -248,10 +246,10 @@ namespace Mindforge.Presentation
                 : "BCI: bounded blade/shield resonance after accepted Sight/Guard";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: WASD move · arrows/mouse aim · T camera focus · sword · shield · dash · skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: WASD move · mouse/arrows camera · T target lock · sword · shield · dodge · skills", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 66f, width - 32f, 42f), bci, _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never swings, raises guard, aims, dodges, fires, or parries", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 154f, width - 32f, 20f), "T changes framing only · F10 hides this explainer", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never moves, locks a target, rotates the camera, swings, blocks, dodges, fires, or parries", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 156f, width - 32f, 20f), "T is conventional target lock · F10 hides this explainer", _leftStyle);
         }
 
         private void EnsureStyles()
