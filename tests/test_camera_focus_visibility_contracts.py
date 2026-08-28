@@ -40,10 +40,12 @@ def test_camera_is_third_person_orbit_and_consumes_lock_without_owning_it():
 
     for token in (
         "Third-person ARPG camera",
-        "pivotHeight = 1.42f",
-        "freeDistance = 5.25f",
-        "lockDistance = 5.85f",
-        "shoulderOffset = 0.62f",
+        "pivotHeight = 1.28f",
+        "freeDistance = 4.45f",
+        "lockDistance = 5.20f",
+        "shoulderOffset = 0.70f",
+        "verticalFollowSmoothSeconds = 0.105f",
+        "_smoothedPivotY = Mathf.SmoothDamp",
         'Input.GetAxis("Mouse X")',
         'Input.GetAxis("Mouse Y")',
         "arrowYawSpeed = 105f",
@@ -53,6 +55,8 @@ def test_camera_is_third_person_orbit_and_consumes_lock_without_owning_it():
         "Physics.SphereCastNonAlloc",
         "IsGuardianHierarchy",
         "candidate.IsChildOf(guardian)",
+        "IsDynamicActor(collider)",
+        "GetComponentInParent<CombatantVitals>()",
         "CursorLockMode.Locked",
         "lockYawSharpness",
         "lockLookWeight",
@@ -70,6 +74,7 @@ def test_camera_is_third_person_orbit_and_consumes_lock_without_owning_it():
         "TryLightAttack(",
         "SetGuardHeld(",
         "RequestDash(",
+        "RequestJump(",
         "NeuralEvent",
         "UdpNeuralReceiver",
         "DualAuraCombatDirector",
@@ -119,7 +124,7 @@ def test_lock_mode_is_discoverable_and_creates_stable_bci_gaze_anchors():
     assert "cameraRig.TargetFocusActive" in guide
     assert "cameraRig.FocusTarget" in guide
     assert '"T", "Lock / unlock enemy"' in menu
-    assert "EEG never moves, rotates camera, locks targets" in menu
+    assert "EEG never moves, jumps, rotates camera, locks targets" in menu
 
     assert "StableLockAnchorsActive" in wisp
     assert "lockedHorizontalSeparation = 1.18f" in wisp
@@ -133,6 +138,7 @@ def test_lock_mode_is_discoverable_and_creates_stable_bci_gaze_anchors():
         ".TryLightAttack(",
         ".SetGuardHeld(",
         ".RequestDash(",
+        ".RequestJump(",
         ".FirePulse(",
         ".BeginCounter(",
     ):
