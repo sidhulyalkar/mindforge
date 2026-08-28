@@ -24,9 +24,9 @@ namespace Mindforge.Combat
         private bool _active;
         private bool _concord;
         private bool _externalPaused;
-        private float _pauseStartedAt;
-        private float _endAt;
-        private float _lastUse = -999f;
+        private long _pauseStartedTick;
+        private long _endTick = long.MinValue / 4;
+        private long _lastUseTick = long.MinValue / 4;
 
         public event Action<bool> Activated;
         public event Action<bool, int> Released;
@@ -35,6 +35,15 @@ namespace Mindforge.Combat
         public bool ConcordCast => _active && _concord;
         public bool ExternalPaused => _externalPaused;
         public Transform CurrentConventionalTarget => CombatTargetResolver.Resolve(targetLock, primaryTarget);
+
+        private long FixedTick
+        {
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
 
         private void Awake()
         {
@@ -47,23 +56,26 @@ namespace Mindforge.Combat
             _externalPaused = paused;
             if (paused)
             {
-                _pauseStartedAt = Time.time;
+                _pauseStartedTick = FixedTick;
             }
             else if (_active)
             {
-                _endAt += Mathf.Max(0f, Time.time - _pauseStartedAt);
+                _endTick += Math.Max(0L, FixedTick - _pauseStartedTick);
             }
         }
 
         public bool TryActivate()
         {
-            if (_externalPaused || tuning == null || flux == null || !flux.IsFull || Time.time - _lastUse < tuning.bloomCooldown) return false;
+            if (_externalPaused || tuning == null || flux == null || !flux.IsFull) return false;
+            long now = FixedTick;
+            if (now - _lastUseTick < SecondsToTicks(tuning.bloomCooldown)) return false;
             if (!flux.TryConsumeFull()) return false;
 
-            _lastUse = Time.time;
+            _lastUseTick = now;
             _active = true;
             _concord = auras != null && auras.ConcordActive;
-            _endAt = Time.time + tuning.bloomDuration * (_concord ? 1.15f : 1f);
+            float duration = tuning.bloomDuration * (_concord ? 1.15f : 1f);
+            _endTick = now + SecondsToTicks(duration);
             _captured.Clear();
             _capturedIds.Clear();
 
@@ -85,7 +97,7 @@ namespace Mindforge.Combat
                 _captured.Add(p);
                 p.Capture(captureAnchor != null ? captureAnchor : transform, _captured.Count * 0.9f);
             }
-            if (Time.time >= _endAt) Detonate();
+            if (FixedTick >= _endTick) Detonate();
         }
 
         private void Detonate()
@@ -128,6 +140,12 @@ namespace Mindforge.Combat
             presentation?.BloomRelease(_concord);
             hitStop?.Pulse(_concord ? tuning.twinEclipseHitStop : tuning.heavyHitStop);
             Released?.Invoke(_concord, capturedCount);
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
     }
 }
