@@ -6,13 +6,14 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Grounded locomotion particles for the showcase Guardian. Emits only from already
-    /// resolved movement/dodge state and never modifies Rigidbody velocity or combat.
+    /// resolved movement/dodge/jump state and never modifies Rigidbody velocity or combat.
     /// </summary>
     public sealed class GuardianLocomotionVfx : MonoBehaviour
     {
         [SerializeField] private GuardianMotor motor;
         [SerializeField] private float footstepSpeedThreshold = 1.45f;
-        [SerializeField] private float minStepInterval = 0.24f;
+        [SerializeField] private float fullSpeedReference = 11.2f;
+        [SerializeField] private float minStepInterval = 0.20f;
 
         private ParticleSystem _dust;
         private Material _dustMaterial;
@@ -28,24 +29,32 @@ namespace Mindforge.Presentation
 
         private void OnEnable()
         {
-            if (motor != null) motor.DashStarted += OnDash;
+            if (motor == null) motor = GetComponent<GuardianMotor>();
+            if (motor == null) return;
+            motor.DashStarted += OnDash;
+            motor.Jumped += OnJumped;
+            motor.Landed += OnLanded;
         }
 
         private void OnDisable()
         {
-            if (motor != null) motor.DashStarted -= OnDash;
+            if (motor == null) return;
+            motor.DashStarted -= OnDash;
+            motor.Jumped -= OnJumped;
+            motor.Landed -= OnLanded;
         }
 
         private void Update()
         {
-            if (motor == null || _dust == null) return;
+            if (motor == null || _dust == null || !motor.IsGrounded) return;
             Vector3 horizontal = Vector3.ProjectOnPlane(motor.Velocity, Vector3.up);
             float speed = horizontal.magnitude;
             if (speed < footstepSpeedThreshold || motor.IsDashing) return;
 
-            _phase += Time.deltaTime * Mathf.Lerp(5.2f, 9.4f, Mathf.Clamp01(speed / 6.2f));
+            float speed01 = Mathf.Clamp01(speed / Mathf.Max(0.1f, fullSpeedReference));
+            _phase += Time.deltaTime * Mathf.Lerp(5.2f, 11.4f, speed01);
             if (Time.time < _nextStep || Mathf.Sin(_phase) < 0.92f) return;
-            _nextStep = Time.time + Mathf.Max(0.12f, minStepInterval - Mathf.Clamp01(speed / 8f) * 0.08f);
+            _nextStep = Time.time + Mathf.Max(0.10f, minStepInterval - speed01 * 0.075f);
             _leftFoot = !_leftFoot;
 
             Vector3 right = transform.right * (_leftFoot ? -0.18f : 0.18f);
@@ -54,9 +63,27 @@ namespace Mindforge.Presentation
 
         private void OnDash()
         {
-            if (_dust == null) return;
+            if (_dust == null || motor == null || !motor.IsGrounded) return;
             Vector3 position = transform.position + Vector3.up * 0.04f;
             EmitDust(position, 14, 1.9f, 0.34f);
+        }
+
+        private void OnJumped()
+        {
+            if (_dust == null) return;
+            EmitDust(transform.position + Vector3.up * 0.03f, 7, 0.90f, 0.30f);
+        }
+
+        private void OnLanded(float impactSpeed)
+        {
+            if (_dust == null) return;
+            float impact01 = Mathf.Clamp01(impactSpeed / 14f);
+            int count = Mathf.RoundToInt(Mathf.Lerp(5f, 16f, impact01));
+            EmitDust(
+                transform.position + Vector3.up * 0.025f,
+                count,
+                Mathf.Lerp(0.75f, 1.75f, impact01),
+                Mathf.Lerp(0.18f, 0.42f, impact01));
         }
 
         private void BuildDust()
