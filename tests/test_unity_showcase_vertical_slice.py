@@ -68,6 +68,7 @@ def test_showcase_runtime_composes_character_boss_camera_vfx_post_and_melee_tele
         "FracturedSignalAvatar",
         "FracturedSignalMeleePresentation",
         "ShowcaseCameraRig",
+        "ArenaVisibilityDirector",
         "CombatVfxOrchestrator",
         "ShowcasePostProcessing",
         "FracturedSignalMeleeDirector",
@@ -120,6 +121,7 @@ def test_showcase_presentation_classes_remain_non_authoritative():
         ("Presentation", "GuardianAvatarPresentation.cs"),
         ("Presentation", "FracturedSignalAvatar.cs"),
         ("Presentation", "ShowcaseCameraRig.cs"),
+        ("Presentation", "ArenaVisibilityDirector.cs"),
         ("Presentation", "ShowcasePostProcessing.cs"),
         ("Presentation", "CombatVfxOrchestrator.cs"),
         ("Presentation", "FracturedSignalMeleePresentation.cs"),
@@ -144,15 +146,17 @@ def test_showcase_presentation_classes_remain_non_authoritative():
 def test_showcase_hotkeys_do_not_collide_with_judge_lens_or_controller_preview():
     photodiode = read("Presentation", "PhotodiodePatch.cs")
     guide = read("Presentation", "PlayerAgencyGuide.cs")
+    camera = read("Presentation", "ShowcaseCameraRig.cs")
     controller = read("Qualification", "ControllerOnlyQualificationBootstrap.cs")
 
     assert "toggleKey = KeyCode.F9" in photodiode
     assert "switchSourceKey = KeyCode.F11" in photodiode
     assert "Input.GetKeyDown(KeyCode.F10)" in guide
+    assert "targetFocusToggleKey = KeyCode.T" in camera
     assert "EditorHotkey = KeyCode.F8" in controller
 
 
-def test_post_stack_is_visual_only_and_signal_break_reduces_sensory_load():
+def test_post_stack_is_visual_only_readable_and_signal_break_reduces_sensory_load():
     post = read("Presentation", "ShowcasePostProcessing.cs")
 
     for token in (
@@ -165,11 +169,12 @@ def test_post_stack_is_visual_only_and_signal_break_reduces_sensory_load():
         "ChromaticAberration",
         "TonemappingMode.ACES",
         "renderPostProcessing = true",
-        "rest ? 0.13f : 0.31f",
-        "rest ? 0.060f : 0.115f",
-        "rest ? 4f : 14f",
-        "rest ? 0.018f : 0.045f",
-        "rest ? 0.003f : 0.012f",
+        "rest ? 0.12f : 0.27f",
+        "rest ? 0.035f : 0.060f",
+        "rest ? 3f : 7f",
+        "rest ? 0.30f : 0.38f",
+        "rest ? 0.012f : 0.025f",
+        "rest ? 0.002f : 0.006f",
     ):
         assert token in post
 
