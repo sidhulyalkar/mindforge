@@ -52,7 +52,7 @@ namespace Mindforge.Editor
             if (gameViewType == null) return;
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
             gameView?.Focus();
-            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; T locks target; Space dodges.");
+            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; T locks target; Space dodges; G interacts.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -83,11 +83,11 @@ namespace Mindforge.Editor
                 ShowcaseSceneDecorator.DecorateOpenScene();
                 CinematicSceneDetailer.EnhanceOpenScene();
 
-                // Keep the qualified boss arena at its existing world-space origin. The
-                // journey is authored afterward and extends backward along -Z, ending at
-                // this arena. This avoids translating Arena V3's world-space rune lines.
+                // Keep the qualified boss arena at its existing world-space origin.
+                // The Null Ward extends backward along -Z and rejoins the arena at the
+                // Signal Cathedral threshold without translating Arena V3 rune geometry.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
-                FirstJourneySceneBuilder.BuildOpenScene();
+                NullWardSceneBuilder.BuildOpenScene();
             }
             finally
             {
@@ -103,10 +103,11 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
-                "[Mindforge:Showcase] Cinematic journey ready. The controller-only path now runs through " +
-                "the Listening Cavern, Ruined House, Cellar, Signal Warden chamber and final approach " +
-                "before revealing the existing Arena V3 and The Fractured Signal. Runtime installs the " +
-                "third-person behind-Guardian camera, conventional multi-target lock and stable Wisp gaze anchors.");
+                "[Mindforge:Showcase] Null Ward cinematic slice ready. The controller-only path now runs from " +
+                "the Memory Forge through the Synapse Causeway and Null Market, includes an eastern maintenance " +
+                "loop with a persistent shortcut, opens the Protocol Veil after the required encounters, and " +
+                "hands the existing Arena V3 to The Fractured Signal. Runtime installs the third-person camera, " +
+                "conventional multi-target lock, pooled presentation effects and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]

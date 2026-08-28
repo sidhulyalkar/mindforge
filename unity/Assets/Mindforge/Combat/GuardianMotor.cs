@@ -24,18 +24,27 @@ namespace Mindforge.Combat
 
         private Rigidbody _body;
         private Vector2 _moveInput;
-        private float _dashUntil;
-        private float _invulnerableUntil;
+        private long _dashUntilTick = long.MinValue / 4;
+        private long _invulnerableUntilTick = long.MinValue / 4;
         private bool _dashQueued;
-        private float _dashQueuedUntil;
+        private long _dashQueuedUntilTick = long.MinValue / 4;
         private Vector3 _queuedDashFallback;
         private bool _wasDashing;
         private Vector3 _dashDirection;
 
         public event Action DashStarted;
 
-        public bool IsDashing => Time.time < _dashUntil;
-        public bool IsInvulnerable => Time.time < _invulnerableUntil;
+        private long FixedTick
+        {
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
+
+        public bool IsDashing => FixedTick < _dashUntilTick;
+        public bool IsInvulnerable => FixedTick < _invulnerableUntilTick;
         public Vector3 Velocity => _body != null ? _body.velocity : Vector3.zero;
         public Vector2 MoveInput => _moveInput;
 
@@ -76,9 +85,10 @@ namespace Mindforge.Combat
             if (IsDashing)
             {
                 // Unlimited dashes means no stamina/cooldown economy. A press near the
-                // end of the current dash is buffered so chaining feels intentional.
+                // end of the current dash is buffered on fixed ticks so chaining remains
+                // deterministic under the input-tape replay contract.
                 _dashQueued = true;
-                _dashQueuedUntil = Time.time + Mathf.Max(0.02f, dashInputBufferSeconds);
+                _dashQueuedUntilTick = FixedTick + SecondsToTicks(Mathf.Max(0.02f, dashInputBufferSeconds));
                 _queuedDashFallback = direction;
                 return true;
             }
@@ -102,8 +112,12 @@ namespace Mindforge.Combat
             float speedMultiplier = loadout != null ? loadout.RollSpeedMultiplier : 1f;
             float durationMultiplier = loadout != null ? loadout.RollDurationMultiplier : 1f;
             float rollDuration = Mathf.Max(0.06f, tuning.dashDuration * durationMultiplier);
-            _dashUntil = Time.time + rollDuration;
-            _invulnerableUntil = Time.time + Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds));
+            int rollTicks = SecondsToTicks(rollDuration);
+            int invulnerabilityTicks = Mathf.Min(
+                rollTicks,
+                SecondsToTicks(Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds))));
+            _dashUntilTick = FixedTick + rollTicks;
+            _invulnerableUntilTick = FixedTick + invulnerabilityTicks;
             _dashDirection = direction.normalized;
             Vector3 horizontal = _dashDirection * tuning.dashSpeed * speedMultiplier;
             _body.velocity = horizontal + Vector3.up * _body.velocity.y;
@@ -142,7 +156,7 @@ namespace Mindforge.Combat
 
             if (_dashQueued)
             {
-                if (Time.time <= _dashQueuedUntil && (physicalCombat == null || physicalCombat.CanDodge))
+                if (FixedTick <= _dashQueuedUntilTick && (physicalCombat == null || physicalCombat.CanDodge))
                 {
                     StartDash(ResolveDashDirection(_queuedDashFallback));
                     _wasDashing = true;
@@ -184,6 +198,8 @@ namespace Mindforge.Combat
 
         private void UpdateFacing(Vector3 moveDirection)
         {
+            if (physicalCombat != null && !physicalCombat.CanTurn) return;
+
             Vector3 facing = Vector3.zero;
             float sharpness = freeTurnSharpness;
 
@@ -200,8 +216,9 @@ namespace Mindforge.Combat
             facing.y = 0f;
             if (facing.sqrMagnitude < 0.001f) return;
 
+            float turnMultiplier = physicalCombat != null ? Mathf.Clamp(physicalCombat.TurnMultiplier, 0.05f, 1f) : 1f;
             Quaternion desired = Quaternion.LookRotation(facing.normalized, Vector3.up);
-            float t = 1f - Mathf.Exp(-Mathf.Max(0.1f, sharpness) * Time.fixedDeltaTime);
+            float t = 1f - Mathf.Exp(-Mathf.Max(0.1f, sharpness * turnMultiplier) * Time.fixedDeltaTime);
             _body.MoveRotation(Quaternion.Slerp(_body.rotation, desired, t));
         }
 
@@ -210,6 +227,12 @@ namespace Mindforge.Combat
             direction.y = 0f;
             if (direction.sqrMagnitude < 0.001f) return;
             _body.MoveRotation(Quaternion.LookRotation(direction.normalized, Vector3.up));
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
     }
 }

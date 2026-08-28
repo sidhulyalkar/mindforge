@@ -8,6 +8,7 @@ namespace Mindforge.Combat
     /// Close-range authority for The Fractured Signal. The primary boss scheduler
     /// invokes these patterns instead of running a second independent attack loop, so
     /// melee pressure cannot silently stack with an unrelated projectile pattern.
+    /// Telegraph commitment is measured on the fixed simulation clock.
     /// </summary>
     public sealed class FracturedSignalMeleeDirector : MonoBehaviour
     {
@@ -36,6 +37,8 @@ namespace Mindforge.Combat
         [SerializeField] private float slamPoise = 29f;
         [SerializeField] private float slamTelegraphPhaseTwo = 0.82f;
         [SerializeField] private float slamTelegraphPhaseThree = 0.67f;
+
+        private static readonly WaitForFixedUpdate FixedStep = new WaitForFixedUpdate();
 
         public event Action<string, Vector3, float, float, bool> MeleeTelegraphed;
         public event Action<string, string, float> MeleeResolved;
@@ -120,14 +123,18 @@ namespace Mindforge.Combat
 
         private IEnumerator WaitTelegraph(float seconds)
         {
-            float elapsed = 0f;
-            float duration = Mathf.Max(0.08f, seconds);
-            while (elapsed < duration)
+            int ticks = SecondsToTicks(Mathf.Max(0.08f, seconds));
+            for (int i = 0; i < ticks; i++)
             {
+                yield return FixedStep;
                 if (!CanExecute()) yield break;
-                elapsed += Time.deltaTime;
-                yield return null;
             }
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
 
         private string ResolveCleave(Vector3 lockedDirection, float range, float arc, float damage, float poise, bool heavy)

@@ -4,8 +4,8 @@ namespace Mindforge.Journey
 {
     /// <summary>
     /// Presentation-only companion for JourneyEnemyController. It visualizes intent,
-    /// timing, recovery and death without issuing damage, movement, targeting or neural
-    /// commands.
+    /// timing, recovery, death and reconstruction without issuing damage, movement,
+    /// targeting or neural commands.
     /// </summary>
     public sealed class JourneyEnemyPresentation : MonoBehaviour
     {
@@ -30,6 +30,7 @@ namespace Mindforge.Journey
         [SerializeField] private Color wardenColor = new Color(0.82f, 0.18f, 0.95f);
 
         private Vector3 _visualBaseLocalPosition;
+        private Vector3 _visualBaseLocalScale = Vector3.one;
         private Vector3 _ringBaseScale;
         private float _telegraphStartedAt;
         private float _telegraphUntil;
@@ -51,20 +52,22 @@ namespace Mindforge.Journey
             Renderer renderer,
             Light light)
         {
+            Unsubscribe();
             controller = enemy;
             visualRoot = visuals;
             core = enemyCore;
             telegraphRing = ring;
             coreRenderer = renderer;
             coreLight = light;
-            CaptureBases();
+            CaptureBases(true);
+            Subscribe();
         }
 
         private void Awake()
         {
             _block = new MaterialPropertyBlock();
             if (controller == null) controller = GetComponent<JourneyEnemyController>();
-            CaptureBases();
+            CaptureBases(true);
             ApplyColor(IdleForArchetype(), 1.15f);
             if (telegraphRing != null) telegraphRing.gameObject.SetActive(false);
         }
@@ -83,9 +86,11 @@ namespace Mindforge.Journey
             controller.AttackTelegraphed -= OnAttackTelegraphed;
             controller.AttackResolved -= OnAttackResolved;
             controller.Defeated -= OnDefeated;
+            controller.Reconstructed -= OnReconstructed;
             controller.AttackTelegraphed += OnAttackTelegraphed;
             controller.AttackResolved += OnAttackResolved;
             controller.Defeated += OnDefeated;
+            controller.Reconstructed += OnReconstructed;
         }
 
         private void Unsubscribe()
@@ -94,6 +99,7 @@ namespace Mindforge.Journey
             controller.AttackTelegraphed -= OnAttackTelegraphed;
             controller.AttackResolved -= OnAttackResolved;
             controller.Defeated -= OnDefeated;
+            controller.Reconstructed -= OnReconstructed;
         }
 
         private void Update()
@@ -103,7 +109,7 @@ namespace Mindforge.Journey
             {
                 float t = Mathf.Clamp01((now - _deathStartedAt) / 0.32f);
                 if (visualRoot != null)
-                    visualRoot.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 0.08f, t * t);
+                    visualRoot.localScale = Vector3.Lerp(_visualBaseLocalScale, _visualBaseLocalScale * 0.08f, t * t);
                 if (coreLight != null) coreLight.intensity = Mathf.Lerp(coreLight.intensity, 0f, t);
                 return;
             }
@@ -173,9 +179,34 @@ namespace Mindforge.Journey
             if (telegraphRing != null) telegraphRing.gameObject.SetActive(false);
         }
 
-        private void CaptureBases()
+        private void OnReconstructed(JourneyEnemyController enemy)
         {
-            if (visualRoot != null) _visualBaseLocalPosition = visualRoot.localPosition;
+            _dying = false;
+            _deathStartedAt = 0f;
+            _telegraphStartedAt = 0f;
+            _telegraphUntil = -1f;
+            _flashUntil = -1f;
+            if (visualRoot != null)
+            {
+                visualRoot.localPosition = _visualBaseLocalPosition;
+                visualRoot.localScale = _visualBaseLocalScale;
+            }
+            if (telegraphRing != null)
+            {
+                telegraphRing.localScale = _ringBaseScale;
+                telegraphRing.gameObject.SetActive(false);
+            }
+            ApplyColor(IdleForArchetype(), 1.15f);
+        }
+
+        private void CaptureBases(bool force = false)
+        {
+            if (visualRoot != null)
+            {
+                _visualBaseLocalPosition = visualRoot.localPosition;
+                if (force || _visualBaseLocalScale.sqrMagnitude < 0.001f)
+                    _visualBaseLocalScale = visualRoot.localScale.sqrMagnitude > 0.001f ? visualRoot.localScale : Vector3.one;
+            }
             if (telegraphRing != null)
             {
                 _ringBaseScale = telegraphRing.localScale;

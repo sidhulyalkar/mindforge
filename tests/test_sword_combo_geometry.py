@@ -6,11 +6,19 @@ PRESENTATION = ROOT / "unity" / "Assets" / "Mindforge" / "Presentation"
 
 
 def test_second_combo_step_reverses_authoritative_sweep_direction():
-    source = (COMBAT / "GuardianSwordShieldController.cs").read_text(encoding="utf-8")
-    assert "if (_comboStep == 2)" in source
-    assert "from = sweepDegrees * 0.5f;" in source
-    assert "to = -sweepDegrees * 0.5f;" in source
-    assert "Quaternion.AngleAxis(angle, Vector3.up) * _attackAim" in source
+    controller = (COMBAT / "GuardianSwordShieldController.cs").read_text(encoding="utf-8")
+    definition = (COMBAT / "AttackDefinition.cs").read_text(encoding="utf-8")
+
+    # Geometry consumes the attack-data flag instead of hard-coding combo-step identity.
+    assert "if (attack.ReverseSweep)" in controller
+    assert "from = sweepDegrees * 0.5f;" in controller
+    assert "to = -sweepDegrees * 0.5f;" in controller
+    assert "Quaternion.AngleAxis(angle, Vector3.up) * _attackAim" in controller
+
+    # The second default light-chain definition is the reverse sweep.
+    assert 'Create("aetherblade_light_2"' in definition
+    light_two = definition[definition.index('Create("aetherblade_light_2"'):definition.index('Create("aetherblade_light_3"')]
+    assert "true, false, \"guardian_light_2\"" in light_two
 
 
 def test_rendered_weapon_uses_same_combo_step_direction():

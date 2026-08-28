@@ -24,8 +24,10 @@ namespace Mindforge.Combat
 
         private readonly Collider[] _hits = new Collider[48];
         private readonly HashSet<int> _reflectedThisWindow = new HashSet<int>();
-        private float _lastShot = -999f, _lastCleave = -999f, _lastCounter = -999f;
-        private float _counterUntil;
+        private long _lastShotTick = long.MinValue / 4;
+        private long _lastCleaveTick = long.MinValue / 4;
+        private long _lastCounterTick = long.MinValue / 4;
+        private long _counterUntilTick = long.MinValue / 4;
         private string _lastAura;
 
         public event Action<string> ActionAccepted;
@@ -35,6 +37,15 @@ namespace Mindforge.Combat
         public bool ConcordActive => auras != null && auras.ConcordActive;
         public Transform PrimaryTarget { get => primaryTarget; set => primaryTarget = value; }
         public Transform CurrentConventionalTarget => CombatTargetResolver.Resolve(targetLock, primaryTarget);
+
+        private long FixedTick
+        {
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
 
         private void Awake()
         {
@@ -51,13 +62,24 @@ namespace Mindforge.Combat
             if (auras != null) auras.AuraApplied -= OnAuraApplied;
         }
 
-        private void Update()
+        public void ResetForCheckpoint()
         {
-            if (Time.time < _counterUntil) ScanCounterProjectiles();
+            _lastShotTick = long.MinValue / 4;
+            _lastCleaveTick = long.MinValue / 4;
+            _lastCounterTick = long.MinValue / 4;
+            _counterUntilTick = long.MinValue / 4;
+            _reflectedThisWindow.Clear();
+        }
 
+        private void FixedUpdate()
+        {
+            if (FixedTick < _counterUntilTick) ScanCounterProjectiles();
+
+            // Guard resonance regeneration is a gameplay payoff, so it shares the same
+            // simulation clock as damage, attacks and deterministic input replay.
             if (auras != null && auras.GuardActive && vitals != null)
             {
-                float restored = vitals.Heal(auras.HealingPerSecond * Time.deltaTime);
+                float restored = vitals.Heal(auras.HealingPerSecond * Time.fixedDeltaTime);
                 if (restored > 0f)
                     NeuralPayoffObserved?.Invoke("GUARD_REGEN_REALIZED", restored);
             }
@@ -72,8 +94,11 @@ namespace Mindforge.Combat
 
         public bool FirePulse(Vector3 aimDirection)
         {
-            if (tuning == null || projectilePrefab == null || Time.time - _lastShot < tuning.shotCooldown) return false;
-            _lastShot = Time.time;
+            if (tuning == null || projectilePrefab == null) return false;
+            long now = FixedTick;
+            if (now - _lastShotTick < SecondsToTicks(tuning.shotCooldown)) return false;
+            _lastShotTick = now;
+
             bool sight = auras != null && auras.SightActive;
             float speed = sight ? tuning.sightShotSpeed : tuning.shotSpeed;
             float damage = sight ? tuning.sightShotDamage : tuning.shotDamage;
@@ -95,8 +120,11 @@ namespace Mindforge.Combat
 
         public bool RiftCleave(Vector3 aimDirection)
         {
-            if (tuning == null || Time.time - _lastCleave < tuning.cleaveCooldown) return false;
-            _lastCleave = Time.time;
+            if (tuning == null) return false;
+            long now = FixedTick;
+            if (now - _lastCleaveTick < SecondsToTicks(tuning.cleaveCooldown)) return false;
+            _lastCleaveTick = now;
+
             ActionAccepted?.Invoke("RIFT_CLEAVE");
             bool sight = auras != null && auras.SightActive;
             float range = tuning.cleaveRange * (sight ? 1.18f : 1f);
@@ -135,9 +163,11 @@ namespace Mindforge.Combat
 
         public bool BeginCounter()
         {
-            if (tuning == null || Time.time - _lastCounter < tuning.counterCooldown) return false;
-            _lastCounter = Time.time;
-            _counterUntil = Time.time + tuning.counterWindow;
+            if (tuning == null) return false;
+            long now = FixedTick;
+            if (now - _lastCounterTick < SecondsToTicks(tuning.counterCooldown)) return false;
+            _lastCounterTick = now;
+            _counterUntilTick = now + SecondsToTicks(tuning.counterWindow);
             _reflectedThisWindow.Clear();
             ActionAccepted?.Invoke("COUNTER_PULSE");
             return true;
@@ -185,6 +215,12 @@ namespace Mindforge.Combat
                 presentation?.CounterImpact(impactDirection);
                 CombatOutcome?.Invoke("COUNTER_REFLECT");
             }
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
     }
 }

@@ -17,9 +17,13 @@ def test_dodge_has_real_short_iframe_not_full_motion_immunity():
     projectile = read("Combat", "MindforgeProjectile.cs")
 
     assert "dodgeInvulnerabilitySeconds = 0.105f" in motor
-    assert "public bool IsDashing => Time.time < _dashUntil" in motor
-    assert "public bool IsInvulnerable => Time.time < _invulnerableUntil" in motor
+    assert "public bool IsDashing => FixedTick < _dashUntilTick" in motor
+    assert "public bool IsInvulnerable => FixedTick < _invulnerableUntilTick" in motor
     assert "Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds))" in motor
+    assert "int rollTicks = SecondsToTicks(rollDuration)" in motor
+    assert "int invulnerabilityTicks = Mathf.Min(" in motor
+    assert "_invulnerableUntilTick = FixedTick + invulnerabilityTicks" in motor
+    assert "Time.time" not in motor
 
     assert "public bool IsTemporarilyInvulnerable" in vitals
     assert "packet.SourceTeam == team || IsTemporarilyInvulnerable" in vitals
@@ -30,22 +34,31 @@ def test_dodge_has_real_short_iframe_not_full_motion_immunity():
     assert iframe_index < destroy_index
 
 
-def test_fixed_tick_action_grammar_prevents_guard_roll_attack_overlays():
+def test_fixed_tick_action_grammar_prevents_overlays_and_accepts_one_special_per_frame():
     source = read("Combat", "GuardianCombatInput.cs")
     physical = read("Combat", "GuardianSwordShieldController.cs")
 
     dash_block = source.index("if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))")
     guard_block = source.index("physicalCombat?.SetGuardHeld(command.guard_held, aim)")
-    sword_block = source.index("if (command.sword_attack_down) physicalCombat?.TryLightAttack(aim)")
+    sword_block = source.index("if (command.sword_attack_down)")
+    commitment_block = source.index("physicalCombat.ActionState != GuardianActionState.Locomotion")
+    counter_block = source.index("if (command.counter_down && combat.BeginCounter()) return;")
+    cleave_block = source.index("if (command.cleave_down && combat.RiftCleave(aim)) return;")
+    bloom_block = source.index("if (command.bloom_down && bloom != null && bloom.TryActivate()) return;")
     ranged_block = source.index("if (command.fire_held) combat.FirePulse(aim)")
-    assert dash_block < guard_block < sword_block < ranged_block
+    assert dash_block < guard_block < sword_block < commitment_block
+    assert commitment_block < counter_block < cleave_block < bloom_block < ranged_block
 
     assert "if (motor.RequestDash(aim)) return;" in source
     assert "if (motor.IsDashing)" in source
     assert "if (physicalCombat != null && physicalCombat.IsGuarding) return;" in source
-    assert "if (physicalCombat != null && physicalCombat.IsAttacking) return;" in source
+    assert "bool accepted = physicalCombat != null && physicalCombat.TryLightAttack(aim);" in source
+    assert "if (accepted) return;" in source
+    assert "One fixed command frame owns at most one committed action" in source
 
-    assert "public bool CanDodge => !IsAttacking" in physical
+    assert "public GuardianActionState ActionState => ResolveActionState()" in physical
+    assert "public bool CanDodge => ActionState == GuardianActionState.Locomotion || ActionState == GuardianActionState.Guard" in physical
+    assert "public bool CanAttack => ActionState == GuardianActionState.Locomotion" in physical
     assert "motor != null && motor.IsDashing" in physical
 
 
@@ -56,7 +69,7 @@ def test_guard_stance_costs_mobility_and_guard_integrity_recovery_even_without_b
 
     assert "guardMoveMultiplier = 0.70f" in physical
     assert "guardIntegrityRecoveryMultiplier = 0.34f" in physical
-    assert "public float MovementMultiplier => IsGuarding" in physical
+    assert "if (IsGuarding) return guardMoveMultiplier" in physical
     assert "stamina?.SetRecoveryMultiplier(_guardHeld ? guardIntegrityRecoveryMultiplier : 1f)" in physical
     assert "stamina?.SetRecoveryMultiplier(1f)" in physical
 

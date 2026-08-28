@@ -99,7 +99,19 @@ def test_close_range_boss_patterns_share_scheduler_and_have_truthful_geometry():
     assert "melee.CanEngage" in boss
     assert "yield return melee.ExecuteCleave" in boss
     assert "yield return melee.ExecuteSlam" in boss
-    assert "Projectile and melee patterns share this scheduler" in boss
+
+    # Projectile and melee choices are selected by the same fixed-tick pattern loop.
+    execute_start = boss.index("private IEnumerator ExecutePattern")
+    fan_start = boss.index("private IEnumerator TelegraphAndFan")
+    execute_body = boss[execute_start:fan_start]
+    assert "WaitForFixedUpdate" in boss
+    assert "WaitCombatTicks" in boss
+    assert "yield return melee.ExecuteCleave" in execute_body
+    assert "yield return melee.ExecuteSlam" in execute_body
+    assert "yield return TelegraphAndFan" in execute_body
+    assert "yield return TelegraphAndRadial" in execute_body
+    assert "yield return WaitCombatTicks" in boss
+    assert "Time.deltaTime" not in boss
 
     assert "ResolveCleave(direction, range, arc" in melee
     assert "Vector3.Angle(lockedDirection, delta.normalized) > arc * 0.5f" in melee
