@@ -59,32 +59,32 @@ namespace Mindforge.Presentation
             _volume.sharedProfile = _profile;
 
             _bloom = _profile.Add<Bloom>(true);
-            _bloom.intensity.Override(0.31f);
-            _bloom.threshold.Override(1.02f);
-            _bloom.scatter.Override(0.64f);
+            _bloom.intensity.Override(0.27f);
+            _bloom.threshold.Override(1.04f);
+            _bloom.scatter.Override(0.60f);
             _bloom.clamp.Override(14f);
             _bloom.highQualityFiltering.Override(true);
 
             _vignette = _profile.Add<Vignette>(true);
-            _vignette.intensity.Override(0.115f);
-            _vignette.smoothness.Override(0.66f);
+            _vignette.intensity.Override(0.060f);
+            _vignette.smoothness.Override(0.58f);
             _vignette.rounded.Override(true);
 
             _color = _profile.Add<ColorAdjustments>(true);
-            _color.postExposure.Override(0.10f);
-            _color.contrast.Override(14f);
-            _color.saturation.Override(-4f);
+            _color.postExposure.Override(0.38f);
+            _color.contrast.Override(7f);
+            _color.saturation.Override(2f);
 
             _whiteBalance = _profile.Add<WhiteBalance>(true);
-            _whiteBalance.temperature.Override(-3f);
+            _whiteBalance.temperature.Override(-2f);
             _whiteBalance.tint.Override(2f);
 
             _grain = _profile.Add<FilmGrain>(true);
-            _grain.intensity.Override(0.045f);
-            _grain.response.Override(0.72f);
+            _grain.intensity.Override(0.025f);
+            _grain.response.Override(0.70f);
 
             _chromatic = _profile.Add<ChromaticAberration>(true);
-            _chromatic.intensity.Override(0.012f);
+            _chromatic.intensity.Override(0.006f);
 
             Tonemapping tone = _profile.Add<Tonemapping>(true);
             tone.mode.Override(TonemappingMode.ACES);
@@ -107,16 +107,19 @@ namespace Mindforge.Presentation
             bool rest = presentation != null && presentation.SensoryRestActive;
 
             // Signal Break is a sensory exhale. It subtracts visual pressure instead of
-            // obscuring the scene with another full-screen effect.
-            float targetBloom = rest ? 0.13f : 0.31f;
-            float targetVignette = rest ? 0.060f : 0.115f;
-            float targetContrast = rest ? 4f : 14f;
-            float targetGrain = rest ? 0.018f : 0.045f;
-            float targetChromatic = rest ? 0.003f : 0.012f;
+            // obscuring the scene with another full-screen effect. The baseline remains
+            // deliberately readable enough for fast movement, telegraphs and gaze anchoring.
+            float targetBloom = rest ? 0.12f : 0.27f;
+            float targetVignette = rest ? 0.035f : 0.060f;
+            float targetContrast = rest ? 3f : 7f;
+            float targetExposure = rest ? 0.30f : 0.38f;
+            float targetGrain = rest ? 0.012f : 0.025f;
+            float targetChromatic = rest ? 0.002f : 0.006f;
             float response = 1f - Mathf.Exp(-4f * dt);
             _bloom.intensity.value = Mathf.Lerp(_bloom.intensity.value, targetBloom, response);
             _vignette.intensity.value = Mathf.Lerp(_vignette.intensity.value, targetVignette, response);
             _color.contrast.value = Mathf.Lerp(_color.contrast.value, targetContrast, response);
+            _color.postExposure.value = Mathf.Lerp(_color.postExposure.value, targetExposure, response);
             _grain.intensity.value = Mathf.Lerp(_grain.intensity.value, targetGrain, response);
             _chromatic.intensity.value = Mathf.Lerp(_chromatic.intensity.value, targetChromatic, response);
         }
