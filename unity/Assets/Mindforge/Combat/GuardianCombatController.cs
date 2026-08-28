@@ -62,6 +62,15 @@ namespace Mindforge.Combat
             if (auras != null) auras.AuraApplied -= OnAuraApplied;
         }
 
+        public void ResetForCheckpoint()
+        {
+            _lastShotTick = long.MinValue / 4;
+            _lastCleaveTick = long.MinValue / 4;
+            _lastCounterTick = long.MinValue / 4;
+            _counterUntilTick = long.MinValue / 4;
+            _reflectedThisWindow.Clear();
+        }
+
         private void FixedUpdate()
         {
             if (FixedTick < _counterUntilTick) ScanCounterProjectiles();
