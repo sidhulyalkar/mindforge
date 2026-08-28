@@ -108,9 +108,12 @@ def test_imported_room_art_is_visual_payload_and_cannot_smuggle_authority_or_cus
         "GetComponentsInChildren<Rigidbody>(true)",
         "GetComponentsInChildren<Collider>(true)",
         "GetComponentsInChildren<Joint>(true)",
-        "GetComponentsInChildren<Rigidbody2D>(true)",
-        "GetComponentsInChildren<Collider2D>(true)",
-        "GetComponentsInChildren<Joint2D>(true)",
+        "GetComponentsInChildren<Component>(true)",
+        "IsOptionalPhysics2DComponent(component.GetType())",
+        'fullName == "UnityEngine.Rigidbody2D"',
+        'fullName == "UnityEngine.Collider2D"',
+        'fullName == "UnityEngine.Joint2D"',
+        "cursor = cursor.BaseType",
         "GetComponentsInChildren<Camera>(true)",
         "GetComponentsInChildren<AudioListener>(true)",
         "GetComponentsInChildren<MonoBehaviour>(true)",
@@ -118,6 +121,16 @@ def test_imported_room_art_is_visual_payload_and_cannot_smuggle_authority_or_cus
         "hideProceduralDetailForBoundZones",
     ):
         assert token in installer
+
+    # The project intentionally does not require the optional Physics2D module. The
+    # firewall may recognize those component families by name, but must not directly
+    # instantiate closed generic calls whose type arguments require Physics2DModule.
+    for forbidden_optional_dependency in (
+        "GetComponentsInChildren<Rigidbody2D>",
+        "GetComponentsInChildren<Collider2D>",
+        "GetComponentsInChildren<Joint2D>",
+    ):
+        assert forbidden_optional_dependency not in installer
 
     # Room-art binding never invokes game or neural authority.
     for forbidden in (
