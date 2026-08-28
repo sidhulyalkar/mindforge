@@ -3,22 +3,23 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Samples conventional PC input in Update, latches one-shot actions, then applies
-    /// a complete command frame on the authoritative fixed simulation tick. The same
-    /// command frame can be recorded/replayed by GuardianInputTape.
+    /// Samples conventional laptop/PC input in Update, latches one-shot actions, then
+    /// applies one complete command frame on the authoritative fixed simulation tick.
+    /// The same command frame is record/replay compatible through GuardianInputTape.
     ///
-    /// Keyboard-first competition map:
-    /// - WASD or arrows: movement
-    /// - Space: dodge in held movement direction, otherwise aim/facing
-    /// - F: sword light/combo
-    /// - Left Shift: Pulse Shot
+    /// Laptop-first map:
+    /// - WASD: camera-relative movement
+    /// - Arrow keys OR mouse: aim
+    /// - Space: directional dodge/dash
+    /// - F or LMB: sword light/combo/parry
+    /// - Left/Right Shift: Pulse Shot
     /// - RMB or E: shield
     /// - Q: Rift Cleave
     /// - C: Counter Pulse
     /// - R: Gravity Bloom / Twin Eclipse
     ///
-    /// Mouse owns precision aim. Neural evidence never originates movement, attack,
-    /// guard, aim or dodge commands.
+    /// No Unity Input Manager axes are required. Neural evidence never originates
+    /// movement, attack, guard, aim or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -34,8 +35,10 @@ namespace Mindforge.Combat
         [SerializeField] private bool mouseAimEnabled = true;
         [SerializeField] private float mouseActivationPixels = 2f;
         [SerializeField] private float minimumPointerWorldDistance = 0.35f;
+        [SerializeField] private float keyboardAimDistance = 7f;
 
         private Vector2 _move;
+        private Vector2 _keyboardAim;
         private bool _fireHeld;
         private bool _cleaveLatched;
         private bool _counterLatched;
@@ -55,9 +58,11 @@ namespace Mindforge.Combat
 
         public bool CombatActionsEnabled { get; private set; } = true;
         public long FixedInputTick => _fixedInputTick;
+        public Vector2 CurrentMoveInput => _move;
         public Vector3 CurrentAimDirection => _currentAimDirection;
         public Vector3 CurrentAimPoint => _currentAimPoint;
         public bool PrecisionAimActive { get; private set; }
+        public bool KeyboardAimActive => _keyboardAim.sqrMagnitude > 0.01f;
 
         public void SetCombatActionsEnabled(bool enabled)
         {
@@ -75,10 +80,11 @@ namespace Mindforge.Combat
 
         private void Update()
         {
-            // Unity's legacy Horizontal/Vertical axes intentionally support both
-            // WASD and arrow keys. Arrow keys are no longer consumed by a second aim
-            // system, so keyboard movement has one obvious grammar.
-            _move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            // Direct key sampling deliberately bypasses Unity's legacy Horizontal /
+            // Vertical Input Manager axes. This makes the showcase deterministic on a
+            // clean laptop project and prevents arrow keys from conflicting with move.
+            _move = SampleWasdMovement();
+            _keyboardAim = SampleArrowAim();
 
             Vector3 pointer = Input.mousePosition;
             if (!_pointerInitialized)
@@ -104,6 +110,28 @@ namespace Mindforge.Combat
             _counterLatched |= Input.GetKeyDown(KeyCode.C);
             _dashLatched |= Input.GetKeyDown(KeyCode.Space);
             _bloomLatched |= Input.GetKeyDown(KeyCode.R);
+        }
+
+        private static Vector2 SampleWasdMovement()
+        {
+            float x = 0f;
+            float y = 0f;
+            if (Input.GetKey(KeyCode.A)) x -= 1f;
+            if (Input.GetKey(KeyCode.D)) x += 1f;
+            if (Input.GetKey(KeyCode.S)) y -= 1f;
+            if (Input.GetKey(KeyCode.W)) y += 1f;
+            return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
+        }
+
+        private static Vector2 SampleArrowAim()
+        {
+            float x = 0f;
+            float y = 0f;
+            if (Input.GetKey(KeyCode.LeftArrow)) x -= 1f;
+            if (Input.GetKey(KeyCode.RightArrow)) x += 1f;
+            if (Input.GetKey(KeyCode.DownArrow)) y -= 1f;
+            if (Input.GetKey(KeyCode.UpArrow)) y += 1f;
+            return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
         }
 
         private void FixedUpdate()
@@ -150,6 +178,20 @@ namespace Mindforge.Combat
         {
             Camera camera = aimCamera != null ? aimCamera : Camera.main;
 
+            // Arrow keys are a laptop-safe precision fallback. They intentionally take
+            // priority only while held; moving the mouse immediately restores pointer aim.
+            if (_keyboardAim.sqrMagnitude > 0.01f)
+            {
+                Vector3 direction = CameraRelativeDirection(_keyboardAim, camera);
+                if (direction.sqrMagnitude > 0.01f)
+                {
+                    direction.Normalize();
+                    aimPoint = transform.position + direction * Mathf.Max(1f, keyboardAimDistance);
+                    precisionAim = true;
+                    return direction;
+                }
+            }
+
             if (mouseAimEnabled && _mouseAimActive && camera != null)
             {
                 Ray ray = camera.ScreenPointToRay(_pointerScreen);
@@ -188,6 +230,18 @@ namespace Mindforge.Combat
             aimPoint = transform.position + fallback * 6f;
             precisionAim = false;
             return fallback;
+        }
+
+        private static Vector3 CameraRelativeDirection(Vector2 input, Camera camera)
+        {
+            Transform reference = camera != null ? camera.transform : null;
+            Vector3 forward = reference != null ? Vector3.ProjectOnPlane(reference.forward, Vector3.up) : Vector3.forward;
+            Vector3 right = reference != null ? Vector3.ProjectOnPlane(reference.right, Vector3.up) : Vector3.right;
+            if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
+            if (right.sqrMagnitude < 0.0001f) right = Vector3.right;
+            forward.Normalize();
+            right.Normalize();
+            return right * input.x + forward * input.y;
         }
 
         private void UpdateResolvedAimPresentation(
@@ -233,9 +287,8 @@ namespace Mindforge.Combat
                 return;
             }
 
-            // Dodge owns the whole fixed command frame when it succeeds. GuardianMotor
-            // preferentially uses the held movement vector, so Space naturally dodges
-            // in the direction the player is pressing.
+            // Dodge owns the fixed command frame when accepted. The motor always uses
+            // held WASD first, so Space naturally dashes in the movement direction.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
                 physicalCombat?.SetGuardHeld(false, aim);
