@@ -89,8 +89,11 @@ def test_wisp_shell_consumes_only_accepted_aura_state_and_never_the_coded_stimul
     ):
         assert token in shell
 
+    # Documentation may name the stimulus class, but runtime code must not fetch,
+    # configure, or retain it. The shell is downstream of accepted aura state only.
     for forbidden in (
-        "VepAuraStimulus",
+        "GetComponent<VepAuraStimulus>",
+        "FindObjectOfType<VepAuraStimulus>",
         "UdpNeuralReceiver",
         "NeuralEvent",
         "NeuralFocusResonance",
