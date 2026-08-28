@@ -26,6 +26,7 @@ namespace Mindforge.Presentation
         [SerializeField] private GuardianStamina guardIntegrity;
         [SerializeField] private GuardianEquipmentLoadout loadout;
         [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private GuardianMotor motor;
         [SerializeField] private NeuralFocusResonance resonance;
 
         private GUIStyle _small;
@@ -61,7 +62,7 @@ namespace Mindforge.Presentation
         private void Update()
         {
             if (playerVitals == null || flux == null || guardIntegrity == null || loadout == null ||
-                physicalCombat == null || resonance == null || (journey == null && nullWard == null))
+                physicalCombat == null || motor == null || resonance == null || (journey == null && nullWard == null))
             {
                 Unsubscribe();
                 Resolve();
@@ -87,6 +88,7 @@ namespace Mindforge.Presentation
             if (guardIntegrity == null) guardIntegrity = FindObjectOfType<GuardianStamina>(true);
             if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
             if (physicalCombat == null) physicalCombat = FindObjectOfType<GuardianSwordShieldController>(true);
+            if (motor == null) motor = FindObjectOfType<GuardianMotor>(true);
             if (resonance == null) resonance = FindObjectOfType<NeuralFocusResonance>(true);
 
             CombatantVitals[] vitals = FindObjectsOfType<CombatantVitals>(true);
@@ -257,54 +259,68 @@ namespace Mindforge.Presentation
         private void DrawPlayerState()
         {
             float x = 18f;
-            float y = Screen.height - 164f;
-            const float width = 366f;
-            Rect panel = new Rect(x, y, width, 144f);
+            float y = Screen.height - 146f;
+            const float width = 326f;
+            const float height = 126f;
+            Rect panel = new Rect(x, y, width, height);
             Fill(panel, Panel);
             string load = loadout != null ? $" · {loadout.LoadClass.ToString().ToUpperInvariant()}" : string.Empty;
-            GUI.Label(new Rect(x + 12f, y + 8f, width - 24f, 20f), "GUARDIAN" + load, _label);
+            GUI.Label(new Rect(x + 12f, y + 6f, width - 24f, 18f), "GUARDIAN" + load, _label);
 
-            GUI.Label(new Rect(x + 12f, y + 34f, 88f, 18f), $"HP {playerVitals.Health:F0}/{playerVitals.MaxHealth:F0}", _small);
-            DrawBar(new Rect(x + 104f, y + 37f, width - 118f, 11f), Ratio(playerVitals.Health, playerVitals.MaxHealth), new Color(0.48f, 0.72f, 1f));
-            GUI.Label(new Rect(x + 12f, y + 57f, 88f, 18f), "GUARD", _small);
-            DrawBar(new Rect(x + 104f, y + 60f, width - 118f, 11f), guardIntegrity != null ? guardIntegrity.Ratio : 0f, new Color(0.30f, 0.96f, 0.55f));
-            GUI.Label(new Rect(x + 12f, y + 80f, 88f, 18f), "FLUX", _small);
-            DrawBar(new Rect(x + 104f, y + 83f, width - 118f, 11f), flux != null ? Ratio(flux.Value, flux.Max) : 0f, new Color(0.72f, 0.36f, 1f));
+            GUI.Label(new Rect(x + 12f, y + 29f, 76f, 16f), $"HP {playerVitals.Health:F0}/{playerVitals.MaxHealth:F0}", _small);
+            DrawBar(new Rect(x + 92f, y + 32f, width - 106f, 9f), Ratio(playerVitals.Health, playerVitals.MaxHealth), new Color(0.48f, 0.72f, 1f));
+            GUI.Label(new Rect(x + 12f, y + 49f, 76f, 16f), "GUARD", _small);
+            DrawBar(new Rect(x + 92f, y + 52f, width - 106f, 9f), guardIntegrity != null ? guardIntegrity.Ratio : 0f, new Color(0.30f, 0.96f, 0.55f));
+            GUI.Label(new Rect(x + 12f, y + 69f, 76f, 16f), "FLUX", _small);
+            DrawBar(new Rect(x + 92f, y + 72f, width - 106f, 9f), flux != null ? Ratio(flux.Value, flux.Max) : 0f, new Color(0.72f, 0.36f, 1f));
 
-            // Keep the persistent strip intentionally terse. Full controls live in the
-            // short onboarding and TAB loadout screen instead of carpeting gameplay.
-            string action = physicalCombat != null && physicalCombat.IsGuarding
-                ? "RMB/E GUARD · release to recover integrity"
-                : "F SWORD · SPACE JUMP · CTRL/ALT DODGE";
+            if (motor != null && !motor.IsGrounded)
+            {
+                GUI.Label(new Rect(x + 12f, y + 87f, 76f, 16f), motor.IsHovering ? "HOVER" : "AIR", _small);
+                DrawBar(new Rect(x + 92f, y + 90f, width - 106f, 6f), motor.HoverRemaining01, new Color(0.36f, 0.82f, 1f));
+            }
+
+            string action;
+            if (physicalCombat != null && physicalCombat.IsGuarding)
+                action = "RMB/E GUARD · release to recover";
+            else if (motor != null && motor.IsAirDashing)
+                action = "AIR DASH · steer on exit";
+            else if (motor != null && motor.IsHovering)
+                action = "SPACE HOLD HOVER · SHIFT AIR DASH";
+            else if (motor != null && !motor.IsGrounded)
+                action = "SPACE ×2 / HOLD HOVER · SHIFT AIR DASH";
+            else
+                action = "F SWORD · SPACE ×2 · SHIFT DODGE";
             if (flux != null && flux.IsFull) action += " · R BLOOM";
-            GUI.Label(new Rect(x + 12f, y + 108f, width - 24f, 28f), action, _small);
+            GUI.Label(new Rect(x + 12f, y + 101f, width - 24f, 20f), action, _small);
         }
 
         private void DrawStrategicState()
         {
-            float width = 338f;
+            const float width = 300f;
             float x = Screen.width - width - 18f;
-            float y = Screen.height - 164f;
-            Rect panel = new Rect(x, y, width, 144f);
+            float y = Screen.height - 146f;
+            const float height = 126f;
+            Rect panel = new Rect(x, y, width, height);
             Fill(panel, Panel);
-            GUI.Label(new Rect(x + 12f, y + 8f, width - 24f, 20f), "ARMAMENT RESONANCE", _label);
+            GUI.Label(new Rect(x + 12f, y + 6f, width - 24f, 18f), "ARMAMENT RESONANCE", _label);
 
             if (ControllerOnly())
             {
-                GUI.Label(new Rect(x + 12f, y + 38f, width - 24f, 50f),
+                GUI.Label(new Rect(x + 12f, y + 31f, width - 24f, 38f),
                     "CONTROLLER-ONLY MODE\nBCI intentionally disabled", _value);
-                GUI.Label(new Rect(x + 12f, y + 98f, width - 24f, 28f), "F sword can still parry bullets · RMB/E shield", _small);
+                GUI.Label(new Rect(x + 12f, y + 82f, width - 24f, 30f), "F parries bullets · RMB/E shields\nX/MMB fires Pulse", _small);
                 return;
             }
 
             if (auras == null) return;
             float sight = resonance != null ? resonance.Sight : 0f;
             float guard = resonance != null ? resonance.Guard : 0f;
-            GUI.Label(new Rect(x + 12f, y + 35f, width - 24f, 18f), auras.SightActive ? $"BLUE · BLADE {sight:P0} · {auras.SightRemaining:F1}s" : "BLUE · blade dormant", _small);
-            DrawBar(new Rect(x + 12f, y + 56f, width - 24f, 7f), auras.SightActive ? sight : 0f, new Color(0.20f, 0.58f, 1f));
-            GUI.Label(new Rect(x + 12f, y + 72f, width - 24f, 18f), auras.GuardActive ? $"GREEN · SHIELD {guard:P0} · {auras.GuardRemaining:F1}s" : "GREEN · shield dormant", _small);
-            DrawBar(new Rect(x + 12f, y + 93f, width - 24f, 7f), auras.GuardActive ? guard : 0f, new Color(0.18f, 1f, 0.52f));
-            GUI.Label(new Rect(x + 12f, y + 109f, width - 24f, 24f), auras.ConcordActive ? $"CONCORD {auras.ConcordRemaining:F1}s · R TWIN ECLIPSE" : "Focus amplifies gear, never input", _small);
+            GUI.Label(new Rect(x + 12f, y + 29f, width - 24f, 16f), auras.SightActive ? $"BLUE · BLADE {sight:P0} · {auras.SightRemaining:F1}s" : "BLUE · blade dormant", _small);
+            DrawBar(new Rect(x + 12f, y + 48f, width - 24f, 6f), auras.SightActive ? sight : 0f, new Color(0.20f, 0.58f, 1f));
+            GUI.Label(new Rect(x + 12f, y + 62f, width - 24f, 16f), auras.GuardActive ? $"GREEN · SHIELD {guard:P0} · {auras.GuardRemaining:F1}s" : "GREEN · shield dormant", _small);
+            DrawBar(new Rect(x + 12f, y + 81f, width - 24f, 6f), auras.GuardActive ? guard : 0f, new Color(0.18f, 1f, 0.52f));
+            GUI.Label(new Rect(x + 12f, y + 95f, width - 24f, 22f), auras.ConcordActive ? $"CONCORD {auras.ConcordRemaining:F1}s · R TWIN ECLIPSE" : "Focus amplifies gear, never input", _small);
         }
 
         private static void DrawBar(Rect rect, float value, Color fill)
@@ -335,12 +351,12 @@ namespace Mindforge.Presentation
         {
             if (_small == null)
             {
-                _small = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleLeft };
+                _small = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft };
                 _small.normal.textColor = Muted;
             }
             if (_label == null)
             {
-                _label = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
+                _label = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
                 _label.normal.textColor = Text;
             }
             if (_phase == null)
@@ -355,7 +371,7 @@ namespace Mindforge.Presentation
             }
             if (_value == null)
             {
-                _value = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
+                _value = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
                 _value.normal.textColor = Text;
             }
         }
