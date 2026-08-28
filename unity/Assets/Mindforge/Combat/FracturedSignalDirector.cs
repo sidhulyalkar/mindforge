@@ -72,6 +72,32 @@ namespace Mindforge.Combat
             foreach (FracturedEchoNode echo in _echoes) echo?.SetExternalPause(paused);
         }
 
+        /// <summary>
+        /// Clears ephemeral boss state so a Memory Forge respawn can reactivate the
+        /// same authored encounter from a known baseline. The caller owns boss health
+        /// reconstruction and root activation ordering.
+        /// </summary>
+        public void ResetForCheckpoint()
+        {
+            if (_loop != null)
+            {
+                StopCoroutine(_loop);
+                _loop = null;
+            }
+            telegraph?.Clear();
+            for (int i = 0; i < _echoes.Count; i++)
+            {
+                FracturedEchoNode echo = _echoes[i];
+                if (echo == null) continue;
+                echo.Shattered -= OnEchoShattered;
+                Destroy(echo.gameObject);
+            }
+            _echoes.Clear();
+            _attackIndex = 0;
+            _externalPaused = false;
+            _lastPhase = Phase;
+        }
+
         private void OnEnable()
         {
             ResolveMelee();
