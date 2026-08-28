@@ -171,15 +171,15 @@ namespace Mindforge.Presentation
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD / ARROWS MOVE   ·   MOUSE AIM   ·   F SWORD   ·   SPACE DODGE   |   slash through bullets to parry them";
+                return "WASD MOVE   ·   ARROWS / MOUSE AIM   ·   SPACE DASH   ·   F SWORD   |   movement and dashes are unlimited";
             if (!_shieldRaised)
                 return "RMB / E HOLD SHIELD   |   GREEN Guard resonance enlarges and stabilizes it, but your hand decides when it is raised";
             if (!_shieldBlocked)
                 return "READ THE TELEGRAPH   |   block with RMB/E, or raise guard just before impact for a PERFECT GUARD reflect";
             if (!_pulseUsed)
-                return "SHIFT PULSE SHOT   |   sword attacks and dodges are unrestricted   |   shield pressure uses Guard Integrity";
+                return "SHIFT PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   keep moving between openings";
             if (!_cleaveUsed || !_counterUsed)
-                return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   F remains your fastest physical projectile parry";
+                return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   the BCI amplifies your tools; it never replaces movement or timing";
             return "BUILD FLUX   |   near miss, sword/shield parry, Echo pressure and Signal Break create your high-impact R windows";
         }
 
@@ -209,7 +209,7 @@ namespace Mindforge.Presentation
                 : "BCI: bounded blade/shield resonance after accepted Sight/Guard";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: move, aim, sword, shield, dodge, skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: WASD move · arrows/mouse aim · sword · shield · dash · skills", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 66f, width - 32f, 42f), bci, _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never swings, raises guard, aims, dodges, fires, or parries", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 154f, width - 32f, 20f), "F10 hides this explainer", _leftStyle);
