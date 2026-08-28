@@ -32,6 +32,10 @@ namespace Mindforge.Presentation
         private float _smoothedFrameMs;
         private float _nextDecisionAt;
         private QualityTier _tier = QualityTier.Showcase;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private ControllerOnlyQualificationBootstrap _controllerOnly;
+        private float _nextControllerOnlyResolveAt;
+#endif
 
         public static PresentationQualityGovernor Instance { get; private set; }
         public static float FxDensity => Instance != null ? Instance.CurrentFxDensity : 1f;
@@ -100,9 +104,14 @@ namespace Mindforge.Presentation
             if (!adaptDuringControllerOnly) return false;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            ControllerOnlyQualificationBootstrap controllerOnly =
-                FindObjectOfType<ControllerOnlyQualificationBootstrap>(true);
-            return controllerOnly != null && controllerOnly.Active;
+            // Resolve this development-only service at a bounded cadence rather than
+            // scanning the scene every rendered frame.
+            if (_controllerOnly == null && Time.unscaledTime >= _nextControllerOnlyResolveAt)
+            {
+                _nextControllerOnlyResolveAt = Time.unscaledTime + 0.5f;
+                _controllerOnly = FindObjectOfType<ControllerOnlyQualificationBootstrap>(true);
+            }
+            return _controllerOnly != null && _controllerOnly.Active;
 #else
             return false;
 #endif
