@@ -4,8 +4,8 @@ namespace Mindforge.Journey
 {
     /// <summary>
     /// Presentation-only companion for JourneyEnemyController. It visualizes intent,
-    /// timing, recovery, death and reconstruction without issuing damage, movement,
-    /// targeting or neural commands.
+    /// timing, archetype identity, recovery, death and reconstruction without issuing
+    /// damage, movement, targeting or neural commands.
     /// </summary>
     public sealed class JourneyEnemyPresentation : MonoBehaviour
     {
@@ -25,6 +25,8 @@ namespace Mindforge.Journey
 
         [Header("Telegraph colors")]
         [SerializeField] private Color idleColor = new Color(0.82f, 0.10f, 0.24f);
+        [SerializeField] private Color nullSentryColor = new Color(0.92f, 0.08f, 0.34f);
+        [SerializeField] private Color chromePenitentColor = new Color(1.00f, 0.24f, 0.06f);
         [SerializeField] private Color meleeColor = new Color(1.00f, 0.28f, 0.08f);
         [SerializeField] private Color projectileColor = new Color(0.95f, 0.10f, 0.48f);
         [SerializeField] private Color wardenColor = new Color(0.82f, 0.18f, 0.95f);
@@ -116,11 +118,13 @@ namespace Mindforge.Journey
 
             if (visualRoot != null)
             {
-                Vector3 bob = Vector3.up * Mathf.Sin(Time.time * idleBobSpeed + GetInstanceID() * 0.01f) * idleBobAmplitude;
+                float bobAmplitude = BobAmplitudeForArchetype();
+                float bobSpeed = BobSpeedForArchetype();
+                Vector3 bob = Vector3.up * Mathf.Sin(Time.time * bobSpeed + GetInstanceID() * 0.01f) * bobAmplitude;
                 visualRoot.localPosition = _visualBaseLocalPosition + bob;
             }
             if (core != null)
-                core.Rotate(Vector3.up, coreSpinDegreesPerSecond * Time.deltaTime, Space.Self);
+                core.Rotate(Vector3.up, SpinSpeedForArchetype() * Time.deltaTime, Space.Self);
 
             bool telegraphing = now < _telegraphUntil;
             if (telegraphRing != null)
@@ -130,7 +134,7 @@ namespace Mindforge.Journey
                 if (telegraphing)
                 {
                     float t = Mathf.InverseLerp(_telegraphStartedAt, Mathf.Max(_telegraphStartedAt + 0.01f, _telegraphUntil), now);
-                    float scale = Mathf.Lerp(0.45f, telegraphMaxScale, Mathf.SmoothStep(0f, 1f, t));
+                    float scale = Mathf.Lerp(0.45f, TelegraphScaleForArchetype(), Mathf.SmoothStep(0f, 1f, t));
                     telegraphRing.localScale = _ringBaseScale * scale;
                     telegraphRing.Rotate(Vector3.up, (120f + t * 180f) * Time.deltaTime, Space.Self);
                 }
@@ -214,11 +218,60 @@ namespace Mindforge.Journey
             }
         }
 
+        private float BobAmplitudeForArchetype()
+        {
+            if (controller == null) return idleBobAmplitude;
+            switch (controller.Archetype)
+            {
+                case JourneyEnemyArchetype.NullSentry: return idleBobAmplitude * 1.55f;
+                case JourneyEnemyArchetype.ChromePenitent: return idleBobAmplitude * 0.35f;
+                default: return idleBobAmplitude;
+            }
+        }
+
+        private float BobSpeedForArchetype()
+        {
+            if (controller == null) return idleBobSpeed;
+            switch (controller.Archetype)
+            {
+                case JourneyEnemyArchetype.NullSentry: return idleBobSpeed * 1.20f;
+                case JourneyEnemyArchetype.ChromePenitent: return idleBobSpeed * 0.62f;
+                default: return idleBobSpeed;
+            }
+        }
+
+        private float SpinSpeedForArchetype()
+        {
+            if (controller == null) return coreSpinDegreesPerSecond;
+            switch (controller.Archetype)
+            {
+                case JourneyEnemyArchetype.NullSentry: return coreSpinDegreesPerSecond * 1.65f;
+                case JourneyEnemyArchetype.ChromePenitent: return coreSpinDegreesPerSecond * 0.60f;
+                default: return coreSpinDegreesPerSecond;
+            }
+        }
+
+        private float TelegraphScaleForArchetype()
+        {
+            if (controller == null) return telegraphMaxScale;
+            switch (controller.Archetype)
+            {
+                case JourneyEnemyArchetype.NullSentry: return telegraphMaxScale * 0.92f;
+                case JourneyEnemyArchetype.ChromePenitent: return telegraphMaxScale * 1.10f;
+                default: return telegraphMaxScale;
+            }
+        }
+
         private Color IdleForArchetype()
         {
-            return controller != null && controller.Archetype == JourneyEnemyArchetype.SignalWarden
-                ? wardenColor
-                : idleColor;
+            if (controller == null) return idleColor;
+            switch (controller.Archetype)
+            {
+                case JourneyEnemyArchetype.NullSentry: return nullSentryColor;
+                case JourneyEnemyArchetype.ChromePenitent: return chromePenitentColor;
+                case JourneyEnemyArchetype.SignalWarden: return wardenColor;
+                default: return idleColor;
+            }
         }
 
         private Color ColorFor(JourneyEnemyAttackKind kind)
