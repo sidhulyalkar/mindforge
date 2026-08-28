@@ -13,6 +13,7 @@ namespace Mindforge.Combat
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private Transform captureAnchor;
         [SerializeField] private Transform primaryTarget;
+        [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private LayerMask projectileMask;
         [SerializeField] private HitStopController hitStop;
         [SerializeField] private CombatPresentationDirector presentation;
@@ -33,6 +34,12 @@ namespace Mindforge.Combat
         public bool Active => _active;
         public bool ConcordCast => _active && _concord;
         public bool ExternalPaused => _externalPaused;
+        public Transform CurrentConventionalTarget => CombatTargetResolver.Resolve(targetLock, primaryTarget);
+
+        private void Awake()
+        {
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+        }
 
         public void SetExternalPause(bool paused)
         {
@@ -86,7 +93,9 @@ namespace Mindforge.Combat
             if (_externalPaused) return;
             _active = false;
             int capturedCount = _captured.Count;
-            if (primaryTarget == null)
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            Transform target = CombatTargetResolver.Resolve(targetLock, primaryTarget);
+            if (target == null)
             {
                 foreach (MindforgeProjectile p in _captured)
                     if (p != null) p.ReleaseFromCapture();
@@ -105,7 +114,7 @@ namespace Mindforge.Combat
                 MindforgeProjectile p = _captured[i];
                 if (p == null) continue;
                 p.ReflectTowards(
-                    primaryTarget,
+                    target,
                     tuning.bloomReleaseSpeed * (_concord ? 1.18f : 1f),
                     damage,
                     poise,
