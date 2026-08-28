@@ -20,7 +20,7 @@ namespace Mindforge.Combat
         [Range(10f, 220f)] public float sweepDegrees = 132f;
         [Min(0f)] public float baseDamage = 24f;
         [Min(0f)] public float poiseDamage = 18f;
-        [Min(0f)] public float staminaCost = 18f;
+        [Min(0f)] public float staminaCost = 0f;
         [Min(0f)] public float bladeRadius = 0.16f;
     }
 
@@ -53,12 +53,12 @@ namespace Mindforge.Combat
 
     /// <summary>
     /// Data-first equipment contract for the Guardian. The first competition build
-    /// ships one coherent sword/shield/armor kit, while the same contract is intended
-    /// to back a later inventory/build UI with multiple item families.
+    /// ships one coherent sword/shield/armor kit, while the same contract can later
+    /// back a mutable inventory/build UI with multiple item families.
     ///
-    /// Mass is not cosmetic: total equipped mass defines a load class which feeds
-    /// movement, roll and stamina behavior. Weapon and shield mass are also consumed
-    /// by their respective impact/guard calculations.
+    /// Equipped mass still defines physical load and movement character. Ordinary
+    /// sword attacks and dodge movement are deliberately unlimited in the current
+    /// build; the shared green budget is now used only as shield Guard Integrity.
     /// </summary>
     public sealed class GuardianEquipmentLoadout : MonoBehaviour
     {
@@ -132,6 +132,7 @@ namespace Mindforge.Combat
             }
         }
 
+        // Retained for future build variants; current dodge authority does not spend it.
         public float RollStaminaMultiplier
         {
             get
