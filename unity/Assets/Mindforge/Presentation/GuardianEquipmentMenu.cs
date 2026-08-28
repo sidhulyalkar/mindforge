@@ -101,25 +101,26 @@ namespace Mindforge.Presentation
                     ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor currently contributes physical load; mitigation remains intentionally unclaimed."
                     : "No armor equipped");
 
-            Rect rules = new Rect(rightX, y, rightWidth, 230f);
+            Rect rules = new Rect(rightX, y, rightWidth, 252f);
             Fill(rules, Card);
             Stroke(rules, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "COMBAT CONTROLS", _section);
-            float ky = rules.y + 50f;
+            float ky = rules.y + 48f;
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "ARROWS / MOUSE", "Aim");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "T", "Enemy focus camera");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Directional dash");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F", "Sword / combo / bullet parry");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT", "Pulse Shot");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "RMB / E", "Shield");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "Q · C · R", "Cleave · Counter · Bloom");
 
-            Rect neural = new Rect(rightX, y + 244f, rightWidth, 124f);
+            Rect neural = new Rect(rightX, y + 266f, rightWidth, 102f);
             Fill(neural, Card);
             Stroke(neural, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(neural.x + 16f, neural.y + 12f, neural.width - 32f, 24f), "NEURAL RESONANCE", _section);
-            GUI.Label(new Rect(neural.x + 16f, neural.y + 42f, neural.width - 32f, 70f),
-                "BLUE / Sight → blade length, energy and bounded damage\nGREEN / Guard → shield coverage, stability and absorption\nEEG never moves, swings, blocks or dodges for you.", _body);
+            GUI.Label(new Rect(neural.x + 16f, neural.y + 40f, neural.width - 32f, 58f),
+                "BLUE / Sight → blade amplification\nGREEN / Guard → shield amplification\nT focus is camera-only; EEG never aims or acts for you.", _body);
 
             float summaryY = y + 390f;
             Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 126f);
@@ -147,7 +148,7 @@ namespace Mindforge.Presentation
         {
             GUI.Label(new Rect(x, y, 122f, 22f), key, _key);
             GUI.Label(new Rect(x + 130f, y, width - 130f, 22f), action, _body);
-            y += 27f;
+            y += 24f;
         }
 
         private static void Fill(Rect rect, Color color)
