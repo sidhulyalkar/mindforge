@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$ExpectedVersion = "2022.3.76f1"
+$ExpectedVersion = "2022.3.62f3"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ProjectPath = Join-Path $RepoRoot "unity"
 $ReportPath = Join-Path $RepoRoot "experiments\reports\unity-gate1-latest.json"
