@@ -47,11 +47,30 @@ namespace Mindforge.Combat
         [SerializeField] private float terminalFallSpeed = 28f;
         [SerializeField] private float airAcceleration = 34f;
         [SerializeField, Range(0f, 1.5f)] private float airSpeedMultiplier = 0.92f;
+        [SerializeField, Range(0.2f, 1f)] private float airborneCombatMovementFloor = 0.62f;
+
+        [Header("Double jump")]
+        [SerializeField] private float airJumpVelocity = 6.8f;
+        [SerializeField] private float minimumAirJumpDelaySeconds = 0.08f;
+
+        [Header("Hold-Space hover / slow fall")]
+        [SerializeField] private float hoverMaximumSeconds = 1.35f;
+        [SerializeField] private float hoverFallSpeed = 2.15f;
+        [SerializeField] private float hoverBrakeAcceleration = 24f;
+        [SerializeField, Range(0.01f, 1f)] private float hoverGravityMultiplier = 0.20f;
+        [SerializeField] private float hoverActivationVerticalSpeed = -0.35f;
 
         [Header("Dodge")]
         [SerializeField] private float dodgeInvulnerabilitySeconds = 0.105f;
         [SerializeField] private float dashInputBufferSeconds = 0.13f;
         [SerializeField] private float dashExitVelocityRetention = 0.48f;
+
+        [Header("Air dash")]
+        [SerializeField] private float airDashSpeedMultiplier = 1.08f;
+        [SerializeField] private float airDashDurationMultiplier = 0.82f;
+        [SerializeField] private float airDashInvulnerabilitySeconds = 0.075f;
+        [SerializeField] private float airDashVerticalVelocity = 0.35f;
+        [SerializeField, Range(0f, 1f)] private float airDashUpwardVelocityRetention = 0.35f;
 
         private readonly RaycastHit[] _groundHits = new RaycastHit[10];
         private Rigidbody _body;
@@ -63,11 +82,16 @@ namespace Mindforge.Combat
         private Vector3 _queuedDashFallback;
         private bool _wasDashing;
         private Vector3 _dashDirection;
+        private bool _currentDashIsAir;
+        private bool _airDashConsumed;
 
         private bool _jumpQueued;
         private long _jumpQueuedUntilTick = long.MinValue / 4;
         private bool _jumpHeld;
         private bool _jumpCutConsumed;
+        private bool _airJumpConsumed;
+        private bool _hovering;
+        private float _hoverRemainingSeconds;
         private bool _grounded;
         private bool _groundStateInitialized;
         private long _lastGroundedTick = long.MinValue / 4;
@@ -77,7 +101,10 @@ namespace Mindforge.Combat
         private PhysicMaterial _runtimeMovementMaterial;
 
         public event Action DashStarted;
+        public event Action AirDashStarted;
         public event Action Jumped;
+        public event Action DoubleJumped;
+        public event Action<bool> HoverChanged;
         public event Action<float> Landed;
 
         private long FixedTick
@@ -90,16 +117,29 @@ namespace Mindforge.Combat
         }
 
         public bool IsDashing => FixedTick < _dashUntilTick;
+        public bool IsAirDashing => IsDashing && _currentDashIsAir;
         public bool IsInvulnerable => FixedTick < _invulnerableUntilTick;
         public bool IsGrounded => _grounded;
-        public bool CanJump =>
+        public bool IsHovering => _hovering;
+        public bool CanAirJump =>
             !IsDashing &&
-            (_grounded || FixedTick - _lastGroundedTick <= SecondsToTicks(Mathf.Max(0f, coyoteTimeSeconds)));
+            !_grounded &&
+            !_airJumpConsumed &&
+            _airborneSeconds >= Mathf.Max(0f, minimumAirJumpDelaySeconds);
+        public bool CanAirDash => !IsDashing && !_grounded && !_airDashConsumed;
+        public bool CanJump => !IsDashing && (CanGroundOrCoyoteJump || CanAirJump);
+        public float HoverRemaining01 => hoverMaximumSeconds > 0.001f
+            ? Mathf.Clamp01(_hoverRemainingSeconds / hoverMaximumSeconds)
+            : 0f;
         public Vector3 GroundNormal => _groundNormal;
         public float AirborneSeconds => _airborneSeconds;
         public float VerticalSpeed => _body != null ? _body.velocity.y : 0f;
         public Vector3 Velocity => _body != null ? _body.velocity : Vector3.zero;
         public Vector2 MoveInput => _moveInput;
+
+        private bool CanGroundOrCoyoteJump =>
+            _grounded ||
+            FixedTick - _lastGroundedTick <= SecondsToTicks(Mathf.Max(0f, coyoteTimeSeconds));
 
         private void Awake()
         {
@@ -120,6 +160,7 @@ namespace Mindforge.Combat
             ResolvePhysicalState();
             ProbeGround(out _grounded, out _groundNormal);
             if (_grounded) _lastGroundedTick = FixedTick;
+            _hoverRemainingSeconds = Mathf.Max(0f, hoverMaximumSeconds);
             _groundStateInitialized = true;
             _previousVerticalSpeed = _body.velocity.y;
         }
@@ -130,6 +171,7 @@ namespace Mindforge.Combat
             _jumpHeld = false;
             _jumpQueued = false;
             _dashQueued = false;
+            SetHovering(false);
         }
 
         private void OnDestroy()
@@ -172,11 +214,12 @@ namespace Mindforge.Combat
         public void SetJumpHeld(bool held)
         {
             _jumpHeld = held;
+            if (!held && _hovering) SetHovering(false);
         }
 
         public bool RequestJump()
         {
-            if (_body == null) return false;
+            if (_body == null || IsDashing) return false;
             _jumpQueued = true;
             _jumpQueuedUntilTick = FixedTick + SecondsToTicks(Mathf.Max(0.02f, jumpBufferSeconds));
             _body.WakeUp();
@@ -192,16 +235,18 @@ namespace Mindforge.Combat
             Vector3 direction = ResolveDashDirection(fallbackDirection);
             if (IsDashing)
             {
-                // Unlimited dashes means no stamina/cooldown economy. A press near the
-                // end of the current dash is buffered on fixed ticks so chaining remains
-                // deterministic under the input-tape replay contract.
+                // Ground dashes remain chainable. Air dashes are intentionally one per
+                // airtime, so an additional press during the current air dash is rejected.
+                if (!_grounded && _airDashConsumed) return false;
                 _dashQueued = true;
                 _dashQueuedUntilTick = FixedTick + SecondsToTicks(Mathf.Max(0.02f, dashInputBufferSeconds));
                 _queuedDashFallback = direction;
                 return true;
             }
 
-            StartDash(direction);
+            bool airDash = !_grounded;
+            if (airDash && _airDashConsumed) return false;
+            StartDash(direction, airDash);
             return true;
         }
 
@@ -215,24 +260,38 @@ namespace Mindforge.Combat
             return direction.normalized;
         }
 
-        private void StartDash(Vector3 direction)
+        private void StartDash(Vector3 direction, bool airDash)
         {
             float speedMultiplier = loadout != null ? loadout.RollSpeedMultiplier : 1f;
             float durationMultiplier = loadout != null ? loadout.RollDurationMultiplier : 1f;
+            if (airDash) durationMultiplier *= Mathf.Max(0.1f, airDashDurationMultiplier);
             float rollDuration = Mathf.Max(0.06f, tuning.dashDuration * durationMultiplier);
             int rollTicks = SecondsToTicks(rollDuration);
-            int invulnerabilityTicks = Mathf.Min(
-                rollTicks,
-                SecondsToTicks(Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds))));
+            float invulnerabilitySeconds = airDash
+                ? Mathf.Min(rollDuration, Mathf.Max(0f, airDashInvulnerabilitySeconds))
+                : Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds));
+            int invulnerabilityTicks = Mathf.Min(rollTicks, SecondsToTicks(invulnerabilitySeconds));
             _dashUntilTick = FixedTick + rollTicks;
             _invulnerableUntilTick = FixedTick + invulnerabilityTicks;
             _dashDirection = direction.normalized;
-            Vector3 horizontal = _dashDirection * tuning.dashSpeed * speedMultiplier;
-            _body.velocity = horizontal + Vector3.up * _body.velocity.y;
+            _currentDashIsAir = airDash;
+            if (airDash) _airDashConsumed = true;
+            SetHovering(false);
+
+            float dashSpeed = tuning.dashSpeed * speedMultiplier * (airDash ? Mathf.Max(0.1f, airDashSpeedMultiplier) : 1f);
+            Vector3 horizontal = _dashDirection * dashSpeed;
+            float vertical = _body.velocity.y;
+            if (airDash)
+            {
+                float retainedRise = Mathf.Max(0f, vertical) * Mathf.Clamp01(airDashUpwardVelocityRetention);
+                vertical = Mathf.Max(airDashVerticalVelocity, retainedRise);
+            }
+            _body.velocity = horizontal + Vector3.up * vertical;
             FaceDirectionImmediate(_dashDirection);
             _dashQueued = false;
             _body.WakeUp();
             DashStarted?.Invoke();
+            if (airDash) AirDashStarted?.Invoke();
         }
 
         private Vector3 MoveDirectionWorld()
@@ -265,6 +324,7 @@ namespace Mindforge.Combat
             {
                 Vector3 horizontal = Vector3.ProjectOnPlane(_body.velocity, Vector3.up) * Mathf.Clamp01(dashExitVelocityRetention);
                 _body.velocity = horizontal + Vector3.up * _body.velocity.y;
+                _currentDashIsAir = false;
             }
             _wasDashing = dashing;
 
@@ -276,18 +336,31 @@ namespace Mindforge.Combat
 
             if (_dashQueued)
             {
-                if (FixedTick <= _dashQueuedUntilTick && (physicalCombat == null || physicalCombat.CanDodge))
+                bool queuedAirDash = !_grounded;
+                bool airDashAvailable = !queuedAirDash || !_airDashConsumed;
+                if (FixedTick <= _dashQueuedUntilTick &&
+                    airDashAvailable &&
+                    (physicalCombat == null || physicalCombat.CanDodge))
                 {
-                    StartDash(ResolveDashDirection(_queuedDashFallback));
+                    StartDash(ResolveDashDirection(_queuedDashFallback), queuedAirDash);
                     _wasDashing = true;
                     ApplyVerticalMotion(dt);
                     return;
                 }
-                _dashQueued = false;
+                if (FixedTick > _dashQueuedUntilTick || !airDashAvailable)
+                    _dashQueued = false;
             }
 
             float loadMultiplier = loadout != null ? loadout.MoveSpeedMultiplier : 1f;
             float stanceMultiplier = physicalCombat != null ? Mathf.Clamp(physicalCombat.MovementMultiplier, 0.2f, 1f) : 1f;
+            if (!_grounded && physicalCombat != null &&
+                physicalCombat.ActionState != GuardianActionState.Dead &&
+                physicalCombat.ActionState != GuardianActionState.GuardBreak)
+            {
+                // Aerial combat should retain steering instead of turning committed attacks
+                // into a frozen midair pose. Ground commitment remains unchanged.
+                stanceMultiplier = Mathf.Max(stanceMultiplier, Mathf.Clamp01(airborneCombatMovementFloor));
+            }
             float directionalMultiplier = DirectionalSpeedMultiplier(_moveInput);
             float maxSpeed = tuning.maxSpeed * loadMultiplier * stanceMultiplier * directionalMultiplier;
             Vector3 desiredDir = MoveDirectionWorld();
@@ -345,6 +418,10 @@ namespace Mindforge.Combat
             {
                 _lastGroundedTick = FixedTick;
                 _airborneSeconds = 0f;
+                _airJumpConsumed = false;
+                _airDashConsumed = false;
+                _hoverRemainingSeconds = Mathf.Max(0f, hoverMaximumSeconds);
+                SetHovering(false);
             }
             else
             {
@@ -433,18 +510,24 @@ namespace Mindforge.Combat
                 _jumpQueued = false;
                 return;
             }
-            if (!CanJump) return;
+
+            bool groundJump = !IsDashing && CanGroundOrCoyoteJump;
+            bool airJump = !groundJump && CanAirJump;
+            if (!groundJump && !airJump) return;
 
             Vector3 velocity = _body.velocity;
-            velocity.y = Mathf.Max(0.1f, jumpVelocity);
+            velocity.y = Mathf.Max(0.1f, airJump ? airJumpVelocity : jumpVelocity);
             _body.velocity = velocity;
             _grounded = false;
             _airborneSeconds = 0f;
             _jumpCutConsumed = false;
             _jumpQueued = false;
             _lastGroundedTick = long.MinValue / 4;
+            SetHovering(false);
+            if (airJump) _airJumpConsumed = true;
             _body.WakeUp();
             Jumped?.Invoke();
+            if (airJump) DoubleJumped?.Invoke();
         }
 
         private void ApplyVerticalMotion(float dt)
@@ -453,6 +536,7 @@ namespace Mindforge.Combat
 
             if (_grounded && velocity.y <= 0f)
             {
+                SetHovering(false);
                 velocity.y = -Mathf.Max(0.1f, groundStickSpeed);
                 _body.velocity = velocity;
                 _previousVerticalSpeed = velocity.y;
@@ -465,6 +549,42 @@ namespace Mindforge.Combat
                 _jumpCutConsumed = true;
             }
 
+            float gravity = Physics.gravity.y;
+            if (gravity >= -0.01f) gravity = -9.81f;
+
+            bool wantsHover =
+                !_grounded &&
+                !IsDashing &&
+                _jumpHeld &&
+                _hoverRemainingSeconds > 0f &&
+                velocity.y <= hoverActivationVerticalSpeed;
+
+            if (wantsHover)
+            {
+                SetHovering(true);
+                float targetFall = -Mathf.Max(0.25f, hoverFallSpeed);
+                if (velocity.y < targetFall)
+                {
+                    velocity.y = Mathf.MoveTowards(
+                        velocity.y,
+                        targetFall,
+                        Mathf.Max(0.1f, hoverBrakeAcceleration) * dt);
+                }
+                else
+                {
+                    velocity.y += gravity * Mathf.Clamp(hoverGravityMultiplier, 0.01f, 1f) * dt;
+                    velocity.y = Mathf.Max(velocity.y, targetFall);
+                }
+
+                _hoverRemainingSeconds = Mathf.Max(0f, _hoverRemainingSeconds - dt);
+                if (_hoverRemainingSeconds <= 0f) SetHovering(false);
+                _body.velocity = velocity;
+                _previousVerticalSpeed = velocity.y;
+                return;
+            }
+
+            SetHovering(false);
+
             float gravityMultiplier;
             if (velocity.y > Mathf.Max(0.05f, apexVerticalSpeed))
                 gravityMultiplier = _jumpCutConsumed ? releasedJumpGravityMultiplier : risingGravityMultiplier;
@@ -473,12 +593,17 @@ namespace Mindforge.Combat
             else
                 gravityMultiplier = fallingGravityMultiplier;
 
-            float gravity = Physics.gravity.y;
-            if (gravity >= -0.01f) gravity = -9.81f;
             velocity.y += gravity * Mathf.Max(0.05f, gravityMultiplier) * dt;
             velocity.y = Mathf.Max(velocity.y, -Mathf.Max(1f, terminalFallSpeed));
             _body.velocity = velocity;
             _previousVerticalSpeed = velocity.y;
+        }
+
+        private void SetHovering(bool active)
+        {
+            if (_hovering == active) return;
+            _hovering = active;
+            HoverChanged?.Invoke(active);
         }
 
         private float DirectionalSpeedMultiplier(Vector2 input)
