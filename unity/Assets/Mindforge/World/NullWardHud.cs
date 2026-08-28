@@ -127,7 +127,7 @@ namespace Mindforge.World
             const float left = 18f;
             const float top = 18f;
             bool showControls = Time.realtimeSinceStartupAsDouble - _enteredAt <= Mathf.Max(0f, controlsHintSeconds);
-            float width = Mathf.Min(showControls ? 470f : 390f, Screen.width * 0.44f);
+            float width = Mathf.Min(showControls ? 540f : 390f, Screen.width * 0.50f);
             float height = showControls ? 58f : 38f;
             GUI.Box(new Rect(left, top, width, height), string.Empty);
             GUI.Label(new Rect(left + 12f, top + 5f, width - 24f, 26f),
@@ -137,7 +137,7 @@ namespace Mindforge.World
             if (showControls)
             {
                 GUI.Label(new Rect(left + 12f, top + 32f, width - 24f, 18f),
-                    "SPACE jump · CTRL/ALT dodge · T lock · F sword · RMB/E guard · G interact",
+                    "SPACE jump ×2 / hold to hover · SHIFT dash / air dash · T lock · F sword · RMB/E guard",
                     _small);
             }
 
