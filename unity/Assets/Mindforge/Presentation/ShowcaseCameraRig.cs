@@ -5,114 +5,195 @@ using Mindforge.Combat;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Presentation-only tactical camera. Free mode favors Guardian readability and
-    /// motion lead. Player-controlled target-focus mode keeps Guardian + enemy in a
-    /// steadier shared frame that can later serve as a spatial anchor for gaze/BCI UX.
+    /// Third-person ARPG camera for the competition showcase.
     ///
-    /// Target focus never changes aim, movement, attacks, guard, dodge, neural authority,
-    /// or boss behavior. T only changes camera composition.
+    /// Free mode follows behind the Guardian with full mouse/trackpad orbit and arrow-key
+    /// orbit fallback. Conventional target lock rotates the camera around the Guardian so
+    /// the locked enemy remains a stable visual anchor. The camera never creates player
+    /// actions, neural events, damage, movement or lock state; it only consumes them.
     /// </summary>
     public sealed class ShowcaseCameraRig : MonoBehaviour
     {
         [SerializeField] private Transform guardian;
         [SerializeField] private Transform boss;
         [SerializeField] private GuardianMotor motor;
+        [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private Camera gameplayCamera;
 
-        [Header("Free tactical framing")]
-        [SerializeField] private Vector3 baseOffset = new Vector3(0f, 10.8f, -10.6f);
-        [SerializeField] private float separationHeight = 0.18f;
-        [SerializeField] private float separationDistance = 0.12f;
-        [SerializeField] private float guardianFocusWeight = 0.68f;
-        [SerializeField] private float motionLeadSeconds = 0.14f;
+        [Header("Third-person shoulder camera")]
+        [SerializeField] private float pivotHeight = 1.42f;
+        [SerializeField] private float freeDistance = 5.25f;
+        [SerializeField] private float lockDistance = 5.85f;
+        [SerializeField] private float shoulderOffset = 0.62f;
+        [SerializeField] private float freeLookAhead = 6.5f;
+        [SerializeField] private float initialYaw = 0f;
+        [SerializeField] private float initialPitch = 17f;
+        [SerializeField] private float minPitch = -8f;
+        [SerializeField] private float maxPitch = 48f;
 
-        [Header("Enemy focus framing")]
-        [SerializeField] private KeyCode targetFocusToggleKey = KeyCode.T;
-        [SerializeField] private Vector3 targetFocusOffset = new Vector3(0f, 11.7f, -11.7f);
-        [SerializeField, Range(0.45f, 0.72f)] private float targetFocusGuardianWeight = 0.56f;
-        [SerializeField] private float targetFocusMotionLeadSeconds = 0.055f;
-        [SerializeField] private float targetFocusSeparationDistance = 0.18f;
-        [SerializeField] private float targetFocusExtraHeight = 0.55f;
-        [SerializeField] private float freeFieldOfView = 55f;
-        [SerializeField] private float targetFocusFieldOfView = 50f;
+        [Header("Orbit input")]
+        [SerializeField] private float mouseYawSensitivity = 2.35f;
+        [SerializeField] private float mousePitchSensitivity = 1.85f;
+        [SerializeField] private float arrowYawSpeed = 105f;
+        [SerializeField] private float arrowPitchSpeed = 72f;
+        [SerializeField] private bool invertY;
+        [SerializeField] private bool lockCursorDuringGameplay = true;
 
-        [Header("Response")]
-        [SerializeField] private float positionSmoothSeconds = 0.105f;
-        [SerializeField] private float rotationSharpness = 12.5f;
-        [SerializeField] private float targetFocusRotationSharpness = 15f;
-        [SerializeField] private float fieldOfViewSharpness = 8f;
-        [SerializeField] private float maximumExtraDistance = 4.2f;
+        [Header("Target lock framing")]
+        [SerializeField] private float lockYawSharpness = 14f;
+        [SerializeField] private float lockPitchSharpness = 10f;
+        [SerializeField] private float lockLookWeight = 0.58f;
+        [SerializeField] private float lockTargetHeight = 0.95f;
+        [SerializeField] private float lockShoulderOffset = 0.34f;
 
-        private Vector3 _velocity;
+        [Header("Camera response")]
+        [SerializeField] private float positionSmoothSeconds = 0.055f;
+        [SerializeField] private float freeRotationSharpness = 24f;
+        [SerializeField] private float collisionRadius = 0.22f;
+        [SerializeField] private float collisionPadding = 0.16f;
+        [SerializeField] private LayerMask collisionMask = ~0;
+
+        private Vector3 _positionVelocity;
+        private float _yaw;
+        private float _pitch;
         private bool _initialized;
-        private bool _targetFocusActive;
+        private bool _subscribed;
 
         public event Action<bool> TargetFocusChanged;
 
-        public bool TargetFocusActive => _targetFocusActive;
-        public Transform FocusTarget => boss;
+        public bool TargetFocusActive => targetLock != null && targetLock.Locked;
+        public Transform FocusTarget => targetLock != null ? targetLock.Target : null;
+        public float Yaw => _yaw;
+        public float Pitch => _pitch;
 
-        public void Configure(Transform player, Transform target, GuardianMotor guardianMotor, Camera camera)
+        public void Configure(
+            Transform player,
+            Transform target,
+            GuardianMotor guardianMotor,
+            GuardianTargetLock lockState,
+            Camera camera)
         {
+            UnsubscribeLock();
             guardian = player;
             boss = target;
             motor = guardianMotor;
+            targetLock = lockState;
             gameplayCamera = camera;
+            SubscribeLock();
+            InitializeOrbitFromScene();
         }
 
+        // Kept as a compatibility surface for UI/debug callers. Player input itself is
+        // owned by GuardianTargetLock, not this presentation component.
         public void SetTargetFocus(bool active)
         {
-            bool allowed = active && boss != null && boss.gameObject.activeInHierarchy;
-            if (_targetFocusActive == allowed) return;
-            _targetFocusActive = allowed;
-            TargetFocusChanged?.Invoke(_targetFocusActive);
-            Debug.Log($"[Mindforge:Camera] Enemy focus {(_targetFocusActive ? "ON" : "OFF")}. Camera composition only; player aim and combat authority unchanged.");
+            targetLock?.SetLocked(active);
+        }
+
+        private void Awake()
+        {
+            _yaw = initialYaw;
+            _pitch = initialPitch;
+        }
+
+        private void Start()
+        {
+            SubscribeLock();
+            InitializeOrbitFromScene();
+            if (lockCursorDuringGameplay) CaptureCursor();
+        }
+
+        private void OnEnable() => SubscribeLock();
+
+        private void OnDisable()
+        {
+            UnsubscribeLock();
+            ReleaseCursor();
         }
 
         private void Update()
         {
-            if (Input.GetKeyDown(targetFocusToggleKey))
-                SetTargetFocus(!_targetFocusActive);
+            if (guardian == null) return;
 
-            // If calibration/runtime hides the target, focus fails safely back to free view.
-            if (_targetFocusActive && (boss == null || !boss.gameObject.activeInHierarchy))
-                SetTargetFocus(false);
+            if (lockCursorDuringGameplay)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape)) ReleaseCursor();
+                else if (Cursor.lockState != CursorLockMode.Locked && Input.GetMouseButtonDown(0)) CaptureCursor();
+            }
+
+            if (TargetFocusActive) return;
+
+            float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
+            float mouseX = Input.GetAxis("Mouse X");
+            float mouseY = Input.GetAxis("Mouse Y");
+            float arrowX = 0f;
+            float arrowY = 0f;
+            if (Input.GetKey(KeyCode.LeftArrow)) arrowX -= 1f;
+            if (Input.GetKey(KeyCode.RightArrow)) arrowX += 1f;
+            if (Input.GetKey(KeyCode.DownArrow)) arrowY -= 1f;
+            if (Input.GetKey(KeyCode.UpArrow)) arrowY += 1f;
+
+            _yaw += mouseX * mouseYawSensitivity + arrowX * arrowYawSpeed * dt;
+            float pitchSign = invertY ? 1f : -1f;
+            _pitch += mouseY * mousePitchSensitivity * pitchSign + arrowY * arrowPitchSpeed * dt;
+            _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
         }
 
         private void LateUpdate()
         {
-            if (guardian == null || boss == null) return;
+            if (guardian == null) return;
             float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
             if (dt <= 0f) return;
 
-            Vector3 player = guardian.position;
-            Vector3 enemy = boss.position;
-            bool focused = _targetFocusActive && boss.gameObject.activeInHierarchy;
-            float guardianWeight = focused ? targetFocusGuardianWeight : guardianFocusWeight;
-            Vector3 focus = Vector3.Lerp(enemy, player, Mathf.Clamp01(guardianWeight));
-            focus.y = Mathf.Max(player.y, enemy.y * 0.45f) + (focused ? 0.48f : 0.34f);
+            bool locked = TargetFocusActive && FocusTarget != null;
+            Vector3 pivot = guardian.position + Vector3.up * pivotHeight;
 
-            float leadSeconds = focused ? targetFocusMotionLeadSeconds : motionLeadSeconds;
-            Vector3 lead = motor != null
-                ? Vector3.ProjectOnPlane(motor.Velocity, Vector3.up) * leadSeconds
-                : Vector3.zero;
-            lead = Vector3.ClampMagnitude(lead, focused ? 0.55f : 1.15f);
-            focus += lead;
+            if (locked)
+            {
+                Vector3 targetPoint = FocusTarget.position + Vector3.up * lockTargetHeight;
+                Vector3 flatToTarget = Vector3.ProjectOnPlane(targetPoint - pivot, Vector3.up);
+                if (flatToTarget.sqrMagnitude > 0.001f)
+                {
+                    float desiredYaw = Mathf.Atan2(flatToTarget.x, flatToTarget.z) * Mathf.Rad2Deg;
+                    _yaw = Mathf.LerpAngle(_yaw, desiredYaw,
+                        1f - Mathf.Exp(-Mathf.Max(0.1f, lockYawSharpness) * dt));
 
-            float separation = Vector3.Distance(
-                Vector3.ProjectOnPlane(player, Vector3.up),
-                Vector3.ProjectOnPlane(enemy, Vector3.up));
-            float distanceScale = focused ? targetFocusSeparationDistance : separationDistance;
-            float extra = Mathf.Clamp((separation - 7f) * distanceScale, 0f, maximumExtraDistance);
-            Vector3 offsetBase = focused ? targetFocusOffset : baseOffset;
-            float extraHeight = Mathf.Clamp((separation - 7f) * separationHeight, 0f, 2.4f);
-            if (focused) extraHeight += targetFocusExtraHeight;
-            Vector3 offset = offsetBase + new Vector3(0f, extraHeight, -extra);
-            Vector3 desiredPosition = focus + offset;
+                    float horizontal = Mathf.Max(0.1f, flatToTarget.magnitude);
+                    float desiredPitch = -Mathf.Atan2(targetPoint.y - pivot.y, horizontal) * Mathf.Rad2Deg + 10f;
+                    desiredPitch = Mathf.Clamp(desiredPitch, 5f, 28f);
+                    _pitch = Mathf.Lerp(_pitch, desiredPitch,
+                        1f - Mathf.Exp(-Mathf.Max(0.1f, lockPitchSharpness) * dt));
+                }
+            }
+
+            Quaternion orbit = Quaternion.Euler(_pitch, _yaw, 0f);
+            Vector3 back = orbit * Vector3.back;
+            Vector3 right = Quaternion.Euler(0f, _yaw, 0f) * Vector3.right;
+            float distance = locked ? lockDistance : freeDistance;
+            float shoulder = locked ? lockShoulderOffset : shoulderOffset;
+            Vector3 desiredPosition = pivot + back * distance + right * shoulder;
+            desiredPosition = ResolveCameraCollision(pivot, desiredPosition);
+
+            Vector3 lookPoint;
+            if (locked)
+            {
+                Vector3 targetPoint = FocusTarget.position + Vector3.up * lockTargetHeight;
+                lookPoint = Vector3.Lerp(pivot, targetPoint, Mathf.Clamp01(lockLookWeight));
+            }
+            else
+            {
+                Vector3 forward = Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward;
+                lookPoint = pivot + forward * freeLookAhead;
+            }
+
+            Quaternion desiredRotation = Quaternion.LookRotation(
+                (lookPoint - desiredPosition).normalized,
+                Vector3.up);
 
             if (!_initialized)
             {
                 transform.position = desiredPosition;
+                transform.rotation = desiredRotation;
                 _initialized = true;
             }
             else
@@ -120,33 +201,85 @@ namespace Mindforge.Presentation
                 transform.position = Vector3.SmoothDamp(
                     transform.position,
                     desiredPosition,
-                    ref _velocity,
-                    Mathf.Max(0.02f, positionSmoothSeconds),
+                    ref _positionVelocity,
+                    Mathf.Max(0.015f, positionSmoothSeconds),
                     Mathf.Infinity,
                     dt);
-            }
-
-            Vector3 look = focus - transform.position;
-            if (look.sqrMagnitude > 0.01f)
-            {
-                float sharpness = focused ? targetFocusRotationSharpness : rotationSharpness;
-                Quaternion desiredRotation = Quaternion.LookRotation(look.normalized, Vector3.up);
                 transform.rotation = Quaternion.Slerp(
                     transform.rotation,
                     desiredRotation,
-                    1f - Mathf.Exp(-Mathf.Max(0.1f, sharpness) * dt));
+                    1f - Mathf.Exp(-Mathf.Max(0.1f, freeRotationSharpness) * dt));
             }
 
             if (gameplayCamera != null)
             {
-                gameplayCamera.nearClipPlane = 0.08f;
-                gameplayCamera.farClipPlane = 120f;
-                float desiredFov = focused ? targetFocusFieldOfView : freeFieldOfView;
-                gameplayCamera.fieldOfView = Mathf.Lerp(
-                    gameplayCamera.fieldOfView,
-                    desiredFov,
-                    1f - Mathf.Exp(-Mathf.Max(0.1f, fieldOfViewSharpness) * dt));
+                gameplayCamera.nearClipPlane = 0.06f;
+                gameplayCamera.farClipPlane = 140f;
             }
+        }
+
+        private Vector3 ResolveCameraCollision(Vector3 pivot, Vector3 desired)
+        {
+            Vector3 delta = desired - pivot;
+            float distance = delta.magnitude;
+            if (distance <= 0.01f) return desired;
+
+            Vector3 direction = delta / distance;
+            if (Physics.SphereCast(
+                pivot,
+                Mathf.Max(0.05f, collisionRadius),
+                direction,
+                out RaycastHit hit,
+                distance,
+                collisionMask,
+                QueryTriggerInteraction.Ignore))
+            {
+                float resolved = Mathf.Max(0.35f, hit.distance - Mathf.Max(0.02f, collisionPadding));
+                return pivot + direction * resolved;
+            }
+
+            return desired;
+        }
+
+        private void InitializeOrbitFromScene()
+        {
+            if (guardian == null) return;
+            Vector3 flatForward = Vector3.ProjectOnPlane(guardian.forward, Vector3.up);
+            if (flatForward.sqrMagnitude > 0.001f)
+                _yaw = Mathf.Atan2(flatForward.x, flatForward.z) * Mathf.Rad2Deg;
+            _pitch = Mathf.Clamp(initialPitch, minPitch, maxPitch);
+        }
+
+        private void SubscribeLock()
+        {
+            if (_subscribed || targetLock == null) return;
+            targetLock.LockChanged += OnLockChanged;
+            _subscribed = true;
+        }
+
+        private void UnsubscribeLock()
+        {
+            if (!_subscribed || targetLock == null) return;
+            targetLock.LockChanged -= OnLockChanged;
+            _subscribed = false;
+        }
+
+        private void OnLockChanged(bool locked)
+        {
+            TargetFocusChanged?.Invoke(locked);
+            Debug.Log($"[Mindforge:Camera] Third-person target lock {(locked ? "ON" : "OFF")}. Camera follows conventional lock state.");
+        }
+
+        private static void CaptureCursor()
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        private static void ReleaseCursor()
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
     }
 }
