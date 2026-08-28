@@ -17,9 +17,13 @@ def test_dodge_has_real_short_iframe_not_full_motion_immunity():
     projectile = read("Combat", "MindforgeProjectile.cs")
 
     assert "dodgeInvulnerabilitySeconds = 0.105f" in motor
-    assert "public bool IsDashing => Time.time < _dashUntil" in motor
-    assert "public bool IsInvulnerable => Time.time < _invulnerableUntil" in motor
+    assert "public bool IsDashing => FixedTick < _dashUntilTick" in motor
+    assert "public bool IsInvulnerable => FixedTick < _invulnerableUntilTick" in motor
     assert "Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds))" in motor
+    assert "int rollTicks = SecondsToTicks(rollDuration)" in motor
+    assert "int invulnerabilityTicks = Mathf.Min(" in motor
+    assert "_invulnerableUntilTick = FixedTick + invulnerabilityTicks" in motor
+    assert "Time.time" not in motor
 
     assert "public bool IsTemporarilyInvulnerable" in vitals
     assert "packet.SourceTeam == team || IsTemporarilyInvulnerable" in vitals
@@ -45,7 +49,9 @@ def test_fixed_tick_action_grammar_prevents_guard_roll_attack_overlays():
     assert "if (physicalCombat != null && physicalCombat.IsGuarding) return;" in source
     assert "if (physicalCombat != null && physicalCombat.IsAttacking) return;" in source
 
-    assert "public bool CanDodge => !IsAttacking" in physical
+    assert "public GuardianActionState ActionState => ResolveActionState()" in physical
+    assert "public bool CanDodge => ActionState == GuardianActionState.Locomotion || ActionState == GuardianActionState.Guard" in physical
+    assert "public bool CanAttack => ActionState == GuardianActionState.Locomotion" in physical
     assert "motor != null && motor.IsDashing" in physical
 
 
@@ -56,7 +62,7 @@ def test_guard_stance_costs_mobility_and_guard_integrity_recovery_even_without_b
 
     assert "guardMoveMultiplier = 0.70f" in physical
     assert "guardIntegrityRecoveryMultiplier = 0.34f" in physical
-    assert "public float MovementMultiplier => IsGuarding" in physical
+    assert "if (IsGuarding) return guardMoveMultiplier" in physical
     assert "stamina?.SetRecoveryMultiplier(_guardHeld ? guardIntegrityRecoveryMultiplier : 1f)" in physical
     assert "stamina?.SetRecoveryMultiplier(1f)" in physical
 
