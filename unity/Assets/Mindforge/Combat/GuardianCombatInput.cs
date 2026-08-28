@@ -3,13 +3,22 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Samples device input in Update, latches one-shot actions, then applies a
-    /// complete command frame on the authoritative fixed simulation tick. The same
+    /// Samples conventional PC input in Update, latches one-shot actions, then applies
+    /// a complete command frame on the authoritative fixed simulation tick. The same
     /// command frame can be recorded/replayed by GuardianInputTape.
     ///
-    /// Precision aim is player-owned. Mouse movement activates world-space pointer
-    /// aim; arrow keys provide a keyboard-only directional aim path. Neural evidence
-    /// never originates attack, guard, aim or dodge commands.
+    /// Keyboard-first competition map:
+    /// - WASD or arrows: movement
+    /// - Space: dodge in held movement direction, otherwise aim/facing
+    /// - F: sword light/combo
+    /// - Left Shift: Pulse Shot
+    /// - RMB or E: shield
+    /// - Q: Rift Cleave
+    /// - C: Counter Pulse
+    /// - R: Gravity Bloom / Twin Eclipse
+    ///
+    /// Mouse owns precision aim. Neural evidence never originates movement, attack,
+    /// guard, aim or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -27,7 +36,6 @@ namespace Mindforge.Combat
         [SerializeField] private float minimumPointerWorldDistance = 0.35f;
 
         private Vector2 _move;
-        private Vector2 _keyboardAim;
         private bool _fireHeld;
         private bool _cleaveLatched;
         private bool _counterLatched;
@@ -67,10 +75,10 @@ namespace Mindforge.Combat
 
         private void Update()
         {
+            // Unity's legacy Horizontal/Vertical axes intentionally support both
+            // WASD and arrow keys. Arrow keys are no longer consumed by a second aim
+            // system, so keyboard movement has one obvious grammar.
             _move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            _keyboardAim = new Vector2(
-                (Input.GetKey(KeyCode.RightArrow) ? 1f : 0f) - (Input.GetKey(KeyCode.LeftArrow) ? 1f : 0f),
-                (Input.GetKey(KeyCode.UpArrow) ? 1f : 0f) - (Input.GetKey(KeyCode.DownArrow) ? 1f : 0f));
 
             Vector3 pointer = Input.mousePosition;
             if (!_pointerInitialized)
@@ -87,13 +95,14 @@ namespace Mindforge.Combat
             }
             _pointerScreen = pointer;
 
-            _swordAttackLatched |= Input.GetMouseButtonDown(0);
-            _guardDownLatched |= Input.GetMouseButtonDown(1);
-            _guardHeld = Input.GetMouseButton(1);
-            _fireHeld = Input.GetKey(KeyCode.Space);
-            _cleaveLatched |= Input.GetKeyDown(KeyCode.F);
+            _swordAttackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
+            bool guardPressed = Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(1);
+            _guardDownLatched |= guardPressed;
+            _guardHeld = Input.GetKey(KeyCode.E) || Input.GetMouseButton(1);
+            _fireHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            _cleaveLatched |= Input.GetKeyDown(KeyCode.Q);
             _counterLatched |= Input.GetKeyDown(KeyCode.C);
-            _dashLatched |= Input.GetKeyDown(KeyCode.LeftShift);
+            _dashLatched |= Input.GetKeyDown(KeyCode.Space);
             _bloomLatched |= Input.GetKeyDown(KeyCode.R);
         }
 
@@ -140,23 +149,6 @@ namespace Mindforge.Combat
         private Vector3 ResolveAimDirection(out Vector3 aimPoint, out bool precisionAim)
         {
             Camera camera = aimCamera != null ? aimCamera : Camera.main;
-
-            if (_keyboardAim.sqrMagnitude > 0.01f)
-            {
-                Vector3 forward = camera != null
-                    ? Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up).normalized
-                    : Vector3.forward;
-                Vector3 right = camera != null
-                    ? Vector3.ProjectOnPlane(camera.transform.right, Vector3.up).normalized
-                    : Vector3.right;
-                Vector3 direction = (right * _keyboardAim.x + forward * _keyboardAim.y).normalized;
-                if (direction.sqrMagnitude > 0.01f)
-                {
-                    aimPoint = transform.position + direction * 6f;
-                    precisionAim = true;
-                    return direction;
-                }
-            }
 
             if (mouseAimEnabled && _mouseAimActive && camera != null)
             {
@@ -241,15 +233,15 @@ namespace Mindforge.Combat
                 return;
             }
 
-            // Dodge owns the whole fixed command frame when it succeeds. This makes
-            // roll timing a real commitment rather than a free overlay on attacks.
+            // Dodge owns the whole fixed command frame when it succeeds. GuardianMotor
+            // preferentially uses the held movement vector, so Space naturally dodges
+            // in the direction the player is pressing.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
                 physicalCombat?.SetGuardHeld(false, aim);
                 if (motor.RequestDash(aim)) return;
             }
 
-            // No attacks or guarding while a roll is already in flight.
             if (motor.IsDashing)
             {
                 physicalCombat?.SetGuardHeld(false, aim);
@@ -257,14 +249,9 @@ namespace Mindforge.Combat
             }
 
             physicalCombat?.SetGuardHeld(command.guard_held, aim);
-
-            // Raised shield is a stance. It suppresses simultaneous offensive verbs.
             if (physicalCombat != null && physicalCombat.IsGuarding) return;
 
             if (command.sword_attack_down) physicalCombat?.TryLightAttack(aim);
-
-            // Sword wind-up/contact/recovery owns subsequent combat input until its
-            // commitment ends; the player cannot fire a spell through the animation.
             if (physicalCombat != null && physicalCombat.IsAttacking) return;
 
             if (command.fire_held) combat.FirePulse(aim);
@@ -276,7 +263,7 @@ namespace Mindforge.Combat
         private void ResolveTape()
         {
             if (inputTape == null)
-                inputTape = Object.FindObjectOfType<GuardianInputTape>(true);
+                inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
         }
     }
 }
