@@ -33,7 +33,7 @@ namespace Mindforge.Editor
         }
 
         // Preserve the old menu path as an explicit alias so existing docs/workflows do
-        // not break while the default visual target advances to cinematic fidelity v2.
+        // not break while the default visual target advances.
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
         public static void BuildAndPlayLegacyAlias() => BuildAndPlay();
 
@@ -66,6 +66,11 @@ namespace Mindforge.Editor
                 if (!arenaWasActive) arena.SetActive(true);
                 ShowcaseSceneDecorator.DecorateOpenScene();
                 CinematicSceneDetailer.EnhanceOpenScene();
+
+                // Arena V3 intentionally runs last. It removes the prototype arena-only
+                // visual roots and rebuilds one coherent pillar arena while preserving the
+                // Awakening presentation and all underlying gameplay objects/colliders.
+                ArenaEnvironmentV3Builder.BuildOpenScene();
             }
             finally
             {
@@ -81,8 +86,9 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
-                "[Mindforge:Showcase] Cinematic scene ready. Renderer quality, PBR material maps, " +
-                "environment detail and reflection volumes are authored before Play Mode. " +
+                "[Mindforge:Showcase] Cinematic scene ready. Arena V3 is the final environment layer: " +
+                "midnight/indigo ritual floor, structured pillars, cyan/teal channels, copper trim, " +
+                "ruins, braziers and reflection lighting are authored before Play Mode. " +
                 "Use 'Build + Play Cinematic Showcase' for the one-click controller-only path.");
         }
 
