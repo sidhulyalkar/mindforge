@@ -49,8 +49,29 @@ namespace Mindforge.Editor
             CinematicFidelityConfigurator.Configure();
             CinematicMaterialAuthoring.EnsureAuthored();
             CompetitionSceneAssembler.BuildCompetitionScene();
-            ShowcaseSceneDecorator.DecorateOpenScene();
-            CinematicSceneDetailer.EnhanceOpenScene();
+
+            // The competition assembler intentionally leaves the combat arena inactive
+            // until calibration/controller-only qualification opens it. GameObject.Find
+            // ignores inactive objects, while the visual authoring passes need to inspect
+            // and decorate that arena before Play Mode. Activate only for editor authoring
+            // and always restore the original state, even if an authoring pass throws.
+            GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");
+            if (arena == null)
+                throw new UnityEditor.Build.BuildFailedException(
+                    "Mindforge showcase assembly did not create Fractured_Signal_Arena.");
+
+            bool arenaWasActive = arena.activeSelf;
+            try
+            {
+                if (!arenaWasActive) arena.SetActive(true);
+                ShowcaseSceneDecorator.DecorateOpenScene();
+                CinematicSceneDetailer.EnhanceOpenScene();
+            }
+            finally
+            {
+                if (arena != null && !arenaWasActive) arena.SetActive(false);
+            }
+
             CompetitionGateValidator.ValidateAndWrite(false);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
