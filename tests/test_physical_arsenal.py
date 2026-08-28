@@ -68,6 +68,14 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
     assert "stamina.DodgeBaseCost" not in motor
     assert 'stamina.TrySpend(staminaCost, "DODGE_ROLL")' not in motor
 
+    # Dodge duration, input buffering and i-frames are all fixed-tick authority now.
+    assert "_dashUntilTick" in motor
+    assert "_invulnerableUntilTick" in motor
+    assert "_dashQueuedUntilTick" in motor
+    assert "SecondsToTicks" in motor
+    assert "Time.fixedTime" in motor
+    assert "Time.time" not in motor
+
     # Guard Integrity still uses the shared defensive budget.
     assert "recoveryDelaySeconds" in stamina
     assert "TrySpend" in stamina
@@ -76,21 +84,48 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
 
 def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles():
     sword = read("Combat", "GuardianSwordShieldController.cs")
+    attacks = read("Combat", "AttackDefinition.cs")
 
     assert "Physics.OverlapCapsuleNonAlloc" in sword
-    assert "activeStart = 0.24f" in sword
-    assert "activeEnd = 0.72f" in sword
+    assert "AttackDefinition[] lightChain" in sword
+    assert "attack.IsActive(AttackElapsedTicks)" in sword
+    assert "attack.ActiveProgress(AttackElapsedTicks)" in sword
     assert "_hitThisSwing.Add(receiver.GetInstanceID())" in sword
     assert "weapon.massKg" in sword
     assert "weapon.reachMeters" in sword
     assert "angularVelocity" in sword
     assert "swingMomentum" in sword
-    assert "comboQueueOpensAt" in sword
-    assert "_comboStep < 3" in sword
+    assert "current.ComboBufferOpen(AttackElapsedTicks)" in sword
     assert "BeginSwordStep(_comboStep + 1" in sword
-    assert "finisherDamageMultiplier" in sword
-    assert "finisherPoiseMultiplier" in sword
+    assert "attack.DamageMultiplier" in sword
+    assert "attack.PoiseMultiplier" in sword
     assert 'stamina.TrySpend(staminaCost, "SWORD_LIGHT")' not in sword
+    assert "Time.time" not in sword
+
+    # Authoritative action permission is explicit and independent of Animator state.
+    assert "GuardianActionState" in sword
+    assert "public bool CanAttack" in sword
+    assert "public bool CanDodge" in sword
+    assert "public bool CanGuard" in sword
+    assert "public bool CanCounter" in sword
+    assert "public bool CanMove" in sword
+    assert "public bool CanTurn" in sword
+    assert "Animator" not in sword
+
+    for token in (
+        "startupTicks",
+        "activeTicks",
+        "recoveryTicks",
+        "comboBufferOpenTick",
+        "comboBufferCloseTick",
+        "movementMultiplier",
+        "turnMultiplier",
+        "damageMultiplier",
+        "poiseMultiplier",
+        "presentationId",
+        "CreateDefaultLightChain",
+    ):
+        assert token in attacks
 
     # The same active sword volume can intercept hostile projectiles.
     assert "TrySwordParry(projectile, weapon, resonanceValue)" in sword
@@ -123,6 +158,8 @@ def test_shield_is_directional_collision_with_guard_integrity_chip_and_true_conc
     assert '"PERFECT_GUARD"' in shield
     assert "BreakGuard();" in shield
     assert "guardIntegrityRecoveryMultiplier" in shield
+    assert "guardBreakLockTicks" in shield
+    assert "_guardBreakUntilTick" in shield
 
     assert "TryResolveIncomingStrike" in shield
     assert "GuardStrikeResult" in shield
@@ -130,6 +167,11 @@ def test_shield_is_directional_collision_with_guard_integrity_chip_and_true_conc
     assert "Vector3.Angle(guardFacing, towardThreat)" in shield
     assert "GuardStrikeResult.OutsideCoverage" in shield
     assert "guardBreakDamageLeak" in shield
+
+    # Perfect guard timing is converted to fixed ticks from the shield data contract.
+    assert "IsPerfectGuardWindow" in shield
+    assert "SecondsToTicks" in shield
+    assert "FixedTick - _guardStartedTick" in shield
 
     assert "float baselineDamage" in shield
     assert "float reflectedDamage = baselineDamage * concordMultiplier" in shield
