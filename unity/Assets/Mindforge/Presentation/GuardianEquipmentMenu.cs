@@ -106,8 +106,9 @@ namespace Mindforge.Presentation
             Stroke(rules, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "COMBAT CONTROLS", _section);
             float ky = rules.y + 50f;
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD / ARROWS", "Move");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Directional dodge");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "ARROWS / MOUSE", "Aim");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Directional dash");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F", "Sword / combo / bullet parry");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT", "Pulse Shot");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "RMB / E", "Shield");
@@ -129,7 +130,7 @@ namespace Mindforge.Presentation
             GUI.Label(new Rect(summary.x + 16f, summary.y + 43f, summary.width - 32f, 22f),
                 $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   GUARD INTEGRITY {integrity}", _item);
             GUI.Label(new Rect(summary.x + 16f, summary.y + 72f, summary.width - 32f, 42f),
-                "Movement, dodge and ordinary sword attacks are unrestricted by stamina in this build. Guard Integrity is spent only when the shield absorbs pressure.", _muted);
+                "Movement, dashes and ordinary sword attacks are unrestricted. Difficulty comes from enemy patterns, spacing, timing, HP and defensive decisions rather than a movement stamina tax.", _muted);
         }
 
         private void DrawLoadoutCard(Rect rect, string slot, string item, Color accent, string details)
