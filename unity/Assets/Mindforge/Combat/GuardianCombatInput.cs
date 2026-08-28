@@ -226,8 +226,9 @@ namespace Mindforge.Combat
                 return;
             }
 
-            // Dodge owns the fixed command frame when accepted. Held WASD has direction
-            // priority; when stationary, the camera/lock combat heading is the fallback.
+            // One fixed command frame owns at most one committed action. Dodge has first
+            // refusal, then guard, sword/combo, and finally one special. Held Pulse is
+            // intentionally lowest priority so it cannot layer underneath one-shot moves.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
                 physicalCombat?.SetGuardHeld(false, aim);
@@ -243,13 +244,22 @@ namespace Mindforge.Combat
             physicalCombat?.SetGuardHeld(command.guard_held, aim);
             if (physicalCombat != null && physicalCombat.IsGuarding) return;
 
-            if (command.sword_attack_down) physicalCombat?.TryLightAttack(aim);
-            if (physicalCombat != null && physicalCombat.IsAttacking) return;
+            if (command.sword_attack_down)
+            {
+                bool accepted = physicalCombat != null && physicalCombat.TryLightAttack(aim);
+                if (accepted) return;
+            }
 
+            // Attack recovery and guard break are real commitments too. The legacy
+            // special abilities may not tunnel through those states simply because the
+            // sword itself has left its active window.
+            if (physicalCombat != null && physicalCombat.ActionState != GuardianActionState.Locomotion)
+                return;
+
+            if (command.counter_down && combat.BeginCounter()) return;
+            if (command.cleave_down && combat.RiftCleave(aim)) return;
+            if (command.bloom_down && bloom != null && bloom.TryActivate()) return;
             if (command.fire_held) combat.FirePulse(aim);
-            if (command.cleave_down) combat.RiftCleave(aim);
-            if (command.counter_down) combat.BeginCounter();
-            if (command.bloom_down) bloom?.TryActivate();
         }
 
         private void ResolveDependencies()
