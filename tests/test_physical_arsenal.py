@@ -41,7 +41,7 @@ def marker(
     )
 
 
-def test_equipment_contract_makes_mass_load_and_shield_coverage_mechanical():
+def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unlimited():
     equipment = read("Combat", "GuardianEquipmentLoadout.cs")
     motor = read("Combat", "GuardianMotor.cs")
     stamina = read("Combat", "GuardianStamina.cs")
@@ -55,25 +55,23 @@ def test_equipment_contract_makes_mass_load_and_shield_coverage_mechanical():
     assert 'displayName = "Warden Weave"' in equipment
     assert "coverageDegrees = 112f" in equipment
     assert "public float TotalMassKg" in equipment
-    assert "public float LoadRatio" in equipment
     assert "MoveSpeedMultiplier" in equipment
     assert "RollSpeedMultiplier" in equipment
     assert "RollDurationMultiplier" in equipment
-    assert "RollStaminaMultiplier" in equipment
 
-    assert "stamina.DodgeBaseCost" in motor
-    assert "loadout.RollStaminaMultiplier" in motor
     assert "loadout.RollSpeedMultiplier" in motor
     assert "loadout.RollDurationMultiplier" in motor
     assert "loadout.MoveSpeedMultiplier" in motor
-    assert 'stamina.TrySpend(staminaCost, "DODGE_ROLL")' in motor
+    assert "stamina.DodgeBaseCost" not in motor
+    assert 'stamina.TrySpend(staminaCost, "DODGE_ROLL")' not in motor
 
+    # Guard Integrity still uses the shared defensive budget.
     assert "recoveryDelaySeconds" in stamina
     assert "TrySpend" in stamina
     assert "DrainUpTo" in stamina
 
 
-def test_sword_is_swept_physical_contact_with_three_step_commitment_and_bounded_sight_modulation():
+def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles():
     sword = read("Combat", "GuardianSwordShieldController.cs")
 
     assert "Physics.OverlapCapsuleNonAlloc" in sword
@@ -89,21 +87,27 @@ def test_sword_is_swept_physical_contact_with_three_step_commitment_and_bounded_
     assert "BeginSwordStep(_comboStep + 1" in sword
     assert "finisherDamageMultiplier" in sword
     assert "finisherPoiseMultiplier" in sword
-    assert "weapon.staminaCost * staminaMultiplier" in sword
-    assert 'stamina.TrySpend(staminaCost, "SWORD_LIGHT")' in sword
+    assert 'stamina.TrySpend(staminaCost, "SWORD_LIGHT")' not in sword
 
-    # Neural evidence can modulate a sword only behind accepted Sight authority.
+    # The same active sword volume can intercept hostile projectiles.
+    assert "TrySwordParry(projectile, weapon, resonanceValue)" in sword
+    assert "projectile.IsHostileToGuardian" in sword
+    assert "projectile.ReflectTowards" in sword
+    assert "_parriedProjectilesThisSwing" in sword
+    assert "maxProjectileParriesPerSwing" in sword
+    assert "SwordProjectileParried" in sword
+    assert '"SIGHT_SWORD_PARRY_DAMAGE"' in sword
+
     assert "auras != null && auras.SightActive" in sword
     assert "resonance.Sight" in sword
     assert '"SIGHT_SWORD_DAMAGE"' in sword
     assert "bonusDamage = Mathf.Max(0f, damage - baseDamage)" in sword
 
 
-def test_shield_is_directional_collision_with_stamina_chip_and_true_concord_counterfactual():
+def test_shield_is_directional_collision_with_guard_integrity_chip_and_true_concord_counterfactual():
     projectile = read("Combat", "MindforgeProjectile.cs")
     shield = read("Combat", "GuardianSwordShieldController.cs")
 
-    # Shield interception precedes body damage resolution for physical projectiles.
     shield_index = projectile.index("GuardianShieldHitbox shield")
     vitals_index = projectile.index("CombatantVitals receiver")
     assert shield_index < vitals_index
@@ -115,8 +119,8 @@ def test_shield_is_directional_collision_with_stamina_chip_and_true_concord_coun
     assert "shield.guardStaminaScale / stability" in shield
     assert '"PERFECT_GUARD"' in shield
     assert "BreakGuard();" in shield
+    assert "guardIntegrityRecoveryMultiplier" in shield
 
-    # Direct boss strikes require facing coverage rather than treating guard as global.
     assert "TryResolveIncomingStrike" in shield
     assert "GuardStrikeResult" in shield
     assert "shield.coverageDegrees" in shield
@@ -124,7 +128,6 @@ def test_shield_is_directional_collision_with_stamina_chip_and_true_concord_coun
     assert "GuardStrikeResult.OutsideCoverage" in shield
     assert "guardBreakDamageLeak" in shield
 
-    # Concord projectile payoff is the actual increment in the reflected consequence, not a label.
     assert "float baselineDamage" in shield
     assert "float reflectedDamage = baselineDamage * concordMultiplier" in shield
     assert "reflectedDamage - baselineDamage" in shield
@@ -154,12 +157,17 @@ def test_continuous_neural_resonance_cannot_issue_conventional_player_commands()
     assert all(token not in resonance for token in forbidden)
 
 
-def test_physical_commands_are_fixed_tick_recordable_and_old_tapes_remain_supported():
+def test_keyboard_first_commands_are_fixed_tick_recordable_and_old_tapes_remain_supported():
     combat_input = read("Combat", "GuardianCombatInput.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
-    assert "Input.GetMouseButtonDown(0)" in combat_input
-    assert "Input.GetMouseButton(1)" in combat_input
+    assert 'Input.GetAxisRaw("Horizontal")' in combat_input
+    assert 'Input.GetAxisRaw("Vertical")' in combat_input
+    assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
+    assert "Input.GetKeyDown(KeyCode.F)" in combat_input
+    assert "Input.GetKey(KeyCode.LeftShift)" in combat_input
+    assert "Input.GetKey(KeyCode.E)" in combat_input
+    assert "Input.GetKeyDown(KeyCode.Q)" in combat_input
     assert "sword_attack_down = _swordAttackLatched" in combat_input
     assert "guard_held = _guardHeld" in combat_input
     assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in combat_input
@@ -172,36 +180,46 @@ def test_physical_commands_are_fixed_tick_recordable_and_old_tapes_remain_suppor
     assert "guard_held = guard_held" in tape
 
 
-def test_procedural_rig_and_hud_feedback_track_same_bounded_weapon_geometry():
+def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     bootstrap = read("Combat", "PhysicalArsenalBootstrap.cs")
     rig = read("Combat", "GuardianSwordShieldRig.cs")
     hud = read("Presentation", "CombatStateHud.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
+    bridge = read("Telemetry", "PhysicalArsenalMarkerBridge.cs")
 
-    assert '"Aetherblade"' in bootstrap
+    assert '"AetherbladeCore"' in bootstrap
+    assert '"AetherbladeEnergyEdge"' in bootstrap
+    assert '"AetherbladeCrossguard"' in bootstrap
+    assert '"AetherbladeGrip"' in bootstrap
+    assert '"AetherbladePommel"' in bootstrap
     assert '"VerdantWard"' in bootstrap
+    assert "CreatePbrMaterial" in bootstrap
     assert "BoxCollider shieldCollider" in bootstrap
     assert "TrailRenderer" in bootstrap
-    assert "Point" in bootstrap
     assert "FracturedSignalMeleeDirector" in bootstrap
 
     assert "maxSwordLengthBonus = 0.42f" in rig
     assert "guardCoverageScale" in rig
-    assert "comboStep == 2" in rig
-    assert "comboStep >= 3" in rig
+    assert "ApplySwordRenderer" in rig
+    assert "Color forged" in rig
     assert "swordTrail.emitting = attacking" in rig
     assert "shieldLight.intensity" in rig
 
-    assert '"STAMINA"' in hud
-    assert '"LMB SWORD · RMB SHIELD · SHIFT ROLL · TAB BUILD"' in hud
-    assert '"SIGHT  blade' in hud
-    assert '"GUARD  shield' in hud
-    assert "physicalCombat == null || resonance == null" in hud
+    assert '"GUARD"' in hud
+    assert '"F  SWORD   SPACE  DODGE   SHIFT  PULSE   TAB  BUILD"' in hud
+    assert '"HP {bossVitals.Health:F0} / {bossVitals.MaxHealth:F0}"' in hud
+    assert '"AETHER PARRY' in hud
 
-    assert '"GUARDIAN BUILD"' in menu
-    assert '"EQUIP LOAD"' in menu
+    assert '"WARDEN LOADOUT"' in menu
+    assert '"COMBAT CONTROLS"' in menu
+    assert '"GUARD INTEGRITY' in menu
+    assert '"WASD / ARROWS"' in menu
+    assert '"SPACE"' in menu
+    assert '"F"' in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
-    assert "armor damage mitigation remains a future qualified mechanic" in menu
+
+    assert '"SWORD_PARRY"' in bridge
+    assert "combat.SwordProjectileParried += OnSwordParry" in bridge
 
 
 def test_encounter_report_separates_physical_skill_and_sight_sword_payoff():
