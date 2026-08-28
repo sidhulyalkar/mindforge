@@ -5,7 +5,7 @@
 > **Target:** BR41N.IO Designers' Hackathon at IEEE SMC 2026  
 > **Category:** BCI Gaming  
 > **Event:** October 4–5, 2026  
-> **Engine:** Unity 2022.3 LTS, pinned to `2022.3.76f1`  
+> **Engine:** Unity 2022.3 LTS, pinned to `2022.3.62f3`  
 > **Primary BCI:** g.tec Unicorn Hybrid Black  
 > **Primary paradigm:** two-target SSVEP / visual evoked potential selection
 
@@ -160,289 +160,61 @@ Start the evidence capture first:
 python tools/mindforge_playtest.py --require-terminal
 ```
 
-Then open the generated competition scene, press Play and press **F8** in the Unity Editor.
+Then enter controller-only mode explicitly with **F8** in the Unity Editor or an explicit development launch flag. The resulting run is stamped `CONTROLLER_ONLY_NO_BCI`; no decoder or calibration claims are implied.
 
-Mindforge enters a development-only controller qualification mode that:
+### P3/P4 — decision simulation and replay
 
-- disables the neural receiver;
-- disables neural aura authority;
-- disarms neural-link contingency;
-- opens the real Fractured Signal arena;
-- leaves a persistent `P2 CONTROLLER-ONLY · BCI DISABLED` label;
-- emits `QUALIFICATION_MODE / CONTROLLER_ONLY_NO_BCI` to the GameMarker stream.
-
-The bootstrap is compiled only for the Unity Editor or a Development Build. It is absent from release player builds.
-
-A Development Build may also request the mode explicitly with:
-
-```text
--mindforge-controller-only
-```
-
-or environment variable:
-
-```text
-MINDFORGE_CONTROLLER_ONLY=1
-```
-
-Each capture produces a small evidence bundle:
-
-```text
-experiments/playtests/<UTC stamp>/
-├── markers.jsonl
-├── encounter.json
-└── capture.json
-```
-
-`capture.json` records the Unity session ID, marker count, terminal outcome status, stop reason, Git head when available and SHA-256 of the marker stream. `encounter.json` summarizes game-design facts such as counter conversion, near misses, damage pressure, Signal Break cadence, Bloom/Twin Eclipse usage and BCI degradation.
-
-There is deliberately no synthetic “fun score.” Metrics diagnose; playtesting judges.
-
-### P3 — no-headset neural authority
-
-The simulated-decision source now participates in the real Awakening handshake instead of bypassing it:
+Use the semantic decision tools without EEG:
 
 ```bash
-python tools/mindforge_dev.py decision --calibrate \
-  --script sight:3,abstain:1,guard:3,lost:1,recovered:1,sight:3,guard:3 \
-  --hz 4 \
-  --output-tape experiments/tapes/p3-neural.jsonl
+python tools/mindforge_dev.py --source simulated_decision --duration 30 --seed 7
+python tools/mindforge_dev.py --source decision_replay --replay examples/decision_replay.jsonl --duration 30
 ```
 
-The source is explicitly labelled `simulated_decision`. It is useful for testing authority, latency, abstention, loss/recovery, Concord timing and game fairness. It is **not EEG evidence**.
+### P5 — synthetic EEG through the real decoder
 
-For manual S0 development, Unity Q/E produces only non-authoritative manual intent. One Python service owns calibration, liveness, sequencing and the sole authoritative NeuralEvent stream:
+Use neurOS synthetic EEG or an evidence replay through the real Python decoder path, then compare accepted decisions to Unity's semantic consequences.
 
-```bash
-python tools/mindforge_dev.py manual-service
-```
+The promotion ladder deliberately separates software correctness, Unity correctness, game feel, decoder semantics and real BCI evidence.
 
-This prevents two independent producers from accidentally competing over NeuralEvent sequence authority.
-
-### P4 — deterministic replay
-
-Mindforge records conventional input on the authoritative 120 Hz simulation tick using `mindforge.guardian_input_tape.v1`.
-
-A Development Player can record with:
+## Repository map
 
 ```text
--mindforgeInputMode record
+mindforge/
+├── docs/                 # contracts, roadmap, qualification and design notes
+├── experiments/          # evidence + generated reports
+├── mindforge_neuro/      # decoder / NeuralEvent protocol
+├── tools/                # dev, qualification, replay and reporting tools
+├── unity/                # Unity 2022.3 project
+└── web_demo/             # browser-side combat reference modules
 ```
 
-and replay with:
+## Current Unity showcase
+
+For the current third-person controller-only vertical slice, use:
+
+**Mindforge → Showcase → Build + Play Cinematic Showcase**
+
+The current route is:
 
 ```text
--mindforgeInputMode replay -mindforgeInputTape <path>
+Listening Cavern
+    ↓
+Ruined House
+    ↓
+Cellar
+    ↓
+Signal Warden
+    ↓
+Fractured Signal Arena
 ```
 
-Replay exhaustion fails neutral. It never silently falls back to live controls.
+See [`docs/UNITY_SHOWCASE.md`](docs/UNITY_SHOWCASE.md) for the current controls, route, visual expectations and real-Unity acceptance checklist.
 
-Neural authority can be replayed separately through the same production UDP boundary:
+## Scientific scope
 
-```bash
-python tools/mindforge_dev.py replay experiments/tapes/p3-neural.jsonl --speed 1.0
-```
+The game currently freezes neural authority to two target classes. Any new gaze mechanics, target-lock presentation or world-space placement may reposition the coded visual targets, but it must not silently expand the decoder's semantic authority or change their coded frequencies.
 
-Then compare the semantic GameMarker consequence streams:
+## Status discipline
 
-```bash
-python tools/mindforge_qualify.py compare-markers \
-  experiments/markers/reference.jsonl \
-  experiments/markers/replay.jsonl \
-  --output experiments/reports/replay-comparison.json \
-  --enforce
-```
-
-Timestamps, session IDs and transport sequence numbers may differ. Gameplay semantics must match exactly. Similarity is diagnostic only and cannot create a pass.
-
-## Development realities
-
-The same Unity authority boundary can be driven by increasingly realistic sources:
-
-| Level | Source | What is substituted |
-|---|---|---|
-| S0 | `manual` | human intent mapped to derived neural authority by an explicit dev service |
-| S1 | `simulated_decision` | decoder output |
-| S2 | `decision_replay` | recorded decoder output |
-| S3 | `eeg_replay` | recorded EEG through the production decoder |
-| S4 | `synthetic_eeg` | neurOS participant/sensor/fault world |
-| S5 | `live` | physical participant + headset |
-
-These labels are evidence boundaries. S1 is not synthetic EEG. S4 is not human evidence.
-
-## Defensive neural authority
-
-The initial engineering configuration is intentionally conventional and inspectable:
-
-```text
-sampling rate          250 Hz
-analysis window        1.25 s
-Sight target           10 Hz
-Guard target           12 Hz
-harmonics              3
-filter-bank CCA        FBCCA
-posterior decoder      Pz / PO7 / Oz / PO8
-quality authority      full 8-channel montage
-stable dwell           2 accepted windows
-```
-
-Default Unicorn-like montage:
-
-```text
-Fz C3 Cz C4 Pz PO7 Oz PO8
-```
-
-The quality layer conservatively flags engineering failure signatures such as saturation, disconnected channels, common-mode transients, extreme derivatives and broad high-frequency contamination. These are engineering suspicion flags, not physiological diagnoses.
-
-Suspicious or ambiguous evidence yields `ABSTAIN`. No guessed brain button is emitted.
-
-`BCI_HEARTBEAT` is separate from `ABSTAIN`: transport liveness is not presented as classifier evidence.
-
-`NeuralEvent v2` also carries provenance and freshness fields including:
-
-```text
-session_id
-calibration_id
-source_sample_start
-source_sample_end
-decoder_time_ns
-authority_ttl_ms
-```
-
-Unity evaluates selection TTL using the **Unity-process packet receive clock**. Independent process monotonic clocks are never subtracted from one another.
-
-## Two clocks: combat crunch without corrupting the stimulus
-
-Combat targets a 120 Hz fixed simulation while the visual stimulus uses real/unscaled time.
-
-```text
-light impact       20 ms
-Counter Pulse      20 ms
-Rift Cleave        55 ms
-Signal Break       80 ms
-Twin Eclipse      120 ms
-```
-
-`HitStopController` owns one extendable realtime freeze window. VEP phase continues through combat freezes.
-
-Each aura is split into:
-
-```text
-Aura Root
-├── coded VEP core
-└── non-coded feedback shell / fantasy presentation
-```
-
-The coded core does not react to classifier score, quality, damage, Flux, camera shake or hit-stop. The shell may communicate state with slower non-periodic presentation.
-
-Short haptic echoes happen only **after** accepted neural decisions. Continuous rumble during evidence accumulation is excluded.
-
-## The Fractured Signal
-
-The reference competition encounter has three readable phases rather than a single escalating projectile soup.
-
-**Phase I — Warm-up.** Predictable aimed fans and radial patterns teach movement, counters and Wisp cadence.
-
-**Phase II — Attention split.** Fractured Echo nodes add spatial priorities and Flux opportunities.
-
-**Phase III — Controlled overload.** Crossfire and heavy attacks combine learned threat grammars while preserving telegraph readability.
-
-**Signal Break.** Poise collapse creates a short relief/punish window, rests VEP modulation at steady luminance and visually resets the fight.
-
-## neurOS is the wind tunnel
-
-Mindforge uses neurOS for simulation, perturbation, replay and qualification rather than as a frame-by-frame game dependency.
-
-```text
-neurOS synthetic participant / EEG
-        ↓
-LSL UnicornMock
-        ↓
-Mindforge quality + FBCCA + dwell
-        ↓
-NeuralEvent v2
-        ↓
-Unity
-        ↓
-GameMarker v1
-        ↓
-qualification evidence
-```
-
-Phantom can attack the loop with weak responders, endogenous alpha, blinks, movement/controller contamination, channel degradation, saturation, dropout, jitter, dropped chunks, source silence and recovery.
-
-Synthetic success is used to falsify assumptions before real sessions. It is not human physiological evidence.
-
-## Promotion ladder
-
-```text
-P0  software contracts + exact-head CI artifact
- ↓
-P1  clean-checkout Unity import/compile/scene assembly
- ↓
-P2  controller-only full encounter
- ↓
-P3  simulated_decision → real Awakening → Unity
- ↓
-P4  conventional + neural replay reproduction
- ↓
-P5  neurOS synthetic EEG → production decoder → Unity
- ↓
-P6  forced render/network fault rehearsal
- ↓
-P7  measured physical display timing
- ↓
-P8  real Unicorn acquisition metadata/units
- ↓
-P9  stationary Sight vs Guard
- ↓
-P10 moving selection
- ↓
-P11 selection while player moves
- ↓
-P12 light combat
- ↓
-P13 full Fractured Signal encounter
-```
-
-Promotion is monotonic. A green software gate does not imply physical display evidence. Synthetic EEG does not imply human SSVEP performance.
-
-## Current claim boundary
-
-The repository-level software architecture and tests can be verified in CI, which emits an exact-head `mindforge.software_gate.v1` artifact.
-
-Until separately observed, Mindforge does **not** claim:
-
-- successful Unity Editor/Player compile for a new head merely because Python CI is green;
-- physically measured 10/12 Hz luminance timing;
-- verified Unicorn metadata/units on the competition machine;
-- human SSVEP performance;
-- human full-combat BCI performance;
-- final production art/audio quality.
-
-Those are evidence gates, not README optimism.
-
-## Development priority
-
-The architecture is now intentionally constrained. Do **not** add another neural target class, motor-imagery locomotion, P300 menus, emotion recognition, foundation-model inference in the control path, VR dependencies or generalized plugin machinery before the reference loop is proven.
-
-The highest-value sequence is:
-
-1. pass P1 on the pinned Unity editor;
-2. run repeated P2 controller-only encounters and improve movement, telegraphs, counter feel, hit confirmation, audio and boss choreography;
-3. stress the polished fight with P3 simulated neural uncertainty;
-4. make P4 reproduction boringly deterministic;
-5. attack the loop with neurOS at P5;
-6. then spend scarce headset/human time on P6–P13.
-
-The deeper roadmap lives in [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md). Scene assembly details are in [`docs/UNITY_SCENE_WIRING.md`](docs/UNITY_SCENE_WIRING.md), and the Phantom path is documented in [`docs/PHANTOM_UNICORN_LAB.md`](docs/PHANTOM_UNICORN_LAB.md).
-
-## North star
-
-Mindforge should not be remembered as a game controlled badly by EEG.
-
-It should demonstrate a stronger possibility:
-
-> **A fast physical action game can remain responsive and expressive while uncertain neural attention controls a slower strategic layer that ordinary input does not replicate.**
-
-The hands fight the enemy. The Soul Wisp turns visual attention into power. The platform makes clear why the BCI was allowed to do what it did.
+Source tests are evidence for software contracts only. Unity import/compile, generated-scene validation, controller-only play, synthetic EEG, real hardware and human BCI sessions are separate qualification gates. Do not collapse those into one claim.
