@@ -26,23 +26,29 @@ def _marker(event: str, seq: int, *, boss_phase: int = 2) -> GameMarker:
     )
 
 
-def test_guardian_precision_aim_is_mouse_owned_and_keyboard_movement_is_replayable():
+def test_guardian_precision_aim_is_mouse_or_arrow_owned_and_wasd_movement_is_replayable():
     source = (ROOT / "unity/Assets/Mindforge/Combat/GuardianCombatInput.cs").read_text(encoding="utf-8")
 
     assert "Player-owned aim" in source or "Mouse owns precision aim" in source
     assert "ScreenPointToRay" in source
     assert "new Plane(Vector3.up, transform.position)" in source
-    assert 'Input.GetAxisRaw("Horizontal")' in source
-    assert 'Input.GetAxisRaw("Vertical")' in source
-    assert "WASD or arrows: movement" in source
+    assert "SampleWasdMovement" in source
+    assert "SampleArrowAim" in source
+    assert "Input.GetAxisRaw" not in source
+    for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
+        assert key in source
+    for key in ("KeyCode.UpArrow", "KeyCode.DownArrow", "KeyCode.LeftArrow", "KeyCode.RightArrow"):
+        assert key in source
+    assert "WASD: camera-relative movement" in source
+    assert "Arrow keys OR mouse: aim" in source
     assert "PrecisionAimActive" in source
     assert "CurrentAimPoint" in source
+    assert "KeyboardAimActive" in source
 
-    # Mouse precision aim is resolved before the boss-lock fallback. Arrow keys now
-    # belong to movement and must not create a second, conflicting aim authority.
+    # Held arrows override pointer aim only while they are held, then mouse precision
+    # aim resumes. Boss lock remains a fallback rather than primary authority.
+    assert source.index("if (_keyboardAim.sqrMagnitude > 0.01f)") < source.index("if (mouseAimEnabled && _mouseAimActive")
     assert source.index("if (mouseAimEnabled && _mouseAimActive") < source.index("if (aimTarget != null)")
-    assert "_keyboardAim" not in source
-    assert "KeyCode.RightArrow" not in source
 
     assert "aim_x = liveAim.x" in source
     assert "aim_y = liveAim.y" in source
@@ -59,7 +65,7 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: move, aim, sword, shield, dodge, skills",
+        "HANDS: WASD move · arrows/mouse aim · sword · shield · dash · skills",
         "BCI: bounded blade/shield resonance after accepted Sight/Guard",
         "EEG never swings, raises guard, aims, dodges, fires, or parries",
         "KeyCode.F10",
