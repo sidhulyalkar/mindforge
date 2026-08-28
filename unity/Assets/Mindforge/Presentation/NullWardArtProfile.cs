@@ -30,7 +30,7 @@ namespace Mindforge.Presentation
         public ZoneBinding signalCathedral = new ZoneBinding();
 
         [Header("Transition")]
-        [Tooltip("Hides only the collider-free V2 detail hierarchy when authored room art is supplied. Base structural renderers/colliders stay intact.")]
-        public bool hideProceduralDetailWhenAnyZoneIsBound = true;
+        [Tooltip("When a zone has authored art, hide only that zone's collider-free V2 detail. Base structural renderers/colliders and unbound-zone detail stay intact.")]
+        public bool hideProceduralDetailForBoundZones = true;
     }
 }
