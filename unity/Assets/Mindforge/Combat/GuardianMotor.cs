@@ -10,11 +10,14 @@ namespace Mindforge.Combat
         [SerializeField] private Transform cameraReference;
         [SerializeField] private GuardianEquipmentLoadout loadout;
         [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private GuardianTargetLock targetLock;
 
         [Header("Responsive locomotion")]
         [SerializeField] private float minimumAcceleration = 58f;
         [SerializeField] private float deceleration = 76f;
         [SerializeField] private float reversalAcceleration = 92f;
+        [SerializeField] private float freeTurnSharpness = 18f;
+        [SerializeField] private float lockedTurnSharpness = 28f;
         [SerializeField] private float dodgeInvulnerabilitySeconds = 0.105f;
         [SerializeField] private float dashInputBufferSeconds = 0.13f;
         [SerializeField] private float dashExitVelocityRetention = 0.22f;
@@ -27,6 +30,7 @@ namespace Mindforge.Combat
         private float _dashQueuedUntil;
         private Vector3 _queuedDashFallback;
         private bool _wasDashing;
+        private Vector3 _dashDirection;
 
         public event Action DashStarted;
 
@@ -48,6 +52,8 @@ namespace Mindforge.Combat
         {
             if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
             if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            if (cameraReference == null && Camera.main != null) cameraReference = Camera.main.transform;
         }
 
         public void SetMoveInput(Vector2 input)
@@ -66,8 +72,7 @@ namespace Mindforge.Combat
             if (IsDashing)
             {
                 // Unlimited dashes means no stamina/cooldown economy. A press near the
-                // end of the current dash is buffered so chaining feels intentional
-                // instead of eating the player's input between fixed ticks.
+                // end of the current dash is buffered so chaining feels intentional.
                 _dashQueued = true;
                 _dashQueuedUntil = Time.time + Mathf.Max(0.02f, dashInputBufferSeconds);
                 _queuedDashFallback = direction;
@@ -95,8 +100,10 @@ namespace Mindforge.Combat
             float rollDuration = Mathf.Max(0.06f, tuning.dashDuration * durationMultiplier);
             _dashUntil = Time.time + rollDuration;
             _invulnerableUntil = Time.time + Mathf.Min(rollDuration, Mathf.Max(0f, dodgeInvulnerabilitySeconds));
-            Vector3 horizontal = direction.normalized * tuning.dashSpeed * speedMultiplier;
+            _dashDirection = direction.normalized;
+            Vector3 horizontal = _dashDirection * tuning.dashSpeed * speedMultiplier;
             _body.velocity = horizontal + Vector3.up * _body.velocity.y;
+            FaceDirectionImmediate(_dashDirection);
             _dashQueued = false;
             _body.WakeUp();
             DashStarted?.Invoke();
@@ -167,6 +174,38 @@ namespace Mindforge.Combat
                 targetVelocity,
                 response * Time.fixedDeltaTime);
             _body.velocity = nextHorizontal + Vector3.up * _body.velocity.y;
+
+            UpdateFacing(desiredDir);
+        }
+
+        private void UpdateFacing(Vector3 moveDirection)
+        {
+            Vector3 facing = Vector3.zero;
+            float sharpness = freeTurnSharpness;
+
+            if (targetLock != null && targetLock.Locked)
+            {
+                facing = targetLock.DirectionFrom(transform.position);
+                sharpness = lockedTurnSharpness;
+            }
+            else if (moveDirection.sqrMagnitude > 0.001f)
+            {
+                facing = moveDirection;
+            }
+
+            facing.y = 0f;
+            if (facing.sqrMagnitude < 0.001f) return;
+
+            Quaternion desired = Quaternion.LookRotation(facing.normalized, Vector3.up);
+            float t = 1f - Mathf.Exp(-Mathf.Max(0.1f, sharpness) * Time.fixedDeltaTime);
+            _body.MoveRotation(Quaternion.Slerp(_body.rotation, desired, t));
+        }
+
+        private void FaceDirectionImmediate(Vector3 direction)
+        {
+            direction.y = 0f;
+            if (direction.sqrMagnitude < 0.001f) return;
+            _body.MoveRotation(Quaternion.LookRotation(direction.normalized, Vector3.up));
         }
     }
 }
