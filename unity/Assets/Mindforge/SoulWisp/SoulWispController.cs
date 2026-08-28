@@ -5,11 +5,10 @@ using Mindforge.Presentation;
 namespace Mindforge.SoulWisp
 {
     /// <summary>
-    /// Persistent soul companion. In ordinary combat the visual targets occupy a
-    /// camera-facing gaze corridor between Guardian and threat. During conventional
-    /// third-person target lock they settle into stable left/right positions around the
-    /// locked enemy, giving the later Sight/Guard SSVEP interaction a natural spatial
-    /// home without changing combat authority.
+    /// Persistent soul companion. A fallback combat target may be supplied by the
+    /// encounter, but conventional player target lock takes priority. While locked,
+    /// Sight and Guard settle into stable left/right positions around that enemy.
+    /// The coded VEP luminance remains owned only by VepAuraStimulus.
     /// </summary>
     public sealed class SoulWispController : MonoBehaviour
     {
@@ -47,15 +46,29 @@ namespace Mindforge.SoulWisp
         [SerializeField] private Color sightColor = new Color(0.20f, 0.55f, 1f);
         [SerializeField] private Color guardColor = new Color(0.18f, 1f, 0.52f);
 
-        private Transform _target;
+        private Transform _fallbackTarget;
         private float _orbitPhase;
+        private bool _lockSubscribed;
 
-        public bool InCombat => _target != null;
-        public Transform CurrentTarget => _target;
+        public bool InCombat => EffectiveTarget != null;
+        public Transform CurrentTarget => EffectiveTarget;
         public bool StableLockAnchorsActive =>
-            targetLock != null && targetLock.Locked && targetLock.Target != null && targetLock.Target == _target;
+            targetLock != null && targetLock.Locked && targetLock.Target != null;
         public bool StimuliResting => (sightStimulus != null && sightStimulus.IsResting) ||
                                       (guardStimulus != null && guardStimulus.IsResting);
+
+        private Transform EffectiveTarget
+        {
+            get
+            {
+                ResolveTargetLock();
+                Transform locked = targetLock != null ? targetLock.Target : null;
+                if (locked != null && locked.gameObject.activeInHierarchy) return locked;
+                return _fallbackTarget != null && _fallbackTarget.gameObject.activeInHierarchy
+                    ? _fallbackTarget
+                    : null;
+            }
+        }
 
         private void Awake()
         {
@@ -66,16 +79,23 @@ namespace Mindforge.SoulWisp
             }
             sightStimulus?.Configure(sightFrequencyHz, sightColor);
             guardStimulus?.Configure(guardFrequencyHz, guardColor);
+            ResolveTargetLock();
             SetTarget(null);
         }
 
+        private void OnEnable()
+        {
+            ResolveTargetLock();
+            SubscribeLock();
+        }
+
+        private void OnDisable() => UnsubscribeLock();
+
         public void SetTarget(Transform target)
         {
-            _target = target;
-            bool combat = target != null;
-            if (wispCore != null) wispCore.gameObject.SetActive(!combat);
-            if (sightAura != null) sightAura.gameObject.SetActive(combat);
-            if (guardAura != null) guardAura.gameObject.SetActive(combat);
+            _fallbackTarget = target;
+            bool combat = target != null || (targetLock != null && targetLock.Locked && targetLock.Target != null);
+            ApplyCombatVisibility(combat);
         }
 
         public void RestStimuli(float realSeconds)
@@ -88,8 +108,10 @@ namespace Mindforge.SoulWisp
         {
             if (player == null) return;
             ResolveTargetLock();
+            SubscribeLock();
 
-            if (_target == null)
+            Transform activeTarget = EffectiveTarget;
+            if (activeTarget == null)
             {
                 Vector3 bob = new Vector3(0f, Mathf.Sin(Time.unscaledTime * 1.9f) * 0.12f, 0f);
                 Vector3 desired = player.TransformPoint(idleOffset) + bob;
@@ -100,15 +122,15 @@ namespace Mindforge.SoulWisp
                 return;
             }
 
-            if (StableLockAnchorsActive)
+            if (StableLockAnchorsActive && targetLock.Target == activeTarget)
             {
-                PlaceStableLockedTargets();
+                PlaceStableLockedTargets(activeTarget);
                 return;
             }
 
             Camera cam = Camera.main;
             Vector3 up = cam != null ? cam.transform.up : Vector3.up;
-            Vector3 anchor = Vector3.Lerp(player.position, _target.position, anchorTowardTarget) + up * anchorVerticalOffset;
+            Vector3 anchor = Vector3.Lerp(player.position, activeTarget.position, anchorTowardTarget) + up * anchorVerticalOffset;
             transform.position = anchor;
             _orbitPhase = Mathf.Repeat(
                 _orbitPhase + orbitAngularSpeedRadians * Time.unscaledDeltaTime,
@@ -117,18 +139,19 @@ namespace Mindforge.SoulWisp
             PlaceOrbitingAura(guardAura, anchor, _orbitPhase + Mathf.PI);
         }
 
-        private void PlaceStableLockedTargets()
+        private void PlaceStableLockedTargets(Transform activeTarget)
         {
             Camera cam = Camera.main;
-            Vector3 right = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : Vector3.right;
-            Vector3 up = Vector3.up;
+            Vector3 right = cam != null
+                ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized
+                : Vector3.right;
             Vector3 towardCamera = cam != null
-                ? Vector3.ProjectOnPlane(cam.transform.position - _target.position, Vector3.up).normalized
-                : -_target.forward;
-            if (towardCamera.sqrMagnitude < 0.001f) towardCamera = -_target.forward;
+                ? Vector3.ProjectOnPlane(cam.transform.position - activeTarget.position, Vector3.up).normalized
+                : -activeTarget.forward;
+            if (towardCamera.sqrMagnitude < 0.001f) towardCamera = -activeTarget.forward;
 
-            Vector3 anchor = _target.position
-                + up * lockedTargetHeight
+            Vector3 anchor = activeTarget.position
+                + Vector3.up * lockedTargetHeight
                 + towardCamera * lockedDepthTowardCamera;
             float response = 1f - Mathf.Exp(-Mathf.Max(0.1f, lockedAnchorSharpness) * Time.unscaledDeltaTime);
             transform.position = Vector3.Lerp(transform.position, anchor, response);
@@ -160,10 +183,45 @@ namespace Mindforge.SoulWisp
             if (cam != null) aura.rotation = Quaternion.LookRotation(aura.position - cam.transform.position, cam.transform.up);
         }
 
+        private void ApplyCombatVisibility(bool combat)
+        {
+            if (wispCore != null) wispCore.gameObject.SetActive(!combat);
+            if (sightAura != null) sightAura.gameObject.SetActive(combat);
+            if (guardAura != null) guardAura.gameObject.SetActive(combat);
+        }
+
         private void ResolveTargetLock()
         {
             if (targetLock == null && player != null)
                 targetLock = player.GetComponent<GuardianTargetLock>();
+        }
+
+        private void SubscribeLock()
+        {
+            if (_lockSubscribed || targetLock == null) return;
+            targetLock.LockChanged += OnLockChanged;
+            targetLock.TargetChanged += OnTargetChanged;
+            _lockSubscribed = true;
+        }
+
+        private void UnsubscribeLock()
+        {
+            if (!_lockSubscribed || targetLock == null) return;
+            targetLock.LockChanged -= OnLockChanged;
+            targetLock.TargetChanged -= OnTargetChanged;
+            _lockSubscribed = false;
+        }
+
+        private void OnLockChanged(bool locked)
+        {
+            bool combat = (locked && targetLock != null && targetLock.Target != null) || _fallbackTarget != null;
+            ApplyCombatVisibility(combat);
+        }
+
+        private void OnTargetChanged(Transform target)
+        {
+            bool combat = target != null || _fallbackTarget != null;
+            ApplyCombatVisibility(combat);
         }
     }
 }
