@@ -227,7 +227,11 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
     assert "sword_attack_down = _swordAttackLatched" in combat_input
     assert "guard_held = _guardHeld" in combat_input
     assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in combat_input
-    assert "physicalCombat?.TryLightAttack(aim)" in combat_input
+    assert "physicalCombat.TryLightAttack(aim)" in combat_input
+    assert "physicalCombat.ActionState != GuardianActionState.Locomotion" in combat_input
+    assert "if (command.counter_down && combat.BeginCounter()) return;" in combat_input
+    assert "if (command.cleave_down && combat.RiftCleave(aim)) return;" in combat_input
+    assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in combat_input
 
     assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
     assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
