@@ -45,6 +45,10 @@ namespace Mindforge.Combat
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _body.sleepThreshold = 0f;
+            // The assembled prototype freezes all rotation for stability. Third-person
+            // locomotion owns yaw explicitly, while pitch/roll remain physically frozen.
+            _body.constraints &= ~RigidbodyConstraints.FreezeRotationY;
+            _body.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
             ResolvePhysicalState();
         }
 
