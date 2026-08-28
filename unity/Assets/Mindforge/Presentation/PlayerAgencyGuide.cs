@@ -7,12 +7,8 @@ using Mindforge.SoulWisp;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Non-authoritative presentation for the competition build.
-    ///
-    /// It makes the control contract legible without changing combat or neural
-    /// authority: hands own movement/aim/actions, while BCI owns only bounded
-    /// amplification of accepted Sight/Guard states. F10 toggles a judge-facing
-    /// explainer. The reticle is driven from conventional aim and never feeds back.
+    /// Non-authoritative presentation for the competition build. It teaches the
+    /// keyboard-first control contract without changing combat or neural authority.
     /// </summary>
     public sealed class PlayerAgencyGuide : MonoBehaviour
     {
@@ -60,10 +56,7 @@ namespace Mindforge.Presentation
 
         private void OnDisable() => Unsubscribe();
 
-        private void Start()
-        {
-            _judgeLens = CommandLineContains(JudgeLensFlag);
-        }
+        private void Start() => _judgeLens = CommandLineContains(JudgeLensFlag);
 
         private void Resolve()
         {
@@ -113,8 +106,7 @@ namespace Mindforge.Presentation
                 Subscribe();
             }
 
-            if (Input.GetKeyDown(KeyCode.F10))
-                _judgeLens = !_judgeLens;
+            if (Input.GetKeyDown(KeyCode.F10)) _judgeLens = !_judgeLens;
 
             if (!_combatObserved && CombatOpen())
             {
@@ -153,9 +145,8 @@ namespace Mindforge.Presentation
 
             if (!CombatOpen())
             {
-                GUI.Box(
-                    new Rect(left, Screen.height - 74f, width, 48f),
-                    "AWAKENING  |  BRAIN: BLUE resonates with blade, GREEN resonates with shield  |  HANDS keep every combat decision");
+                GUI.Box(new Rect(left, Screen.height - 74f, width, 48f),
+                    "AWAKENING  |  BLUE resonates with blade · GREEN resonates with shield  |  HANDS keep every combat decision");
             }
             else
             {
@@ -165,9 +156,7 @@ namespace Mindforge.Presentation
             }
 
             GUI.Label(new Rect(Screen.width - 176f, Screen.height - 34f, 160f, 22f), "F10  JUDGE LENS", _centerStyle);
-
-            if (_judgeLens)
-                DrawJudgeLens();
+            if (_judgeLens) DrawJudgeLens();
         }
 
         private string CurrentLesson()
@@ -175,23 +164,23 @@ namespace Mindforge.Presentation
             bool guideWindow = Time.realtimeSinceStartupAsDouble <= _combatGuideUntil;
 
             if (auras != null && auras.ConcordActive && flux != null && flux.IsFull)
-                return "CONCORD ACTIVE  |  R TWIN ECLIPSE  |  your brain created the opening, your hand chooses when to cash it in";
+                return "CONCORD ACTIVE  |  R TWIN ECLIPSE  |  your brain creates the opening, your hand chooses when to use it";
 
             if (flux != null && flux.IsFull)
                 return "FLUX FULL  |  R GRAVITY BLOOM  |  capture hostile projectiles, then return them";
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD move  |  MOUSE / ARROWS aim  |  LMB SWORD  |  commit to a sweep, then reposition before the next attack";
+                return "WASD / ARROWS MOVE   ·   MOUSE AIM   ·   F SWORD   ·   SPACE DODGE   |   slash through bullets to parry them";
             if (!_shieldRaised)
-                return "RMB HOLD SHIELD  |  GREEN Guard resonance can enlarge and stabilize it, but your hand decides when it is raised";
+                return "RMB / E HOLD SHIELD   |   GREEN Guard resonance enlarges and stabilizes it, but your hand decides when it is raised";
             if (!_shieldBlocked)
-                return "READ THE TELEGRAPH  |  hold RMB to catch a projectile, or tap the guard just before impact for a PERFECT GUARD";
+                return "READ THE TELEGRAPH   |   block with RMB/E, or raise guard just before impact for a PERFECT GUARD reflect";
             if (!_pulseUsed)
-                return "SHIFT DODGE ROLL  |  stamina powers sword, shield and roll  |  SPACE remains your ranged Pulse option";
+                return "SHIFT PULSE SHOT   |   sword attacks and dodges are unrestricted   |   shield pressure uses Guard Integrity";
             if (!_cleaveUsed || !_counterUsed)
-                return "F Cleave up close  |  C Counter remains an arcane projectile counter  |  TAB opens your current equipment build";
-            return "BUILD FLUX  |  near miss, perfect guard/counter, Echo pressure and Signal Break create your high-impact R windows";
+                return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   F remains your fastest physical projectile parry";
+            return "BUILD FLUX   |   near miss, sword/shield parry, Echo pressure and Signal Break create your high-impact R windows";
         }
 
         private void DrawAimReticle()
@@ -216,13 +205,13 @@ namespace Mindforge.Presentation
             GUI.Box(new Rect(left, top, width, height), string.Empty);
 
             string bci = calibration != null && calibration.ControllerOnlyQualificationActive
-                ? "BCI: deliberately DISABLED for P2"
+                ? "BCI: deliberately DISABLED for controller-only validation"
                 : "BCI: bounded blade/shield resonance after accepted Sight/Guard";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: move, aim, sword, shield, roll, skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: move, aim, sword, shield, dodge, skills", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 66f, width - 32f, 42f), bci, _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never swings, raises guard, aims, rolls, fires, or parries", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never swings, raises guard, aims, dodges, fires, or parries", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 154f, width - 32f, 20f), "F10 hides this explainer", _leftStyle);
         }
 
