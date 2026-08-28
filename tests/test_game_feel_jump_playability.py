@@ -93,6 +93,29 @@ def test_space_is_jump_ctrl_alt_are_dodge_and_tape_records_both_jump_edges():
         assert token in tape
 
 
+def test_input_suspension_clears_held_and_edge_triggered_actions():
+    input_source = read("Combat", "GuardianCombatInput.cs")
+    disable = input_source[input_source.index("private void OnDisable()"):input_source.index("private void Update()")]
+
+    for token in (
+        "_move = Vector2.zero",
+        "_fireHeld = false",
+        "_cleaveLatched = false",
+        "_counterLatched = false",
+        "_dashLatched = false",
+        "_jumpLatched = false",
+        "_jumpHeld = false",
+        "_bloomLatched = false",
+        "_swordAttackLatched = false",
+        "_guardHeld = false",
+        "_guardDownLatched = false",
+        "motor?.SetMoveInput(Vector2.zero)",
+        "motor?.SetJumpHeld(false)",
+        "physicalCombat?.SetGuardHeld(false, _currentAimDirection)",
+    ):
+        assert token in disable
+
+
 def test_camera_is_tighter_smooths_vertical_travel_and_ignores_dynamic_actors_for_collision():
     camera = read("Presentation", "ShowcaseCameraRig.cs")
 
@@ -170,3 +193,39 @@ def test_null_ward_hud_teaches_controls_then_gets_out_of_the_way():
         "float height = showControls ? 58f : 38f",
     ):
         assert token in hud
+
+
+def test_optional_traversal_layer_gives_jump_real_geometry_without_gating_main_route():
+    builder = read("Editor", "NullWardTraversalPlayabilityBuilder.cs")
+    showcase = read("Editor", "ShowcaseEditorMenu.cs")
+
+    for token in (
+        'RootName = "Mindforge_NullWard_TraversalPlayability_V1"',
+        'new GameObject("Maintenance_JumpLine")',
+        '"SignalBlock_A"',
+        '"SignalBlock_B"',
+        '"SignalBlock_C"',
+        '"LandingPad_A"',
+        '"LandingPad_B"',
+        "opposite side of the 5 m maintenance run open as a no-jump bypass",
+        'new GameObject("Market_TraversalPlinths")',
+        "primary Null Ward route remains ground-completable",
+        "StaticEditorFlags.BatchingStatic",
+    ):
+        assert token in builder
+
+    assert "NullWardSceneBuilder.BuildOpenScene();" in showcase
+    assert "NullWardVisualInfrastructureBuilder.ApplyOpenScene();" in showcase
+    assert "NullWardTraversalPlayabilityBuilder.ApplyOpenScene();" in showcase
+    assert showcase.index("NullWardSceneBuilder.BuildOpenScene();") < showcase.index("NullWardTraversalPlayabilityBuilder.ApplyOpenScene();")
+
+    for forbidden in (
+        "CombatantVitals",
+        "GuardianMotor",
+        "GuardianCombatInput",
+        "NeuralEvent",
+        "VepAuraStimulus",
+        "TryApply(",
+        "ReceiveDamage(",
+    ):
+        assert forbidden not in builder
