@@ -25,6 +25,10 @@ namespace Mindforge.Journey
     /// Deterministic traversal/encounter progression for the first authored journey.
     /// It activates existing enemy authority and gates, but never issues player input,
     /// damage, neural evidence, calibration success or BCI target selection.
+    ///
+    /// The director lives under the arena root. That root is disabled during Awakening,
+    /// so Start() is also the safe transition point for moving the Guardian from the
+    /// calibration room into the authored cavern. Calibration geometry is never moved.
     /// </summary>
     public sealed class FirstJourneyDirector : MonoBehaviour
     {
@@ -33,6 +37,10 @@ namespace Mindforge.Journey
         [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private SoulWispController soulWisp;
         [SerializeField] private JourneyEncounterStage[] stages = Array.Empty<JourneyEncounterStage>();
+
+        [Header("Journey entry")]
+        [SerializeField] private Transform journeyStart;
+        [SerializeField] private bool repositionPlayerWhenCombatWorldOpens = true;
 
         [Header("Boss threshold")]
         [SerializeField] private GameObject bossRoot;
@@ -137,8 +145,10 @@ namespace Mindforge.Journey
             _completed = false;
 
             if (targetLock == null && player != null) targetLock = player.GetComponent<GuardianTargetLock>();
+            targetLock?.SetLocked(false);
             targetLock?.Configure(bossTarget);
             soulWisp?.SetTarget(null);
+            EnterJourneyStart();
 
             if (stages != null)
             {
@@ -168,6 +178,28 @@ namespace Mindforge.Journey
             }
             if (bossRoot != null) bossRoot.SetActive(false);
             SetObjective(initialObjective);
+        }
+
+        private void EnterJourneyStart()
+        {
+            if (!repositionPlayerWhenCombatWorldOpens || player == null || journeyStart == null) return;
+
+            Rigidbody body = player.GetComponent<Rigidbody>();
+            if (body != null)
+            {
+                body.position = journeyStart.position;
+                body.rotation = journeyStart.rotation;
+                body.velocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.WakeUp();
+            }
+            else
+            {
+                player.SetPositionAndRotation(journeyStart.position, journeyStart.rotation);
+            }
+
+            Physics.SyncTransforms();
+            Debug.Log("[Mindforge:Journey] Combat world opened. Guardian entered the Listening Cavern; Awakening/calibration geometry was left untouched.");
         }
 
         private void BeginStage(int index)
