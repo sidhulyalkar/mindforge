@@ -25,6 +25,7 @@ namespace Mindforge.Qualification
         private ControllerOnlyQualificationBootstrap _controllerOnly;
         private bool _sampling;
         private bool _completed;
+        private int _nextControllerLookupFrame;
         private int _warmupRemaining;
         private int _sampleIndex;
         private long[] _mainThreadNanoseconds;
@@ -96,7 +97,11 @@ namespace Mindforge.Qualification
         {
             if (_completed || _sampling) return;
             if (_controllerOnly == null)
+            {
+                if (Time.frameCount < _nextControllerLookupFrame) return;
+                _nextControllerLookupFrame = Time.frameCount + 30;
                 _controllerOnly = FindObjectOfType<ControllerOnlyQualificationBootstrap>(true);
+            }
             if (_controllerOnly == null || !_controllerOnly.Active) return;
             BeginSampling();
         }
@@ -246,6 +251,13 @@ namespace Mindforge.Qualification
             if (_setPassCalls.Valid) _setPassCalls.Dispose();
             if (_triangles.Valid) _triangles.Dispose();
             if (_gcAllocated.Valid) _gcAllocated.Dispose();
+
+            _mainThread = default;
+            _drawCalls = default;
+            _batches = default;
+            _setPassCalls = default;
+            _triangles = default;
+            _gcAllocated = default;
         }
 
         private static string ReportPath()
