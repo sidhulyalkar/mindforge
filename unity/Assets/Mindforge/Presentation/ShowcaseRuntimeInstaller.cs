@@ -6,8 +6,8 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Composes the visual showcase around the already-authoritative competition scene.
-    /// All installed components are presentation-only and tolerate runtime bootstrap
-    /// ordering with the physical arsenal.
+    /// Presentation systems remain non-authoritative; conventional target lock is added
+    /// as an explicit Combat component on the Guardian and then consumed by the camera.
     /// </summary>
     public sealed class ShowcaseRuntimeInstaller : MonoBehaviour
     {
@@ -40,6 +40,10 @@ namespace Mindforge.Presentation
             }
 
             GameObject guardian = input.gameObject;
+            GuardianTargetLock targetLock = guardian.GetComponent<GuardianTargetLock>();
+            if (targetLock == null) targetLock = guardian.AddComponent<GuardianTargetLock>();
+            targetLock.Configure(boss.transform);
+
             if (guardian.GetComponent<GuardianAvatarPresentation>() == null)
                 guardian.AddComponent<GuardianAvatarPresentation>();
             if (guardian.GetComponent<GuardianMotionPolish>() == null)
@@ -73,7 +77,12 @@ namespace Mindforge.Presentation
             GameObject cameraRigObject = presentation != null ? presentation.gameObject : camera.transform.root.gameObject;
             ShowcaseCameraRig cameraRig = cameraRigObject.GetComponent<ShowcaseCameraRig>();
             if (cameraRig == null) cameraRig = cameraRigObject.AddComponent<ShowcaseCameraRig>();
-            cameraRig.Configure(guardian.transform, boss.transform, guardian.GetComponent<GuardianMotor>(), camera);
+            cameraRig.Configure(
+                guardian.transform,
+                boss.transform,
+                guardian.GetComponent<GuardianMotor>(),
+                targetLock,
+                camera);
 
             if (GetComponent<ArenaVisibilityDirector>() == null)
                 gameObject.AddComponent<ArenaVisibilityDirector>();
@@ -89,11 +98,10 @@ namespace Mindforge.Presentation
                 gameObject.AddComponent<CinematicArtOverrideInstaller>();
 
             Debug.Log(
-                "[Mindforge:Showcase] Presentation stack installed: readable Arena V3 lighting, T enemy-focus camera, " +
-                "coherent Guardian body hierarchy, additive weight/recoil, production Animator contracts, " +
-                "armament afterimages/motes, grounded locomotion particles, Fractured Signal secondary motion, " +
-                "truthful telegraphs, tactical camera, cinematic URP and PBR rebinding. " +
-                "Enemy focus is camera composition only; player aim/combat authority remain conventional.");
+                "[Mindforge:Showcase] Third-person ARPG presentation installed: behind-Guardian orbit camera, " +
+                "mouse/trackpad + arrow orbit, conventional T target lock, camera-relative WASD, " +
+                "readable Arena V3 lighting, coherent Guardian/armament presentation, truthful telegraphs, " +
+                "cinematic URP and PBR rebinding. Target lock is conventional player state; EEG cannot create it.");
         }
     }
 }
