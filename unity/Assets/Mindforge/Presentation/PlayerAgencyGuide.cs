@@ -20,6 +20,7 @@ namespace Mindforge.Presentation
         [SerializeField] private FluxMeter flux;
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private AwakeningCalibrationDirector calibration;
+        [SerializeField] private ShowcaseCameraRig cameraRig;
         [SerializeField] private float combatGuideSeconds = 34f;
 
         private bool _judgeLens;
@@ -34,6 +35,7 @@ namespace Mindforge.Presentation
         private GUIStyle _crosshairStyle;
         private GUIStyle _centerStyle;
         private GUIStyle _leftStyle;
+        private GUIStyle _focusStyle;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
@@ -66,6 +68,7 @@ namespace Mindforge.Presentation
             if (flux == null) flux = FindObjectOfType<FluxMeter>(true);
             if (auras == null) auras = FindObjectOfType<AuraBuffController>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (cameraRig == null) cameraRig = FindObjectOfType<ShowcaseCameraRig>(true);
         }
 
         private void Subscribe()
@@ -99,7 +102,7 @@ namespace Mindforge.Presentation
 
         private void Update()
         {
-            if (input == null || combat == null || physicalCombat == null || calibration == null)
+            if (input == null || combat == null || physicalCombat == null || calibration == null || cameraRig == null)
             {
                 Unsubscribe();
                 Resolve();
@@ -139,6 +142,7 @@ namespace Mindforge.Presentation
         {
             EnsureStyles();
             DrawAimReticle();
+            DrawTargetFocusIndicator();
 
             float width = Mathf.Min(Screen.width - 32f, 1040f);
             float left = (Screen.width - width) * 0.5f;
@@ -155,6 +159,8 @@ namespace Mindforge.Presentation
                     GUI.Box(new Rect(left, Screen.height - 74f, width, 48f), lesson);
             }
 
+            string focusState = cameraRig != null && cameraRig.TargetFocusActive ? "T  FOCUS ON" : "T  ENEMY FOCUS";
+            GUI.Label(new Rect(18f, Screen.height - 34f, 180f, 22f), focusState, _centerStyle);
             GUI.Label(new Rect(Screen.width - 176f, Screen.height - 34f, 160f, 22f), "F10  JUDGE LENS", _centerStyle);
             if (_judgeLens) DrawJudgeLens();
         }
@@ -171,7 +177,7 @@ namespace Mindforge.Presentation
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD MOVE   ·   ARROWS / MOUSE AIM   ·   SPACE DASH   ·   F SWORD   |   movement and dashes are unlimited";
+                return "WASD MOVE   ·   ARROWS / MOUSE AIM   ·   T ENEMY FOCUS   ·   SPACE DASH   ·   F SWORD   |   focus changes camera only";
             if (!_shieldRaised)
                 return "RMB / E HOLD SHIELD   |   GREEN Guard resonance enlarges and stabilizes it, but your hand decides when it is raised";
             if (!_shieldBlocked)
@@ -196,6 +202,39 @@ namespace Mindforge.Presentation
             GUI.Label(new Rect(x - 18f, y - 19f, 36f, 36f), "+", _crosshairStyle);
         }
 
+        private void DrawTargetFocusIndicator()
+        {
+            if (cameraRig == null || !cameraRig.TargetFocusActive || cameraRig.FocusTarget == null) return;
+            Camera camera = Camera.main;
+            if (camera == null) return;
+
+            Vector3 world = cameraRig.FocusTarget.position + Vector3.up * 1.15f;
+            Vector3 screen = camera.WorldToScreenPoint(world);
+            if (screen.z <= 0f) return;
+
+            float x = screen.x;
+            float y = Screen.height - screen.y;
+            const float size = 54f;
+            const float arm = 13f;
+            const float thickness = 2f;
+            Color before = GUI.color;
+            GUI.color = new Color(0.12f, 0.82f, 1f, 0.92f);
+
+            // Four clean corner brackets keep the target spatially obvious without
+            // covering telegraphs or turning focus mode into a giant HUD widget.
+            GUI.DrawTexture(new Rect(x - size * 0.5f, y - size * 0.5f, arm, thickness), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x - size * 0.5f, y - size * 0.5f, thickness, arm), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x + size * 0.5f - arm, y - size * 0.5f, arm, thickness), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x + size * 0.5f - thickness, y - size * 0.5f, thickness, arm), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x - size * 0.5f, y + size * 0.5f - thickness, arm, thickness), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x - size * 0.5f, y + size * 0.5f - arm, thickness, arm), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x + size * 0.5f - arm, y + size * 0.5f - thickness, arm, thickness), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x + size * 0.5f - thickness, y + size * 0.5f - arm, thickness, arm), Texture2D.whiteTexture);
+            GUI.color = before;
+
+            GUI.Label(new Rect(x - 70f, y - size * 0.5f - 28f, 140f, 22f), "TARGET FOCUS", _focusStyle);
+        }
+
         private void DrawJudgeLens()
         {
             const float width = 480f;
@@ -209,10 +248,10 @@ namespace Mindforge.Presentation
                 : "BCI: bounded blade/shield resonance after accepted Sight/Guard";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: WASD move · arrows/mouse aim · sword · shield · dash · skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 24f), "HANDS: WASD move · arrows/mouse aim · T camera focus · sword · shield · dash · skills", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 66f, width - 32f, 42f), bci, _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 110f, width - 32f, 42f), "EEG never swings, raises guard, aims, dodges, fires, or parries", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 154f, width - 32f, 20f), "F10 hides this explainer", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 154f, width - 32f, 20f), "T changes framing only · F10 hides this explainer", _leftStyle);
         }
 
         private void EnsureStyles()
@@ -244,6 +283,17 @@ namespace Mindforge.Presentation
                     fontSize = 15,
                     wordWrap = true,
                 };
+            }
+
+            if (_focusStyle == null)
+            {
+                _focusStyle = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize = 12,
+                    fontStyle = FontStyle.Bold,
+                };
+                _focusStyle.normal.textColor = new Color(0.25f, 0.90f, 1f, 0.96f);
             }
         }
 
