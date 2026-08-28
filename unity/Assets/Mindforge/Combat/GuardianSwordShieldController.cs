@@ -37,9 +37,11 @@ namespace Mindforge.Combat
     }
 
     /// <summary>
-    /// Player-owned sword/shield authority. Conventional input chooses attack, guard,
-    /// aim and dodge timing. Accepted neural state may only modulate bounded properties
-    /// of an action the player has already chosen.
+    /// Player-owned sword/shield authority. Movement, dodge and ordinary sword attacks
+    /// are intentionally unlimited for the current competition build. Guard Integrity
+    /// remains a defensive pressure budget so holding the shield forever is not free.
+    /// Accepted neural state may only modulate bounded properties of an action the
+    /// player has already chosen.
     /// </summary>
     public sealed class GuardianSwordShieldController : MonoBehaviour
     {
@@ -68,11 +70,18 @@ namespace Mindforge.Combat
         [SerializeField] private float comboResetSeconds = 0.72f;
         [SerializeField] private float finisherDamageMultiplier = 1.28f;
         [SerializeField] private float finisherPoiseMultiplier = 1.55f;
-        [SerializeField] private float finisherStaminaMultiplier = 1.22f;
+
+        [Header("Sword projectile parry")]
+        [SerializeField] private bool swordParryEnabled = true;
+        [SerializeField, Min(1)] private int maxProjectileParriesPerSwing = 4;
+        [SerializeField] private float swordParrySpeedMultiplier = 1.18f;
+        [SerializeField] private float swordParryDamageMultiplier = 1.10f;
+        [SerializeField] private float swordParryPoise = 14f;
+        [SerializeField] private float swordParrySightBonus = 0.22f;
 
         [Header("Shield physical stance")]
         [SerializeField, Range(0.2f, 1f)] private float guardMoveMultiplier = 0.70f;
-        [SerializeField, Range(0f, 1f)] private float guardStaminaRecoveryMultiplier = 0.34f;
+        [SerializeField, Range(0f, 1f)] private float guardIntegrityRecoveryMultiplier = 0.34f;
         [SerializeField, Range(0f, 1f)] private float guardBreakDamageLeak = 0.62f;
 
         [Header("Shield neural modulation")]
@@ -85,6 +94,7 @@ namespace Mindforge.Combat
 
         private readonly Collider[] _hits = new Collider[48];
         private readonly HashSet<int> _hitThisSwing = new HashSet<int>();
+        private readonly HashSet<int> _parriedProjectilesThisSwing = new HashSet<int>();
         private bool _guardHeld;
         private float _guardStartedAt = -999f;
         private float _attackStartedAt = -999f;
@@ -95,10 +105,12 @@ namespace Mindforge.Combat
         private Vector3 _guardAim = Vector3.forward;
         private int _comboStep;
         private bool _comboQueued;
+        private int _projectileParriesThisSwing;
 
         public event Action SwordAttackStarted;
         public event Action<int> SwordComboStepStarted;
         public event Action<float, float> SwordHit;
+        public event Action<float> SwordProjectileParried;
         public event Action<bool> GuardChanged;
         public event Action<float, float> ShieldBlocked;
         public event Action PerfectGuard;
@@ -158,7 +170,7 @@ namespace Mindforge.Combat
         public bool TryLightAttack(Vector3 aimDirection)
         {
             WeaponSpec weapon = loadout != null ? loadout.MainHand : null;
-            if (weapon == null || stamina == null || _guardHeld || (motor != null && motor.IsDashing)) return false;
+            if (weapon == null || _guardHeld || (motor != null && motor.IsDashing)) return false;
 
             Vector3 aim = Vector3.ProjectOnPlane(aimDirection, Vector3.up);
             if (aim.sqrMagnitude < 0.01f) aim = transform.forward;
@@ -183,15 +195,6 @@ namespace Mindforge.Combat
 
         private bool BeginSwordStep(int step, Vector3 aim, WeaponSpec weapon)
         {
-            float staminaMultiplier = step == 3 ? Mathf.Max(1f, finisherStaminaMultiplier) : step == 2 ? 1.06f : 1f;
-            float staminaCost = weapon.staminaCost * staminaMultiplier;
-            if (!stamina.TrySpend(staminaCost, "SWORD_LIGHT"))
-            {
-                _comboQueued = false;
-                _comboStep = 0;
-                return false;
-            }
-
             _comboStep = Mathf.Clamp(step, 1, 3);
             _comboQueued = false;
             _attackAim = aim.sqrMagnitude > 0.01f ? aim.normalized : transform.forward;
@@ -202,6 +205,8 @@ namespace Mindforge.Combat
             _attackRecoveryUntil = _attackEndsAt + Mathf.Max(0f, attackRecoverySeconds) * (_comboStep == 3 ? 1.55f : 1f);
             _comboResetAt = _attackRecoveryUntil + Mathf.Max(0.1f, comboResetSeconds);
             _hitThisSwing.Clear();
+            _parriedProjectilesThisSwing.Clear();
+            _projectileParriesThisSwing = 0;
             SwordAttackStarted?.Invoke();
             SwordComboStepStarted?.Invoke(_comboStep);
             return true;
@@ -222,7 +227,7 @@ namespace Mindforge.Combat
                 _comboQueued = false;
             }
             shieldHitbox?.SetGuardActive(_guardHeld);
-            stamina?.SetRecoveryMultiplier(_guardHeld ? guardStaminaRecoveryMultiplier : 1f);
+            stamina?.SetRecoveryMultiplier(_guardHeld ? guardIntegrityRecoveryMultiplier : 1f);
             GuardChanged?.Invoke(_guardHeld);
         }
 
@@ -264,8 +269,6 @@ namespace Mindforge.Combat
             float duration = Mathf.Max(0.08f, _attackEndsAt - _attackStartedAt);
             float progress = AttackProgress;
 
-            // Contact is intentionally narrower than the full animation. Wind-up and
-            // recovery remain punishable instead of becoming invisible hit frames.
             const float activeStart = 0.24f;
             const float activeEnd = 0.72f;
             if (progress < activeStart || progress > activeEnd) return;
@@ -305,7 +308,13 @@ namespace Mindforge.Combat
 
             for (int i = 0; i < count; i++)
             {
-                CombatantVitals receiver = _hits[i].GetComponentInParent<CombatantVitals>();
+                Collider hit = _hits[i];
+                if (hit == null) continue;
+
+                MindforgeProjectile projectile = hit.GetComponentInParent<MindforgeProjectile>();
+                if (TrySwordParry(projectile, weapon, resonanceValue)) continue;
+
+                CombatantVitals receiver = hit.GetComponentInParent<CombatantVitals>();
                 if (receiver == null || receiver.Team == CombatTeam.Guardian || !receiver.IsAlive) continue;
                 if (!_hitThisSwing.Add(receiver.GetInstanceID())) continue;
                 Vector3 delta = receiver.transform.position - transform.position;
@@ -314,7 +323,7 @@ namespace Mindforge.Combat
                     damage,
                     poise,
                     delta.sqrMagnitude > 0.01f ? delta.normalized * impulse : bladeDirection.normalized * impulse,
-                    _hits[i].ClosestPoint(tip),
+                    hit.ClosestPoint(tip),
                     CombatTeam.Guardian,
                     _comboStep == 3,
                     bonusDamage > 0f ? "SIGHT_SWORD_DAMAGE" : null,
@@ -322,6 +331,34 @@ namespace Mindforge.Combat
                 hitStop?.Pulse(tuning != null ? (_comboStep == 3 ? tuning.heavyHitStop : tuning.lightHitStop) : (_comboStep == 3 ? 0.055f : 0.02f));
                 SwordHit?.Invoke(damage, bonusDamage);
             }
+        }
+
+        private bool TrySwordParry(MindforgeProjectile projectile, WeaponSpec weapon, float sight)
+        {
+            if (!swordParryEnabled || projectile == null || !projectile.IsHostileToGuardian || primaryTarget == null) return false;
+            int id = projectile.GetInstanceID();
+            if (_parriedProjectilesThisSwing.Contains(id)) return true;
+            if (_projectileParriesThisSwing >= Mathf.Max(1, maxProjectileParriesPerSwing)) return false;
+
+            _parriedProjectilesThisSwing.Add(id);
+            _projectileParriesThisSwing++;
+            float baseline = Mathf.Max(projectile.Damage * Mathf.Max(1f, swordParryDamageMultiplier), weapon.baseDamage * 0.72f);
+            bool sightActive = auras != null && auras.SightActive;
+            float bonus = sightActive ? baseline * Mathf.Max(0f, swordParrySightBonus) * Mathf.Clamp01(sight) : 0f;
+            float reflectedDamage = baseline + bonus;
+            float speed = Mathf.Max(14f, projectile.Speed * Mathf.Max(1f, swordParrySpeedMultiplier));
+            projectile.ReflectTowards(
+                primaryTarget,
+                speed,
+                reflectedDamage,
+                Mathf.Max(1f, swordParryPoise),
+                1,
+                bonus > 0f ? "SIGHT_SWORD_PARRY_DAMAGE" : null,
+                bonus);
+            flux?.Award(tuning != null ? tuning.nearMissFlux * 0.75f : 0.12f, "Sword Parry");
+            hitStop?.Pulse(tuning != null ? tuning.parryHitStop : 0.02f);
+            SwordProjectileParried?.Invoke(reflectedDamage);
+            return true;
         }
 
         public bool TryResolveProjectile(MindforgeProjectile projectile, Vector3 point)
@@ -373,11 +410,6 @@ namespace Mindforge.Combat
             return true;
         }
 
-        /// <summary>
-        /// Resolves a telegraphed direct boss strike against the player's current
-        /// physical shield stance. Facing matters: a raised shield does not protect a
-        /// rear flank. This is called by boss melee authority, never by neural input.
-        /// </summary>
         public GuardStrikeResult TryResolveIncomingStrike(
             float incomingDamage,
             float incomingPoise,
