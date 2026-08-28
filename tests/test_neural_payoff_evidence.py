@@ -68,8 +68,16 @@ def test_guard_healing_reports_actual_restored_hp_and_batches_only_at_telemetry_
 
     assert "public float Heal(float amount)" in vitals
     assert "return Mathf.Max(0f, Health - before)" in vitals
-    assert "float restored = vitals.Heal(auras.HealingPerSecond * Time.deltaTime)" in controller
-    assert 'NeuralPayoffObserved?.Invoke("GUARD_REGEN_REALIZED", restored)' in controller
+
+    # Guard regeneration is gameplay payoff, so it must advance on the authoritative
+    # fixed simulation clock rather than render-frame delta time.
+    fixed_start = controller.index("private void FixedUpdate()")
+    aura_start = controller.index("private void OnAuraApplied")
+    fixed_body = controller[fixed_start:aura_start]
+    assert "auras.HealingPerSecond * Time.fixedDeltaTime" in fixed_body
+    assert "Time.deltaTime" not in fixed_body
+    assert 'NeuralPayoffObserved?.Invoke("GUARD_REGEN_REALIZED", restored)' in fixed_body
+
     assert '"GUARD_COUNTER_HEAL_REALIZED"' in controller
     assert "_guardHealPending" not in controller
     assert "guardHealMarkerInterval = 0.75f" in bridge
