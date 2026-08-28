@@ -12,12 +12,14 @@ namespace Mindforge.World
         [SerializeField] private MemoryForgeCheckpoint checkpoint;
         [SerializeField] private WorldShortcut shortcut;
         [SerializeField] private float bannerSeconds = 2.1f;
+        [SerializeField] private float controlsHintSeconds = 16f;
 
         private GUIStyle _objective;
         private GUIStyle _small;
         private GUIStyle _banner;
         private string _bannerText;
         private double _bannerUntil;
+        private double _enteredAt;
 
         public void ConfigureRuntime(
             NullWardEncounterDirector director,
@@ -35,6 +37,7 @@ namespace Mindforge.World
         {
             Resolve();
             Subscribe();
+            _enteredAt = Time.realtimeSinceStartupAsDouble;
         }
 
         private void OnDisable() => Unsubscribe();
@@ -123,20 +126,26 @@ namespace Mindforge.World
 
             const float left = 18f;
             const float top = 18f;
-            float width = Mathf.Min(560f, Screen.width * 0.48f);
-            GUI.Box(new Rect(left, top, width, 68f), string.Empty);
-            GUI.Label(new Rect(left + 14f, top + 8f, width - 28f, 26f),
+            bool showControls = Time.realtimeSinceStartupAsDouble - _enteredAt <= Mathf.Max(0f, controlsHintSeconds);
+            float width = Mathf.Min(showControls ? 470f : 390f, Screen.width * 0.44f);
+            float height = showControls ? 58f : 38f;
+            GUI.Box(new Rect(left, top, width, height), string.Empty);
+            GUI.Label(new Rect(left + 12f, top + 5f, width - 24f, 26f),
                 string.IsNullOrWhiteSpace(world.CurrentObjective) ? "EXPLORE THE NULL WARD" : world.CurrentObjective,
                 _objective);
-            GUI.Label(new Rect(left + 14f, top + 39f, width - 28f, 20f),
-                "T lock · wheel/←→ cycle · F sword · Space dodge · RMB/E guard · G interact",
-                _small);
+
+            if (showControls)
+            {
+                GUI.Label(new Rect(left + 12f, top + 32f, width - 24f, 18f),
+                    "SPACE jump · CTRL/ALT dodge · T lock · F sword · RMB/E guard · G interact",
+                    _small);
+            }
 
             if (!string.IsNullOrEmpty(_bannerText) && Time.realtimeSinceStartupAsDouble < _bannerUntil)
             {
-                float bannerWidth = Mathf.Min(620f, Screen.width - 80f);
-                GUI.Box(new Rect((Screen.width - bannerWidth) * 0.5f, 102f, bannerWidth, 48f), string.Empty);
-                GUI.Label(new Rect((Screen.width - bannerWidth) * 0.5f, 102f, bannerWidth, 48f), _bannerText, _banner);
+                float bannerWidth = Mathf.Min(560f, Screen.width - 80f);
+                GUI.Box(new Rect((Screen.width - bannerWidth) * 0.5f, 88f, bannerWidth, 42f), string.Empty);
+                GUI.Label(new Rect((Screen.width - bannerWidth) * 0.5f, 88f, bannerWidth, 42f), _bannerText, _banner);
             }
         }
 
@@ -146,19 +155,19 @@ namespace Mindforge.World
             {
                 _objective = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 15,
+                    fontSize = 14,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = true,
                 };
             }
             if (_small == null)
-                _small = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft };
+                _small = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleLeft };
             if (_banner == null)
             {
                 _banner = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 21,
+                    fontSize = 19,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleCenter,
                 };
