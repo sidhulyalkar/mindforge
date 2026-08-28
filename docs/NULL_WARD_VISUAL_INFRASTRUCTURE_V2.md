@@ -83,15 +83,17 @@ V2 does not edit `VepAuraStimulus`, does not read decoder scores, and does not g
 
 This fixes an earlier over-broad graphics pass where unrelated renderers could inherit cinematic shadow/probe settings.
 
-## Material policy
+## Material and batching policy
 
 Prefer, in order:
 
-1. shared cinematic materials;
-2. static batching for fixed architecture;
-3. GPU instancing where a shared material is repeatedly used;
+1. shared cinematic URP materials;
+2. SRP Batcher-compatible shaders/material layout;
+3. static batching for fixed architectural geometry when profiling shows it is useful;
 4. authored geometry variation;
 5. small numbers of purposeful transparent neural-field surfaces.
+
+Unity 2022.3 documents ordinary GameObject GPU instancing and the SRP Batcher as separate paths, with the SRP Batcher taking priority for compatible renderers. V2 therefore does **not** toggle `Material.enableInstancing` across the cinematic material library simply because repeated meshes exist. Any future move to explicit instanced/indirect drawing should be evidence-driven and isolated to a rendering subsystem that actually benefits from it.
 
 Do not introduce per-renderer material instances merely to make repeated architecture slightly different. Do not put adaptive visual behavior into the coded VEP material path.
 
