@@ -5,8 +5,10 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Replaceable procedural character presentation for the showcase slice. The
-    /// authoritative Guardian collider/rigidbody remain untouched; this component
-    /// observes motor/combat state and animates collider-free visual geometry only.
+    /// authoritative Guardian collider/rigidbody remain untouched. This component owns
+    /// fallback rig construction, facing and coarse action poses only; locomotion,
+    /// airborne posture, weight transfer and secondary motion belong to
+    /// GuardianMotionPolish so two presentation loops never fight over the same gait.
     /// </summary>
     public sealed class GuardianAvatarPresentation : MonoBehaviour
     {
@@ -28,7 +30,6 @@ namespace Mindforge.Presentation
         private Material _clothMaterial;
         private Material _accentMaterial;
         private MaterialPropertyBlock _block;
-        private float _stride;
         private float _damageFlash;
         private Quaternion _facing = Quaternion.identity;
 
@@ -128,22 +129,21 @@ namespace Mindforge.Presentation
             _facing = Quaternion.Slerp(_facing, desired, 1f - Mathf.Exp(-15f * dt));
             _visualRoot.rotation = _facing;
 
-            float speed = motor != null ? Vector3.ProjectOnPlane(motor.Velocity, Vector3.up).magnitude : 0f;
-            float move01 = Mathf.Clamp01(speed / 6.0f);
-            _stride += dt * Mathf.Lerp(2.2f, 9.5f, move01);
-            float step = Mathf.Sin(_stride) * 28f * move01;
-
             bool guarding = physicalCombat != null && physicalCombat.IsGuarding;
             bool attacking = physicalCombat != null && physicalCombat.IsAttacking;
-            bool dashing = motor != null && motor.IsDashing;
             int combo = physicalCombat != null ? physicalCombat.ComboStep : 1;
 
-            if (_leftLeg != null) _leftLeg.localRotation = Quaternion.Euler(step, 0f, 0f);
-            if (_rightLeg != null) _rightLeg.localRotation = Quaternion.Euler(-step, 0f, 0f);
+            // Base pose only. GuardianMotionPolish owns every locomotion-cycle, airborne,
+            // landing, weight-transfer and mantle-inertia offset through Motion_* wrappers.
+            // Keeping the child transforms neutral here prevents two independent stride
+            // clocks from producing foot skating or bicycle legs in mid-air.
+            if (_leftLeg != null)
+                _leftLeg.localRotation = Quaternion.Slerp(_leftLeg.localRotation, Quaternion.identity, 1f - Mathf.Exp(-20f * dt));
+            if (_rightLeg != null)
+                _rightLeg.localRotation = Quaternion.Slerp(_rightLeg.localRotation, Quaternion.identity, 1f - Mathf.Exp(-20f * dt));
 
-            float armSwing = step * 0.65f;
-            Quaternion leftArm = Quaternion.Euler(-armSwing, 0f, guarding ? -48f : -8f);
-            Quaternion rightArm = Quaternion.Euler(armSwing, 0f, attacking ? 48f : 8f);
+            Quaternion leftArm = Quaternion.Euler(0f, 0f, guarding ? -48f : -8f);
+            Quaternion rightArm = Quaternion.Euler(0f, 0f, 8f);
             if (guarding) leftArm = Quaternion.Euler(-72f, -10f, -46f);
             if (attacking)
             {
@@ -153,16 +153,15 @@ namespace Mindforge.Presentation
             if (_leftArm != null) _leftArm.localRotation = Quaternion.Slerp(_leftArm.localRotation, leftArm, 1f - Mathf.Exp(-18f * dt));
             if (_rightArm != null) _rightArm.localRotation = Quaternion.Slerp(_rightArm.localRotation, rightArm, 1f - Mathf.Exp(-18f * dt));
 
-            float lean = dashing ? 17f : attacking ? (combo >= 3 ? 11f : 7f) : guarding ? -4f : Mathf.Sin(_stride * 2f) * 1.2f * move01;
-            if (_torso != null) _torso.localRotation = Quaternion.Slerp(_torso.localRotation, Quaternion.Euler(lean, 0f, 0f), 1f - Mathf.Exp(-12f * dt));
+            float baseTorsoPitch = attacking ? (combo >= 3 ? 4f : 2f) : guarding ? -4f : 0f;
+            if (_torso != null)
+                _torso.localRotation = Quaternion.Slerp(_torso.localRotation, Quaternion.Euler(baseTorsoPitch, 0f, 0f), 1f - Mathf.Exp(-12f * dt));
+            if (_head != null)
+                _head.localRotation = Quaternion.Slerp(_head.localRotation, Quaternion.identity, 1f - Mathf.Exp(-16f * dt));
             if (_mantle != null)
-            {
-                float flutter = Mathf.Sin(Time.unscaledTime * 7f) * (2f + speed * 0.8f);
-                _mantle.localRotation = Quaternion.Euler(8f + Mathf.Clamp(speed * 2.2f, 0f, 18f), 0f, flutter);
-            }
+                _mantle.localRotation = Quaternion.Slerp(_mantle.localRotation, Quaternion.Euler(8f, 0f, 0f), 1f - Mathf.Exp(-12f * dt));
 
-            float bob = (Mathf.Abs(Mathf.Sin(_stride * 2f)) * 0.035f * move01) - (dashing ? 0.10f : 0f);
-            _visualRoot.localPosition = new Vector3(0f, 0.02f + bob, 0f);
+            _visualRoot.localPosition = new Vector3(0f, 0.02f, 0f);
 
             _damageFlash = Mathf.MoveTowards(_damageFlash, 0f, dt * 5.5f);
             ApplyDamageFlash();
