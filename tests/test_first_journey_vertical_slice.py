@@ -77,8 +77,13 @@ def test_reflection_and_wisp_systems_follow_current_player_owned_target():
     assert "targetLock.TargetChanged += OnTargetChanged" in wisp
     assert "Transform activeTarget = EffectiveTarget" in wisp
     assert "PlaceStableLockedTargets(activeTarget)" in wisp
-    assert "VepAuraStimulus" in wisp
-    assert "coded VEP luminance remains owned by VepAuraStimulus" in wisp
+    # VEP coding remains in the dedicated stimulus components; target-lock code only
+    # moves their transforms and never rewrites frequency as the target changes.
+    assert "sightStimulus?.Configure(sightFrequencyHz, sightColor)" in wisp
+    assert "guardStimulus?.Configure(guardFrequencyHz, guardColor)" in wisp
+    stable = wisp[wisp.index("private void PlaceStableLockedTargets") : wisp.index("private void PlaceStableAura")]
+    assert "frequencyHz" not in stable
+    assert ".Configure(" not in stable
 
 
 def test_journey_enemy_authority_is_readable_reusable_and_uses_existing_defense_rules():
@@ -194,6 +199,16 @@ def test_authored_route_contains_all_teaching_spaces_and_keeps_final_arena_in_pl
     assert builder.index("BuildRuinedHouse(") < builder.index("BuildCellar(")
     assert builder.index("BuildCellar(") < builder.index("BuildWardenChamber(")
     assert builder.index("BuildWardenChamber(") < builder.index("BuildFinalApproach(")
+
+    # First combat lesson is spatially staged: A is close to the trigger while B waits
+    # near the cavern exit, reducing accidental 2v1 pressure before controls are learned.
+    assert "new Vector3(-1.25f, -0.30f, -63.0f)" in builder
+    assert "new Vector3(1.65f, -0.30f, -52.8f)" in builder
+
+    # The journey stops authoring opaque floor geometry before Arena V3's outer floor.
+    # This prevents coplanar renderer/collider overlap at the final threshold.
+    assert 'Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -12.45f), new Vector3(15f, 0.50f, 7.5f)' in builder
+    assert '"BossApproachFloor"' not in builder
 
     assert "ArenaEnvironmentV3Builder.BuildOpenScene();" in menu
     assert "FirstJourneySceneBuilder.BuildOpenScene();" in menu
