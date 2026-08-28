@@ -18,6 +18,7 @@ namespace Mindforge.Editor
     public static class NullWardTraversalPlayabilityBuilder
     {
         public const string RootName = "Mindforge_NullWard_TraversalPlayability_V1";
+        private const float GuardianGroundedSpawnY = 0.72f;
 
         public static void ApplyOpenScene()
         {
@@ -33,6 +34,13 @@ namespace Mindforge.Editor
             Material metal = RequireMaterial("GuardianMetal");
             Material viridian = RequireMaterial("WispVerdant");
             Material cyan = RequireMaterial("AetherCyan");
+
+            // The original planar prototype authored the built-in Guardian capsule at
+            // y=0.5 while FreezePositionY hid a small floor overlap. Once vertical motion
+            // is real, give entry/respawn a deterministic physical clearance instead of
+            // relying on one frame of Rigidbody depenetration.
+            NormalizeMarkerHeight(ward.transform, "NullWard_WorldStart", GuardianGroundedSpawnY);
+            NormalizeMarkerHeight(ward.transform, "MemoryForge_Respawn", GuardianGroundedSpawnY);
 
             GameObject root = new GameObject(RootName);
             root.transform.SetParent(ward.transform, false);
@@ -189,6 +197,29 @@ namespace Mindforge.Editor
             line.widthMultiplier = 0.035f;
             line.shadowCastingMode = ShadowCastingMode.Off;
             line.receiveShadows = false;
+        }
+
+        private static void NormalizeMarkerHeight(Transform root, string markerName, float localY)
+        {
+            Transform marker = FindRecursive(root, markerName);
+            if (marker == null)
+                throw new InvalidOperationException($"Traversal pass could not find required Null Ward marker {markerName}.");
+            Vector3 local = marker.localPosition;
+            local.y = localY;
+            marker.localPosition = local;
+            EditorUtility.SetDirty(marker);
+        }
+
+        private static Transform FindRecursive(Transform root, string name)
+        {
+            if (root == null) return null;
+            if (root.name == name) return root;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform found = FindRecursive(root.GetChild(i), name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         private static Material RequireMaterial(string name)
