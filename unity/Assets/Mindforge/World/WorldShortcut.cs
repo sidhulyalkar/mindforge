@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Mindforge.Combat;
 using Mindforge.Journey;
 using Mindforge.Telemetry;
 
@@ -7,11 +8,13 @@ namespace Mindforge.World
 {
     /// <summary>
     /// Conventional world interaction that permanently opens one traversal shortcut for
-    /// the current run. It has no neural, combat, targeting or calibration authority.
+    /// the current run. It observes Guardian action state only to avoid accepting an
+    /// interaction mid-commitment; it has no combat, neural or calibration authority.
     /// </summary>
     public sealed class WorldShortcut : MonoBehaviour
     {
         [SerializeField] private Transform player;
+        [SerializeField] private GuardianSwordShieldController combatState;
         [SerializeField] private Transform interactionPoint;
         [SerializeField] private JourneyGate gate;
         [SerializeField] private KeyCode interactKey = KeyCode.G;
@@ -34,6 +37,7 @@ namespace Mindforge.World
             UdpGameMarkerSender markerSender = null)
         {
             player = guardian;
+            combatState = guardian != null ? guardian.GetComponent<GuardianSwordShieldController>() : null;
             interactionPoint = point;
             gate = shortcutGate;
             shortcutId = string.IsNullOrWhiteSpace(id) ? "shortcut" : id;
@@ -42,12 +46,13 @@ namespace Mindforge.World
 
         private void Start()
         {
+            Resolve();
             gate?.SetOpen(_unlocked, true);
         }
 
         private void Update()
         {
-            if (_unlocked || !PlayerInRange()) return;
+            if (_unlocked || !PlayerInRange() || !CanInteract()) return;
             if (Input.GetKeyDown(interactKey)) Unlock();
         }
 
@@ -69,9 +74,18 @@ namespace Mindforge.World
             return delta.sqrMagnitude <= radius * radius;
         }
 
+        private bool CanInteract()
+            => combatState == null || combatState.ActionState == GuardianActionState.Locomotion;
+
+        private void Resolve()
+        {
+            if (player != null && combatState == null)
+                combatState = player.GetComponent<GuardianSwordShieldController>();
+        }
+
         private void OnGUI()
         {
-            if (_unlocked || !PlayerInRange()) return;
+            if (_unlocked || !PlayerInRange() || !CanInteract()) return;
             if (_promptStyle == null)
             {
                 _promptStyle = new GUIStyle(GUI.skin.box)
