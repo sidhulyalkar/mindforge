@@ -57,7 +57,8 @@ namespace Mindforge.Journey
         [SerializeField] private uint deterministicSeed;
         [SerializeField] private EnemyAttackDefinition[] attackDefinitions;
 
-        [Header("Rewards")]
+        [Header("Lifecycle / rewards")]
+        [SerializeField] private bool destroyOnDeath = true;
         [SerializeField] private float defeatFluxReward = 0.15f;
 
         private readonly int[] _eligibleAttackIndices = new int[16];
@@ -66,6 +67,8 @@ namespace Mindforge.Journey
         private bool _externalPaused;
         private long _pauseStartedTick;
         private Vector3 _home;
+        private Vector3 _spawnPosition;
+        private Quaternion _spawnRotation;
         private Vector3 _desiredMove;
         private long _nextDecisionTick;
         private long _attackResolveTick;
@@ -76,8 +79,13 @@ namespace Mindforge.Journey
         private long[] _attackCooldownUntil = Array.Empty<long>();
         private uint _rngState;
         private bool _deathHandled;
+        private bool _defeatedDormant;
+        private Collider[] _colliders = Array.Empty<Collider>();
+        private bool[] _colliderDefaults = Array.Empty<bool>();
+        private bool _bodyDefaultKinematic;
 
         public event Action<JourneyEnemyController> Defeated;
+        public event Action<JourneyEnemyController> Reconstructed;
         public event Action<JourneyEnemyAttackKind, float> AttackTelegraphed;
         public event Action<JourneyEnemyAttackKind> AttackResolved;
         public event Action<bool> ArmedChanged;
@@ -87,6 +95,8 @@ namespace Mindforge.Journey
         public CombatantVitals Vitals => vitals;
         public bool Armed => _armed;
         public bool ExternalPaused => _externalPaused;
+        public bool CheckpointResettable => !destroyOnDeath;
+        public bool DefeatedDormant => _defeatedDormant;
         public JourneyEnemyAttackKind PendingAttack => _pendingAttack;
         public bool IsAlive => vitals != null && vitals.IsAlive;
         public EnemyAttackDefinition CurrentAttackDefinition
@@ -109,6 +119,7 @@ namespace Mindforge.Journey
         {
             ResolveDependencies();
             ConfigureBody();
+            CaptureLifecycleDefaults();
             ApplyArchetypeDefaults();
             InitializeDeterminism();
         }
@@ -117,6 +128,7 @@ namespace Mindforge.Journey
         {
             ResolveDependencies();
             ConfigureBody();
+            CaptureLifecycleDefaults();
             ApplyArchetypeDefaults();
             InitializeDeterminism();
             if (vitals != null)
@@ -128,7 +140,7 @@ namespace Mindforge.Journey
             _desiredMove = Vector3.zero;
             _pendingAttack = JourneyEnemyAttackKind.None;
             _pendingAttackIndex = -1;
-            _deathHandled = false;
+            if (!_defeatedDormant) _deathHandled = false;
         }
 
         private void OnDisable()
@@ -158,12 +170,65 @@ namespace Mindforge.Journey
             ApplyArchetypeDefaults();
             InitializeDeterminism();
             ConfigureBody();
+            CaptureLifecycleDefaults();
+        }
+
+        /// <summary>
+        /// Null Ward ordinary enemies use a persistent dormant-death lifecycle so the
+        /// Memory Forge can reconstruct the exact authored encounter from the same seed.
+        /// Legacy journey enemies retain destroy-on-death by default.
+        /// </summary>
+        public void ConfigureCheckpointLifecycle(bool checkpointResettable)
+        {
+            destroyOnDeath = !checkpointResettable;
+            _spawnPosition = transform.position;
+            _spawnRotation = transform.rotation;
+            CaptureLifecycleDefaults(true);
+        }
+
+        public void ResetForCheckpoint()
+        {
+            if (destroyOnDeath || vitals == null) return;
+
+            Disarm();
+            _externalPaused = false;
+            _pauseStartedTick = 0;
+            _deathHandled = false;
+            _defeatedDormant = false;
+            _pendingAttack = JourneyEnemyAttackKind.None;
+            _pendingAttackIndex = -1;
+            _desiredMove = Vector3.zero;
+            _lockedAttackDirection = Vector3.zero;
+
+            transform.SetPositionAndRotation(_spawnPosition, _spawnRotation);
+            _home = _spawnPosition;
+            vitals.ResetForCheckpoint(true);
+
+            ApplyArchetypeDefaults();
+            RebuildCooldownState();
+            _rngState = deterministicSeed != 0u ? deterministicSeed : 0x6D2B79F5u;
+            _nextDecisionTick = FixedTick + Mathf.Max(1, firstAttackDelayTicks);
+            _attackResolveTick = long.MaxValue / 4;
+            _recoverUntilTick = FixedTick;
+
+            if (body != null)
+            {
+                body.isKinematic = _bodyDefaultKinematic;
+                body.position = _spawnPosition;
+                body.rotation = _spawnRotation;
+                body.velocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.WakeUp();
+            }
+            RestoreColliders();
+            Physics.SyncTransforms();
+            Reconstructed?.Invoke(this);
         }
 
         public void Arm()
         {
             ResolveDependencies();
-            if (!IsAlive) return;
+            if (!IsAlive || _defeatedDormant) return;
             _armed = true;
             _pendingAttack = JourneyEnemyAttackKind.None;
             _pendingAttackIndex = -1;
@@ -206,7 +271,7 @@ namespace Mindforge.Journey
         private void FixedUpdate()
         {
             _desiredMove = Vector3.zero;
-            if (!_armed || _externalPaused || !IsAlive || player == null || playerVitals == null || !playerVitals.IsAlive)
+            if (!_armed || _externalPaused || _defeatedDormant || !IsAlive || player == null || playerVitals == null || !playerVitals.IsAlive)
                 return;
             if (vitals.Poise != null && vitals.Poise.Broken) return;
 
@@ -328,7 +393,7 @@ namespace Mindforge.Journey
             EnemyAttackDefinition attack = CurrentAttackDefinition;
             JourneyEnemyAttackKind kind = _pendingAttack;
             _pendingAttack = JourneyEnemyAttackKind.None;
-            if (!_armed || _externalPaused || !IsAlive || attack == null)
+            if (!_armed || _externalPaused || _defeatedDormant || !IsAlive || attack == null)
             {
                 _pendingAttackIndex = -1;
                 return;
@@ -500,7 +565,16 @@ namespace Mindforge.Journey
             if (playerFlux != null && defeatFluxReward > 0f)
                 playerFlux.Award(defeatFluxReward, archetype + " defeated");
             Defeated?.Invoke(this);
-            Destroy(gameObject, 0.35f);
+
+            if (destroyOnDeath)
+            {
+                Destroy(gameObject, 0.35f);
+                return;
+            }
+
+            _defeatedDormant = true;
+            SetCollidersEnabled(false);
+            if (body != null) body.isKinematic = true;
         }
 
         private void ResolveDependencies()
@@ -523,6 +597,30 @@ namespace Mindforge.Journey
             body.constraints = RigidbodyConstraints.FreezePositionY |
                                RigidbodyConstraints.FreezeRotationX |
                                RigidbodyConstraints.FreezeRotationZ;
+        }
+
+        private void CaptureLifecycleDefaults(bool force = false)
+        {
+            if (!force && _colliders.Length > 0) return;
+            _spawnPosition = transform.position;
+            _spawnRotation = transform.rotation;
+            _bodyDefaultKinematic = body != null && body.isKinematic;
+            _colliders = GetComponentsInChildren<Collider>(true);
+            _colliderDefaults = new bool[_colliders.Length];
+            for (int i = 0; i < _colliders.Length; i++)
+                _colliderDefaults[i] = _colliders[i] != null && _colliders[i].enabled;
+        }
+
+        private void SetCollidersEnabled(bool enabled)
+        {
+            for (int i = 0; i < _colliders.Length; i++)
+                if (_colliders[i] != null) _colliders[i].enabled = enabled;
+        }
+
+        private void RestoreColliders()
+        {
+            for (int i = 0; i < _colliders.Length; i++)
+                if (_colliders[i] != null) _colliders[i].enabled = i < _colliderDefaults.Length && _colliderDefaults[i];
         }
 
         private void ApplyArchetypeDefaults()
