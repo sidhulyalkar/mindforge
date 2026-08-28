@@ -99,17 +99,25 @@ def test_visual_v2_provides_independent_production_art_anchors_for_every_zone():
     assert '"Assets/Mindforge/Resources/Cinematic/NullWardArtProfile.asset"' in authoring
 
 
-def test_imported_room_art_is_visual_payload_and_cannot_smuggle_mindforge_authority():
+def test_imported_room_art_is_visual_payload_and_cannot_smuggle_authority_or_custom_scripts():
     installer = read("Presentation", "NullWardArtOverrideInstaller.cs")
 
     assert 'Resources.Load<NullWardArtProfile>("Cinematic/NullWardArtProfile")' in installer
-    assert "FindObjectsOfType<Transform>(true)" in installer  # works while parent arena is inactive
-    assert "GetComponentsInChildren<Rigidbody>(true)" in installer
-    assert "GetComponentsInChildren<Collider>(true)" in installer
-    assert "GetComponentsInChildren<Joint>(true)" in installer
-    assert "GetComponentsInChildren<MonoBehaviour>(true)" in installer
-    assert 'ns == "Mindforge" || ns.StartsWith("Mindforge.")' in installer
-    assert "hideProceduralDetailForBoundZones" in installer
+    assert "FindObjectsOfType<Transform>(true)" in installer
+    for token in (
+        "GetComponentsInChildren<Rigidbody>(true)",
+        "GetComponentsInChildren<Collider>(true)",
+        "GetComponentsInChildren<Joint>(true)",
+        "GetComponentsInChildren<Rigidbody2D>(true)",
+        "GetComponentsInChildren<Collider2D>(true)",
+        "GetComponentsInChildren<Joint2D>(true)",
+        "GetComponentsInChildren<Camera>(true)",
+        "GetComponentsInChildren<AudioListener>(true)",
+        "GetComponentsInChildren<MonoBehaviour>(true)",
+        "if (behaviour != null) Destroy(behaviour)",
+        "hideProceduralDetailForBoundZones",
+    ):
+        assert token in installer
 
     # Room-art binding never invokes game or neural authority.
     for forbidden in (
