@@ -16,6 +16,7 @@ namespace Mindforge.World
         [SerializeField] private CombatantVitals playerVitals;
         [SerializeField] private GuardianStamina guardIntegrity;
         [SerializeField] private GuardianTargetLock targetLock;
+        [SerializeField] private GuardianSwordShieldController combatState;
         [SerializeField] private Transform respawnPoint;
         [SerializeField] private Transform interactionPoint;
         [SerializeField] private NullWardEncounterDirector world;
@@ -59,6 +60,7 @@ namespace Mindforge.World
             playerVitals = vitals;
             guardIntegrity = integrity;
             targetLock = lockState;
+            combatState = guardian != null ? guardian.GetComponent<GuardianSwordShieldController>() : null;
             respawnPoint = spawn;
             interactionPoint = interaction;
             world = director;
@@ -76,7 +78,7 @@ namespace Mindforge.World
 
         private void Update()
         {
-            if (!_active || _respawnPending || !PlayerInRange()) return;
+            if (!_active || _respawnPending || !PlayerInRange() || !CanInteract()) return;
             if (Input.GetKeyDown(interactKey)) RestAndReconstruct();
         }
 
@@ -149,6 +151,9 @@ namespace Mindforge.World
             return delta.sqrMagnitude <= radius * radius;
         }
 
+        private bool CanInteract()
+            => combatState == null || combatState.ActionState == GuardianActionState.Locomotion;
+
         private void Resolve()
         {
             if (player != null)
@@ -157,6 +162,7 @@ namespace Mindforge.World
                 if (playerVitals == null) playerVitals = player.GetComponent<CombatantVitals>();
                 if (guardIntegrity == null) guardIntegrity = player.GetComponent<GuardianStamina>();
                 if (targetLock == null) targetLock = player.GetComponent<GuardianTargetLock>();
+                if (combatState == null) combatState = player.GetComponent<GuardianSwordShieldController>();
             }
         }
 
@@ -174,7 +180,7 @@ namespace Mindforge.World
 
         private void OnGUI()
         {
-            if (!_active || _respawnPending || !PlayerInRange()) return;
+            if (!_active || _respawnPending || !PlayerInRange() || !CanInteract()) return;
             if (_promptStyle == null)
             {
                 _promptStyle = new GUIStyle(GUI.skin.box)
