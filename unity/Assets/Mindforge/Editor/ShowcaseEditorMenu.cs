@@ -29,7 +29,7 @@ namespace Mindforge.Editor
 
             // Starting Play Mode from a menu can leave keyboard focus on the Scene,
             // Console or Inspector window. Register before entering play so the Game
-            // view explicitly receives WASD/arrow/Space input on laptops.
+            // view explicitly receives third-person keyboard/mouse input on laptops.
             EditorApplication.playModeStateChanged -= FocusGameViewWhenPlayStarts;
             EditorApplication.playModeStateChanged += FocusGameViewWhenPlayStarts;
             EditorApplication.delayCall += () =>
@@ -52,11 +52,9 @@ namespace Mindforge.Editor
             if (gameViewType == null) return;
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
             gameView?.Focus();
-            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; arrows/mouse aim; Space dashes.");
+            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; T locks target; Space dodges.");
         }
 
-        // Preserve the old menu path as an explicit alias so existing docs/workflows do
-        // not break while the default visual target advances.
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
         public static void BuildAndPlayLegacyAlias() => BuildAndPlay();
 
@@ -73,11 +71,6 @@ namespace Mindforge.Editor
             CinematicMaterialAuthoring.EnsureAuthored();
             CompetitionSceneAssembler.BuildCompetitionScene();
 
-            // The competition assembler intentionally leaves the combat arena inactive
-            // until calibration/controller-only qualification opens it. GameObject.Find
-            // ignores inactive objects, while the visual authoring passes need to inspect
-            // and decorate that arena before Play Mode. Activate only for editor authoring
-            // and always restore the original state, even if an authoring pass throws.
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");
             if (arena == null)
                 throw new UnityEditor.Build.BuildFailedException(
@@ -89,10 +82,6 @@ namespace Mindforge.Editor
                 if (!arenaWasActive) arena.SetActive(true);
                 ShowcaseSceneDecorator.DecorateOpenScene();
                 CinematicSceneDetailer.EnhanceOpenScene();
-
-                // Arena V3 intentionally runs last. It removes the prototype arena-only
-                // visual roots and rebuilds one coherent pillar arena while preserving the
-                // Awakening presentation and all underlying gameplay objects/colliders.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
             }
             finally
@@ -112,7 +101,7 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Cinematic scene ready. Arena V3 is the final environment layer: " +
                 "midnight/indigo ritual floor, structured pillars, cyan/teal channels, copper trim, " +
                 "ruins, braziers and reflection lighting are authored before Play Mode. " +
-                "Use 'Build + Play Cinematic Showcase' for the one-click controller-only path.");
+                "Runtime installs the third-person behind-Guardian camera and conventional target lock.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
