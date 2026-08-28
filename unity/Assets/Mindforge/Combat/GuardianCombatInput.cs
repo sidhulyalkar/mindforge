@@ -3,13 +3,13 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Samples conventional laptop/PC input in Update, latches one-shot actions, then
-    /// applies one complete command frame on the authoritative fixed simulation tick.
-    /// The same command frame is record/replay compatible through GuardianInputTape.
+    /// Samples conventional third-person PC input in Update, latches one-shot actions,
+    /// then applies one complete command frame on the authoritative fixed simulation tick.
     ///
-    /// Laptop-first map:
+    /// Third-person map:
     /// - WASD: camera-relative movement
-    /// - Arrow keys OR mouse: aim
+    /// - Mouse/trackpad or arrow keys: orbit camera (handled by ShowcaseCameraRig)
+    /// - T: conventional target lock (handled by GuardianTargetLock)
     /// - Space: directional dodge/dash
     /// - F or LMB: sword light/combo/parry
     /// - Left/Right Shift: Pulse Shot
@@ -18,8 +18,9 @@ namespace Mindforge.Combat
     /// - C: Counter Pulse
     /// - R: Gravity Bloom / Twin Eclipse
     ///
-    /// No Unity Input Manager axes are required. Neural evidence never originates
-    /// movement, attack, guard, aim or dodge commands.
+    /// Free combat heading follows the camera. Locked combat heading follows the locked
+    /// enemy. Neural evidence never originates movement, target lock, attack, guard,
+    /// camera orbit, aim or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -27,18 +28,15 @@ namespace Mindforge.Combat
         [SerializeField] private GuardianCombatController combat;
         [SerializeField] private GuardianSwordShieldController physicalCombat;
         [SerializeField] private GravityBloomAbility bloom;
+        [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private Transform aimTarget;
         [SerializeField] private GuardianInputTape inputTape;
 
-        [Header("Player-owned aim")]
+        [Header("Third-person combat heading")]
         [SerializeField] private Camera aimCamera;
-        [SerializeField] private bool mouseAimEnabled = true;
-        [SerializeField] private float mouseActivationPixels = 2f;
-        [SerializeField] private float minimumPointerWorldDistance = 0.35f;
-        [SerializeField] private float keyboardAimDistance = 7f;
+        [SerializeField] private float freeAimDistance = 8f;
 
         private Vector2 _move;
-        private Vector2 _keyboardAim;
         private bool _fireHeld;
         private bool _cleaveLatched;
         private bool _counterLatched;
@@ -49,10 +47,6 @@ namespace Mindforge.Combat
         private bool _guardDownLatched;
         private long _fixedInputTick;
 
-        private Vector3 _pointerScreen;
-        private Vector3 _previousPointerScreen;
-        private bool _pointerInitialized;
-        private bool _mouseAimActive;
         private Vector3 _currentAimDirection = Vector3.forward;
         private Vector3 _currentAimPoint;
 
@@ -62,7 +56,7 @@ namespace Mindforge.Combat
         public Vector3 CurrentAimDirection => _currentAimDirection;
         public Vector3 CurrentAimPoint => _currentAimPoint;
         public bool PrecisionAimActive { get; private set; }
-        public bool KeyboardAimActive => _keyboardAim.sqrMagnitude > 0.01f;
+        public bool TargetLocked => targetLock != null && targetLock.Locked;
 
         public void SetCombatActionsEnabled(bool enabled)
         {
@@ -72,34 +66,16 @@ namespace Mindforge.Combat
 
         private void Start()
         {
-            ResolveTape();
-            if (aimCamera == null) aimCamera = Camera.main;
-            if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
-            _currentAimPoint = transform.position + transform.forward * 6f;
+            ResolveDependencies();
+            _currentAimPoint = transform.position + transform.forward * freeAimDistance;
         }
 
         private void Update()
         {
-            // Direct key sampling deliberately bypasses Unity's legacy Horizontal /
-            // Vertical Input Manager axes. This makes the showcase deterministic on a
-            // clean laptop project and prevents arrow keys from conflicting with move.
+            // WASD is sampled directly so movement never depends on Unity Input Manager
+            // axis configuration. Arrow keys are intentionally NOT sampled here; they
+            // orbit the third-person camera instead of moving or independently aiming.
             _move = SampleWasdMovement();
-            _keyboardAim = SampleArrowAim();
-
-            Vector3 pointer = Input.mousePosition;
-            if (!_pointerInitialized)
-            {
-                _pointerInitialized = true;
-                _previousPointerScreen = pointer;
-            }
-            else
-            {
-                float threshold = Mathf.Max(0f, mouseActivationPixels);
-                if ((pointer - _previousPointerScreen).sqrMagnitude >= threshold * threshold)
-                    _mouseAimActive = true;
-                _previousPointerScreen = pointer;
-            }
-            _pointerScreen = pointer;
 
             _swordAttackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
             bool guardPressed = Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(1);
@@ -123,21 +99,10 @@ namespace Mindforge.Combat
             return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
         }
 
-        private static Vector2 SampleArrowAim()
-        {
-            float x = 0f;
-            float y = 0f;
-            if (Input.GetKey(KeyCode.LeftArrow)) x -= 1f;
-            if (Input.GetKey(KeyCode.RightArrow)) x += 1f;
-            if (Input.GetKey(KeyCode.DownArrow)) y -= 1f;
-            if (Input.GetKey(KeyCode.UpArrow)) y += 1f;
-            return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
-        }
-
         private void FixedUpdate()
         {
+            ResolveDependencies();
             if (motor == null || combat == null) return;
-            if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
             _fixedInputTick++;
 
             Vector3 liveAim = ResolveAimDirection(out Vector3 liveAimPoint, out bool precisionAim);
@@ -166,7 +131,6 @@ namespace Mindforge.Combat
             _swordAttackLatched = false;
             _guardDownLatched = false;
 
-            ResolveTape();
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
 
@@ -176,38 +140,25 @@ namespace Mindforge.Combat
 
         private Vector3 ResolveAimDirection(out Vector3 aimPoint, out bool precisionAim)
         {
-            Camera camera = aimCamera != null ? aimCamera : Camera.main;
+            ResolveDependencies();
 
-            // Arrow keys are a laptop-safe precision fallback. They intentionally take
-            // priority only while held; moving the mouse immediately restores pointer aim.
-            if (_keyboardAim.sqrMagnitude > 0.01f)
+            if (targetLock != null && targetLock.Locked && targetLock.Target != null)
             {
-                Vector3 direction = CameraRelativeDirection(_keyboardAim, camera);
-                if (direction.sqrMagnitude > 0.01f)
-                {
-                    direction.Normalize();
-                    aimPoint = transform.position + direction * Mathf.Max(1f, keyboardAimDistance);
-                    precisionAim = true;
-                    return direction;
-                }
+                aimPoint = targetLock.AimPoint;
+                precisionAim = true;
+                return targetLock.DirectionFrom(transform.position);
             }
 
-            if (mouseAimEnabled && _mouseAimActive && camera != null)
+            Camera camera = aimCamera != null ? aimCamera : Camera.main;
+            if (camera != null)
             {
-                Ray ray = camera.ScreenPointToRay(_pointerScreen);
-                Plane ground = new Plane(Vector3.up, transform.position);
-                if (ground.Raycast(ray, out float distance))
+                Vector3 direction = Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up);
+                if (direction.sqrMagnitude > 0.001f)
                 {
-                    Vector3 point = ray.GetPoint(distance);
-                    Vector3 delta = point - transform.position;
-                    delta.y = 0f;
-                    float minimum = Mathf.Max(0.01f, minimumPointerWorldDistance);
-                    if (delta.sqrMagnitude >= minimum * minimum)
-                    {
-                        aimPoint = point;
-                        precisionAim = true;
-                        return delta.normalized;
-                    }
+                    direction.Normalize();
+                    aimPoint = transform.position + direction * Mathf.Max(1f, freeAimDistance);
+                    precisionAim = false;
+                    return direction;
                 }
             }
 
@@ -227,21 +178,9 @@ namespace Mindforge.Combat
             fallback.y = 0f;
             if (fallback.sqrMagnitude < 0.01f) fallback = Vector3.forward;
             fallback.Normalize();
-            aimPoint = transform.position + fallback * 6f;
+            aimPoint = transform.position + fallback * Mathf.Max(1f, freeAimDistance);
             precisionAim = false;
             return fallback;
-        }
-
-        private static Vector3 CameraRelativeDirection(Vector2 input, Camera camera)
-        {
-            Transform reference = camera != null ? camera.transform : null;
-            Vector3 forward = reference != null ? Vector3.ProjectOnPlane(reference.forward, Vector3.up) : Vector3.forward;
-            Vector3 right = reference != null ? Vector3.ProjectOnPlane(reference.right, Vector3.up) : Vector3.right;
-            if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
-            if (right.sqrMagnitude < 0.0001f) right = Vector3.right;
-            forward.Normalize();
-            right.Normalize();
-            return right * input.x + forward * input.y;
         }
 
         private void UpdateResolvedAimPresentation(
@@ -260,8 +199,8 @@ namespace Mindforge.Combat
             bool replay = inputTape != null && inputTape.Mode == GuardianInputTapeMode.Replay;
             if (replay)
             {
-                _currentAimPoint = transform.position + direction * 6f;
-                PrecisionAimActive = true;
+                _currentAimPoint = transform.position + direction * freeAimDistance;
+                PrecisionAimActive = false;
             }
             else
             {
@@ -287,8 +226,8 @@ namespace Mindforge.Combat
                 return;
             }
 
-            // Dodge owns the fixed command frame when accepted. The motor always uses
-            // held WASD first, so Space naturally dashes in the movement direction.
+            // Dodge owns the fixed command frame when accepted. Held WASD has direction
+            // priority; when stationary, the camera/lock combat heading is the fallback.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
                 physicalCombat?.SetGuardHeld(false, aim);
@@ -313,10 +252,12 @@ namespace Mindforge.Combat
             if (command.bloom_down) bloom?.TryActivate();
         }
 
-        private void ResolveTape()
+        private void ResolveDependencies()
         {
-            if (inputTape == null)
-                inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
+            if (aimCamera == null) aimCamera = Camera.main;
+            if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
+            if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
+            if (inputTape == null) inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
         }
     }
 }
