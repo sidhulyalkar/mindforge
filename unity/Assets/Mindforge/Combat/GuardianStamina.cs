@@ -4,8 +4,9 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Shared physical-action budget. Neural modulation may improve the outcome of a
-    /// chosen action, but it never bypasses stamina costs or creates an action itself.
+    /// Shared defensive Guard Integrity budget. Basic movement/sword/dodge are unlimited;
+    /// guarding still has a deterministic pressure budget so holding the shield forever
+    /// is not free. Neural modulation may improve outcomes but never creates an action.
     /// </summary>
     public sealed class GuardianStamina : MonoBehaviour
     {
@@ -15,7 +16,7 @@ namespace Mindforge.Combat
         [SerializeField] private float dodgeBaseCost = 24f;
 
         private float _value;
-        private float _recoverAfter;
+        private long _recoverAfterTick = long.MinValue / 4;
         private float _recoveryMultiplier = 1f;
 
         public float Value => _value;
@@ -27,13 +28,26 @@ namespace Mindforge.Combat
         public event Action<float, float, string> Changed;
         public event Action Exhausted;
 
-        private void Awake() => _value = Max;
-
-        private void Update()
+        private long FixedTick
         {
-            if (Time.time < _recoverAfter || _value >= Max || _recoveryMultiplier <= 0f) return;
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
+
+        private void Awake()
+        {
+            _value = Max;
+            _recoverAfterTick = long.MinValue / 4;
+        }
+
+        private void FixedUpdate()
+        {
+            if (FixedTick < _recoverAfterTick || _value >= Max || _recoveryMultiplier <= 0f) return;
             float before = _value;
-            _value = Mathf.Min(Max, _value + Mathf.Max(0f, recoveryPerSecond) * _recoveryMultiplier * Time.deltaTime);
+            _value = Mathf.Min(Max, _value + Mathf.Max(0f, recoveryPerSecond) * _recoveryMultiplier * Time.fixedDeltaTime);
             if (!Mathf.Approximately(before, _value)) Changed?.Invoke(before, _value, "RECOVERY");
         }
 
@@ -63,13 +77,28 @@ namespace Mindforge.Combat
             return spent;
         }
 
+        public void ResetFull(string reason = "CHECKPOINT_RESET")
+        {
+            float before = _value;
+            _value = Max;
+            _recoverAfterTick = long.MinValue / 4;
+            _recoveryMultiplier = 1f;
+            if (!Mathf.Approximately(before, _value)) Changed?.Invoke(before, _value, reason);
+        }
+
         private void SpendUnchecked(float amount, string reason)
         {
             float before = _value;
             _value = Mathf.Max(0f, _value - amount);
-            _recoverAfter = Time.time + Mathf.Max(0f, recoveryDelaySeconds);
+            _recoverAfterTick = FixedTick + SecondsToTicks(Mathf.Max(0f, recoveryDelaySeconds));
             Changed?.Invoke(before, _value, reason ?? "ACTION");
             if (_value <= 0.0001f) Exhausted?.Invoke();
+        }
+
+        private static int SecondsToTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
         }
     }
 }
