@@ -5,8 +5,8 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Binds optional production room art onto editor-authored Null Ward presentation
-    /// anchors. Imported art is aggressively presentation-only: physics and every
-    /// Mindforge runtime MonoBehaviour are removed from the instantiated hierarchy.
+    /// anchors. Imported art is aggressively presentation-only: physics, cameras,
+    /// listeners and custom MonoBehaviours are removed from the instantiated hierarchy.
     /// The generated world/collision layer remains authoritative underneath.
     /// </summary>
     public sealed class NullWardArtOverrideInstaller : MonoBehaviour
@@ -100,17 +100,24 @@ namespace Mindforge.Presentation
                 Destroy(collider);
             foreach (Joint joint in visualRoot.GetComponentsInChildren<Joint>(true))
                 Destroy(joint);
+            foreach (Rigidbody2D body in visualRoot.GetComponentsInChildren<Rigidbody2D>(true))
+                Destroy(body);
+            foreach (Collider2D collider in visualRoot.GetComponentsInChildren<Collider2D>(true))
+                Destroy(collider);
+            foreach (Joint2D joint in visualRoot.GetComponentsInChildren<Joint2D>(true))
+                Destroy(joint);
+            foreach (Camera camera in visualRoot.GetComponentsInChildren<Camera>(true))
+                Destroy(camera);
+            foreach (AudioListener listener in visualRoot.GetComponentsInChildren<AudioListener>(true))
+                Destroy(listener);
 
-            // Art prefabs are a rendering payload. Any script from the Mindforge runtime
-            // namespace is authority or game-specific presentation that must be bound by
-            // the host scene rather than imported accidentally inside room art.
+            // Room prefabs are rendering payloads. Custom scripts, even from third-party
+            // art packages, are removed so imported assets cannot move transforms, spawn
+            // gameplay objects or mutate global state behind Mindforge's authority layer.
+            // Animator, Renderer, Light, Cloth, ParticleSystem, AudioSource and pure VFX
+            // components are not MonoBehaviours and remain available for presentation.
             foreach (MonoBehaviour behaviour in visualRoot.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (behaviour == null) continue;
-                string ns = behaviour.GetType().Namespace ?? string.Empty;
-                if (ns == "Mindforge" || ns.StartsWith("Mindforge."))
-                    Destroy(behaviour);
-            }
+                if (behaviour != null) Destroy(behaviour);
         }
     }
 }
