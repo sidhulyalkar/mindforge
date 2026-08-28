@@ -10,7 +10,8 @@ namespace Mindforge.Combat
     /// - WASD: camera-relative movement
     /// - Mouse/trackpad or arrow keys: orbit camera (handled by ShowcaseCameraRig)
     /// - T: conventional target lock (handled by GuardianTargetLock)
-    /// - Space: directional dodge/dash
+    /// - Space: jump
+    /// - Left Ctrl / Left Alt: directional dodge/dash
     /// - F or LMB: sword light/combo/parry
     /// - Left/Right Shift: Pulse Shot
     /// - RMB or E: shield
@@ -20,7 +21,7 @@ namespace Mindforge.Combat
     ///
     /// Free combat heading follows the camera. Locked combat heading follows the locked
     /// enemy. Neural evidence never originates movement, target lock, attack, guard,
-    /// camera orbit, aim or dodge commands.
+    /// camera orbit, aim, jump or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -41,6 +42,8 @@ namespace Mindforge.Combat
         private bool _cleaveLatched;
         private bool _counterLatched;
         private bool _dashLatched;
+        private bool _jumpLatched;
+        private bool _jumpHeld;
         private bool _bloomLatched;
         private bool _swordAttackLatched;
         private bool _guardHeld;
@@ -77,6 +80,12 @@ namespace Mindforge.Combat
             // orbit the third-person camera instead of moving or independently aiming.
             _move = SampleWasdMovement();
 
+            _jumpLatched |= Input.GetKeyDown(KeyCode.Space);
+            _jumpHeld = Input.GetKey(KeyCode.Space);
+            _dashLatched |= Input.GetKeyDown(KeyCode.LeftControl) ||
+                            Input.GetKeyDown(KeyCode.RightControl) ||
+                            Input.GetKeyDown(KeyCode.LeftAlt) ||
+                            Input.GetKeyDown(KeyCode.RightAlt);
             _swordAttackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
             bool guardPressed = Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(1);
             _guardDownLatched |= guardPressed;
@@ -84,7 +93,6 @@ namespace Mindforge.Combat
             _fireHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             _cleaveLatched |= Input.GetKeyDown(KeyCode.Q);
             _counterLatched |= Input.GetKeyDown(KeyCode.C);
-            _dashLatched |= Input.GetKeyDown(KeyCode.Space);
             _bloomLatched |= Input.GetKeyDown(KeyCode.R);
         }
 
@@ -118,6 +126,8 @@ namespace Mindforge.Combat
                 cleave_down = _cleaveLatched,
                 counter_down = _counterLatched,
                 dash_down = _dashLatched,
+                jump_down = _jumpLatched,
+                jump_held = _jumpHeld,
                 bloom_down = _bloomLatched,
                 sword_attack_down = _swordAttackLatched,
                 guard_held = _guardHeld,
@@ -127,6 +137,7 @@ namespace Mindforge.Combat
             _cleaveLatched = false;
             _counterLatched = false;
             _dashLatched = false;
+            _jumpLatched = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
             _guardDownLatched = false;
@@ -213,6 +224,7 @@ namespace Mindforge.Combat
         {
             if (command == null) return;
             motor.SetMoveInput(command.Move);
+            motor.SetJumpHeld(command.jump_held);
 
             Vector3 aim = command.Aim;
             aim.y = 0f;
@@ -222,13 +234,16 @@ namespace Mindforge.Combat
 
             if (!CombatActionsEnabled)
             {
+                // Conventional movement and jump remain available unless another system
+                // explicitly disables this component; only combat actions are blocked.
+                if (command.jump_down) motor.RequestJump();
                 physicalCombat?.SetGuardHeld(false, aim);
                 return;
             }
 
             // One fixed command frame owns at most one committed action. Dodge has first
-            // refusal, then guard, sword/combo, and finally one special. Held Pulse is
-            // intentionally lowest priority so it cannot layer underneath one-shot moves.
+            // refusal, then jump, guard, sword/combo, and finally one special. Held Pulse
+            // is intentionally lowest priority so it cannot layer underneath one-shot moves.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
                 physicalCombat?.SetGuardHeld(false, aim);
@@ -239,6 +254,13 @@ namespace Mindforge.Combat
             {
                 physicalCombat?.SetGuardHeld(false, aim);
                 return;
+            }
+
+            if (command.jump_down &&
+                (physicalCombat == null || physicalCombat.ActionState == GuardianActionState.Locomotion))
+            {
+                physicalCombat?.SetGuardHeld(false, aim);
+                if (motor.RequestJump()) return;
             }
 
             physicalCombat?.SetGuardHeld(command.guard_held, aim);
