@@ -13,14 +13,17 @@ namespace Mindforge.Combat
         [SerializeField] private GuardianTargetLock targetLock;
 
         [Header("Responsive locomotion")]
-        [SerializeField] private float minimumAcceleration = 58f;
-        [SerializeField] private float deceleration = 76f;
-        [SerializeField] private float reversalAcceleration = 92f;
-        [SerializeField] private float freeTurnSharpness = 18f;
-        [SerializeField] private float lockedTurnSharpness = 28f;
+        [SerializeField] private float minimumAcceleration = 82f;
+        [SerializeField] private float deceleration = 94f;
+        [SerializeField] private float reversalAcceleration = 122f;
+        [SerializeField] private float forwardSpeedMultiplier = 1.55f;
+        [SerializeField] private float strafeSpeedMultiplier = 1.22f;
+        [SerializeField] private float backwardSpeedMultiplier = 1.05f;
+        [SerializeField] private float freeTurnSharpness = 20f;
+        [SerializeField] private float lockedTurnSharpness = 30f;
         [SerializeField] private float dodgeInvulnerabilitySeconds = 0.105f;
         [SerializeField] private float dashInputBufferSeconds = 0.13f;
-        [SerializeField] private float dashExitVelocityRetention = 0.22f;
+        [SerializeField] private float dashExitVelocityRetention = 0.48f;
 
         private Rigidbody _body;
         private Vector2 _moveInput;
@@ -167,7 +170,8 @@ namespace Mindforge.Combat
 
             float loadMultiplier = loadout != null ? loadout.MoveSpeedMultiplier : 1f;
             float stanceMultiplier = physicalCombat != null ? Mathf.Clamp(physicalCombat.MovementMultiplier, 0.2f, 1f) : 1f;
-            float maxSpeed = tuning.maxSpeed * loadMultiplier * stanceMultiplier;
+            float directionalMultiplier = DirectionalSpeedMultiplier(_moveInput);
+            float maxSpeed = tuning.maxSpeed * loadMultiplier * stanceMultiplier * directionalMultiplier;
             Vector3 desiredDir = MoveDirectionWorld();
             Vector3 targetVelocity = desiredDir * maxSpeed;
             Vector3 horizontalVelocity = Vector3.ProjectOnPlane(_body.velocity, Vector3.up);
@@ -194,6 +198,42 @@ namespace Mindforge.Combat
             _body.velocity = nextHorizontal + Vector3.up * _body.velocity.y;
 
             UpdateFacing(desiredDir);
+        }
+
+        private float DirectionalSpeedMultiplier(Vector2 input)
+        {
+            if (input.sqrMagnitude < 0.0001f) return 1f;
+
+            float forwardAmount = Mathf.Clamp01(input.y);
+            float backwardAmount = Mathf.Clamp01(-input.y);
+            float sideAmount = Mathf.Clamp01(Mathf.Abs(input.x));
+
+            float directional;
+            if (forwardAmount > 0f)
+            {
+                directional = Mathf.Lerp(
+                    Mathf.Max(0.1f, strafeSpeedMultiplier),
+                    Mathf.Max(0.1f, forwardSpeedMultiplier),
+                    forwardAmount);
+            }
+            else if (backwardAmount > 0f)
+            {
+                directional = Mathf.Lerp(
+                    Mathf.Max(0.1f, strafeSpeedMultiplier),
+                    Mathf.Max(0.1f, backwardSpeedMultiplier),
+                    backwardAmount);
+            }
+            else
+            {
+                directional = Mathf.Max(0.1f, strafeSpeedMultiplier);
+            }
+
+            // Diagonal input should preserve the fast-forward character without gaining
+            // an extra vector-length speed bonus from pressing two directions at once.
+            if (forwardAmount > 0f && sideAmount > 0f)
+                directional = Mathf.Lerp(directional, Mathf.Max(0.1f, forwardSpeedMultiplier), forwardAmount * 0.35f);
+
+            return directional;
         }
 
         private void UpdateFacing(Vector3 moveDirection)
