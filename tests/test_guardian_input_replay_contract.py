@@ -87,12 +87,29 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "if (!CombatActionsEnabled)" in apply_body
     assert "physicalCombat?.SetGuardHeld(false, aim)" in apply_body
     assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in apply_body
-    assert "physicalCombat?.TryLightAttack(aim)" in apply_body
-    assert "combat.FirePulse(aim)" in apply_body
-    assert "combat.RiftCleave(aim)" in apply_body
-    assert "combat.BeginCounter()" in apply_body
+    assert "bool accepted = physicalCombat != null && physicalCombat.TryLightAttack(aim)" in apply_body
+    assert "if (accepted) return;" in apply_body
+    assert "physicalCombat.ActionState != GuardianActionState.Locomotion" in apply_body
+    assert "if (command.counter_down && combat.BeginCounter()) return;" in apply_body
+    assert "if (command.cleave_down && combat.RiftCleave(aim)) return;" in apply_body
+    assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in apply_body
+    assert "if (command.fire_held) combat.FirePulse(aim);" in apply_body
     assert "motor.RequestDash(aim)" in apply_body
-    assert "bloom?.TryActivate()" in apply_body
+
+    # One fixed command frame may commit at most one action. Preserve the explicit
+    # refusal/arbitration order so held Pulse cannot tunnel under higher-priority moves.
+    order = (
+        "if (command.dash_down",
+        "physicalCombat?.SetGuardHeld(command.guard_held, aim)",
+        "if (command.sword_attack_down)",
+        "physicalCombat.ActionState != GuardianActionState.Locomotion",
+        "if (command.counter_down",
+        "if (command.cleave_down",
+        "if (command.bloom_down",
+        "if (command.fire_held)",
+    )
+    indices = [apply_body.index(token) for token in order]
+    assert indices == sorted(indices)
 
 
 def test_replay_never_has_a_live_input_fallback_after_exhaustion():
