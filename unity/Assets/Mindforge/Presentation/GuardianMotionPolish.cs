@@ -8,7 +8,7 @@ namespace Mindforge.Presentation
     /// Additive motion polish for the procedural Guardian. This component never owns
     /// movement, hitboxes, damage, stamina or neural authority. It observes the fixed-
     /// tick combat state and adds animation principles on top of the existing visual rig:
-    /// anticipation, weight transfer, recoil, foot cadence and recovery.
+    /// anticipation, weight transfer, recoil, foot cadence, airborne posture and recovery.
     /// </summary>
     [DefaultExecutionOrder(450)]
     public sealed class GuardianMotionPolish : MonoBehaviour
@@ -22,6 +22,11 @@ namespace Mindforge.Presentation
         [SerializeField] private float fullStrideReferenceSpeed = 11.2f;
         [SerializeField] private float minimumStrideHz = 1.45f;
         [SerializeField] private float maximumStrideHz = 4.10f;
+
+        [Header("Airborne presentation")]
+        [SerializeField] private float jumpPoseReferenceSpeed = 7.2f;
+        [SerializeField] private float fallPoseReferenceSpeed = 12f;
+        [SerializeField] private float landingPoseReferenceSpeed = 13f;
 
         private Transform _visualRoot;
         private Transform _bodyMotion;
@@ -40,6 +45,8 @@ namespace Mindforge.Presentation
         private float _guardBreakImpulse;
         private float _hitImpulse;
         private float _dashImpulse;
+        private float _jumpImpulse;
+        private float _landingImpulse;
         private float _lastSpeed;
         private float _turnVelocity;
         private bool _bound;
@@ -72,13 +79,29 @@ namespace Mindforge.Presentation
         {
             if (combat != null)
             {
+                combat.SwordComboStepStarted -= OnSwordStep;
+                combat.ShieldBlocked -= OnShieldBlocked;
+                combat.PerfectGuard -= OnPerfectGuard;
+                combat.GuardBroken -= OnGuardBroken;
                 combat.SwordComboStepStarted += OnSwordStep;
                 combat.ShieldBlocked += OnShieldBlocked;
                 combat.PerfectGuard += OnPerfectGuard;
                 combat.GuardBroken += OnGuardBroken;
             }
-            if (motor != null) motor.DashStarted += OnDash;
-            if (vitals != null) vitals.Damaged += OnDamaged;
+            if (motor != null)
+            {
+                motor.DashStarted -= OnDash;
+                motor.Jumped -= OnJumped;
+                motor.Landed -= OnLanded;
+                motor.DashStarted += OnDash;
+                motor.Jumped += OnJumped;
+                motor.Landed += OnLanded;
+            }
+            if (vitals != null)
+            {
+                vitals.Damaged -= OnDamaged;
+                vitals.Damaged += OnDamaged;
+            }
         }
 
         private void Unsubscribe()
@@ -90,7 +113,12 @@ namespace Mindforge.Presentation
                 combat.PerfectGuard -= OnPerfectGuard;
                 combat.GuardBroken -= OnGuardBroken;
             }
-            if (motor != null) motor.DashStarted -= OnDash;
+            if (motor != null)
+            {
+                motor.DashStarted -= OnDash;
+                motor.Jumped -= OnJumped;
+                motor.Landed -= OnLanded;
+            }
             if (vitals != null) vitals.Damaged -= OnDamaged;
         }
 
@@ -109,9 +137,6 @@ namespace Mindforge.Presentation
             _rightLegMotion = Wrap("Motion_RightLeg", _visualRoot.Find("RightLeg"));
             _mantleMotion = Wrap("Motion_Mantle", _visualRoot.Find("Mantle"));
 
-            // Reparent primary body pieces under one additive body node while retaining
-            // their authored local transforms. The original presentation component still
-            // owns the child poses; these wrappers only supply secondary motion.
             Transform[] wrappers =
             {
                 _torsoMotion, _headMotion, _leftArmMotion, _rightArmMotion,
@@ -168,22 +193,31 @@ namespace Mindforge.Presentation
             float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
             if (dt <= 0f) return;
 
-            Vector3 velocity = motor != null ? Vector3.ProjectOnPlane(motor.Velocity, Vector3.up) : Vector3.zero;
+            Vector3 worldVelocity = motor != null ? motor.Velocity : Vector3.zero;
+            Vector3 velocity = Vector3.ProjectOnPlane(worldVelocity, Vector3.up);
+            float verticalSpeed = worldVelocity.y;
             float speed = velocity.magnitude;
+            bool grounded = motor == null || motor.IsGrounded;
             float move01 = Mathf.Clamp01(speed / Mathf.Max(0.1f, fullStrideReferenceSpeed));
+            float groundedMove01 = grounded ? move01 : 0f;
             float acceleration = Mathf.Clamp((speed - _lastSpeed) / Mathf.Max(0.001f, dt), -24f, 24f);
             _lastSpeed = speed;
 
-            // World-space translation now reaches a much faster traversal envelope. Keep
-            // visual foot cadence proportional to actual velocity so higher speed reads as
-            // an intentional sprint/run rather than procedural moonwalking.
             float strideHz = Mathf.Lerp(
                 Mathf.Max(0.1f, minimumStrideHz),
                 Mathf.Max(minimumStrideHz, maximumStrideHz),
                 move01);
-            _locomotionPhase += dt * strideHz * Mathf.PI * 2f;
+            if (grounded) _locomotionPhase += dt * strideHz * Mathf.PI * 2f;
             float step = Mathf.Sin(_locomotionPhase);
             float doubleStep = Mathf.Abs(Mathf.Sin(_locomotionPhase));
+
+            float rise01 = !grounded
+                ? Mathf.Clamp01(verticalSpeed / Mathf.Max(0.1f, jumpPoseReferenceSpeed))
+                : 0f;
+            float fall01 = !grounded
+                ? Mathf.Clamp01(-verticalSpeed / Mathf.Max(0.1f, fallPoseReferenceSpeed))
+                : 0f;
+            float airborne01 = grounded ? 0f : Mathf.Clamp01(0.35f + rise01 + fall01);
 
             Vector3 aim = input != null ? input.CurrentAimDirection : transform.forward;
             aim = Vector3.ProjectOnPlane(aim, Vector3.up);
@@ -209,56 +243,77 @@ namespace Mindforge.Presentation
             _guardBreakImpulse = Damp(_guardBreakImpulse, 0f, 4.8f, dt);
             _hitImpulse = Damp(_hitImpulse, 0f, 5.8f, dt);
             _dashImpulse = Damp(_dashImpulse, 0f, 4.5f, dt);
+            _jumpImpulse = Damp(_jumpImpulse, 0f, 5.5f, dt);
+            _landingImpulse = Damp(_landingImpulse, 0f, 10f, dt);
 
-            float pelvisBob = doubleStep * 0.030f * move01;
-            float lateral = step * 0.032f * move01;
-            float accelerationLean = Mathf.Clamp(acceleration * 0.26f, -6.5f, 6.5f);
+            float pelvisBob = doubleStep * 0.030f * groundedMove01;
+            float lateral = step * 0.032f * groundedMove01;
+            float accelerationLean = grounded ? Mathf.Clamp(acceleration * 0.26f, -6.5f, 6.5f) : 0f;
             float combatLean = -anticipation * 5.5f + contact * 8.5f * finisher - recovery * 2.0f;
             float recoilPitch = -_blockImpulse * 4f - _perfectGuardImpulse * 7f + _guardBreakImpulse * 12f + _hitImpulse * 9f;
             float dashPitch = _dashImpulse * 14f;
+            float airPitch = -rise01 * 7f + fall01 * 8f - _jumpImpulse * 3f + _landingImpulse * 10f;
 
-            _bodyMotion.localPosition = new Vector3(lateral, pelvisBob - _guardBreakImpulse * 0.055f, 0f);
+            _bodyMotion.localPosition = new Vector3(
+                lateral,
+                pelvisBob - _guardBreakImpulse * 0.055f - _landingImpulse * 0.070f,
+                0f);
             _bodyMotion.localRotation = Quaternion.Euler(
-                accelerationLean + combatLean + recoilPitch + dashPitch,
+                accelerationLean + combatLean + recoilPitch + dashPitch + airPitch,
                 contact * comboSide * 7f * finisher + _turnVelocity * 2.5f,
-                -step * 2.2f * move01 - contact * comboSide * 4.5f * finisher + _hitImpulse * 3f);
+                -step * 2.2f * groundedMove01 - contact * comboSide * 4.5f * finisher + _hitImpulse * 3f);
 
             if (_torsoMotion != null)
             {
                 _torsoMotion.localRotation = Quaternion.Euler(
-                    contact * 3f * finisher,
-                    -step * 3.0f * move01 + contact * comboSide * 8f,
+                    contact * 3f * finisher - rise01 * 4f + fall01 * 5f + _landingImpulse * 4f,
+                    -step * 3.0f * groundedMove01 + contact * comboSide * 8f,
                     guarding ? -2.5f : _turnVelocity * -1.8f);
             }
             if (_headMotion != null)
             {
                 _headMotion.localRotation = Quaternion.Euler(
-                    guarding ? -2f : 0f,
+                    guarding ? -2f : rise01 * 2f - fall01 * 2f,
                     _turnVelocity * 5.5f - contact * comboSide * 2f,
                     -_hitImpulse * 2.5f);
             }
             if (_leftArmMotion != null)
             {
                 _leftArmMotion.localRotation = Quaternion.Euler(
-                    guarding ? -6f - _blockImpulse * 9f : step * 2.2f * move01,
-                    guarding ? -5f : 0f,
-                    guarding ? -4f - _perfectGuardImpulse * 7f : 0f);
+                    guarding ? -6f - _blockImpulse * 9f : step * 2.2f * groundedMove01 - rise01 * 6f,
+                    guarding ? -5f : airborne01 * -4f,
+                    guarding ? -4f - _perfectGuardImpulse * 7f : airborne01 * -8f);
             }
             if (_rightArmMotion != null)
             {
                 _rightArmMotion.localRotation = Quaternion.Euler(
-                    -anticipation * 10f + contact * 6f * finisher,
-                    contact * comboSide * 8f,
-                    contact * comboSide * 5f);
+                    -anticipation * 10f + contact * 6f * finisher - rise01 * 4f,
+                    contact * comboSide * 8f + airborne01 * 4f,
+                    contact * comboSide * 5f + airborne01 * 7f);
             }
             if (_leftLegMotion != null)
-                _leftLegMotion.localRotation = Quaternion.Euler(step * 3.2f * move01, step * 1.8f * move01, -step * 2.2f * move01);
+            {
+                float airLeg = airborne01 * (14f + fall01 * 8f);
+                _leftLegMotion.localRotation = Quaternion.Euler(
+                    step * 3.2f * groundedMove01 + airLeg,
+                    step * 1.8f * groundedMove01,
+                    -step * 2.2f * groundedMove01 - airborne01 * 3f);
+            }
             if (_rightLegMotion != null)
-                _rightLegMotion.localRotation = Quaternion.Euler(-step * 3.2f * move01, -step * 1.8f * move01, step * 2.2f * move01);
+            {
+                float airLeg = airborne01 * (10f + rise01 * 6f);
+                _rightLegMotion.localRotation = Quaternion.Euler(
+                    -step * 3.2f * groundedMove01 + airLeg,
+                    -step * 1.8f * groundedMove01,
+                    step * 2.2f * groundedMove01 + airborne01 * 3f);
+            }
             if (_mantleMotion != null)
             {
-                float inertia = Mathf.Clamp(speed * 1.15f + _dashImpulse * 10f + contact * 5f, 0f, 18f);
-                _mantleMotion.localRotation = Quaternion.Euler(inertia, -_turnVelocity * 5f, step * 2.6f * move01);
+                float inertia = Mathf.Clamp(
+                    speed * 1.15f + _dashImpulse * 10f + contact * 5f + rise01 * 5f + fall01 * 11f,
+                    0f,
+                    22f);
+                _mantleMotion.localRotation = Quaternion.Euler(inertia, -_turnVelocity * 5f, step * 2.6f * groundedMove01);
             }
         }
 
@@ -277,6 +332,9 @@ namespace Mindforge.Presentation
         private void OnPerfectGuard() => _perfectGuardImpulse = 1f;
         private void OnGuardBroken() => _guardBreakImpulse = 1f;
         private void OnDash() => _dashImpulse = 1f;
+        private void OnJumped() => _jumpImpulse = 1f;
+        private void OnLanded(float impactSpeed) =>
+            _landingImpulse = Mathf.Clamp01(impactSpeed / Mathf.Max(0.1f, landingPoseReferenceSpeed));
         private void OnDamaged(DamagePacket packet) => _hitImpulse = 1f;
     }
 }
