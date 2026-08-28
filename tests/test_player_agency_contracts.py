@@ -38,6 +38,8 @@ def test_guardian_third_person_heading_and_wasd_are_replayable():
 
     assert "Mouse/trackpad or arrow keys: orbit camera" in source
     assert "T: conventional target lock" in source
+    assert "Space: jump" in source
+    assert "Left Ctrl / Left Alt: directional dodge/dash" in source
     assert "GuardianTargetLock targetLock" in source
     assert "targetLock.Locked" in source
     assert "targetLock.DirectionFrom(transform.position)" in source
@@ -48,6 +50,8 @@ def test_guardian_third_person_heading_and_wasd_are_replayable():
     assert "aim_x = liveAim.x" in source
     assert "aim_y = liveAim.y" in source
     assert "aim_z = liveAim.z" in source
+    assert "jump_down = _jumpLatched" in source
+    assert "jump_held = _jumpHeld" in source
     assert "inputTape.Resolve(live, fixedHz)" in source
 
     resolve_index = source.index("GuardianCommandFrame command =")
@@ -60,9 +64,9 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: WASD move · mouse/arrows camera · T target lock · sword · shield · dodge · skills",
+        "HANDS: WASD move · mouse/arrows camera · T lock · Space jump · Ctrl/Alt dodge · sword · shield · skills",
         "BCI: bounded blade/shield resonance after accepted Sight/Guard",
-        "EEG never moves, locks a target, rotates the camera, swings, blocks, dodges, fires, or parries",
+        "EEG never moves, jumps, locks a target, rotates the camera, swings, blocks, dodges, fires, or parries",
         "KeyCode.F10",
         "JudgeLensFlag",
         "PrecisionAimActive",
@@ -70,6 +74,9 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
         "TargetFocusActive",
         "TARGET LOCK",
         "T  LOCK ON",
+        "T LOCK ON",
+        "SPACE JUMP",
+        "CTRL / ALT DODGE",
     ):
         assert token in guide
 
@@ -78,6 +85,7 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
         ".RiftCleave(",
         ".BeginCounter(",
         ".RequestDash(",
+        ".RequestJump(",
         ".TryActivate(",
         ".TryLightAttack(",
         ".SetGuardHeld(",
