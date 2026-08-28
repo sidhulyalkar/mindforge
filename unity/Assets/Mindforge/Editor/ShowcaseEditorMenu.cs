@@ -53,7 +53,7 @@ namespace Mindforge.Editor
             if (gameViewType == null) return;
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
             gameView?.Focus();
-            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; T locks target; Space dodges; G interacts.");
+            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit camera; Space jumps; Ctrl/Alt dodges; T locks target; G interacts.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
