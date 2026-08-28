@@ -9,7 +9,6 @@ namespace Mindforge.Combat
         [SerializeField] private CombatTuning tuning;
         [SerializeField] private Transform cameraReference;
         [SerializeField] private GuardianEquipmentLoadout loadout;
-        [SerializeField] private GuardianStamina stamina;
         [SerializeField] private GuardianSwordShieldController physicalCombat;
         [SerializeField] private float dodgeInvulnerabilitySeconds = 0.105f;
 
@@ -30,13 +29,12 @@ namespace Mindforge.Combat
             _body = GetComponent<Rigidbody>();
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            ResolvePhysicalBudget();
+            ResolvePhysicalState();
         }
 
-        private void ResolvePhysicalBudget()
+        private void ResolvePhysicalState()
         {
             if (loadout == null) loadout = GetComponent<GuardianEquipmentLoadout>();
-            if (stamina == null) stamina = GetComponent<GuardianStamina>();
             if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
         }
 
@@ -44,14 +42,9 @@ namespace Mindforge.Combat
 
         public bool RequestDash(Vector3 fallbackDirection)
         {
-            ResolvePhysicalBudget();
+            ResolvePhysicalState();
             if (tuning == null || IsDashing || Time.time - _lastDash < tuning.dashCooldown) return false;
             if (physicalCombat != null && !physicalCombat.CanDodge) return false;
-
-            float staminaCost = stamina != null
-                ? stamina.DodgeBaseCost * (loadout != null ? loadout.RollStaminaMultiplier : 1f)
-                : 0f;
-            if (stamina != null && !stamina.TrySpend(staminaCost, "DODGE_ROLL")) return false;
 
             Vector3 direction = MoveDirectionWorld();
             if (direction.sqrMagnitude < 0.01f) direction = fallbackDirection.normalized;
@@ -77,7 +70,7 @@ namespace Mindforge.Combat
 
         private void FixedUpdate()
         {
-            ResolvePhysicalBudget();
+            ResolvePhysicalState();
             if (tuning == null || IsDashing) return;
             float loadMultiplier = loadout != null ? loadout.MoveSpeedMultiplier : 1f;
             float stanceMultiplier = physicalCombat != null ? Mathf.Clamp(physicalCombat.MovementMultiplier, 0.2f, 1f) : 1f;
