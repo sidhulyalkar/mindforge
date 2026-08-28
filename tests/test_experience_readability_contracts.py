@@ -38,16 +38,17 @@ def test_combat_state_hud_is_gameplay_first_and_non_authoritative():
     for token in (
         "THE FRACTURED SIGNAL",
         "GUARDIAN",
-        "STAMINA",
+        '"GUARD"',
         "FLUX",
-        "SIGHT  blade",
-        "GUARD  shield",
+        "BLUE · BLADE",
+        "GREEN · SHIELD",
         "CONCORD",
         "TWIN ECLIPSE",
-        "SIGNAL BREAK · PUNISH WINDOW",
-        "PERFECT GUARD · RETURN TO SENDER",
+        "SIGNAL BREAK · ATTACK NOW",
+        "PERFECT GUARD · REFLECT",
+        "AETHER PARRY",
         "ControllerOnlyQualificationActive",
-        "P2 CONTROLLER-ONLY",
+        "CONTROLLER-ONLY MODE",
         "BCI intentionally disabled",
         "RuntimeInitializeOnLoadMethod",
     ):
@@ -84,21 +85,24 @@ def test_radial_telegraph_previews_the_same_angular_lattice_as_spawn():
     assert "AttackFired?.Invoke(\"RADIAL\", count, heavy)" in director
 
 
-def test_onboarding_is_staged_around_physical_combat_then_arcane_options():
+def test_onboarding_is_staged_around_keyboard_physical_combat_then_arcane_options():
     guide = _read("Presentation", "PlayerAgencyGuide.cs")
 
     assert "CurrentLesson()" in guide
-    assert "LMB SWORD" in guide
-    assert "RMB HOLD SHIELD" in guide
-    assert "tap the guard just before impact for a PERFECT GUARD" in guide
-    assert "SHIFT DODGE ROLL" in guide
-    assert "SPACE remains your ranged Pulse option" in guide
-    assert "F Cleave up close" in guide
-    assert "TAB opens your current equipment build" in guide
+    assert "WASD / ARROWS MOVE" in guide
+    assert "F SWORD" in guide
+    assert "SPACE DODGE" in guide
+    assert "slash through bullets to parry them" in guide
+    assert "RMB / E HOLD SHIELD" in guide
+    assert "PERFECT GUARD reflect" in guide
+    assert "SHIFT PULSE SHOT" in guide
+    assert "sword attacks and dodges are unrestricted" in guide
+    assert "Q RIFT CLEAVE" in guide
+    assert "C COUNTER PULSE" in guide
+    assert "TAB BUILD" in guide
     assert "FLUX FULL  |  R GRAVITY BLOOM" in guide
     assert "CONCORD ACTIVE  |  R TWIN ECLIPSE" in guide
 
-    # The tutorial observes actions but never executes gameplay authority.
     assert "combat.ActionAccepted += OnCombatAction" in guide
     assert "physicalCombat.SwordAttackStarted += OnSwordAttack" in guide
     assert "physicalCombat.GuardChanged += OnGuardChanged" in guide
