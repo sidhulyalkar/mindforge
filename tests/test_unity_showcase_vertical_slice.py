@@ -64,6 +64,7 @@ def test_showcase_runtime_composes_character_boss_camera_vfx_post_and_melee_tele
     installer = read("Presentation", "ShowcaseRuntimeInstaller.cs")
 
     for token in (
+        "GuardianTargetLock",
         "GuardianAvatarPresentation",
         "FracturedSignalAvatar",
         "FracturedSignalMeleePresentation",
@@ -77,7 +78,8 @@ def test_showcase_runtime_composes_character_boss_camera_vfx_post_and_melee_tele
     ):
         assert token in installer
 
-    # This compositor is not allowed to issue player/boss authority.
+    # The compositor may attach/configure conventional components but cannot issue
+    # gameplay actions or neural authority.
     for forbidden in (
         "ReceiveDamage(",
         "TryLightAttack(",
@@ -108,7 +110,6 @@ def test_close_range_boss_patterns_share_scheduler_and_have_truthful_geometry():
     for outcome in ("SPACED", "SIDESTEPPED", "DODGED", "BLOCKED", "PERFECT_GUARD", "GUARD_BROKEN", "FLANKED"):
         assert outcome in melee
 
-    # Presentation consumes the exact authority-provided range/arc/direction.
     assert "MeleeTelegraphed += OnTelegraph" in telegraph
     assert "_range = Mathf.Max(0.1f, range)" in telegraph
     assert "_arcDegrees = Mathf.Clamp(arcDegrees" in telegraph
@@ -147,12 +148,15 @@ def test_showcase_hotkeys_do_not_collide_with_judge_lens_or_controller_preview()
     photodiode = read("Presentation", "PhotodiodePatch.cs")
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     camera = read("Presentation", "ShowcaseCameraRig.cs")
+    target_lock = read("Combat", "GuardianTargetLock.cs")
     controller = read("Qualification", "ControllerOnlyQualificationBootstrap.cs")
 
     assert "toggleKey = KeyCode.F9" in photodiode
     assert "switchSourceKey = KeyCode.F11" in photodiode
     assert "Input.GetKeyDown(KeyCode.F10)" in guide
-    assert "targetFocusToggleKey = KeyCode.T" in camera
+    assert "toggleKey = KeyCode.T" in target_lock
+    assert "Input.GetKeyDown(toggleKey)" in target_lock
+    assert "Input.GetKeyDown(KeyCode.T)" not in camera
     assert "EditorHotkey = KeyCode.F8" in controller
 
 
@@ -178,8 +182,6 @@ def test_post_stack_is_visual_only_readable_and_signal_break_reduces_sensory_loa
     ):
         assert token in post
 
-    # Temporal reconstruction is restricted to controller-only visual review; the
-    # calibrated/live path stays frame-local with SMAA for VEP timing integrity.
     assert "ControllerOnlyQualificationActive" in post
     assert "AntialiasingMode.TemporalAntiAliasing" in post
     assert "AntialiasingMode.SubpixelMorphologicalAntiAliasing" in post
