@@ -82,7 +82,12 @@ namespace Mindforge.Editor
                 if (!arenaWasActive) arena.SetActive(true);
                 ShowcaseSceneDecorator.DecorateOpenScene();
                 CinematicSceneDetailer.EnhanceOpenScene();
+
+                // Keep the qualified boss arena at its existing world-space origin. The
+                // journey is authored afterward and extends backward along -Z, ending at
+                // this arena. This avoids translating Arena V3's world-space rune lines.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
+                FirstJourneySceneBuilder.BuildOpenScene();
             }
             finally
             {
@@ -98,10 +103,10 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
-                "[Mindforge:Showcase] Cinematic scene ready. Arena V3 is the final environment layer: " +
-                "midnight/indigo ritual floor, structured pillars, cyan/teal channels, copper trim, " +
-                "ruins, braziers and reflection lighting are authored before Play Mode. " +
-                "Runtime installs the third-person behind-Guardian camera and conventional target lock.");
+                "[Mindforge:Showcase] Cinematic journey ready. The controller-only path now runs through " +
+                "the Listening Cavern, Ruined House, Cellar, Signal Warden chamber and final approach " +
+                "before revealing the existing Arena V3 and The Fractured Signal. Runtime installs the " +
+                "third-person behind-Guardian camera, conventional multi-target lock and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
