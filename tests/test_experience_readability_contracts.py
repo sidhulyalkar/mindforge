@@ -59,6 +59,7 @@ def test_combat_state_hud_is_gameplay_first_and_non_authoritative():
         ".RiftCleave(",
         ".BeginCounter(",
         ".RequestDash(",
+        ".RequestJump(",
         ".TryActivate(",
         ".TryLightAttack(",
         ".SetGuardHeld(",
@@ -92,9 +93,10 @@ def test_onboarding_is_staged_around_third_person_physical_combat_then_arcane_op
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
     assert "T LOCK ON" in guide
+    assert "SPACE JUMP" in guide
+    assert "CTRL / ALT DODGE" in guide
     assert "third-person combat" in guide
     assert "F SWORD" in guide
-    assert "SPACE DODGE" in guide
     assert "RMB / E HOLD SHIELD" in guide
     assert "PERFECT GUARD reflect" in guide
     assert "SHIFT PULSE SHOT" in guide
@@ -113,6 +115,7 @@ def test_onboarding_is_staged_around_third_person_physical_combat_then_arcane_op
         ".RiftCleave(",
         ".BeginCounter(",
         ".RequestDash(",
+        ".RequestJump(",
         ".TryActivate(",
         ".TryLightAttack(",
         ".SetGuardHeld(",
