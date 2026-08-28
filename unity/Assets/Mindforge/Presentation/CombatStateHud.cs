@@ -271,10 +271,12 @@ namespace Mindforge.Presentation
             GUI.Label(new Rect(x + 12f, y + 80f, 88f, 18f), "FLUX", _small);
             DrawBar(new Rect(x + 104f, y + 83f, width - 118f, 11f), flux != null ? Ratio(flux.Value, flux.Max) : 0f, new Color(0.72f, 0.36f, 1f));
 
+            // Keep the persistent strip intentionally terse. Full controls live in the
+            // short onboarding and TAB loadout screen instead of carpeting gameplay.
             string action = physicalCombat != null && physicalCombat.IsGuarding
-                ? "RMB / E  GUARD   ·   release to restore Guard Integrity"
-                : "F  SWORD   SPACE  DODGE   SHIFT  PULSE   TAB  BUILD";
-            if (flux != null && flux.IsFull) action += "   ·   R  BLOOM";
+                ? "RMB/E GUARD · release to recover integrity"
+                : "F SWORD · SPACE JUMP · CTRL/ALT DODGE";
+            if (flux != null && flux.IsFull) action += " · R BLOOM";
             GUI.Label(new Rect(x + 12f, y + 108f, width - 24f, 28f), action, _small);
         }
 
