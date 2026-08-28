@@ -65,13 +65,16 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: WASD move · arrows/mouse aim · sword · shield · dash · skills",
+        "HANDS: WASD move · arrows/mouse aim · T camera focus · sword · shield · dash · skills",
         "BCI: bounded blade/shield resonance after accepted Sight/Guard",
         "EEG never swings, raises guard, aims, dodges, fires, or parries",
         "KeyCode.F10",
         "JudgeLensFlag",
         "PrecisionAimActive",
         "CurrentAimPoint",
+        "TargetFocusActive",
+        "TARGET FOCUS",
+        "T  ENEMY FOCUS",
     ):
         assert token in guide
 
