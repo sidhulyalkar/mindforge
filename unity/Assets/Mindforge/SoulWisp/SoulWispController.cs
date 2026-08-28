@@ -63,10 +63,8 @@ namespace Mindforge.SoulWisp
             {
                 ResolveTargetLock();
                 Transform locked = targetLock != null ? targetLock.Target : null;
-                if (locked != null && locked.gameObject.activeInHierarchy) return locked;
-                return _fallbackTarget != null && _fallbackTarget.gameObject.activeInHierarchy
-                    ? _fallbackTarget
-                    : null;
+                if (IsActiveTarget(locked)) return locked;
+                return IsActiveTarget(_fallbackTarget) ? _fallbackTarget : null;
             }
         }
 
@@ -94,8 +92,7 @@ namespace Mindforge.SoulWisp
         public void SetTarget(Transform target)
         {
             _fallbackTarget = target;
-            bool combat = target != null || (targetLock != null && targetLock.Locked && targetLock.Target != null);
-            ApplyCombatVisibility(combat);
+            ApplyCombatVisibility(EffectiveTarget != null);
         }
 
         public void RestStimuli(float realSeconds)
@@ -113,6 +110,7 @@ namespace Mindforge.SoulWisp
             Transform activeTarget = EffectiveTarget;
             if (activeTarget == null)
             {
+                ApplyCombatVisibility(false);
                 Vector3 bob = new Vector3(0f, Mathf.Sin(Time.unscaledTime * 1.9f) * 0.12f, 0f);
                 Vector3 desired = player.TransformPoint(idleOffset) + bob;
                 transform.position = Vector3.Lerp(
@@ -122,6 +120,7 @@ namespace Mindforge.SoulWisp
                 return;
             }
 
+            ApplyCombatVisibility(true);
             if (StableLockAnchorsActive && targetLock.Target == activeTarget)
             {
                 PlaceStableLockedTargets(activeTarget);
@@ -212,16 +211,15 @@ namespace Mindforge.SoulWisp
             _lockSubscribed = false;
         }
 
-        private void OnLockChanged(bool locked)
-        {
-            bool combat = (locked && targetLock != null && targetLock.Target != null) || _fallbackTarget != null;
-            ApplyCombatVisibility(combat);
-        }
+        private void OnLockChanged(bool locked) => ApplyCombatVisibility(EffectiveTarget != null);
+        private void OnTargetChanged(Transform target) => ApplyCombatVisibility(EffectiveTarget != null);
 
-        private void OnTargetChanged(Transform target)
+        private static bool IsActiveTarget(Transform target)
         {
-            bool combat = target != null || _fallbackTarget != null;
-            ApplyCombatVisibility(combat);
+            if (target == null || !target.gameObject.activeInHierarchy) return false;
+            CombatantVitals vitals = target.GetComponentInParent<CombatantVitals>();
+            if (vitals == null) vitals = target.GetComponent<CombatantVitals>();
+            return vitals == null || (vitals.Team == CombatTeam.Enemy && vitals.IsAlive);
         }
     }
 }
