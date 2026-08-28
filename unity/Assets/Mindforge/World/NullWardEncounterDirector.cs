@@ -234,6 +234,7 @@ namespace Mindforge.World
                 {
                     JourneyEnemyController enemy = zone.enemies[i];
                     if (enemy == null) continue;
+                    if (!enemy.gameObject.activeSelf) enemy.gameObject.SetActive(true);
                     enemy.Defeated -= OnEnemyDefeated;
                     enemy.Defeated += OnEnemyDefeated;
                     enemy.Arm();
@@ -242,7 +243,12 @@ namespace Mindforge.World
             if (zone.echoes != null)
             {
                 for (int i = 0; i < zone.echoes.Length; i++)
-                    zone.echoes[i]?.SetExternalPause(false);
+                {
+                    FracturedEchoNode echo = zone.echoes[i];
+                    if (echo == null) continue;
+                    if (!echo.gameObject.activeSelf) echo.gameObject.SetActive(true);
+                    echo.SetExternalPause(false);
+                }
             }
 
             string objective = string.IsNullOrWhiteSpace(zone.lesson)
@@ -319,6 +325,7 @@ namespace Mindforge.World
                         enemy.ConfigureCheckpointLifecycle(true);
                         enemy.ResetForCheckpoint();
                         enemy.Disarm();
+                        enemy.gameObject.SetActive(false);
                     }
                 }
                 if (zone.echoes != null)
@@ -329,6 +336,7 @@ namespace Mindforge.World
                         if (echo == null) continue;
                         echo.ResetForCheckpoint();
                         echo.SetExternalPause(true);
+                        echo.gameObject.SetActive(false);
                     }
                 }
             }
@@ -353,10 +361,12 @@ namespace Mindforge.World
                 if (zone == null) continue;
                 if (zone.enemies != null)
                     for (int j = 0; j < zone.enemies.Length; j++)
-                        zone.enemies[j]?.SetExternalPause(paused);
+                        if (zone.enemies[j] != null && zone.enemies[j].gameObject.activeInHierarchy)
+                            zone.enemies[j].SetExternalPause(paused);
                 if (zone.echoes != null)
                     for (int j = 0; j < zone.echoes.Length; j++)
-                        zone.echoes[j]?.SetExternalPause(paused);
+                        if (zone.echoes[j] != null && zone.echoes[j].gameObject.activeInHierarchy)
+                            zone.echoes[j].SetExternalPause(paused);
             }
         }
 
