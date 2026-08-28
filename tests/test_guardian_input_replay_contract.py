@@ -103,8 +103,10 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "motor.RequestDash(aim)" in apply_body
     assert "motor.RequestJump()" in apply_body
 
-    # One fixed command frame may commit at most one action. Preserve explicit refusal
-    # order so dodge/jump cannot layer with sword or held Pulse on one simulation frame.
+    # The disabled-combat branch intentionally permits conventional traversal, so scope
+    # the action-arbitration order to the normal combat branch rather than matching its
+    # earlier traversal-only jump handler.
+    arbitration = apply_body[apply_body.index("// One fixed command frame owns at most one committed action."):]
     order = (
         "if (command.dash_down",
         "if (command.jump_down",
@@ -116,7 +118,7 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
         "if (command.bloom_down",
         "if (command.fire_held)",
     )
-    indices = [apply_body.index(token) for token in order]
+    indices = [arbitration.index(token) for token in order]
     assert indices == sorted(indices)
 
 
