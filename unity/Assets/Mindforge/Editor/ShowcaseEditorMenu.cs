@@ -102,6 +102,7 @@ namespace Mindforge.Editor
                 AetheriaHordeBossV1Builder.ApplyOpenScene();
                 AetheriaWorldV1Builder.ApplyOpenScene();
                 AetheriaStateOfArtV2Builder.ApplyOpenScene();
+                HackathonPlaythroughV1Builder.ApplyOpenScene();
                 AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
@@ -130,7 +131,7 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Composition retained: Memory Forge → Synapse Causeway → Null Market → Fracture Court → Cathedral. " +
                 "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity " +
-                "3/3/4 wave demo. The persistent shortcut, geometric intent telegraphs and stable VEP targets remain intact. " +
+                "3/4/3 hackathon encounter. The persistent shortcut, geometric intent telegraphs and stable VEP targets remain intact. " +
                 "Layered near/mid/far set dressing remains downstream of deterministic gameplay authority.");
             Debug.Log(
                 "[Mindforge:Showcase] Aetheria identity layer ready: Prism Bastion → Neon Causeway → Market of Broken Momentum → " +
@@ -144,6 +145,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Aetheria V2 polish ready: one v4 fixed-tick conventional-input tape now crosses foot/mount mode; " +
                 "mounted camera composition uses physical distance/look-ahead while keeping FOV fixed; kinetic bike motion, procedural audio and " +
                 "Malatract phase staging remain read-only presentation consumers.");
+            Debug.Log(
+                "[Mindforge:Showcase] Hackathon Playthrough V1 ready: every major Aetheria district receives a denser near/mid/far visual layer; " +
+                "all ten Menagerie enemies receive unique close/mid-distance silhouette detail; the Guardian receives Prism Squire V2 armor; " +
+                "the Crucible is restaged as 3/4/3 with wave beacons and victory crown; monotonic playthrough state is exposed for future quests/story.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
