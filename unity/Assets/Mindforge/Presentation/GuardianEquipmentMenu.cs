@@ -4,14 +4,14 @@ using Mindforge.Combat;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Readable competition loadout screen. The current build is intentionally
-    /// descriptive rather than an inventory editor: one qualified kit, immediately
-    /// legible third-person combat rules, and a clear path to future item swapping.
+    /// Readable grounded-world loadout screen. The current build is intentionally
+    /// descriptive rather than an inventory editor: one coherent blade/roll kit and a
+    /// clear conventional-vs-neural authority split.
     /// </summary>
     public sealed class GuardianEquipmentMenu : MonoBehaviour
     {
         [SerializeField] private GuardianEquipmentLoadout loadout;
-        [SerializeField] private GuardianStamina guardIntegrity;
+        [SerializeField] private GuardianStamina endurance;
         [SerializeField] private KeyCode toggleKey = KeyCode.Tab;
 
         private bool _visible;
@@ -41,14 +41,14 @@ namespace Mindforge.Presentation
         public void Configure(GuardianEquipmentLoadout equipment, GuardianStamina staminaBudget)
         {
             loadout = equipment;
-            guardIntegrity = staminaBudget;
+            endurance = staminaBudget;
         }
 
         private void Resolve()
         {
             if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
-            if (guardIntegrity == null && loadout != null) guardIntegrity = loadout.GetComponent<GuardianStamina>();
-            if (guardIntegrity == null) guardIntegrity = FindObjectOfType<GuardianStamina>(true);
+            if (endurance == null && loadout != null) endurance = loadout.GetComponent<GuardianStamina>();
+            if (endurance == null) endurance = FindObjectOfType<GuardianStamina>(true);
         }
 
         private void Update()
@@ -76,9 +76,9 @@ namespace Mindforge.Presentation
 
             float x = panel.x + 28f;
             float y = panel.y + 22f;
-            GUI.Label(new Rect(x, y, panel.width - 56f, 38f), "WARDEN LOADOUT", _title);
+            GUI.Label(new Rect(x, y, panel.width - 56f, 38f), "GUARDIAN KIT", _title);
             GUI.Label(new Rect(x, y + 36f, panel.width - 56f, 24f),
-                "Third-person physical combat · hands own movement, aerial traversal, camera, lock-on and every action · neural focus amplifies equipment", _subtitle);
+                "Energy-blade combat · dodge-roll defense · double-jump aerial traversal · neural focus amplifies, never chooses, an action", _subtitle);
             GUI.Label(new Rect(panel.xMax - 150f, y + 4f, 122f, 24f), "TAB  CLOSE", _key);
             y += 78f;
 
@@ -90,15 +90,13 @@ namespace Mindforge.Presentation
 
             DrawLoadoutCard(new Rect(leftX, y, leftWidth, 118f), "MAIN HAND", loadout.MainHand?.displayName ?? "Unequipped", Blue,
                 loadout.MainHand != null
-                    ? $"{loadout.MainHand.archetype.ToString().ToUpperInvariant()}   DAMAGE {loadout.MainHand.baseDamage:F0}   REACH {loadout.MainHand.reachMeters:F2}m\nF swings a 3-hit chain. The active blade can physically parry hostile projectiles."
+                    ? $"{loadout.MainHand.archetype.ToString().ToUpperInvariant()}   DAMAGE {loadout.MainHand.baseDamage:F0}   BASE REACH {loadout.MainHand.reachMeters:F2}m\nF/LMB chains three committed swings. An active blade can physically parry hostile projectiles."
                     : "No weapon equipped");
-            DrawLoadoutCard(new Rect(leftX, y + 132f, leftWidth, 118f), "OFF HAND", loadout.OffHand?.displayName ?? "Unequipped", Green,
-                loadout.OffHand != null
-                    ? $"{loadout.OffHand.archetype.ToString().ToUpperInvariant()}   ABSORB {loadout.OffHand.baseDamageAbsorption:P0}   STABILITY {loadout.OffHand.stability:F2}\nRMB or E raises guard. Precise timing reflects projectiles with a Perfect Guard."
-                    : "No shield equipped");
+            DrawLoadoutCard(new Rect(leftX, y + 132f, leftWidth, 118f), "DEFENSE", "Endurance Dodge Roll", Green,
+                "SHIFT or RMB rolls through ground pressure. Airborne input becomes one air dash per airtime.\nRolls spend endurance; positioning and timing replace passive shield holding.");
             DrawLoadoutCard(new Rect(leftX, y + 264f, leftWidth, 104f), "ARMOR", loadout.Armor?.displayName ?? "Unequipped", Gold,
                 loadout.Armor != null
-                    ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor currently contributes physical load; mitigation remains intentionally unclaimed."
+                    ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor contributes physical load while the retired shield contributes no active mass."
                     : "No armor equipped");
 
             Rect rules = new Rect(rightX, y, rightWidth, 318f);
@@ -107,14 +105,12 @@ namespace Mindforge.Presentation
             GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "THIRD-PERSON CONTROLS", _section);
             float ky = rules.y + 48f;
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move relative to camera");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "MOUSE / ARROWS", "Orbit camera");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "MOUSE / ARROWS", "Orbit diorama camera");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Jump ×2 · hold descending to hover");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT", "Directional dash · one air dash per airtime");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "CTRL / ALT", "Compatibility dash aliases");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT / RMB", "Dodge roll · air dash aloft");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "CTRL / ALT", "Compatibility roll aliases");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "T", "Lock / unlock enemy");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F / LMB", "Sword / combo / bullet parry");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "X / MMB", "Pulse Shot");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "RMB / E", "Shield");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F / LMB", "Aetherblade combo / projectile parry");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "Q · C · R", "Cleave · Counter · Bloom");
 
             Rect neural = new Rect(rightX, y + 332f, rightWidth, 106f);
@@ -122,18 +118,18 @@ namespace Mindforge.Presentation
             Stroke(neural, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(neural.x + 16f, neural.y + 10f, neural.width - 32f, 22f), "NEURAL RESONANCE", _section);
             GUI.Label(new Rect(neural.x + 16f, neural.y + 34f, neural.width - 32f, 68f),
-                "BLUE / Sight → blade length, energy and bounded damage\nGREEN / Guard → shield coverage, stability and absorption\nEEG never moves, jumps, hovers, dashes, locks, swings or blocks.", _body);
+                "BLUE / Sight → bounded blade length, energy and damage\nGREEN / Guard → retained neural channel; no shield action in this build\nEEG never moves, jumps, rolls, locks, swings or parries.", _body);
 
             float summaryY = y + 452f;
             Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 100f);
             Fill(summary, new Color(0.050f, 0.060f, 0.080f, 0.98f));
             Stroke(summary, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(summary.x + 16f, summary.y + 8f, summary.width - 32f, 22f), "CURRENT PHYSICAL PROFILE", _section);
-            string integrity = guardIntegrity != null ? $"{guardIntegrity.Value:F0} / {guardIntegrity.Max:F0}" : "-";
+            string stamina = endurance != null ? $"{endurance.Value:F0} / {endurance.Max:F0}" : "-";
             GUI.Label(new Rect(summary.x + 16f, summary.y + 34f, summary.width - 32f, 20f),
-                $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   GUARD INTEGRITY {integrity}", _item);
+                $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   ENDURANCE {stamina}", _item);
             GUI.Label(new Rect(summary.x + 16f, summary.y + 60f, summary.width - 32f, 34f),
-                "Movement, aerial traversal, camera orbit, target lock, dashes and ordinary sword attacks are conventional player controls. Enemy patterns, spacing, timing, HP and defense create pressure rather than a movement stamina tax.", _muted);
+                "The core rhythm is read → swing → roll → reposition. Vertical terrain adds jump, double-jump, hover and air-dash choices without turning neural evidence into a movement command.", _muted);
         }
 
         private void DrawLoadoutCard(Rect rect, string slot, string item, Color accent, string details)
