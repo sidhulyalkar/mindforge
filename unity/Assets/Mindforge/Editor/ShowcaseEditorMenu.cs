@@ -103,11 +103,13 @@ namespace Mindforge.Editor
                 AetheriaWorldV1Builder.ApplyOpenScene();
                 AetheriaStateOfArtV2Builder.ApplyOpenScene();
                 HackathonPlaythroughV1Builder.ApplyOpenScene();
-                GameFoundationV1Builder.ApplyOpenScene();
                 AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
                 NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
+
+                // Semantic systems bind only after the final authored gameplay/world graph exists.
+                GameFoundationV1Builder.ApplyOpenScene();
             }
             finally
             {
@@ -151,9 +153,9 @@ namespace Mindforge.Editor
                 "all ten Menagerie enemies receive unique close/mid-distance silhouette detail; the Guardian receives Prism Squire V2 armor; " +
                 "the Crucible is restaged as 3/4/3 with wave beacons and victory crown; monotonic playthrough state is exposed for future quests/story.");
             Debug.Log(
-                "[Mindforge:Showcase] Game Foundation V1 ready: concrete gameplay publishes semantic facts into a typed world-state ledger; " +
-                "quests evaluate state without scene side effects; snapshot capture is persistence-agnostic; semantic signals mirror onto the passive " +
-                "observer telemetry lane for future save, story, replay and esports spectator systems.");
+                "[Mindforge:Showcase] Game Foundation V1 ready: final authored gameplay publishes typed semantic facts into ordered prerequisite quests; " +
+                "idempotent Resonance/Mastery/unlock rewards, six durable story discoveries, encounter contracts and passive run splits sit downstream " +
+                "of gameplay authority. Competitive candidates remain explicitly NOT ranked-qualified until Unity/runtime/BCI evidence says otherwise.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
