@@ -90,6 +90,7 @@ namespace Mindforge.Editor
                 // and perimeter are gameplay collision; modular terraces are reusable world
                 // tiles; later passes remain presentation/detail layers on top.
                 GroundedWorldV1Builder.ApplyOpenScene();
+                GroundedWorldTuningV1.ApplyOpenScene();
                 NullWardArenaEcosystemBuilder.ApplyOpenScene();
                 NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
