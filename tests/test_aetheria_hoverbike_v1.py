@@ -83,7 +83,14 @@ def test_hoverbike_keeps_guardian_rigidbody_as_sole_player_body_and_excludes_bci
     ):
         assert forbidden not in bike
 
-    assert "Rigidbody" not in mount
+    for forbidden in (
+        "[RequireComponent(typeof(Rigidbody))]",
+        "GetComponent<Rigidbody>",
+        "AddComponent<Rigidbody>",
+        "private Rigidbody",
+        "public Rigidbody",
+    ):
+        assert forbidden not in mount
     assert "ReceiveDamage(" not in mount
     assert "TryLightAttack(" not in mount
     assert "collider.enabled = false" in mount
