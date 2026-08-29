@@ -10,6 +10,7 @@ namespace Mindforge.Presentation
     /// JourneyEnemyController still chooses, tracks, commits, times and resolves every attack.
     /// This layer reads that fixed-tick phase truth and turns it into spatial ground arcs,
     /// projectile lanes, a visible aim-lock transition and a brief recovery window.
+    /// Menagerie signature attacks receive distinct geometry, but never distinct authority.
     /// </summary>
     public sealed class JourneyEnemyIntentVfx : MonoBehaviour
     {
@@ -219,6 +220,29 @@ namespace Mindforge.Presentation
         private void DrawAttackShape(EnemyAttackDefinition attack)
         {
             ClearGeometry();
+            if (attack == null) return;
+
+            // Signature geometry is keyed from presentation/data identity only. Gameplay
+            // still sees the normal authoritative Melee/Projectile/Burst/Retreat type.
+            switch (attack.Id)
+            {
+                case "stalker_pounce":
+                    DrawChargeLane(attack);
+                    return;
+                case "prism_maw_cone":
+                    DrawConeWedge(attack);
+                    return;
+                case "choir_crescendo":
+                    DrawSpokeFan(attack, Mathf.Clamp(attack.ProjectileCount, 2, _rays.Length), 0.78f);
+                    return;
+                case "seraph_horizon":
+                    DrawSpokeFan(attack, Mathf.Clamp(attack.ProjectileCount, 2, _rays.Length), 1.0f);
+                    return;
+                case "reaper_toll":
+                    DrawHeavyDoomArc(attack);
+                    return;
+            }
+
             switch (attack.Type)
             {
                 case EnemyAttackType.Melee:
@@ -251,6 +275,68 @@ namespace Mindforge.Presentation
             _outline.SetPosition(points + 1, new Vector3(0f, groundOffset, 0f));
         }
 
+        private void DrawChargeLane(EnemyAttackDefinition attack)
+        {
+            float range = Mathf.Clamp(attack.MaximumRange, 1.2f, Mathf.Max(1.2f, maximumPreviewRange));
+            float halfWidth = Mathf.Clamp(0.28f + range * 0.035f, 0.30f, 0.48f);
+            _outline.positionCount = 5;
+            _outline.SetPosition(0, new Vector3(-halfWidth, groundOffset, 0.28f));
+            _outline.SetPosition(1, new Vector3(-halfWidth, groundOffset, range));
+            _outline.SetPosition(2, new Vector3(halfWidth, groundOffset, range));
+            _outline.SetPosition(3, new Vector3(halfWidth, groundOffset, 0.28f));
+            _outline.SetPosition(4, new Vector3(-halfWidth, groundOffset, 0.28f));
+            LineRenderer spine = _rays[0];
+            spine.positionCount = 2;
+            spine.SetPosition(0, new Vector3(0f, groundOffset, 0.28f));
+            spine.SetPosition(1, new Vector3(0f, groundOffset, range));
+        }
+
+        private void DrawHeavyDoomArc(EnemyAttackDefinition attack)
+        {
+            DrawMeleeArc(attack);
+            float range = Mathf.Clamp(attack.MaximumRange, 0.8f, Mathf.Max(0.8f, maximumPreviewRange));
+            LineRenderer spine = _rays[0];
+            spine.positionCount = 2;
+            spine.SetPosition(0, new Vector3(0f, groundOffset, 0.18f));
+            spine.SetPosition(1, new Vector3(0f, groundOffset, range));
+            LineRenderer cross = _rays[1];
+            cross.positionCount = 2;
+            cross.SetPosition(0, new Vector3(-0.52f, groundOffset, range * 0.72f));
+            cross.SetPosition(1, new Vector3(0.52f, groundOffset, range * 0.72f));
+        }
+
+        private void DrawConeWedge(EnemyAttackDefinition attack)
+        {
+            float range = Mathf.Clamp(attack.MaximumRange, 1.5f, Mathf.Max(1.5f, maximumPreviewRange));
+            float spread = Mathf.Clamp(Mathf.Max(attack.ProjectileSpreadDegrees, 24f), 24f, 150f);
+            const int arcPoints = 17;
+            _outline.positionCount = arcPoints + 2;
+            _outline.SetPosition(0, new Vector3(0f, groundOffset, 0.22f));
+            for (int i = 0; i < arcPoints; i++)
+            {
+                float angle = Mathf.Lerp(-spread * 0.5f, spread * 0.5f, i / (float)(arcPoints - 1)) * Mathf.Deg2Rad;
+                _outline.SetPosition(i + 1, new Vector3(Mathf.Sin(angle) * range, groundOffset, Mathf.Cos(angle) * range));
+            }
+            _outline.SetPosition(arcPoints + 1, new Vector3(0f, groundOffset, 0.22f));
+            DrawFanRays(attack, Mathf.Clamp(attack.ProjectileCount, 2, _rays.Length), range, spread);
+        }
+
+        private void DrawSpokeFan(EnemyAttackDefinition attack, int requestedRayCount, float arcScale)
+        {
+            float range = Mathf.Clamp(attack.MaximumRange, 1.5f, Mathf.Max(1.5f, maximumPreviewRange));
+            float spread = Mathf.Clamp(Mathf.Max(attack.ProjectileSpreadDegrees, 24f), 24f, 180f);
+            DrawFanRays(attack, requestedRayCount, range, spread);
+
+            const int arcPoints = 21;
+            float previewRange = range * Mathf.Clamp(arcScale, 0.5f, 1f);
+            _outline.positionCount = arcPoints;
+            for (int i = 0; i < arcPoints; i++)
+            {
+                float angle = Mathf.Lerp(-spread * 0.5f, spread * 0.5f, i / (float)(arcPoints - 1)) * Mathf.Deg2Rad;
+                _outline.SetPosition(i, new Vector3(Mathf.Sin(angle) * previewRange, groundOffset, Mathf.Cos(angle) * previewRange));
+            }
+        }
+
         private void DrawProjectileFan(EnemyAttackDefinition attack, int requestedRayCount)
         {
             int count = Mathf.Clamp(requestedRayCount, 1, _rays.Length);
@@ -258,7 +344,19 @@ namespace Mindforge.Presentation
             float spread = attack.Type == EnemyAttackType.Burst
                 ? Mathf.Max(attack.ProjectileSpreadDegrees, 12f)
                 : 0f;
+            DrawFanRays(attack, count, range, spread);
 
+            if (count == 1)
+            {
+                _outline.positionCount = 2;
+                _outline.SetPosition(0, new Vector3(-0.32f, 0.28f, range));
+                _outline.SetPosition(1, new Vector3(0.32f, 0.28f, range));
+            }
+        }
+
+        private void DrawFanRays(EnemyAttackDefinition attack, int requestedRayCount, float range, float spread)
+        {
+            int count = Mathf.Clamp(requestedRayCount, 1, _rays.Length);
             for (int i = 0; i < count; i++)
             {
                 float centered = count <= 1 ? 0f : i - (count - 1) * 0.5f;
@@ -269,13 +367,6 @@ namespace Mindforge.Presentation
                 ray.positionCount = 2;
                 ray.SetPosition(0, new Vector3(0f, 0.28f, 0.18f));
                 ray.SetPosition(1, direction * range + Vector3.up * 0.28f);
-            }
-
-            if (count == 1)
-            {
-                _outline.positionCount = 2;
-                _outline.SetPosition(0, new Vector3(-0.32f, 0.28f, range));
-                _outline.SetPosition(1, new Vector3(0.32f, 0.28f, range));
             }
         }
 
@@ -314,7 +405,11 @@ namespace Mindforge.Presentation
                 _outline.positionCount = 0;
             }
             for (int i = 0; i < _rays.Length; i++)
-                if (_rays[i] != null) _rays[i].positionCount = 0;
+            {
+                if (_rays[i] == null) continue;
+                _rays[i].loop = false;
+                _rays[i].positionCount = 0;
+            }
         }
 
         private void SetVisible(bool visible)
