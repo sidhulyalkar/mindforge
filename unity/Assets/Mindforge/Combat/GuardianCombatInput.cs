@@ -38,6 +38,9 @@ namespace Mindforge.Combat
         [SerializeField] private Camera aimCamera;
         [SerializeField] private float freeAimDistance = 8f;
 
+        [Header("Combat rhythm")]
+        [SerializeField] private float dodgeCommandBufferSeconds = 0.15f;
+
         private Vector2 _move;
         private bool _cleaveLatched;
         private bool _counterLatched;
@@ -47,6 +50,10 @@ namespace Mindforge.Combat
         private bool _bloomLatched;
         private bool _swordAttackLatched;
         private long _fixedInputTick;
+
+        private bool _dodgeCommandQueued;
+        private long _dodgeCommandExpiresTick = long.MinValue / 4;
+        private Vector3 _dodgeCommandAim = Vector3.forward;
 
         private Vector3 _currentAimDirection = Vector3.forward;
         private Vector3 _currentAimPoint;
@@ -62,6 +69,7 @@ namespace Mindforge.Combat
         public void SetCombatActionsEnabled(bool enabled)
         {
             CombatActionsEnabled = enabled;
+            if (!enabled) ClearDodgeCommand();
         }
 
         private void Start()
@@ -83,6 +91,7 @@ namespace Mindforge.Combat
             _jumpHeld = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
+            ClearDodgeCommand();
             motor?.SetMoveInput(Vector2.zero);
             motor?.SetJumpHeld(false);
             physicalCombat?.SetGuardHeld(false, _currentAimDirection);
@@ -255,24 +264,25 @@ namespace Mindforge.Combat
 
             if (!CombatActionsEnabled)
             {
+                ClearDodgeCommand();
                 if (command.jump_down) motor.RequestJump();
                 return;
             }
 
-            // Roll has first refusal. Endurance is spent only after the authoritative
-            // motor accepts the request, so failed/repeated air-dash requests are free.
-            if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
+            // Defensive intent has first refusal. A resolved fixed-tick dodge edge is held
+            // briefly through sword commitment instead of disappearing between Update and the
+            // first legal locomotion tick. This is input buffering, not an animation cancel:
+            // GuardianSwordShieldController.CanDodge still decides when the roll may begin.
+            if (command.dash_down)
             {
-                float cost = endurance != null ? endurance.DodgeBaseCost : 0f;
-                if (motor != null && !motor.IsGrounded) cost *= 1.10f;
-                if (endurance == null || endurance.CanSpend(cost))
-                {
-                    if (motor.RequestDash(aim))
-                    {
-                        endurance?.TrySpend(cost, motor.IsGrounded ? "DODGE_ROLL" : "AIR_DASH");
-                        return;
-                    }
-                }
+                QueueDodgeCommand(aim);
+                if (TryConsumeQueuedDodge()) return;
+                if (_dodgeCommandQueued) return;
+            }
+            else if (_dodgeCommandQueued)
+            {
+                if (TryConsumeQueuedDodge()) return;
+                if (_dodgeCommandQueued) return;
             }
 
             if (motor.IsDashing) return;
@@ -300,6 +310,74 @@ namespace Mindforge.Combat
 
             // command.fire_held intentionally has no normal-world action. Pulse Shot code
             // remains available for future experiments without occupying the core loop.
+        }
+
+        private void QueueDodgeCommand(Vector3 aim)
+        {
+            float cost = CurrentDodgeCost();
+            if (endurance != null && !endurance.CanSpend(cost))
+            {
+                ClearDodgeCommand();
+                return;
+            }
+
+            _dodgeCommandQueued = true;
+            _dodgeCommandExpiresTick = _fixedInputTick + SecondsToInputTicks(Mathf.Max(0.02f, dodgeCommandBufferSeconds));
+            _dodgeCommandAim = aim.sqrMagnitude > 0.01f ? aim.normalized : transform.forward;
+            if (_dodgeCommandAim.sqrMagnitude < 0.01f) _dodgeCommandAim = Vector3.forward;
+        }
+
+        private bool TryConsumeQueuedDodge()
+        {
+            if (!_dodgeCommandQueued) return false;
+            if (_fixedInputTick > _dodgeCommandExpiresTick)
+            {
+                ClearDodgeCommand();
+                return false;
+            }
+            if (motor == null) return false;
+            if (physicalCombat != null && !physicalCombat.CanDodge) return false;
+
+            float cost = CurrentDodgeCost();
+            if (endurance != null && !endurance.CanSpend(cost))
+            {
+                // A failed resource check is final for this edge. Do not keep the input alive
+                // until Endurance regenerates and surprise the player with a delayed roll.
+                ClearDodgeCommand();
+                return false;
+            }
+
+            bool grounded = motor.IsGrounded;
+            if (!motor.RequestDash(_dodgeCommandAim))
+            {
+                // Rejected air-dash/invalid motor state should not become a latent command.
+                ClearDodgeCommand();
+                return false;
+            }
+
+            endurance?.TrySpend(cost, grounded ? "DODGE_ROLL" : "AIR_DASH");
+            ClearDodgeCommand();
+            return true;
+        }
+
+        private float CurrentDodgeCost()
+        {
+            float cost = endurance != null ? endurance.DodgeBaseCost : 0f;
+            if (motor != null && !motor.IsGrounded) cost *= 1.10f;
+            return Mathf.Max(0f, cost);
+        }
+
+        private int SecondsToInputTicks(float seconds)
+        {
+            float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            return Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, seconds) / dt));
+        }
+
+        private void ClearDodgeCommand()
+        {
+            _dodgeCommandQueued = false;
+            _dodgeCommandExpiresTick = long.MinValue / 4;
+            _dodgeCommandAim = Vector3.forward;
         }
 
         private void ResolveDependencies()
