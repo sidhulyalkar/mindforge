@@ -9,20 +9,26 @@ def read(*parts: str) -> str:
     return UNITY.joinpath(*parts).read_text(encoding="utf-8")
 
 
-def test_gameplay_fov_is_wider_but_fixed_across_movement_and_jump_state():
+def test_gameplay_fov_is_wider_but_fixed_across_movement_jump_and_mount_state():
     camera = read("Presentation", "ShowcaseCameraRig.cs")
 
     assert "gameplayFieldOfView = 58f" in camera
-    assert "gameplayCamera.fieldOfView = Mathf.Clamp(gameplayFieldOfView, 45f, 75f)" in camera
-    assert "Keep FOV fixed rather than speed-reactive" in camera
+    fixed_assignment = "gameplayCamera.fieldOfView = Mathf.Clamp(gameplayFieldOfView, 45f, 75f)"
+    assert fixed_assignment in camera
+    assert camera.count(fixed_assignment) == 1
+    assert "Deliberately fixed across foot, jump, hover and mounted speed" in camera
 
-    # Never couple camera projection to movement velocity/dash/jump state. This keeps the
-    # world-space VEP projection stable over time even though the fixed framing changed.
+    # Camera position may respond to mounted velocity, but projection may not. Keeping
+    # speed out of the FOV block preserves stable optical scale for the coded VEP targets.
     assert "motor.Velocity" not in camera
     assert "motor.IsDashing" not in camera
     assert "motor.IsGrounded" not in camera
+    assert "hoverbike.PlanarVelocity" in camera
     assert "gameplayCamera.fieldOfView = Mathf.Lerp" not in camera
     assert "gameplayCamera.fieldOfView = Mathf.SmoothDamp" not in camera
+    fov_block = camera[camera.index("if (gameplayCamera != null)"):]
+    assert "hoverbike.PlanarVelocity" not in fov_block
+    assert "hoverbike.Speed01" not in fov_block
 
 
 def test_unfrozen_guardian_gets_nonpenetrating_world_entry_and_respawn_markers():
