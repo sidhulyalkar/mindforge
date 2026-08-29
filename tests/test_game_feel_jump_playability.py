@@ -87,9 +87,12 @@ def test_space_is_aerial_traversal_shift_is_primary_roll_and_tape_records_edges(
     ):
         assert token in input_source
 
+    # V3 remains loadable for old aerial tapes; V4 is now the recording schema because it
+    # adds mounted commands without changing the existing jump fields.
     for token in (
         'SchemaV3 = "mindforge.guardian_input_tape.v3"',
-        "schema = GuardianInputTape.SchemaV3",
+        'SchemaV4 = "mindforge.guardian_input_tape.v4"',
+        "schema = GuardianInputTape.SchemaV4",
         "public bool jump_down",
         "public bool jump_held",
         "jump_down = jump_down",
