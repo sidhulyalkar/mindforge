@@ -120,7 +120,10 @@ namespace Mindforge.World
                 ledger.SetBool("region." + playthrough.Stage.ToString().ToLowerInvariant() + ".entered", true, "semantic_seed");
             }
             if (menagerie != null && menagerie.Complete)
+            {
+                ledger.SetInt("encounter.menagerie.waves_cleared", 3, "semantic_seed");
                 ledger.SetBool("encounter.menagerie.complete", true, "semantic_seed");
+            }
             if (nullWard != null)
             {
                 ledger.SetBool("world.null_ward.protocol_open", nullWard.ProtocolUnlockedState, "semantic_seed");
@@ -155,16 +158,19 @@ namespace Mindforge.World
 
         private void OnMenagerieWaveCleared(int index)
         {
+            ledger?.SetInt("encounter.menagerie.waves_cleared", index + 1, "menagerie_wave_cleared");
             signals?.Publish(
                 WorldSignalKind.EncounterWaveCleared,
                 "encounter.wave.cleared",
                 subject: "menagerie_crucible",
                 intValue: index + 1,
+                floatValue: (index + 1) / 3f,
                 reason: "all_active_enemies_defeated");
         }
 
         private void OnMenagerieCompleted()
         {
+            ledger?.SetInt("encounter.menagerie.waves_cleared", 3, "menagerie_complete");
             ledger?.SetBool("encounter.menagerie.complete", true, "menagerie_complete");
             signals?.Publish(
                 WorldSignalKind.EncounterCleared,
