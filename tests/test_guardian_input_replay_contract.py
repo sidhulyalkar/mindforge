@@ -109,12 +109,21 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "if (command.cleave_down && combat.RiftCleave(aim)) return;" in apply_body
     assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in apply_body
     assert "combat.FirePulse(aim)" not in apply_body
-    assert "motor.RequestDash(aim)" in apply_body
+    assert "QueueDodgeCommand(aim)" in apply_body
+    assert "TryConsumeQueuedDodge()" in apply_body
+    assert "motor.RequestDash(_dodgeCommandAim)" in apply_body
     assert "motor.RequestJump()" in apply_body
 
-    arbitration = apply_body[apply_body.index("// Roll has first refusal."):]
+    # Dodge buffering is downstream of inputTape.Resolve, so live/record/replay all feed
+    # the same fixed-tick queue instead of replay receiving a special permissive path.
+    resolve_index = fixed_body.index("inputTape.Resolve")
+    apply_call_index = fixed_body.index("Apply(command)")
+    assert resolve_index < apply_call_index
+    assert "inputTape.Mode" not in apply_body[apply_body.index("private void Apply("):apply_body.index("private void ResolveDependencies()")]
+
+    arbitration = apply_body[apply_body.index("if (command.dash_down)"):]
     order = (
-        "if (command.dash_down",
+        "if (command.dash_down)",
         "if (motor.IsDashing) return;",
         "if (command.jump_down",
         "if (command.sword_attack_down)",
