@@ -12,6 +12,8 @@ namespace Mindforge.Traversal
     ///
     /// V2 consumes the same GuardianCommandFrame stream as foot combat. Record/replay can
     /// therefore cross mount -> ride -> mounted attack -> dismount without a sidecar tape.
+    /// Camera-relative steering is resolved to world space before recording, so replay
+    /// movement does not depend on whatever camera yaw happens to be live later.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public sealed class GuardianHoverbikeController : MonoBehaviour
@@ -126,6 +128,7 @@ namespace Mindforge.Traversal
             if (_body == null) return;
 
             Vector3 liveAim = ResolveAimDirection();
+            Vector3 liveMountedMove = _mounted ? CameraRelativeDirection(_moveInput) : Vector3.zero;
             GuardianCommandFrame live = new GuardianCommandFrame
             {
                 tick = FixedTick,
@@ -137,6 +140,9 @@ namespace Mindforge.Traversal
                 mount_toggle_down = _mountLatched,
                 mounted_attack_down = _mounted && _attackLatched,
                 mounted_boost_down = _mounted && _boostLatched,
+                mounted_move_x = liveMountedMove.x,
+                mounted_move_y = liveMountedMove.y,
+                mounted_move_z = liveMountedMove.z,
             };
 
             _mountLatched = false;
@@ -168,7 +174,7 @@ namespace Mindforge.Traversal
                 if (accepted) MountedAttackIssued?.Invoke();
             }
 
-            ApplyMountedMovement(aim, command.Move);
+            ApplyMountedMovement(aim, command.MountedMove);
         }
 
         private void TryMountNearest()
@@ -251,14 +257,14 @@ namespace Mindforge.Traversal
             if (footInput != null) footInput.enabled = _footInputWasEnabled;
         }
 
-        private void ApplyMountedMovement(Vector3 aim, Vector2 resolvedMove)
+        private void ApplyMountedMovement(Vector3 aim, Vector3 resolvedWorldMove)
         {
             float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
-            Vector3 desiredDirection = CameraRelativeDirection(resolvedMove);
-            float magnitude = Mathf.Clamp01(resolvedMove.magnitude);
+            Vector3 desiredDirection = Vector3.ClampMagnitude(Vector3.ProjectOnPlane(resolvedWorldMove, Vector3.up), 1f);
+            float magnitude = Mathf.Clamp01(desiredDirection.magnitude);
             float actionScale = bladeCombat != null ? Mathf.Clamp(bladeCombat.MovementMultiplier, 0.58f, 1f) : 1f;
             float topSpeed = (Boosting ? boostSpeed : cruiseSpeed) * actionScale;
-            Vector3 desiredHorizontal = desiredDirection * topSpeed * magnitude;
+            Vector3 desiredHorizontal = desiredDirection * topSpeed;
             Vector3 horizontal = Vector3.ProjectOnPlane(_body.velocity, Vector3.up);
             float rate = magnitude > 0.01f ? acceleration : braking;
             horizontal = Vector3.MoveTowards(horizontal, desiredHorizontal, Mathf.Max(0f, rate) * dt);
