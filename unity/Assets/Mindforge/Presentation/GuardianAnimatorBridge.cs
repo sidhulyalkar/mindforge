@@ -32,12 +32,16 @@ namespace Mindforge.Presentation
         private static readonly int VerticalSpeed = Animator.StringToHash("VerticalSpeed");
         private static readonly int Grounded = Animator.StringToHash("Grounded");
         private static readonly int Airborne = Animator.StringToHash("Airborne");
+        private static readonly int Hover = Animator.StringToHash("Hover");
+        private static readonly int AirDash = Animator.StringToHash("AirDash");
         private static readonly int Attack = Animator.StringToHash("Attack");
         private static readonly int AttackProgress = Animator.StringToHash("AttackProgress");
         private static readonly int ComboStep = Animator.StringToHash("ComboStep");
         private static readonly int Guard = Animator.StringToHash("Guard");
         private static readonly int Dodge = Animator.StringToHash("Dodge");
         private static readonly int Jump = Animator.StringToHash("Jump");
+        private static readonly int DoubleJump = Animator.StringToHash("DoubleJump");
+        private static readonly int AirDashTrigger = Animator.StringToHash("AirDashTrigger");
         private static readonly int Land = Animator.StringToHash("Land");
         private static readonly int LandingImpact = Animator.StringToHash("LandingImpact");
         private static readonly int SightResonance = Animator.StringToHash("SightResonance");
@@ -125,7 +129,9 @@ namespace Mindforge.Presentation
             if (motor != null)
             {
                 motor.DashStarted += OnDodge;
+                motor.AirDashStarted += OnAirDash;
                 motor.Jumped += OnJump;
+                motor.DoubleJumped += OnDoubleJump;
                 motor.Landed += OnLand;
             }
             if (vitals != null) vitals.Damaged += OnHit;
@@ -144,7 +150,9 @@ namespace Mindforge.Presentation
             if (motor != null)
             {
                 motor.DashStarted -= OnDodge;
+                motor.AirDashStarted -= OnAirDash;
                 motor.Jumped -= OnJump;
+                motor.DoubleJumped -= OnDoubleJump;
                 motor.Landed -= OnLand;
             }
             if (vitals != null) vitals.Damaged -= OnHit;
@@ -180,6 +188,8 @@ namespace Mindforge.Presentation
             SetFloat(VerticalSpeed, worldVelocity.y, 0.04f);
             SetBool(Grounded, grounded);
             SetBool(Airborne, !grounded);
+            SetBool(Hover, motor != null && motor.IsHovering);
+            SetBool(AirDash, motor != null && motor.IsAirDashing);
             SetBool(Attack, combat != null && combat.IsAttacking);
             SetFloat(AttackProgress, combat != null ? combat.AttackProgress : 0f, 0.02f);
             SetInt(ComboStep, combat != null ? combat.ComboStep : 0);
@@ -218,7 +228,9 @@ namespace Mindforge.Presentation
         private void OnPerfectGuard() => SetTrigger(PerfectGuard);
         private void OnGuardBreak() => SetTrigger(GuardBreak);
         private void OnDodge() => SetTrigger(Dodge);
+        private void OnAirDash() => SetTrigger(AirDashTrigger);
         private void OnJump() => SetTrigger(Jump);
+        private void OnDoubleJump() => SetTrigger(DoubleJump);
 
         private void OnLand(float impactSpeed)
         {
