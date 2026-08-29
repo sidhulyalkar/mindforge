@@ -19,6 +19,8 @@ def test_mounted_v2_uses_same_fixed_tick_tape_without_parallel_vehicle_replay():
     assert "mount_toggle_down" in tape
     assert "mounted_attack_down" in tape
     assert "mounted_boost_down" in tape
+    assert "mounted_move_x" in tape and "mounted_move_y" in tape and "mounted_move_z" in tape
+    assert "public Vector3 MountedMove" in tape
     assert "public static long FixedTickNow" in tape
     assert "_lastResolvedFrame.MergeFrom(live)" in tape
 
@@ -30,9 +32,18 @@ def test_mounted_v2_uses_same_fixed_tick_tape_without_parallel_vehicle_replay():
     assert "command.mount_toggle_down" in bike
     assert "command.mounted_attack_down" in bike
     assert "command.mounted_boost_down" in bike
-    assert "ApplyMountedMovement(aim, command.Move)" in bike
+    assert "liveMountedMove = _mounted ? CameraRelativeDirection(_moveInput) : Vector3.zero" in bike
+    assert "mounted_move_x = liveMountedMove.x" in bike
+    assert "mounted_move_y = liveMountedMove.y" in bike
+    assert "mounted_move_z = liveMountedMove.z" in bike
+    assert "ApplyMountedMovement(aim, command.MountedMove)" in bike
     assert "bladeCombat != null && bladeCombat.TryLightAttack(aim)" in bike
     assert "Replay mount edge could not resolve the authored bike in range" in bike
+
+    # Camera-relative steering is a record-time transform only. Replayed movement consumes
+    # the stored world vector directly and is therefore independent of live camera yaw.
+    assert "CameraRelativeDirection(command.Move)" not in bike
+    assert "Vector3.ProjectOnPlane(resolvedWorldMove, Vector3.up)" in bike
 
     for forbidden in (
         "VehicleInputTape",
@@ -220,6 +231,8 @@ def test_aetheria_v2_contract_and_new_unity_guids_exist():
     assert contract.exists()
     text = contract.read_text(encoding="utf-8")
     assert "One conventional-input history" in text
+    assert "mounted_move_*" in text
+    assert "live later" in text
     assert "speed-reactive FOV" in text
     assert "Replay remains fail-neutral" in text
     assert "does **not** add" in text
