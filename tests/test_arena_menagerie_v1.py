@@ -43,6 +43,52 @@ def test_menagerie_authors_ten_named_enemy_identities_and_three_readable_waves()
     assert "ResetForCheckpoint()" not in director
 
 
+def test_variant_profile_survives_controller_on_enable_base_default_reapplication():
+    director = read("World", "ArenaMenagerieDirector.cs")
+    profile = read("World", "ArenaMenagerieRoleProfile.cs")
+
+    # Snapshot occurs while the editor-authored custom role is still intact.
+    assert "if (profile == null) profile = enemy.gameObject.AddComponent<ArenaMenagerieRoleProfile>()" in director
+    assert "if (!profile.Captured) profile.CaptureFromCurrent(enemy)" in director
+    capture = director.index("profile.CaptureFromCurrent(enemy)")
+    deactivate = director.index("enemy.gameObject.SetActive(false)", capture)
+    assert capture < deactivate
+
+    # Unity OnEnable may restore base archetype data, so the role profile must be restored
+    # after activation but before Arm gives the controller authority to attack.
+    activate = director.index("enemy.gameObject.SetActive(true)")
+    apply = director.index("profile?.Apply()", activate)
+    arm = director.index("enemy.Arm()", apply)
+    assert activate < apply < arm
+
+    for token in (
+        "public void CaptureFromCurrent",
+        'GetField<float>(enemy, "moveSpeed")',
+        'GetField<float>(enemy, "desiredDistance")',
+        'GetField<float>(enemy, "retreatDistance")',
+        'GetField<float>(enemy, "strafeStrength")',
+        'GetField<float>(enemy, "meleeVerticalReach")',
+        'GetField<int>(enemy, "firstAttackDelayTicks")',
+        'GetField<EnemyAttackDefinition[]>(enemy, "attackDefinitions")',
+        'SetField(enemy, "attackDefinitions", attackDefinitions',
+        '"RebuildCooldownState"',
+        "public bool Captured => captured",
+    ):
+        assert token in profile
+
+    # The profile restores authored configuration only. It is not an attack brain.
+    for forbidden in (
+        "private void FixedUpdate()",
+        "ReceiveDamage(",
+        "RequestDash(",
+        "TryLightAttack(",
+        "Input.Get",
+        "NeuralEvent",
+        "UdpNeuralReceiver",
+    ):
+        assert forbidden not in profile
+
+
 def test_menagerie_variants_share_one_enemy_authority_but_have_distinct_attack_grammars():
     builder = read("Editor", "ArenaMenagerieV1Builder.cs")
 
@@ -169,6 +215,7 @@ def test_showcase_build_orders_menagerie_population_before_identity_presentation
 def test_new_unity_scripts_have_unique_pinned_guids():
     metas = (
         UNITY / "World" / "ArenaMenagerieDirector.cs.meta",
+        UNITY / "World" / "ArenaMenagerieRoleProfile.cs.meta",
         UNITY / "Editor" / "ArenaMenagerieV1Builder.cs.meta",
         UNITY / "Editor" / "ArenaMenagerieSilhouetteV1Builder.cs.meta",
         UNITY / "Presentation" / "AetherbladeVisualPolishV2.cs.meta",
