@@ -19,20 +19,47 @@ def test_guardian_input_tape_is_fixed_tick_versioned_and_fail_neutral():
     assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
     assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
     assert 'SchemaV3 = "mindforge.guardian_input_tape.v3"' in tape
-    assert "schema = GuardianInputTape.SchemaV3" in tape
-    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3" in tape
+    assert 'SchemaV4 = "mindforge.guardian_input_tape.v4"' in tape
+    assert "schema = GuardianInputTape.SchemaV4" in tape
+    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3 && _tape.schema != SchemaV4" in tape
     assert "GuardianInputTapeMode.Live" in tape
     assert "GuardianInputTapeMode.Record" in tape
     assert "GuardianInputTapeMode.Replay" in tape
     assert '"-mindforgeInputMode"' in tape
     assert '"-mindforgeInputTape"' in tape
     assert "MindforgeSessionContext.GameSessionId" in tape
-    assert "_tape.frames.Add(live.CopyForTick(live.tick))" in tape
+    assert "_tape.frames.Add(recorded)" in tape
     assert "GuardianCommandFrame.Neutral(live.tick)" in tape
     assert "replay exhausted; returning neutral commands" in tape
     assert "RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)" in tape
     assert "sword_attack_down" in tape and "guard_held" in tape and "guard_down" in tape
     assert "jump_down" in tape and "jump_held" in tape
+    assert "mount_toggle_down" in tape
+    assert "mounted_attack_down" in tape
+    assert "mounted_boost_down" in tape
+
+
+def test_v4_tape_is_idempotent_for_multiple_consumers_on_one_absolute_tick():
+    tape = read("GuardianInputTape.cs")
+    assert "public static long FixedTickNow" in tape
+    assert "private long _lastResolvedTick = long.MinValue" in tape
+    assert "private GuardianCommandFrame _lastResolvedFrame" in tape
+    assert "_lastResolvedTick == live.tick" in tape
+    assert "_lastResolvedFrame.MergeFrom(live)" in tape
+    assert "return _lastResolvedFrame.CopyForTick(live.tick)" in tape
+    assert "public void MergeFrom(GuardianCommandFrame other)" in tape
+    for token in (
+        "mount_toggle_down |= other.mount_toggle_down",
+        "mounted_attack_down |= other.mounted_attack_down",
+        "mounted_boost_down |= other.mounted_boost_down",
+    ):
+        assert token in tape
+
+    # The replay cursor only advances in the new-tick path. A second consumer on the same
+    # fixed tick must return the cached frame before reaching this increment.
+    same_tick = tape.index("_lastResolvedTick == live.tick")
+    replay_advance = tape.index("_tape.frames[_replayIndex++]")
+    assert same_tick < replay_advance
 
 
 def test_guardian_input_recording_does_not_write_per_tick():
@@ -68,6 +95,7 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "Input.GetKeyDown(KeyCode.T)" not in update_body
     assert "Input.GetKeyDown(KeyCode.Space)" in update_body
     assert "Input.GetKey(KeyCode.Space)" in update_body
+    assert "Input.GetKeyDown(KeyCode.E)" in update_body
     assert "Input.GetKeyDown(KeyCode.LeftShift)" in update_body
     assert "Input.GetMouseButtonDown(1)" in update_body
     assert "Input.GetKeyDown(KeyCode.LeftControl)" in update_body
@@ -79,8 +107,10 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "physicalCombat?.TryLightAttack" not in update_body
 
     assert "GuardianCommandFrame" in fixed_body
+    assert "_fixedInputTick = GuardianInputTape.FixedTickNow" in fixed_body
     assert "jump_down = _jumpLatched" in fixed_body
     assert "jump_held = _jumpHeld" in fixed_body
+    assert "mount_toggle_down = _mountLatched" in fixed_body
     assert "fire_held = false" in fixed_body
     assert "guard_held = false" in fixed_body
     assert "guard_down = false" in fixed_body
@@ -90,6 +120,7 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "_jumpLatched = false" in fixed_body
     assert "_bloomLatched = false" in fixed_body
     assert "_swordAttackLatched = false" in fixed_body
+    assert "_mountLatched = false" in fixed_body
     assert "inputTape.Resolve" in fixed_body
 
     # The replay schema remains backward compatible, but the grounded-world live command
@@ -139,6 +170,6 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
 def test_replay_never_has_a_live_input_fallback_after_exhaustion():
     tape = read("GuardianInputTape.cs")
     exhaustion = tape[tape.index("if (_tape == null || _tape.frames == null"):
-                      tape.index("GuardianCommandFrame recorded")]
+                      tape.index("GuardianCommandFrame source")]
     assert "return live" not in exhaustion
     assert "GuardianCommandFrame.Neutral(live.tick)" in exhaustion
