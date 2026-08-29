@@ -181,7 +181,7 @@ namespace Mindforge.Presentation
             if (!_shieldRaised)
                 return "RMB / E HOLD SHIELD   |   T lock-on keeps you facing the threat while WASD strafes around it";
             if (!_shieldBlocked)
-                return "READ THE TELEGRAPH   |   block with RMB/E, SHIFT through danger, or jump above low pressure and hover briefly to reposition";
+                return "READ THE TELEGRAPH   |   PERFECT GUARD reflect with precise RMB/E timing · SHIFT through danger · jump/hover above low pressure";
             if (!_pulseUsed)
                 return "X / MMB PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   air dash to change lanes mid-combat";
             if (!_cleaveUsed || !_counterUsed)
