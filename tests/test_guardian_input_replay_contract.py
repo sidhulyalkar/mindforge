@@ -68,6 +68,8 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "Input.GetKeyDown(KeyCode.T)" not in update_body
     assert "Input.GetKeyDown(KeyCode.Space)" in update_body
     assert "Input.GetKey(KeyCode.Space)" in update_body
+    assert "Input.GetKeyDown(KeyCode.LeftShift)" in update_body
+    assert "Input.GetMouseButtonDown(1)" in update_body
     assert "Input.GetKeyDown(KeyCode.LeftControl)" in update_body
     assert "Input.GetKeyDown(KeyCode.LeftAlt)" in update_body
     assert "combat.FirePulse" not in update_body
@@ -79,44 +81,47 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "GuardianCommandFrame" in fixed_body
     assert "jump_down = _jumpLatched" in fixed_body
     assert "jump_held = _jumpHeld" in fixed_body
+    assert "fire_held = false" in fixed_body
+    assert "guard_held = false" in fixed_body
+    assert "guard_down = false" in fixed_body
     assert "_cleaveLatched = false" in fixed_body
     assert "_counterLatched = false" in fixed_body
     assert "_dashLatched = false" in fixed_body
     assert "_jumpLatched = false" in fixed_body
     assert "_bloomLatched = false" in fixed_body
     assert "_swordAttackLatched = false" in fixed_body
-    assert "_guardDownLatched = false" in fixed_body
     assert "inputTape.Resolve" in fixed_body
+
+    # The replay schema remains backward compatible, but the grounded-world live command
+    # source has no held runtime state for retired Pulse/Guard actions.
+    assert "_guardDownLatched" not in source
+    assert "_guardHeld" not in source
+    assert "_fireHeld" not in source
 
     assert "motor.SetMoveInput(command.Move)" in apply_body
     assert "motor.SetJumpHeld(command.jump_held)" in apply_body
     assert "if (!CombatActionsEnabled)" in apply_body
     assert "physicalCombat?.SetGuardHeld(false, aim)" in apply_body
-    assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in apply_body
     assert "bool accepted = physicalCombat != null && physicalCombat.TryLightAttack(aim)" in apply_body
     assert "if (accepted) return;" in apply_body
     assert "physicalCombat.ActionState != GuardianActionState.Locomotion" in apply_body
     assert "if (command.counter_down && combat.BeginCounter()) return;" in apply_body
     assert "if (command.cleave_down && combat.RiftCleave(aim)) return;" in apply_body
     assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in apply_body
-    assert "if (command.fire_held) combat.FirePulse(aim);" in apply_body
+    assert "combat.FirePulse(aim)" not in apply_body
     assert "motor.RequestDash(aim)" in apply_body
     assert "motor.RequestJump()" in apply_body
 
-    # The disabled-combat branch intentionally permits conventional traversal, so scope
-    # the action-arbitration order to the normal combat branch rather than matching its
-    # earlier traversal-only jump handler.
-    arbitration = apply_body[apply_body.index("// One fixed command frame owns at most one committed action."):]
+    arbitration = apply_body[apply_body.index("// Roll has first refusal."):]
     order = (
         "if (command.dash_down",
+        "if (motor.IsDashing) return;",
         "if (command.jump_down",
-        "physicalCombat?.SetGuardHeld(command.guard_held, aim)",
         "if (command.sword_attack_down)",
         "physicalCombat.ActionState != GuardianActionState.Locomotion",
         "if (command.counter_down",
         "if (command.cleave_down",
         "if (command.bloom_down",
-        "if (command.fire_held)",
     )
     indices = [arbitration.index(token) for token in order]
     assert indices == sorted(indices)
