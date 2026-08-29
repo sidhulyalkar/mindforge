@@ -23,13 +23,17 @@ namespace Mindforge.Journey
         [SerializeField] private float telegraphMaxScale = 1.55f;
         [SerializeField] private float resolvedFlashSeconds = 0.10f;
 
-        [Header("Telegraph colors")]
+        [Header("Archetype colors")]
         [SerializeField] private Color idleColor = new Color(0.82f, 0.10f, 0.24f);
+        [SerializeField] private Color hollowColor = new Color(1.00f, 0.18f, 0.045f);
+        [SerializeField] private Color shardcasterColor = new Color(0.92f, 0.08f, 0.66f);
         [SerializeField] private Color nullSentryColor = new Color(0.92f, 0.08f, 0.34f);
         [SerializeField] private Color chromePenitentColor = new Color(1.00f, 0.24f, 0.06f);
+        [SerializeField] private Color wardenColor = new Color(0.82f, 0.18f, 0.95f);
+
+        [Header("Telegraph colors")]
         [SerializeField] private Color meleeColor = new Color(1.00f, 0.28f, 0.08f);
         [SerializeField] private Color projectileColor = new Color(0.95f, 0.10f, 0.48f);
-        [SerializeField] private Color wardenColor = new Color(0.82f, 0.18f, 0.95f);
 
         private Vector3 _visualBaseLocalPosition;
         private Vector3 _visualBaseLocalScale = Vector3.one;
@@ -223,6 +227,9 @@ namespace Mindforge.Journey
             if (controller == null) return idleBobAmplitude;
             switch (controller.Archetype)
             {
+                case JourneyEnemyArchetype.Hollow: return idleBobAmplitude * 0.22f;
+                case JourneyEnemyArchetype.Shardcaster: return idleBobAmplitude * 1.35f;
+                case JourneyEnemyArchetype.SignalWarden: return idleBobAmplitude * 0.16f;
                 case JourneyEnemyArchetype.NullSentry: return idleBobAmplitude * 1.55f;
                 case JourneyEnemyArchetype.ChromePenitent: return idleBobAmplitude * 0.35f;
                 default: return idleBobAmplitude;
@@ -234,6 +241,9 @@ namespace Mindforge.Journey
             if (controller == null) return idleBobSpeed;
             switch (controller.Archetype)
             {
+                case JourneyEnemyArchetype.Hollow: return idleBobSpeed * 1.70f;
+                case JourneyEnemyArchetype.Shardcaster: return idleBobSpeed * 0.82f;
+                case JourneyEnemyArchetype.SignalWarden: return idleBobSpeed * 0.55f;
                 case JourneyEnemyArchetype.NullSentry: return idleBobSpeed * 1.20f;
                 case JourneyEnemyArchetype.ChromePenitent: return idleBobSpeed * 0.62f;
                 default: return idleBobSpeed;
@@ -245,6 +255,9 @@ namespace Mindforge.Journey
             if (controller == null) return coreSpinDegreesPerSecond;
             switch (controller.Archetype)
             {
+                case JourneyEnemyArchetype.Hollow: return coreSpinDegreesPerSecond * 0.42f;
+                case JourneyEnemyArchetype.Shardcaster: return coreSpinDegreesPerSecond * 2.20f;
+                case JourneyEnemyArchetype.SignalWarden: return coreSpinDegreesPerSecond * 0.35f;
                 case JourneyEnemyArchetype.NullSentry: return coreSpinDegreesPerSecond * 1.65f;
                 case JourneyEnemyArchetype.ChromePenitent: return coreSpinDegreesPerSecond * 0.60f;
                 default: return coreSpinDegreesPerSecond;
@@ -256,6 +269,9 @@ namespace Mindforge.Journey
             if (controller == null) return telegraphMaxScale;
             switch (controller.Archetype)
             {
+                case JourneyEnemyArchetype.Hollow: return telegraphMaxScale * 0.76f;
+                case JourneyEnemyArchetype.Shardcaster: return telegraphMaxScale * 0.94f;
+                case JourneyEnemyArchetype.SignalWarden: return telegraphMaxScale * 1.28f;
                 case JourneyEnemyArchetype.NullSentry: return telegraphMaxScale * 0.92f;
                 case JourneyEnemyArchetype.ChromePenitent: return telegraphMaxScale * 1.10f;
                 default: return telegraphMaxScale;
@@ -267,6 +283,8 @@ namespace Mindforge.Journey
             if (controller == null) return idleColor;
             switch (controller.Archetype)
             {
+                case JourneyEnemyArchetype.Hollow: return hollowColor;
+                case JourneyEnemyArchetype.Shardcaster: return shardcasterColor;
                 case JourneyEnemyArchetype.NullSentry: return nullSentryColor;
                 case JourneyEnemyArchetype.ChromePenitent: return chromePenitentColor;
                 case JourneyEnemyArchetype.SignalWarden: return wardenColor;
@@ -276,8 +294,13 @@ namespace Mindforge.Journey
 
         private Color ColorFor(JourneyEnemyAttackKind kind)
         {
-            if (controller != null && controller.Archetype == JourneyEnemyArchetype.SignalWarden)
-                return wardenColor;
+            if (controller != null)
+            {
+                if (controller.Archetype == JourneyEnemyArchetype.SignalWarden) return wardenColor;
+                if (controller.Archetype == JourneyEnemyArchetype.Shardcaster) return shardcasterColor;
+                if (controller.Archetype == JourneyEnemyArchetype.Hollow && kind == JourneyEnemyAttackKind.Melee)
+                    return hollowColor;
+            }
             return kind == JourneyEnemyAttackKind.Melee ? meleeColor : projectileColor;
         }
 
