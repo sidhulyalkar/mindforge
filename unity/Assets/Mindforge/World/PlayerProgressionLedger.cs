@@ -102,23 +102,23 @@ namespace Mindforge.World
         public bool AddResonance(int amount, string reason = null)
         {
             amount = Mathf.Max(0, amount);
-            if (amount == 0) return false;
+            if (amount == 0 || resonance == int.MaxValue) return false;
             int before = resonance;
-            resonance = checked(resonance + amount);
+            resonance = SaturatingAdd(resonance, amount);
             CurrencyChanged?.Invoke("resonance", before, resonance, reason ?? string.Empty);
             PublishCurrency("resonance", before, resonance, reason);
-            return true;
+            return resonance != before;
         }
 
         public bool AddMastery(int amount, string reason = null)
         {
             amount = Mathf.Max(0, amount);
-            if (amount == 0) return false;
+            if (amount == 0 || mastery == int.MaxValue) return false;
             int before = mastery;
-            mastery = checked(mastery + amount);
+            mastery = SaturatingAdd(mastery, amount);
             CurrencyChanged?.Invoke("mastery", before, mastery, reason ?? string.Empty);
             PublishCurrency("mastery", before, mastery, reason);
-            return true;
+            return mastery != before;
         }
 
         public bool Unlock(string id, string reason = null)
@@ -230,6 +230,12 @@ namespace Mindforge.World
                 destination.Add(id);
             }
             destination.Sort(StringComparer.Ordinal);
+        }
+
+        private static int SaturatingAdd(int current, int amount)
+        {
+            long next = (long)Mathf.Max(0, current) + Mathf.Max(0, amount);
+            return next >= int.MaxValue ? int.MaxValue : (int)next;
         }
 
         private static string Normalize(string value)
