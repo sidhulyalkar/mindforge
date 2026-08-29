@@ -139,7 +139,8 @@ def test_fractured_signal_melee_has_truthful_vertical_reach_and_jumpable_slam():
     # Boss primary projectile fans already use the player's full 3D position. Aerial
     # height therefore redirects pressure rather than becoming permanent invulnerability.
     director = read("Combat", "FracturedSignalDirector.cs")
-    assert "Vector3 targetDir = (player.position - origin).normalized" in director
+    assert "Vector3 center = (player.position - origin).normalized" in director
+    assert "Quaternion.AngleAxis(offset, Vector3.up) * center" in director
 
 
 def test_hud_teaches_aerial_controls_without_adding_a_third_large_panel():
