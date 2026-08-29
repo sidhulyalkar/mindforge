@@ -191,6 +191,42 @@ def test_ten_menagerie_roles_have_non_humanoid_identity_geometry_without_hitbox_
     assert "ReceiveDamage(" not in silhouettes
 
 
+def test_menagerie_collision_uses_one_role_fitted_root_capsule_not_decorative_hitboxes():
+    collision = read("Editor", "ArenaMenagerieColliderV1Builder.cs")
+
+    for role in (
+        'name.Contains("RiftHollow")',
+        'name.Contains("Shardsinger")',
+        'name.Contains("SignalWarden")',
+        'name.Contains("NullSentry")',
+        'name.Contains("ChromePenitent")',
+        'name.Contains("RiftStalker")',
+        'name.Contains("ChoirDrone")',
+        'name.Contains("PrismMaw")',
+        'name.Contains("VeilReaper")',
+        'name.Contains("OrbitSeraph")',
+    ):
+        assert role in collision
+
+    assert "enemy.GetComponent<CapsuleCollider>()" in collision
+    assert "collider.radius = radius * scale" in collision
+    assert "collider.height = Mathf.Max(collider.radius * 2.05f, height * scale)" in collision
+    assert "collider.center = Vector3.up * centerY * scale" in collision
+    assert 'name.Contains("RiftStalker")' in collision and "height = 1.05f" in collision
+    assert 'name.Contains("PrismMaw")' in collision and "height = 1.20f" in collision
+    assert 'name.Contains("VeilReaper")' in collision and "height = 2.30f" in collision
+
+    for forbidden in (
+        "AddComponent<CapsuleCollider>",
+        "BoxCollider",
+        "SphereCollider",
+        "ReceiveDamage(",
+        "RequestDash(",
+        "NeuralEvent",
+    ):
+        assert forbidden not in collision
+
+
 def test_aetherblade_v2_is_nested_energy_presentation_not_gameplay_authority():
     blade = read("Presentation", "AetherbladeVisualPolishV2.cs")
 
@@ -258,15 +294,16 @@ def test_menagerie_hud_is_compact_identity_only_and_not_an_authority_surface():
         assert forbidden not in hud
 
 
-def test_showcase_build_orders_menagerie_population_before_identity_presentation():
+def test_showcase_build_orders_menagerie_population_collision_then_identity_presentation():
     menu = read("Editor", "ShowcaseEditorMenu.cs")
     ecosystem = menu.index("NullWardArenaEcosystemBuilder.ApplyOpenScene();")
     menagerie = menu.index("ArenaMenagerieV1Builder.ApplyOpenScene();")
+    menagerie_collision = menu.index("ArenaMenagerieColliderV1Builder.ApplyOpenScene();")
     collider = menu.index("NullWardEnemyColliderProfileBuilder.ApplyOpenScene();")
     v3 = menu.index("NullWardEnemySilhouetteV3Builder.ApplyOpenScene();")
     identity = menu.index("ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();")
     visual = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
-    assert ecosystem < menagerie < collider < v3 < identity < visual
+    assert ecosystem < menagerie < menagerie_collision < collider < v3 < identity < visual
     assert "Menagerie Crucible adds five specialized variants for a ten-identity" in menu
 
 
@@ -275,6 +312,7 @@ def test_new_unity_scripts_have_unique_pinned_guids():
         UNITY / "World" / "ArenaMenagerieDirector.cs.meta",
         UNITY / "World" / "ArenaMenagerieRoleProfile.cs.meta",
         UNITY / "Editor" / "ArenaMenagerieV1Builder.cs.meta",
+        UNITY / "Editor" / "ArenaMenagerieColliderV1Builder.cs.meta",
         UNITY / "Editor" / "ArenaMenagerieSilhouetteV1Builder.cs.meta",
         UNITY / "Presentation" / "AetherbladeVisualPolishV2.cs.meta",
         UNITY / "Presentation" / "ArenaMenagerieHud.cs.meta",
