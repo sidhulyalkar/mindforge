@@ -38,6 +38,13 @@ namespace Mindforge.Combat
         public bool jump_down;
         public bool jump_held;
 
+        // v4 mounted traversal controls. Movement/aim continue to use the canonical
+        // move/aim vectors so a tape has one spatial command vocabulary. These edges
+        // describe the state transition and actions that only have meaning while riding.
+        public bool mount_toggle_down;
+        public bool mounted_attack_down;
+        public bool mounted_boost_down;
+
         public Vector2 Move => new Vector2(move_x, move_y);
         public Vector3 Aim => new Vector3(aim_x, aim_y, aim_z);
 
@@ -61,7 +68,49 @@ namespace Mindforge.Combat
                 guard_down = guard_down,
                 jump_down = jump_down,
                 jump_held = jump_held,
+                mount_toggle_down = mount_toggle_down,
+                mounted_attack_down = mounted_attack_down,
+                mounted_boost_down = mounted_boost_down,
             };
+        }
+
+        /// <summary>
+        /// Multiple conventional-input consumers may contribute to one simulation tick.
+        /// One-shot edges are unioned; held movement/aim are replaced only by meaningful
+        /// values. This keeps one command frame authoritative across foot and mounted mode
+        /// without creating a second vehicle tape or advancing replay twice per tick.
+        /// </summary>
+        public void MergeFrom(GuardianCommandFrame other)
+        {
+            if (other == null) return;
+
+            Vector2 otherMove = other.Move;
+            if (otherMove.sqrMagnitude > 0.000001f || Move.sqrMagnitude <= 0.000001f)
+            {
+                move_x = other.move_x;
+                move_y = other.move_y;
+            }
+
+            if (other.Aim.sqrMagnitude > 0.000001f)
+            {
+                aim_x = other.aim_x;
+                aim_y = other.aim_y;
+                aim_z = other.aim_z;
+            }
+
+            fire_held |= other.fire_held;
+            cleave_down |= other.cleave_down;
+            counter_down |= other.counter_down;
+            dash_down |= other.dash_down;
+            bloom_down |= other.bloom_down;
+            sword_attack_down |= other.sword_attack_down;
+            guard_held |= other.guard_held;
+            guard_down |= other.guard_down;
+            jump_down |= other.jump_down;
+            jump_held |= other.jump_held;
+            mount_toggle_down |= other.mount_toggle_down;
+            mounted_attack_down |= other.mounted_attack_down;
+            mounted_boost_down |= other.mounted_boost_down;
         }
 
         public static GuardianCommandFrame Neutral(long tick)
@@ -71,7 +120,7 @@ namespace Mindforge.Combat
     [Serializable]
     public sealed class GuardianInputTapeEnvelope
     {
-        public string schema = GuardianInputTape.SchemaV3;
+        public string schema = GuardianInputTape.SchemaV4;
         public string session_id;
         public string generated_utc;
         public int fixed_hz;
@@ -83,12 +132,17 @@ namespace Mindforge.Combat
     /// Recording is memory-backed during play so evidence capture cannot add per-tick
     /// filesystem stalls. Replay fails neutral when exhausted; it never falls back to
     /// live input because that would silently destroy determinism.
+    ///
+    /// V4 makes resolution idempotent per absolute simulation tick. Foot and mounted
+    /// consumers may both ask for the same tick without duplicating a recorded frame or
+    /// consuming two replay frames.
     /// </summary>
     public sealed class GuardianInputTape : MonoBehaviour
     {
         public const string SchemaV1 = "mindforge.guardian_input_tape.v1";
         public const string SchemaV2 = "mindforge.guardian_input_tape.v2";
         public const string SchemaV3 = "mindforge.guardian_input_tape.v3";
+        public const string SchemaV4 = "mindforge.guardian_input_tape.v4";
 
         [SerializeField] private GuardianInputTapeMode mode = GuardianInputTapeMode.Live;
         [SerializeField] private string tapePath;
@@ -98,11 +152,22 @@ namespace Mindforge.Combat
         private int _replayIndex;
         private bool _replayExhaustionLogged;
         private int _fixedHz = 120;
+        private long _lastResolvedTick = long.MinValue;
+        private GuardianCommandFrame _lastResolvedFrame;
 
         public GuardianInputTapeMode Mode => mode;
         public int ReplayIndex => _replayIndex;
         public int FrameCount => _tape != null && _tape.frames != null ? _tape.frames.Count : 0;
         public string LatestSavedPath { get; private set; }
+
+        public static long FixedTickNow
+        {
+            get
+            {
+                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+                return (long)Math.Round(Time.fixedTime / dt);
+            }
+        }
 
         private void Awake()
         {
@@ -119,11 +184,21 @@ namespace Mindforge.Combat
             if (mode == GuardianInputTapeMode.Live)
                 return live;
 
+            if (_lastResolvedFrame != null && _lastResolvedTick == live.tick)
+            {
+                if (mode == GuardianInputTapeMode.Record)
+                    _lastResolvedFrame.MergeFrom(live);
+                return _lastResolvedFrame.CopyForTick(live.tick);
+            }
+
             if (mode == GuardianInputTapeMode.Record)
             {
                 EnsureRecordingTape();
-                _tape.frames.Add(live.CopyForTick(live.tick));
-                return live;
+                GuardianCommandFrame recorded = live.CopyForTick(live.tick);
+                _tape.frames.Add(recorded);
+                _lastResolvedTick = live.tick;
+                _lastResolvedFrame = recorded;
+                return recorded.CopyForTick(live.tick);
             }
 
             if (_tape == null || _tape.frames == null || _replayIndex >= _tape.frames.Count)
@@ -133,11 +208,19 @@ namespace Mindforge.Combat
                     _replayExhaustionLogged = true;
                     Debug.LogWarning("[Mindforge] Guardian input replay exhausted; returning neutral commands.");
                 }
-                return GuardianCommandFrame.Neutral(live.tick);
+                GuardianCommandFrame neutral = GuardianCommandFrame.Neutral(live.tick);
+                _lastResolvedTick = live.tick;
+                _lastResolvedFrame = neutral;
+                return neutral.CopyForTick(live.tick);
             }
 
-            GuardianCommandFrame recorded = _tape.frames[_replayIndex++];
-            return recorded != null ? recorded.CopyForTick(live.tick) : GuardianCommandFrame.Neutral(live.tick);
+            GuardianCommandFrame source = _tape.frames[_replayIndex++];
+            GuardianCommandFrame resolved = source != null
+                ? source.CopyForTick(live.tick)
+                : GuardianCommandFrame.Neutral(live.tick);
+            _lastResolvedTick = live.tick;
+            _lastResolvedFrame = resolved;
+            return resolved.CopyForTick(live.tick);
         }
 
         public string SaveRecording()
@@ -159,7 +242,7 @@ namespace Mindforge.Combat
             if (_tape != null) return;
             _tape = new GuardianInputTapeEnvelope
             {
-                schema = SchemaV3,
+                schema = SchemaV4,
                 session_id = MindforgeSessionContext.GameSessionId,
                 generated_utc = DateTime.UtcNow.ToString("O"),
                 fixed_hz = _fixedHz,
@@ -173,10 +256,12 @@ namespace Mindforge.Combat
                 throw new FileNotFoundException("Guardian input replay tape not found", path);
             _tape = JsonUtility.FromJson<GuardianInputTapeEnvelope>(File.ReadAllText(path));
             if (_tape == null ||
-                (_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3) ||
+                (_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3 && _tape.schema != SchemaV4) ||
                 _tape.frames == null)
                 throw new InvalidDataException($"Unsupported or malformed Guardian input tape: {path}");
             _replayIndex = 0;
+            _lastResolvedTick = long.MinValue;
+            _lastResolvedFrame = null;
             Debug.Log($"[Mindforge] Guardian input replay loaded: {path} schema={_tape.schema} frames={_tape.frames.Count}");
         }
 
