@@ -119,6 +119,10 @@ namespace Mindforge.Editor
                 "energy-blade + endurance dodge roll + jump/double-jump/hover/air-dash; player Pulse fire and the physical " +
                 "shield are retired from the normal control surface. Enemy ecosystem, stable VEP targets, encounter authority " +
                 "and qualification boundaries remain intact. Presentation-budget evidence is emitted before Play Mode.");
+            Debug.Log(
+                "[Mindforge:Showcase] Composition retained: Memory Forge → Synapse Causeway → Null Market → Fracture Court → Cathedral. " +
+                "Five ordinary enemy roles remain in the encounter grammar; the persistent shortcut, geometric intent telegraphs, " +
+                "and Layered near/mid/far set dressing now sit inside the grounded world shell rather than over exposed void.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
