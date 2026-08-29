@@ -85,8 +85,10 @@ def test_shift_is_primary_dash_and_pulse_moves_to_x_or_middle_mouse():
         assert token in source
 
     assert "_fireHeld = Input.GetKey(KeyCode.LeftShift)" not in source
-    assert "if (command.dash_down" in source
-    assert source.index("if (command.dash_down") < source.index("if (command.jump_down")
+    arbitration = source.index("// One fixed command frame owns at most one committed action")
+    dash = source.index("if (command.dash_down", arbitration)
+    jump = source.index("if (command.jump_down", arbitration)
+    assert dash < jump
 
 
 def test_existing_input_tape_fields_replay_aerial_actions_without_new_schema_surface():
@@ -125,6 +127,7 @@ def test_hud_teaches_aerial_controls_without_adding_a_third_large_panel():
     ward = read("World", "NullWardHud.cs")
     hud = read("Presentation", "CombatStateHud.cs")
     guide = read("Presentation", "PlayerAgencyGuide.cs")
+    menu = read("Presentation", "GuardianEquipmentMenu.cs")
 
     assert "SPACE jump ×2 / hold to hover · SHIFT dash / air dash" in ward
     assert "motor.HoverRemaining01" in hud
@@ -134,3 +137,5 @@ def test_hud_teaches_aerial_controls_without_adding_a_third_large_panel():
     assert "SPACE JUMP ×2 / HOLD HOVER" in guide
     assert "X / MMB PULSE SHOT" in guide
     assert "EEG never moves, jumps, hovers, air-dashes" in guide
+    assert '"SHIFT", "Directional dash · one air dash per airtime"' in menu
+    assert '"X / MMB", "Pulse Shot"' in menu
