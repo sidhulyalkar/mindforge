@@ -89,8 +89,14 @@ namespace Mindforge.Editor
                 // Signal Cathedral threshold without translating Arena V3 rune geometry.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
-                NullWardEnemySilhouetteBuilder.ApplyOpenScene();
+
+                // Arena ecosystem runs before presentation so every newly-authored enemy
+                // receives the same silhouette, telegraph and static-world treatment as
+                // the original Sentry/Penitent pair.
+                NullWardArenaEcosystemBuilder.ApplyOpenScene();
+                NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
+                NullWardArenaSetDressingV3Builder.ApplyOpenScene();
                 NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
             }
             finally
@@ -108,15 +114,15 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
-                "[Mindforge:Showcase] Null Ward cinematic slice ready. The controller-only path now runs from " +
-                "the Memory Forge through the Synapse Causeway and Null Market, includes an eastern maintenance " +
-                "loop with a persistent shortcut and optional jump line, opens the Protocol Veil after the required " +
-                "encounters, and hands the existing Arena V3 to The Fractured Signal. Ordinary Null Ward enemies " +
-                "receive archetype-specific collider-free silhouettes before the visual V2 architectural pass. " +
-                "A presentation-budget report is emitted before Play Mode; controller-only runtime performance " +
-                "evidence is emitted during play. Runtime installs the tighter third-person camera, conventional " +
-                "multi-target lock, double jump, hold-Space hover, ground/air Shift dash, pooled effects and stable " +
-                "Wisp gaze anchors.");
+                "[Mindforge:Showcase] Full Null Ward arena ecosystem ready. The controller-only path now runs from " +
+                "Memory Forge through a populated Synapse Causeway, mixed-pressure Null Market and Fracture Court " +
+                "before the Signal Cathedral and existing Fractured Signal boss arena. Five ordinary enemy " +
+                "archetypes plus the elevated Aether Needle variant use distinct collider-free silhouettes and " +
+                "geometric intent telegraphs. Layered near/mid/far set dressing extends the Ward and boss-arena " +
+                "skyline without adding gameplay colliders. A presentation-budget report is emitted before Play " +
+                "Mode; controller-only runtime performance evidence is emitted during play. Runtime retains the " +
+                "tighter third-person camera, conventional multi-target lock, double jump, hold-Space hover, " +
+                "ground/air Shift dash, pooled effects and stable Wisp gaze anchors.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
