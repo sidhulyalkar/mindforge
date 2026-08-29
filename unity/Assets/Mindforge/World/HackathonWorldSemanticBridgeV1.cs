@@ -117,7 +117,7 @@ namespace Mindforge.World
             if (playthrough != null)
             {
                 ledger.SetInt("journey.stage", playthrough.StageIndex, "semantic_seed");
-                ledger.SetBool("region." + playthrough.Stage.ToString().ToLowerInvariant() + ".entered", true, "semantic_seed");
+                RecordRegionPrefix(playthrough.StageIndex, "semantic_seed");
             }
             if (menagerie != null && menagerie.Complete)
             {
@@ -136,13 +136,24 @@ namespace Mindforge.World
         private void OnStageChanged(HackathonPlaythroughStage before, HackathonPlaythroughStage after)
         {
             ledger?.SetInt("journey.stage", (int)after, "playthrough_stage");
-            ledger?.SetBool("region." + after.ToString().ToLowerInvariant() + ".entered", true, "playthrough_stage");
+            RecordRegionPrefix((int)after, "playthrough_stage");
             signals?.Publish(
                 WorldSignalKind.RegionEntered,
                 "region.entered",
                 subject: after.ToString(),
                 intValue: (int)after,
                 reason: before + "->" + after);
+        }
+
+        private void RecordRegionPrefix(int stageIndex, string reason)
+        {
+            if (ledger == null) return;
+            int max = Mathf.Clamp(stageIndex, 0, (int)HackathonPlaythroughStage.Aftermath);
+            for (int i = 0; i <= max; i++)
+            {
+                HackathonPlaythroughStage value = (HackathonPlaythroughStage)i;
+                ledger.SetBool("region." + value.ToString().ToLowerInvariant() + ".entered", true, reason);
+            }
         }
 
         private void OnMenagerieWaveStarted(int index)
