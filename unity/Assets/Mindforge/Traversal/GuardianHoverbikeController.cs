@@ -177,6 +177,22 @@ namespace Mindforge.Traversal
             ApplyMountedMovement(aim, command.MountedMove);
         }
 
+        /// <summary>
+        /// Normalizes mounted state before an external physical-authority transition such
+        /// as checkpoint rest/death suspension. Dismount restores the pre-mount foot
+        /// authority first, allowing the checkpoint to snapshot the true conventional
+        /// authority state and then suspend it exactly once.
+        /// </summary>
+        public void PrepareForAuthoritySuspension()
+        {
+            ResolveDependencies();
+            _mountLatched = false;
+            _attackLatched = false;
+            _boostLatched = false;
+            _moveInput = Vector2.zero;
+            if (_mounted) Dismount(true);
+        }
+
         private void TryMountNearest()
         {
             if (_mounted) return;
