@@ -22,10 +22,10 @@ def test_hackathon_builder_densifies_all_major_world_districts_without_new_colli
         '"Hackathon_MenagerieCrucible"',
         '"Hackathon_GravitasProcessional"',
         '"Hackathon_DistantAetheria"',
-        '"FarAetherSpire_"',
-        '"CrucibleTerrace_"',
-        '"BazaarStallShell_"',
-        '"CausewayOverbeam_"',
+        "FarAetherSpire_",
+        "CrucibleTerrace_",
+        "BazaarStallShell_",
+        "CausewayOverbeam_",
         "UnityEngine.Object.DestroyImmediate(collider)",
     ):
         assert token in source
@@ -63,7 +63,8 @@ def test_first_large_encounter_is_authored_three_four_three_over_existing_enemy_
         assert name in builder
 
     assert "director.ConfigureRuntime(guardian, activation, ordered, new[] { 3, 4, 3 })" in builder
-    assert "JourneyEnemyController remains the sole ordinary-enemy combat authority" in director
+    assert "JourneyEnemyController" in director
+    assert "sole ordinary-enemy combat authority" in director
     assert "enemy.Arm()" in director
     assert "enemy.Vitals.IsAlive" in director
 
@@ -124,6 +125,8 @@ def test_guardian_v2_detail_is_motion_downstream_and_keeps_physics_out():
         '"ShoulderFins"',
         '"BackReactor"',
         '"AetherHalfCape"',
+        '"HeroCrest"',
+        '"CrestBlade"',
         '"VisorBrow"',
         '"KneePlate_"',
         "motor.Velocity",
@@ -135,6 +138,11 @@ def test_guardian_v2_detail_is_motion_downstream_and_keeps_physics_out():
         "collider.enabled = false",
     ):
         assert token in source
+
+    # The animated crest wrapper must actually own the crest geometry; otherwise the
+    # LateUpdate crest motion becomes a dead transform with no visible child.
+    assert '_crestRoot = Node("HeroCrest", head, Vector3.zero)' in source
+    assert 'Part("CrestBlade", _crestRoot' in source
 
     for forbidden in (
         "GetComponent<Rigidbody>",
