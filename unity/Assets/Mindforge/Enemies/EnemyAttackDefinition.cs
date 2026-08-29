@@ -15,7 +15,8 @@ namespace Mindforge.Enemies
     /// Gameplay definition for one enemy attack. The definition is authoritative data;
     /// presentationId only selects animation/VFX/audio after gameplay has chosen it.
     /// TrackingLock01 defines the fixed-tick point in the telegraph where aim becomes
-    /// committed, so late player movement can evade a correctly-read attack.
+    /// committed, so late player movement can evade a correctly-read attack. Optional
+    /// melee advance is a bounded committed body movement resolved by the same controller.
     /// </summary>
     [Serializable]
     public sealed class EnemyAttackDefinition
@@ -32,6 +33,7 @@ namespace Mindforge.Enemies
         [SerializeField, Min(1)] private int recoveryTicks = 60;
         [SerializeField, Range(0f, 1f)] private float trackingStrength;
         [SerializeField, Range(0.15f, 1f)] private float trackingLock01 = 0.72f;
+        [SerializeField, Range(0f, 3.5f)] private float advanceDistance;
         [SerializeField, Min(0f)] private float damage = 8f;
         [SerializeField, Min(0f)] private float poiseDamage = 5f;
         [SerializeField, Min(0f)] private float knockback = 1.4f;
@@ -54,6 +56,7 @@ namespace Mindforge.Enemies
         public int RecoveryTicks => Mathf.Max(1, recoveryTicks);
         public float TrackingStrength => Mathf.Clamp01(trackingStrength);
         public float TrackingLock01 => Mathf.Clamp(trackingLock01 <= 0f ? 0.72f : trackingLock01, 0.15f, 1f);
+        public float AdvanceDistance => Mathf.Clamp(advanceDistance, 0f, 3.5f);
         public float Damage => Mathf.Max(0f, damage);
         public float PoiseDamage => Mathf.Max(0f, poiseDamage);
         public float Knockback => Mathf.Max(0f, knockback);
@@ -91,7 +94,8 @@ namespace Mindforge.Enemies
             float shotSpread,
             bool los,
             bool isHeavy,
-            string presentation)
+            string presentation,
+            float advance = 0f)
         {
             return new EnemyAttackDefinition
             {
@@ -107,6 +111,7 @@ namespace Mindforge.Enemies
                 recoveryTicks = recovery,
                 trackingStrength = tracking,
                 trackingLock01 = trackingLock,
+                advanceDistance = advance,
                 damage = attackDamage,
                 poiseDamage = attackPoise,
                 knockback = attackKnockback,
