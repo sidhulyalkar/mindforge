@@ -26,13 +26,14 @@ namespace Mindforge.World
         public int resonance;
         public int mastery;
         public List<string> unlocks = new List<string>();
+        public List<string> reward_receipts = new List<string>();
     }
 
     /// <summary>
-    /// Narrow authority for durable player progression. It owns currencies and semantic
-    /// unlock flags only. It never moves the Guardian, schedules encounters, changes damage,
-    /// opens gates, or reads neural state. Gameplay systems may later consume unlock flags
-    /// through explicit adapters rather than by giving progression direct scene authority.
+    /// Narrow authority for durable player progression. It owns currencies, semantic unlocks
+    /// and idempotent reward receipts only. It never moves the Guardian, schedules encounters,
+    /// changes damage, opens gates, or reads neural state. Gameplay systems may later consume
+    /// unlock flags through explicit adapters rather than giving progression scene authority.
     /// </summary>
     [DefaultExecutionOrder(-775)]
     public sealed class PlayerProgressionLedger : MonoBehaviour
@@ -41,8 +42,10 @@ namespace Mindforge.World
         [SerializeField, Min(0)] private int resonance;
         [SerializeField, Min(0)] private int mastery;
         [SerializeField] private List<string> unlocks = new List<string>();
+        [SerializeField] private List<string> rewardReceipts = new List<string>();
 
         private readonly HashSet<string> _unlockIndex = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _receiptIndex = new HashSet<string>(StringComparer.Ordinal);
 
         public event Action<string, int, int, string> CurrencyChanged;
         public event Action<string, string> Unlocked;
@@ -51,6 +54,7 @@ namespace Mindforge.World
         public int Resonance => resonance;
         public int Mastery => mastery;
         public IReadOnlyList<string> Unlocks => unlocks;
+        public IReadOnlyList<string> RewardReceipts => rewardReceipts;
 
         private void Awake()
         {
@@ -78,6 +82,21 @@ namespace Mindforge.World
                 default:
                     return false;
             }
+        }
+
+        public bool TryClaimRewardReceipt(string questId)
+        {
+            string id = Normalize(questId);
+            if (string.IsNullOrEmpty(id) || !_receiptIndex.Add(id)) return false;
+            rewardReceipts.Add(id);
+            rewardReceipts.Sort(StringComparer.Ordinal);
+            return true;
+        }
+
+        public bool HasRewardReceipt(string questId)
+        {
+            string id = Normalize(questId);
+            return !string.IsNullOrEmpty(id) && _receiptIndex.Contains(id);
         }
 
         public bool AddResonance(int amount, string reason = null)
@@ -133,12 +152,8 @@ namespace Mindforge.World
                 resonance = resonance,
                 mastery = mastery,
             };
-            for (int i = 0; i < unlocks.Count; i++)
-            {
-                string id = Normalize(unlocks[i]);
-                if (!string.IsNullOrEmpty(id)) snapshot.unlocks.Add(id);
-            }
-            snapshot.unlocks.Sort(StringComparer.Ordinal);
+            CopyNormalized(unlocks, snapshot.unlocks);
+            CopyNormalized(rewardReceipts, snapshot.reward_receipts);
             return snapshot;
         }
 
@@ -147,17 +162,15 @@ namespace Mindforge.World
             resonance = snapshot != null ? Mathf.Max(0, snapshot.resonance) : 0;
             mastery = snapshot != null ? Mathf.Max(0, snapshot.mastery) : 0;
             unlocks.Clear();
+            rewardReceipts.Clear();
             _unlockIndex.Clear();
-            if (snapshot != null && snapshot.unlocks != null)
+            _receiptIndex.Clear();
+
+            if (snapshot != null)
             {
-                for (int i = 0; i < snapshot.unlocks.Count; i++)
-                {
-                    string id = Normalize(snapshot.unlocks[i]);
-                    if (string.IsNullOrEmpty(id) || !_unlockIndex.Add(id)) continue;
-                    unlocks.Add(id);
-                }
+                RestoreNormalized(snapshot.unlocks, unlocks, _unlockIndex);
+                RestoreNormalized(snapshot.reward_receipts, rewardReceipts, _receiptIndex);
             }
-            unlocks.Sort(StringComparer.Ordinal);
             SnapshotRestored?.Invoke();
         }
 
@@ -175,18 +188,48 @@ namespace Mindforge.World
 
         private void Reindex()
         {
-            _unlockIndex.Clear();
-            for (int i = unlocks.Count - 1; i >= 0; i--)
+            ReindexList(unlocks, _unlockIndex);
+            ReindexList(rewardReceipts, _receiptIndex);
+        }
+
+        private static void ReindexList(List<string> values, HashSet<string> index)
+        {
+            index.Clear();
+            for (int i = values.Count - 1; i >= 0; i--)
             {
-                string id = Normalize(unlocks[i]);
-                if (string.IsNullOrEmpty(id) || !_unlockIndex.Add(id))
+                string id = Normalize(values[i]);
+                if (string.IsNullOrEmpty(id) || !index.Add(id))
                 {
-                    unlocks.RemoveAt(i);
+                    values.RemoveAt(i);
                     continue;
                 }
-                unlocks[i] = id;
+                values[i] = id;
             }
-            unlocks.Sort(StringComparer.Ordinal);
+            values.Sort(StringComparer.Ordinal);
+        }
+
+        private static void CopyNormalized(List<string> source, List<string> destination)
+        {
+            destination.Clear();
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < source.Count; i++)
+            {
+                string id = Normalize(source[i]);
+                if (!string.IsNullOrEmpty(id) && seen.Add(id)) destination.Add(id);
+            }
+            destination.Sort(StringComparer.Ordinal);
+        }
+
+        private static void RestoreNormalized(List<string> source, List<string> destination, HashSet<string> index)
+        {
+            if (source == null) return;
+            for (int i = 0; i < source.Count; i++)
+            {
+                string id = Normalize(source[i]);
+                if (string.IsNullOrEmpty(id) || !index.Add(id)) continue;
+                destination.Add(id);
+            }
+            destination.Sort(StringComparer.Ordinal);
         }
 
         private static string Normalize(string value)
