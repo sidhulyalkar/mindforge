@@ -7,9 +7,9 @@ namespace Mindforge.Presentation
 {
     /// <summary>
     /// Presentation-only geometric intent language for ordinary enemies. The authoritative
-    /// JourneyEnemyController still chooses, times and resolves every attack. This layer
-    /// only turns the already-selected EnemyAttackDefinition into spatially meaningful
-    /// ground arcs and projectile lanes so fast combat remains readable at a glance.
+    /// JourneyEnemyController still chooses, tracks, commits, times and resolves every attack.
+    /// This layer reads that fixed-tick phase truth and turns it into spatial ground arcs,
+    /// projectile lanes, a visible aim-lock transition and a brief recovery window.
     /// </summary>
     public sealed class JourneyEnemyIntentVfx : MonoBehaviour
     {
@@ -17,18 +17,20 @@ namespace Mindforge.Presentation
         [SerializeField] private float lineWidth = 0.032f;
         [SerializeField] private float groundOffset = 0.055f;
         [SerializeField] private float maximumPreviewRange = 8.0f;
+        [SerializeField] private float committedWidthMultiplier = 1.65f;
+        [SerializeField] private float recoveryRingRadius = 0.78f;
 
         private LineRenderer _outline;
         private readonly LineRenderer[] _rays = new LineRenderer[5];
         private EnemyAttackDefinition _attack;
-        private float _startedAt;
-        private float _until;
+        private bool _recoveryGeometry;
         private bool _subscribed;
 
         private static readonly Color Melee = new Color(1.00f, 0.25f, 0.07f, 0.90f);
         private static readonly Color Projectile = new Color(1.00f, 0.08f, 0.42f, 0.92f);
         private static readonly Color Burst = new Color(0.82f, 0.18f, 1.00f, 0.94f);
         private static readonly Color Retreat = new Color(0.95f, 0.52f, 0.15f, 0.80f);
+        private static readonly Color Recovery = new Color(0.42f, 0.88f, 1.00f, 0.48f);
 
         private void Awake()
         {
@@ -46,6 +48,8 @@ namespace Mindforge.Presentation
         private void OnDisable()
         {
             Unsubscribe();
+            _attack = null;
+            _recoveryGeometry = false;
             HideAll();
         }
 
@@ -79,7 +83,7 @@ namespace Mindforge.Presentation
             Renderer coreRenderer = core != null ? core.GetComponent<Renderer>() : null;
             if (coreRenderer != null) material = coreRenderer.sharedMaterial;
 
-            GameObject root = new GameObject("IntentTelegraphV1");
+            GameObject root = new GameObject("IntentTelegraphV2");
             root.transform.SetParent(transform, false);
 
             _outline = CreateLine("IntentOutline", root.transform, material);
@@ -109,46 +113,107 @@ namespace Mindforge.Presentation
             if (attack == null) return;
             if (_outline == null) BuildVisuals();
             _attack = attack;
-            _startedAt = Time.unscaledTime;
-            _until = _startedAt + Mathf.Max(0.05f, attack.TelegraphTicks * Time.fixedDeltaTime);
+            _recoveryGeometry = false;
             DrawAttackShape(attack);
+            SetWidths(Mathf.Max(0.008f, lineWidth));
             SetVisible(true);
         }
 
         private void OnAttackResolved(JourneyEnemyAttackKind kind)
         {
             _attack = null;
-            _until = -1f;
-            HideAll();
+            _recoveryGeometry = controller != null && controller.IsRecovering;
+            if (_recoveryGeometry)
+            {
+                DrawRecoveryRing();
+                SetWidths(Mathf.Max(0.008f, lineWidth) * 1.15f);
+                SetVisible(true);
+            }
+            else
+            {
+                HideAll();
+            }
         }
 
         private void OnArmedChanged(bool armed)
         {
-            if (!armed) HideAll();
+            if (!armed)
+            {
+                _attack = null;
+                _recoveryGeometry = false;
+                HideAll();
+            }
         }
 
-        private void OnDefeated(JourneyEnemyController enemy) => HideAll();
-        private void OnReconstructed(JourneyEnemyController enemy) => HideAll();
+        private void OnDefeated(JourneyEnemyController enemy)
+        {
+            _attack = null;
+            _recoveryGeometry = false;
+            HideAll();
+        }
+
+        private void OnReconstructed(JourneyEnemyController enemy)
+        {
+            _attack = null;
+            _recoveryGeometry = false;
+            HideAll();
+        }
 
         private void Update()
         {
-            if (_attack == null || Time.unscaledTime >= _until)
+            if (controller == null)
             {
-                if (_attack != null)
-                {
-                    _attack = null;
-                    HideAll();
-                }
+                HideAll();
                 return;
             }
 
-            float phase = Mathf.InverseLerp(_startedAt, Mathf.Max(_startedAt + 0.01f, _until), Time.unscaledTime);
-            Color baseColor = ColorFor(_attack);
-            float pulse = 0.72f + 0.28f * Mathf.Sin(phase * Mathf.PI * 5f) * Mathf.Sin(phase * Mathf.PI * 0.5f);
-            Color animated = Color.Lerp(baseColor, Color.white, phase * 0.24f);
-            animated.a = Mathf.Clamp01(baseColor.a * pulse);
-            ApplyColor(_outline, animated);
-            for (int i = 0; i < _rays.Length; i++) ApplyColor(_rays[i], animated);
+            if (_attack != null && controller.PendingAttack != JourneyEnemyAttackKind.None)
+            {
+                _recoveryGeometry = false;
+                float phase = controller.AttackTelegraphProgress01;
+                bool committed = controller.AttackTrackingLocked;
+                Color baseColor = ColorFor(_attack);
+
+                // Progress itself comes from fixed-tick gameplay. Unscaled time is used only
+                // for a small emissive breath, so pause/hit-stop cannot move the warning clock.
+                float breath = 0.86f + 0.14f * Mathf.Sin(Time.unscaledTime * (committed ? 13f : 7f));
+                float commitStart = Mathf.Clamp01(_attack.TrackingLock01);
+                float commit01 = committed
+                    ? Mathf.InverseLerp(commitStart, 1f, phase)
+                    : 0f;
+                Color animated = Color.Lerp(baseColor, Color.white, committed ? 0.34f + commit01 * 0.46f : phase * 0.16f);
+                animated.a = Mathf.Clamp01(baseColor.a * breath * (0.72f + phase * 0.28f));
+                ApplyColor(_outline, animated);
+                for (int i = 0; i < _rays.Length; i++) ApplyColor(_rays[i], animated);
+
+                float width = Mathf.Max(0.008f, lineWidth) *
+                              Mathf.Lerp(1f, Mathf.Max(1f, committedWidthMultiplier), commit01);
+                SetWidths(width);
+                SetVisible(true);
+                return;
+            }
+
+            if (controller.IsRecovering)
+            {
+                if (!_recoveryGeometry)
+                {
+                    _recoveryGeometry = true;
+                    DrawRecoveryRing();
+                }
+
+                float recovery01 = controller.RecoveryProgress01;
+                Color color = Recovery;
+                color.a *= 1f - recovery01;
+                ApplyColor(_outline, color);
+                for (int i = 0; i < _rays.Length; i++) ApplyColor(_rays[i], color);
+                SetWidths(Mathf.Max(0.008f, lineWidth) * Mathf.Lerp(1.20f, 0.62f, recovery01));
+                SetVisible(true);
+                return;
+            }
+
+            _attack = null;
+            _recoveryGeometry = false;
+            HideAll();
         }
 
         private void DrawAttackShape(EnemyAttackDefinition attack)
@@ -206,8 +271,6 @@ namespace Mindforge.Presentation
                 ray.SetPosition(1, direction * range + Vector3.up * 0.28f);
             }
 
-            // A short transverse bar at the target end makes a single bolt lane readable
-            // even when viewed nearly head-on.
             if (count == 1)
             {
                 _outline.positionCount = 2;
@@ -220,6 +283,20 @@ namespace Mindforge.Presentation
         {
             const int points = 33;
             const float radius = 1.15f;
+            _outline.loop = true;
+            _outline.positionCount = points;
+            for (int i = 0; i < points; i++)
+            {
+                float angle = i / (float)points * Mathf.PI * 2f;
+                _outline.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, groundOffset, Mathf.Sin(angle) * radius));
+            }
+        }
+
+        private void DrawRecoveryRing()
+        {
+            ClearGeometry();
+            const int points = 33;
+            float radius = Mathf.Max(0.35f, recoveryRingRadius);
             _outline.loop = true;
             _outline.positionCount = points;
             for (int i = 0; i < points; i++)
@@ -252,6 +329,13 @@ namespace Mindforge.Presentation
             if (_outline != null) _outline.enabled = false;
             for (int i = 0; i < _rays.Length; i++)
                 if (_rays[i] != null) _rays[i].enabled = false;
+        }
+
+        private void SetWidths(float width)
+        {
+            if (_outline != null) _outline.widthMultiplier = width;
+            for (int i = 0; i < _rays.Length; i++)
+                if (_rays[i] != null) _rays[i].widthMultiplier = width;
         }
 
         private static Color ColorFor(EnemyAttackDefinition attack)
