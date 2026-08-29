@@ -107,13 +107,18 @@ namespace Mindforge.Combat
 
         public static AttackDefinition[] CreateDefaultLightChain()
         {
-            // 120 Hz authoritative simulation. The chain remains fast, but each step has
-            // explicit anticipation, contact and recovery instead of animation-owned timing.
+            // 120 Hz authoritative simulation. Step one is a fast checking cut, step two
+            // reverses the sweep while retaining mobility, and step three is the deliberate
+            // high-poise finisher. The rhythm is compact without allowing animation/VFX to
+            // invent contact or cancel windows.
             return new[]
             {
-                Create("aetherblade_light_1", 13, 23, 15, 22, 34, 0.84f, 0.88f, 0.92f, 0.90f, 1.00f, 1.00f, 0.95f, false, false, "guardian_light_1"),
-                Create("aetherblade_light_2", 15, 25, 17, 25, 38, 0.80f, 0.80f, 1.00f, 1.00f, 1.02f, 1.05f, 1.00f, true, false, "guardian_light_2"),
-                Create("aetherblade_light_3", 19, 29, 27, 30, 45, 0.67f, 0.62f, 1.28f, 1.55f, 1.08f, 1.16f, 1.35f, false, true, "guardian_light_3"),
+                // ~0.35 s total. Quick opener with broad steering and slightly conservative damage.
+                Create("aetherblade_light_1", 10, 19, 13, 18, 27, 0.90f, 0.92f, 0.90f, 0.88f, 1.03f, 1.02f, 0.92f, false, false, "guardian_light_1"),
+                // ~0.38 s total. Reverse cut reaches a little farther and keeps the combo moving.
+                Create("aetherblade_light_2", 11, 21, 14, 20, 30, 0.86f, 0.86f, 1.00f, 1.00f, 1.07f, 1.10f, 1.00f, true, false, "guardian_light_2"),
+                // ~0.52 s total. This is the commitment: longer recovery, larger poise/knockback payoff.
+                Create("aetherblade_light_3", 15, 25, 22, 25, 37, 0.72f, 0.68f, 1.32f, 1.62f, 1.14f, 1.20f, 1.40f, false, true, "guardian_light_3"),
             };
         }
     }
