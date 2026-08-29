@@ -32,6 +32,7 @@ namespace Mindforge.World
             string storyLine,
             float discoveryRadius)
         {
+            Unsubscribe();
             guardian = guardianTransform;
             ledger = stateLedger;
             signals = signalBus;
@@ -39,6 +40,7 @@ namespace Mindforge.World
             title = heading ?? string.Empty;
             line = storyLine ?? string.Empty;
             radius = Mathf.Max(0.5f, discoveryRadius);
+            Subscribe();
             ResolveExistingState();
         }
 
@@ -47,6 +49,15 @@ namespace Mindforge.World
             Resolve();
             ResolveExistingState();
         }
+
+        private void OnEnable()
+        {
+            Resolve();
+            Subscribe();
+            ResolveExistingState();
+        }
+
+        private void OnDisable() => Unsubscribe();
 
         private void FixedUpdate()
         {
@@ -81,6 +92,18 @@ namespace Mindforge.World
             if (ledger == null) return;
             string id = Normalize(storyId);
             _discovered = ledger.TryGetBool("story." + id + ".discovered", out bool value) && value;
+        }
+
+        private void Subscribe()
+        {
+            if (ledger == null) return;
+            ledger.SnapshotRestored -= ResolveExistingState;
+            ledger.SnapshotRestored += ResolveExistingState;
+        }
+
+        private void Unsubscribe()
+        {
+            if (ledger != null) ledger.SnapshotRestored -= ResolveExistingState;
         }
 
         private void Resolve()
