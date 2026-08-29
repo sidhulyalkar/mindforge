@@ -28,6 +28,7 @@ namespace Mindforge.Qualification
 
         private bool _active;
         private string _activationReason = string.Empty;
+        private GUIStyle _watermark;
 
         public bool Active => _active;
 
@@ -80,7 +81,7 @@ namespace Mindforge.Qualification
 
             // P2 should not present intentional neural absence as a fault. Suppress
             // neural-only status/feedback while preserving the explicit qualification
-            // banner and GameMarker provenance below.
+            // watermark and GameMarker provenance below.
             if (evidenceHud != null) evidenceHud.enabled = false;
             if (auraFeedback != null) auraFeedback.enabled = false;
             if (haptics != null) haptics.enabled = false;
@@ -125,9 +126,19 @@ namespace Mindforge.Qualification
         private void OnGUI()
         {
             if (!_active) return;
-            GUI.Box(
-                new Rect(12f, 12f, 430f, 48f),
-                $"P2 CONTROLLER-ONLY · BCI DISABLED · {_activationReason}");
+            if (_watermark == null)
+            {
+                _watermark = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 10,
+                    alignment = TextAnchor.UpperRight,
+                    normal = { textColor = new Color(0.64f, 0.70f, 0.80f, 0.78f) },
+                };
+            }
+            GUI.Label(
+                new Rect(Screen.width - 290f, 10f, 278f, 20f),
+                $"SHOWCASE · BCI OFF · {_activationReason}",
+                _watermark);
         }
     }
 }
