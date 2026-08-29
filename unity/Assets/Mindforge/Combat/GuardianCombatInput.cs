@@ -6,29 +6,29 @@ namespace Mindforge.Combat
     /// Samples conventional third-person PC input in Update, latches one-shot actions,
     /// then applies one complete command frame on the authoritative fixed simulation tick.
     ///
-    /// Third-person map:
+    /// Grounded-world map:
     /// - WASD: camera-relative movement
     /// - Mouse/trackpad or arrow keys: orbit camera (handled by ShowcaseCameraRig)
     /// - T: conventional target lock (handled by GuardianTargetLock)
     /// - Space: jump / double jump; hold while descending to hover / slow fall
-    /// - Left/Right Shift: directional dodge / air dash
-    /// - Left Ctrl / Left Alt: compatibility dodge aliases
-    /// - F or LMB: sword light/combo/parry
-    /// - X or MMB: Pulse Shot
-    /// - RMB or E: shield
+    /// - Shift or RMB: grounded dodge roll / air dash
+    /// - Ctrl / Alt: compatibility dodge aliases
+    /// - F or LMB: energy-blade light chain / projectile parry
     /// - Q: Rift Cleave
     /// - C: Counter Pulse
     /// - R: Gravity Bloom / Twin Eclipse
     ///
-    /// Free combat heading follows the camera. Locked combat heading follows the locked
-    /// enemy. Neural evidence never originates movement, target lock, attack, guard,
-    /// camera orbit, aim, jump, hover or dodge commands.
+    /// Shield hold and player Pulse fire are intentionally retired from the normal map in
+    /// this tranche. The corresponding tape fields remain for backward-compatible replay,
+    /// but this input authority never issues them. Neural evidence never originates
+    /// movement, target lock, attack, camera orbit, aim, jump, hover or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
         [SerializeField] private GuardianMotor motor;
         [SerializeField] private GuardianCombatController combat;
         [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private GuardianStamina endurance;
         [SerializeField] private GravityBloomAbility bloom;
         [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private Transform aimTarget;
@@ -39,7 +39,6 @@ namespace Mindforge.Combat
         [SerializeField] private float freeAimDistance = 8f;
 
         private Vector2 _move;
-        private bool _fireHeld;
         private bool _cleaveLatched;
         private bool _counterLatched;
         private bool _dashLatched;
@@ -47,8 +46,6 @@ namespace Mindforge.Combat
         private bool _jumpHeld;
         private bool _bloomLatched;
         private bool _swordAttackLatched;
-        private bool _guardHeld;
-        private bool _guardDownLatched;
         private long _fixedInputTick;
 
         private Vector3 _currentAimDirection = Vector3.forward;
@@ -65,7 +62,6 @@ namespace Mindforge.Combat
         public void SetCombatActionsEnabled(bool enabled)
         {
             CombatActionsEnabled = enabled;
-            if (!enabled) physicalCombat?.SetGuardHeld(false, _currentAimDirection);
         }
 
         private void Start()
@@ -80,7 +76,6 @@ namespace Mindforge.Combat
             // death/checkpoint/calibration. Otherwise a re-enabled component can issue a
             // phantom jump, dodge or attack on its first fixed command frame.
             _move = Vector2.zero;
-            _fireHeld = false;
             _cleaveLatched = false;
             _counterLatched = false;
             _dashLatched = false;
@@ -88,8 +83,6 @@ namespace Mindforge.Combat
             _jumpHeld = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
-            _guardHeld = false;
-            _guardDownLatched = false;
             motor?.SetMoveInput(Vector2.zero);
             motor?.SetJumpHeld(false);
             physicalCombat?.SetGuardHeld(false, _currentAimDirection);
@@ -98,29 +91,24 @@ namespace Mindforge.Combat
         private void Update()
         {
             // WASD is sampled directly so movement never depends on Unity Input Manager
-            // axis configuration. Arrow keys are intentionally NOT sampled here; they
-            // orbit the third-person camera instead of moving or independently aiming.
+            // axis configuration. Arrow keys orbit the diorama camera instead.
             _move = SampleWasdMovement();
 
             _jumpLatched |= Input.GetKeyDown(KeyCode.Space);
             _jumpHeld = Input.GetKey(KeyCode.Space);
 
-            // Shift is the primary traversal dodge on both ground and air. Ctrl/Alt are
-            // retained as compatibility aliases so old muscle memory and demos do not break.
+            // Dodge roll owns the highest-frequency defensive input. RMB becomes a roll
+            // rather than an invisible/low-value guard stance; Shift remains the keyboard
+            // primary and Ctrl/Alt stay as compatibility aliases.
             _dashLatched |= Input.GetKeyDown(KeyCode.LeftShift) ||
                             Input.GetKeyDown(KeyCode.RightShift) ||
+                            Input.GetMouseButtonDown(1) ||
                             Input.GetKeyDown(KeyCode.LeftControl) ||
                             Input.GetKeyDown(KeyCode.RightControl) ||
                             Input.GetKeyDown(KeyCode.LeftAlt) ||
                             Input.GetKeyDown(KeyCode.RightAlt);
 
             _swordAttackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
-            bool guardPressed = Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(1);
-            _guardDownLatched |= guardPressed;
-            _guardHeld = Input.GetKey(KeyCode.E) || Input.GetMouseButton(1);
-
-            // Pulse moved off Shift so dash owns the high-frequency traversal key.
-            _fireHeld = Input.GetKey(KeyCode.X) || Input.GetMouseButton(2);
             _cleaveLatched |= Input.GetKeyDown(KeyCode.Q);
             _counterLatched |= Input.GetKeyDown(KeyCode.C);
             _bloomLatched |= Input.GetKeyDown(KeyCode.R);
@@ -152,7 +140,7 @@ namespace Mindforge.Combat
                 aim_x = liveAim.x,
                 aim_y = liveAim.y,
                 aim_z = liveAim.z,
-                fire_held = _fireHeld,
+                fire_held = false,
                 cleave_down = _cleaveLatched,
                 counter_down = _counterLatched,
                 dash_down = _dashLatched,
@@ -160,8 +148,8 @@ namespace Mindforge.Combat
                 jump_held = _jumpHeld,
                 bloom_down = _bloomLatched,
                 sword_attack_down = _swordAttackLatched,
-                guard_held = _guardHeld,
-                guard_down = _guardDownLatched,
+                guard_held = false,
+                guard_down = false,
             };
 
             _cleaveLatched = false;
@@ -170,7 +158,6 @@ namespace Mindforge.Combat
             _jumpLatched = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
-            _guardDownLatched = false;
 
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
@@ -262,39 +249,39 @@ namespace Mindforge.Combat
             if (aim.sqrMagnitude < 0.01f) aim = Vector3.forward;
             aim.Normalize();
 
+            // Shield hold is retired. Old replay tapes may still contain guard bits, but
+            // this control map deliberately clears the stance every fixed command frame.
+            physicalCombat?.SetGuardHeld(false, aim);
+
             if (!CombatActionsEnabled)
             {
-                // Conventional movement and jump remain available unless another system
-                // explicitly disables this component; only combat actions are blocked.
                 if (command.jump_down) motor.RequestJump();
-                physicalCombat?.SetGuardHeld(false, aim);
                 return;
             }
 
-            // One fixed command frame owns at most one committed action. Dash has first
-            // refusal on ground and in air, then jump/double-jump, guard, sword/combo,
-            // and finally one special. Held Pulse is intentionally lowest priority.
+            // Roll has first refusal. Endurance is spent only after the authoritative
+            // motor accepts the request, so failed/repeated air-dash requests are free.
             if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))
             {
-                physicalCombat?.SetGuardHeld(false, aim);
-                if (motor.RequestDash(aim)) return;
+                float cost = endurance != null ? endurance.DodgeBaseCost : 0f;
+                if (motor != null && !motor.IsGrounded) cost *= 1.10f;
+                if (endurance == null || endurance.CanSpend(cost))
+                {
+                    if (motor.RequestDash(aim))
+                    {
+                        endurance?.TrySpend(cost, motor.IsGrounded ? "DODGE_ROLL" : "AIR_DASH");
+                        return;
+                    }
+                }
             }
 
-            if (motor.IsDashing)
-            {
-                physicalCombat?.SetGuardHeld(false, aim);
-                return;
-            }
+            if (motor.IsDashing) return;
 
             if (command.jump_down &&
                 (physicalCombat == null || physicalCombat.ActionState == GuardianActionState.Locomotion))
             {
-                physicalCombat?.SetGuardHeld(false, aim);
                 if (motor.RequestJump()) return;
             }
-
-            physicalCombat?.SetGuardHeld(command.guard_held, aim);
-            if (physicalCombat != null && physicalCombat.IsGuarding) return;
 
             if (command.sword_attack_down)
             {
@@ -302,22 +289,24 @@ namespace Mindforge.Combat
                 if (accepted) return;
             }
 
-            // Attack recovery and guard break are real commitments too. The legacy
-            // special abilities may not tunnel through those states simply because the
-            // sword itself has left its active window.
+            // Attack recovery remains a real commitment. Specials may not tunnel through
+            // the blade's fixed-tick startup/contact/recovery windows.
             if (physicalCombat != null && physicalCombat.ActionState != GuardianActionState.Locomotion)
                 return;
 
             if (command.counter_down && combat.BeginCounter()) return;
             if (command.cleave_down && combat.RiftCleave(aim)) return;
             if (command.bloom_down && bloom != null && bloom.TryActivate()) return;
-            if (command.fire_held) combat.FirePulse(aim);
+
+            // command.fire_held intentionally has no normal-world action. Pulse Shot code
+            // remains available for future experiments without occupying the core loop.
         }
 
         private void ResolveDependencies()
         {
             if (aimCamera == null) aimCamera = Camera.main;
             if (physicalCombat == null) physicalCombat = GetComponent<GuardianSwordShieldController>();
+            if (endurance == null) endurance = GetComponent<GuardianStamina>();
             if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
             if (inputTape == null) inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
         }
