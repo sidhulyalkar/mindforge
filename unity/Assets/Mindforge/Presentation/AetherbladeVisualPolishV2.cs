@@ -13,6 +13,8 @@ namespace Mindforge.Presentation
     public sealed class AetherbladeVisualPolishV2 : MonoBehaviour
     {
         private const string VisualRootName = "AetherbladeVisualPolishV2";
+        private const string EnergyVisualRootName = "AetherbladeEnergyVisualsV2";
+        private const string AfterimageTipName = "AetherbladeAfterimageTipV2";
 
         private GuardianSwordShieldController _combat;
         private Transform _energyScale;
@@ -107,9 +109,13 @@ namespace Mindforge.Presentation
 
             Transform existing = sword.Find(VisualRootName);
             if (existing != null) Destroy(existing.gameObject);
+            Transform existingEnergy = _energyScale.Find(EnergyVisualRootName);
+            if (existingEnergy != null) Destroy(existingEnergy.gameObject);
 
             GameObject root = new GameObject(VisualRootName);
             root.transform.SetParent(sword, false);
+            GameObject energyRoot = new GameObject(EnergyVisualRootName);
+            energyRoot.transform.SetParent(_energyScale, false);
 
             Material bloomMaterial = CreateTransparentEnergyMaterial(
                 "AetherbladeOuterBloomV2",
@@ -123,7 +129,7 @@ namespace Mindforge.Presentation
 
             GameObject bloom = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             bloom.name = "AetherbladeOuterBloom";
-            bloom.transform.SetParent(_energyScale, false);
+            bloom.transform.SetParent(energyRoot.transform, false);
             bloom.transform.localPosition = new Vector3(0f, 0f, 1.02f);
             bloom.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             bloom.transform.localScale = new Vector3(0.132f, 0.815f, 0.132f);
@@ -139,7 +145,7 @@ namespace Mindforge.Presentation
 
             GameObject tip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             tip.name = "AetherbladeTipCapV2";
-            tip.transform.SetParent(_energyScale, false);
+            tip.transform.SetParent(energyRoot.transform, false);
             tip.transform.localPosition = new Vector3(0f, 0f, 1.84f);
             tip.transform.localScale = Vector3.one * 0.155f;
             DisableCollider(tip);
@@ -178,8 +184,12 @@ namespace Mindforge.Presentation
             {
                 _primaryTrail = tipAnchor.GetComponent<TrailRenderer>();
                 _tipLight = tipAnchor.GetComponent<Light>();
-                _afterTrail = tipAnchor.gameObject.AddComponent<TrailRenderer>();
-                _afterTrail.name = "AetherbladeAfterimageTrailV2";
+
+                Transform oldAfterimage = tipAnchor.Find(AfterimageTipName);
+                if (oldAfterimage != null) Destroy(oldAfterimage.gameObject);
+                GameObject afterimageTip = new GameObject(AfterimageTipName);
+                afterimageTip.transform.SetParent(tipAnchor, false);
+                _afterTrail = afterimageTip.AddComponent<TrailRenderer>();
                 _afterTrail.sharedMaterial = trailMaterial;
                 _afterTrail.time = 0.085f;
                 _afterTrail.minVertexDistance = 0.018f;
