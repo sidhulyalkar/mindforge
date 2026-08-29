@@ -132,7 +132,11 @@ namespace Mindforge.Presentation
             _bossCharge = Tone("Malatract_Charge", 0.22f, 82f, 240f, 0.24f, Wave.Sine);
             _bossFire = Tone("Malatract_Fire", 0.15f, 195f, 72f, 0.34f, Wave.Square);
             _bossMelee = Tone("Malatract_Melee", 0.18f, 115f, 48f, 0.36f, Wave.Noise);
-            _motor = Tone("PrismBike_MotorLoop", 0.32f, 72f, 96f, 0.16f, Wave.Saw, loopFriendly: true);
+
+            // 75 Hz * 0.32 s = exactly 24 cycles at the authored clip duration. Keeping
+            // the base motor tone constant closes the phase at the loop seam; perceived
+            // RPM still comes from AudioSource pitch, which is presentation-only.
+            _motor = Tone("PrismBike_MotorLoop", 0.32f, 75f, 75f, 0.16f, Wave.Saw, loopFriendly: true);
             _motorLoop.clip = _motor;
         }
 
@@ -144,8 +148,11 @@ namespace Mindforge.Presentation
             {
                 motor.Jumped += OnJumped;
                 motor.DoubleJumped += OnDoubleJumped;
+                // GuardianMotor emits DashStarted for both ground and air dashes and then
+                // additionally emits AirDashStarted for air dashes. Subscribe once to the
+                // canonical event and inspect the already-authoritative motor state so an
+                // air dash cannot produce two stacked one-shots.
                 motor.DashStarted += OnDash;
-                motor.AirDashStarted += OnAirDash;
                 motor.Landed += OnLanded;
             }
             if (blade != null)
@@ -178,7 +185,6 @@ namespace Mindforge.Presentation
                 motor.Jumped -= OnJumped;
                 motor.DoubleJumped -= OnDoubleJumped;
                 motor.DashStarted -= OnDash;
-                motor.AirDashStarted -= OnAirDash;
                 motor.Landed -= OnLanded;
             }
             if (blade != null)
@@ -214,8 +220,11 @@ namespace Mindforge.Presentation
 
         private void OnJumped() => Play(_jump, 0.56f, 1f);
         private void OnDoubleJumped() => Play(_doubleJump, 0.62f, 1.02f);
-        private void OnDash() => Play(_dash, 0.54f, 0.98f);
-        private void OnAirDash() => Play(_dash, 0.60f, 1.18f);
+        private void OnDash()
+        {
+            bool air = motor != null && motor.IsAirDashing;
+            Play(_dash, air ? 0.60f : 0.54f, air ? 1.18f : 0.98f);
+        }
         private void OnLanded(float impact) => Play(_land, Mathf.Lerp(0.18f, 0.62f, Mathf.Clamp01(impact / 16f)), 0.92f);
         private void OnBladeStart() => Play(_bladeStart, 0.42f, 1f);
         private void OnBladeHit(float damage, float poise) => Play(_bladeHit, Mathf.Clamp(0.42f + damage / 90f, 0.42f, 0.75f), 0.96f);
