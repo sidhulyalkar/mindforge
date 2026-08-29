@@ -100,6 +100,7 @@ namespace Mindforge.Editor
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
                 ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();
                 AetheriaWorldV1Builder.ApplyOpenScene();
+                AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
                 NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
