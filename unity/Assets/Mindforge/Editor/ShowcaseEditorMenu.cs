@@ -86,10 +86,11 @@ namespace Mindforge.Editor
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
 
-                // World topology comes before population/presentation. The continuous basin
-                // and perimeter are gameplay collision; modular terraces are reusable world
-                // tiles; later passes remain presentation/detail layers on top.
+                // World topology comes before population/presentation. V1 owns the continuous
+                // basin and perimeter; V2 composes district-specific collision-backed landmarks
+                // and vertical routes from that safe shell; later passes populate and dress it.
                 GroundedWorldV1Builder.ApplyOpenScene();
+                GroundedWorldCompositionV2Builder.ApplyOpenScene();
                 GroundedWorldTuningV1.ApplyOpenScene();
                 NullWardArenaEcosystemBuilder.ApplyOpenScene();
                 NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
@@ -113,16 +114,15 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
-                "[Mindforge:Showcase] Grounded World V1 ready. The Null Ward and boss arena now sit inside one continuous " +
-                "collision-backed basin with a tall enclosing wall, reusable stacked terrace/stair/ramp/bridge tiles and a " +
-                "fog-layered exterior skyline. No reachable route intentionally exposes the void. The combat core is now " +
-                "energy-blade + endurance dodge roll + jump/double-jump/hover/air-dash; player Pulse fire and the physical " +
-                "shield are retired from the normal control surface. Enemy ecosystem, stable VEP targets, encounter authority " +
-                "and qualification boundaries remain intact. Presentation-budget evidence is emitted before Play Mode.");
+                "[Mindforge:Showcase] Grounded World V2 ready. The Null Ward and boss arena sit inside one continuous collision-backed " +
+                "basin with a tall enclosing wall, while district-specific Forge keep, Causeway rib gallery, Market court, Fracture " +
+                "tower, Cathedral ascent and Arena ring create distinct vertical silhouettes, landing pockets and shortcut routes. " +
+                "No reachable route intentionally exposes the void. The combat core is energy-blade + endurance dodge roll + " +
+                "jump/double-jump/hover/air-dash; player Pulse fire and the physical shield remain retired from the normal controls.");
             Debug.Log(
                 "[Mindforge:Showcase] Composition retained: Memory Forge → Synapse Causeway → Null Market → Fracture Court → Cathedral. " +
                 "Five ordinary enemy roles remain in the encounter grammar; the persistent shortcut, geometric intent telegraphs, " +
-                "and Layered near/mid/far set dressing now sit inside the grounded world shell rather than over exposed void.");
+                "stable VEP targets and near/mid/far set dressing remain downstream of deterministic gameplay authority.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
