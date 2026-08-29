@@ -9,6 +9,11 @@ namespace Mindforge.World
     /// remains the sole ordinary-enemy combat authority; this component only decides when
     /// authored enemies are active. It never moves the Guardian, resolves damage, or reads
     /// neural evidence. Waves are fixed-tick deterministic so capture/replay timing is stable.
+    ///
+    /// Important: the scheduler intentionally does not call ResetForCheckpoint on fresh
+    /// menagerie instances. That generic reset reapplies the base archetype defaults and
+    /// would erase the serialized role-specific attack grammar authored by the editor pass.
+    /// Rebuild the showcase scene to restart a completed menagerie run.
     /// </summary>
     public sealed class ArenaMenagerieDirector : MonoBehaviour
     {
@@ -61,7 +66,6 @@ namespace Mindforge.World
         }
 
         private void Start() => PrepareRoster();
-
         private void OnDisable() => UnsubscribeAll();
 
         private void FixedUpdate()
@@ -102,19 +106,6 @@ namespace Mindforge.World
             StartWave(next);
         }
 
-        public void ResetForDemo()
-        {
-            UnsubscribeAll();
-            _started = false;
-            _completed = false;
-            _waveIndex = -1;
-            _waveStart = 0;
-            _waveEnd = 0;
-            _advanceAtTick = long.MaxValue;
-            _prepared = false;
-            PrepareRoster();
-        }
-
         private void PrepareRoster()
         {
             if (_prepared) return;
@@ -125,7 +116,6 @@ namespace Mindforge.World
                 JourneyEnemyController enemy = roster[i];
                 if (enemy == null) continue;
                 enemy.ConfigureCheckpointLifecycle(true);
-                enemy.ResetForCheckpoint();
                 enemy.Disarm();
                 enemy.gameObject.SetActive(false);
             }
@@ -154,8 +144,6 @@ namespace Mindforge.World
                 }
 
                 enemy.gameObject.SetActive(true);
-                enemy.ConfigureCheckpointLifecycle(true);
-                enemy.ResetForCheckpoint();
                 enemy.Defeated -= OnEnemyDefeated;
                 enemy.Defeated += OnEnemyDefeated;
                 enemy.Arm();
