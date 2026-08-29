@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Mindforge.Combat;
+using Mindforge.Traversal;
 
 namespace Mindforge.Presentation
 {
@@ -11,6 +12,10 @@ namespace Mindforge.Presentation
     /// orbit fallback. Conventional target lock rotates the camera around the Guardian so
     /// the locked enemy remains a stable visual anchor. The camera never creates player
     /// actions, neural events, damage, movement or lock state; it only consumes them.
+    ///
+    /// Mounted V2 widens the physical orbit and adds bounded velocity look-ahead without
+    /// changing FOV. That preserves a stable optical projection for coded BCI stimuli while
+    /// giving 15-21 m/s traversal enough anticipation to remain readable.
     /// </summary>
     public sealed class ShowcaseCameraRig : MonoBehaviour
     {
@@ -18,6 +23,7 @@ namespace Mindforge.Presentation
         [SerializeField] private Transform boss;
         [SerializeField] private GuardianMotor motor;
         [SerializeField] private GuardianTargetLock targetLock;
+        [SerializeField] private GuardianHoverbikeController hoverbike;
         [SerializeField] private Camera gameplayCamera;
 
         [Header("Third-person shoulder camera")]
@@ -31,6 +37,16 @@ namespace Mindforge.Presentation
         [SerializeField] private float initialPitch = 12f;
         [SerializeField] private float minPitch = -10f;
         [SerializeField] private float maxPitch = 40f;
+
+        [Header("Mounted high-speed composition · fixed FOV")]
+        [SerializeField] private float mountedPivotHeight = 1.48f;
+        [SerializeField] private float mountedFreeDistance = 5.65f;
+        [SerializeField] private float mountedLockDistance = 6.15f;
+        [SerializeField] private float mountedShoulderOffset = 0.48f;
+        [SerializeField] private float mountedVelocityLookAhead = 1.75f;
+        [SerializeField] private float mountedLookAheadResponse = 8.5f;
+        [SerializeField] private float mountedPositionSmoothSeconds = 0.052f;
+        [SerializeField] private float mountedVerticalFollowSmoothSeconds = 0.085f;
 
         [Header("Orbit input")]
         [SerializeField] private float mouseYawSensitivity = 2.35f;
@@ -59,6 +75,7 @@ namespace Mindforge.Presentation
         private Vector3 _positionVelocity;
         private float _pivotYVelocity;
         private float _smoothedPivotY;
+        private Vector3 _mountedLookAheadOffset;
         private float _yaw;
         private float _pitch;
         private bool _initialized;
@@ -71,6 +88,7 @@ namespace Mindforge.Presentation
         public Transform FocusTarget => targetLock != null ? targetLock.Target : null;
         public float Yaw => _yaw;
         public float Pitch => _pitch;
+        public bool MountedCompositionActive => hoverbike != null && hoverbike.Mounted;
 
         public void Configure(
             Transform player,
@@ -84,6 +102,7 @@ namespace Mindforge.Presentation
             boss = target;
             motor = guardianMotor;
             targetLock = lockState;
+            hoverbike = guardian != null ? guardian.GetComponent<GuardianHoverbikeController>() : null;
             gameplayCamera = camera;
             SubscribeLock();
             InitializeOrbitFromScene();
@@ -104,6 +123,7 @@ namespace Mindforge.Presentation
 
         private void Start()
         {
+            ResolveMountedDependency();
             SubscribeLock();
             InitializeOrbitFromScene();
             if (lockCursorDuringGameplay) CaptureCursor();
@@ -148,11 +168,16 @@ namespace Mindforge.Presentation
         private void LateUpdate()
         {
             if (guardian == null) return;
+            ResolveMountedDependency();
             float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
             if (dt <= 0f) return;
 
             bool locked = TargetFocusActive && FocusTarget != null;
-            float desiredPivotY = guardian.position.y + pivotHeight;
+            bool mounted = MountedCompositionActive;
+            float speed01 = mounted ? hoverbike.Speed01 : 0f;
+            float activePivotHeight = mounted ? mountedPivotHeight : pivotHeight;
+            float activeVerticalSmooth = mounted ? mountedVerticalFollowSmoothSeconds : verticalFollowSmoothSeconds;
+            float desiredPivotY = guardian.position.y + activePivotHeight;
             if (!_pivotInitialized)
             {
                 _smoothedPivotY = desiredPivotY;
@@ -164,15 +189,25 @@ namespace Mindforge.Presentation
                     _smoothedPivotY,
                     desiredPivotY,
                     ref _pivotYVelocity,
-                    Mathf.Max(0.02f, verticalFollowSmoothSeconds),
+                    Mathf.Max(0.02f, activeVerticalSmooth),
                     Mathf.Infinity,
                     dt);
             }
 
+            Vector3 desiredMountedLookAhead = Vector3.zero;
+            if (mounted)
+            {
+                Vector3 velocity = hoverbike.PlanarVelocity;
+                if (velocity.sqrMagnitude > 0.01f)
+                    desiredMountedLookAhead = velocity.normalized * Mathf.Max(0f, mountedVelocityLookAhead) * speed01;
+            }
+            float lookResponse = 1f - Mathf.Exp(-Mathf.Max(0.1f, mountedLookAheadResponse) * dt);
+            _mountedLookAheadOffset = Vector3.Lerp(_mountedLookAheadOffset, desiredMountedLookAhead, lookResponse);
+
             // Horizontal framing stays responsive while vertical follow is slightly softer.
-            // The Guardian can rise/fall inside the composition without the camera copying
-            // every jump/landing centimeter and making traversal feel visually brittle.
-            Vector3 pivot = new Vector3(guardian.position.x, _smoothedPivotY, guardian.position.z);
+            // Mounted velocity look-ahead shifts both the pivot and look origin together;
+            // it does not alter FOV or inject a second aim authority.
+            Vector3 pivot = new Vector3(guardian.position.x, _smoothedPivotY, guardian.position.z) + _mountedLookAheadOffset;
 
             if (locked)
             {
@@ -195,8 +230,12 @@ namespace Mindforge.Presentation
             Quaternion orbit = Quaternion.Euler(_pitch, _yaw, 0f);
             Vector3 back = orbit * Vector3.back;
             Vector3 right = Quaternion.Euler(0f, _yaw, 0f) * Vector3.right;
-            float distance = locked ? lockDistance : freeDistance;
-            float shoulder = locked ? lockShoulderOffset : shoulderOffset;
+            float distance = locked
+                ? (mounted ? mountedLockDistance : lockDistance)
+                : (mounted ? mountedFreeDistance : freeDistance);
+            float shoulder = locked
+                ? lockShoulderOffset
+                : (mounted ? mountedShoulderOffset : shoulderOffset);
             Vector3 desiredPosition = pivot + back * distance + right * shoulder;
             desiredPosition = ResolveCameraCollision(pivot, desiredPosition);
 
@@ -224,11 +263,12 @@ namespace Mindforge.Presentation
             }
             else
             {
+                float activePositionSmooth = mounted ? mountedPositionSmoothSeconds : positionSmoothSeconds;
                 transform.position = Vector3.SmoothDamp(
                     transform.position,
                     desiredPosition,
                     ref _positionVelocity,
-                    Mathf.Max(0.015f, positionSmoothSeconds),
+                    Mathf.Max(0.015f, activePositionSmooth),
                     Mathf.Infinity,
                     dt);
                 transform.rotation = Quaternion.Slerp(
@@ -239,9 +279,9 @@ namespace Mindforge.Presentation
 
             if (gameplayCamera != null)
             {
-                // Keep FOV fixed rather than speed-reactive. A wider constant projection
-                // improves traversal readability without changing VEP target angular size
-                // as a function of movement speed or jump state.
+                // Deliberately fixed across foot, jump, hover and mounted speed. Speed
+                // composition is achieved by physical orbit/look-ahead only so the coded
+                // stimulus projection is not modulated by locomotion state.
                 gameplayCamera.fieldOfView = Mathf.Clamp(gameplayFieldOfView, 45f, 75f);
                 gameplayCamera.nearClipPlane = 0.06f;
                 gameplayCamera.farClipPlane = 140f;
@@ -301,12 +341,20 @@ namespace Mindforge.Presentation
         private void InitializeOrbitFromScene()
         {
             if (guardian == null) return;
+            ResolveMountedDependency();
             Vector3 flatForward = Vector3.ProjectOnPlane(guardian.forward, Vector3.up);
             if (flatForward.sqrMagnitude > 0.001f)
                 _yaw = Mathf.Atan2(flatForward.x, flatForward.z) * Mathf.Rad2Deg;
             _pitch = Mathf.Clamp(initialPitch, minPitch, maxPitch);
             _smoothedPivotY = guardian.position.y + pivotHeight;
+            _mountedLookAheadOffset = Vector3.zero;
             _pivotInitialized = true;
+        }
+
+        private void ResolveMountedDependency()
+        {
+            if (hoverbike == null && guardian != null)
+                hoverbike = guardian.GetComponent<GuardianHoverbikeController>();
         }
 
         private void SubscribeLock()
