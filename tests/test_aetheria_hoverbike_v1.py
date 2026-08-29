@@ -59,7 +59,7 @@ def test_hoverbike_keeps_guardian_rigidbody_as_sole_player_body_and_excludes_bci
         "footInput.enabled = false",
         "footMotor.enabled = false",
         "RestoreFootAuthority()",
-        "bladeCombat?.TryLightAttack(aim)",
+        "bladeCombat != null && bladeCombat.TryLightAttack(aim)",
         "_body.velocity = horizontal + Vector3.up * vertical",
         "Physics.RaycastNonAlloc(",
         "TryStartBoost()",
@@ -191,9 +191,10 @@ def test_showcase_inserts_aetheria_after_truthful_enemy_identity_and_before_ambi
     ordinary_silhouette = menu.index("NullWardEnemySilhouetteV3Builder.ApplyOpenScene();")
     menagerie_silhouette = menu.index("ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();")
     aetheria = menu.index("AetheriaWorldV1Builder.ApplyOpenScene();")
+    v2 = menu.index("AetheriaStateOfArtV2Builder.ApplyOpenScene();")
     dynamic_mount = menu.index("AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();")
     visual = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
-    assert ecosystem < menagerie < menagerie_collision < ordinary_collision < ordinary_silhouette < menagerie_silhouette < aetheria < dynamic_mount < visual
+    assert ecosystem < menagerie < menagerie_collision < ordinary_collision < ordinary_silhouette < menagerie_silhouette < aetheria < v2 < dynamic_mount < visual
 
     assert "E mounts/dismounts a nearby Prism hoverbike" in menu
     assert "Two optional Prism hoverbikes use the existing Guardian" in menu
