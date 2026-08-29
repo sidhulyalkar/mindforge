@@ -16,6 +16,8 @@ namespace Mindforge.Enemies
     /// presentationId only selects animation/VFX/audio after gameplay has chosen it.
     /// TrackingLock01 defines the fixed-tick point in the telegraph where aim becomes
     /// committed, so late player movement can evade a correctly-read attack.
+    /// AdvanceDistance optionally gives a committed melee attack a collision-bounded body
+    /// advance at resolution. Zero preserves the ordinary stationary melee grammar.
     /// </summary>
     [Serializable]
     public sealed class EnemyAttackDefinition
@@ -41,6 +43,7 @@ namespace Mindforge.Enemies
         [SerializeField] private bool requiresLineOfSight;
         [SerializeField] private bool heavy;
         [SerializeField] private string presentationId = "attack";
+        [SerializeField, Min(0f)] private float advanceDistance;
 
         public string Id => string.IsNullOrWhiteSpace(id) ? "attack" : id;
         public EnemyAttackType Type => type;
@@ -63,6 +66,7 @@ namespace Mindforge.Enemies
         public bool RequiresLineOfSight => requiresLineOfSight;
         public bool Heavy => heavy;
         public string PresentationId => string.IsNullOrWhiteSpace(presentationId) ? Id : presentationId;
+        public float AdvanceDistance => Type == EnemyAttackType.Melee ? Mathf.Clamp(advanceDistance, 0f, 2.25f) : 0f;
 
         public bool RangeValid(float distance)
             => distance >= MinimumRange && distance <= MaximumRange;
@@ -91,7 +95,8 @@ namespace Mindforge.Enemies
             float shotSpread,
             bool los,
             bool isHeavy,
-            string presentation)
+            string presentation,
+            float attackAdvanceDistance = 0f)
         {
             return new EnemyAttackDefinition
             {
@@ -116,6 +121,7 @@ namespace Mindforge.Enemies
                 requiresLineOfSight = los,
                 heavy = isHeavy,
                 presentationId = presentation,
+                advanceDistance = attackAdvanceDistance,
             };
         }
     }
