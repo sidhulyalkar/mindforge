@@ -41,20 +41,24 @@ def marker(
     )
 
 
-def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unlimited():
+def test_equipment_mass_and_endurance_match_the_active_blade_roll_profile():
     equipment = read("Combat", "GuardianEquipmentLoadout.cs")
     motor = read("Combat", "GuardianMotor.cs")
     stamina = read("Combat", "GuardianStamina.cs")
+    combat_input = read("Combat", "GuardianCombatInput.cs")
 
     assert "WeaponArchetype" in equipment
-    assert "ShieldArchetype" in equipment
+    assert "ShieldArchetype" in equipment  # legacy serialization remains supported
     assert "ArmorWeightClass" in equipment
     assert "EquipLoadClass" in equipment
-    assert 'displayName = "Aetherblade Longsword"' in equipment
-    assert 'displayName = "Verdant Ward Shield"' in equipment
+    assert 'displayName = "Aetherblade"' in equipment
+    assert 'displayName = "Verdant Ward · Legacy"' in equipment
     assert 'displayName = "Warden Weave"' in equipment
-    assert "coverageDegrees = 112f" in equipment
     assert "public float TotalMassKg" in equipment
+    total_mass = equipment.split("public float TotalMassKg =>", 1)[1].split("public float EquipCapacityKg", 1)[0]
+    assert "mainHand" in total_mass
+    assert "armor" in total_mass
+    assert "offHand" not in total_mass
     assert "MoveSpeedMultiplier" in equipment
     assert "RollSpeedMultiplier" in equipment
     assert "RollDurationMultiplier" in equipment
@@ -62,12 +66,7 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
     assert "loadout.RollSpeedMultiplier" in motor
     assert "loadout.RollDurationMultiplier" in motor
     assert "loadout.MoveSpeedMultiplier" in motor
-    assert "tuning.dashCooldown" not in motor
-    assert "dashInputBufferSeconds" in motor
-    assert "Vector3.MoveTowards" in motor
     assert "stamina.DodgeBaseCost" not in motor
-    assert 'stamina.TrySpend(staminaCost, "DODGE_ROLL")' not in motor
-
     assert "_dashUntilTick" in motor
     assert "_invulnerableUntilTick" in motor
     assert "_dashQueuedUntilTick" in motor
@@ -75,12 +74,20 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
     assert "Time.fixedTime" in motor
     assert "Time.time" not in motor
 
-    assert "recoveryDelaySeconds" in stamina
+    assert "recoveryPerSecond = 42f" in stamina
+    assert "recoveryDelaySeconds = 0.48f" in stamina
+    assert "dodgeBaseCost = 22f" in stamina
     assert "TrySpend" in stamina
     assert "DrainUpTo" in stamina
 
+    # The input authority, not the motor or BCI path, owns conventional roll spending.
+    assert "endurance.DodgeBaseCost" in combat_input
+    assert "endurance.CanSpend(cost)" in combat_input
+    assert "if (motor.RequestDash(aim))" in combat_input
+    assert 'endurance?.TrySpend(cost, motor.IsGrounded ? "DODGE_ROLL" : "AIR_DASH")' in combat_input
 
-def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles():
+
+def test_sword_is_swept_physical_contact_and_can_parry_projectiles():
     sword = read("Combat", "GuardianSwordShieldController.cs")
     attacks = read("Combat", "AttackDefinition.cs")
 
@@ -103,7 +110,7 @@ def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles
     assert "GuardianActionState" in sword
     assert "public bool CanAttack" in sword
     assert "public bool CanDodge" in sword
-    assert "public bool CanGuard" in sword
+    assert "public bool CanGuard" in sword  # compatibility surface
     assert "public bool CanCounter" in sword
     assert "public bool CanMove" in sword
     assert "public bool CanTurn" in sword
@@ -139,46 +146,40 @@ def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles
     assert "SwordProjectileParried" in sword
     assert '"SIGHT_SWORD_PARRY_DAMAGE"' in sword
 
+    # Sight resonance can boundedly alter the result of a hand-commanded swing, never
+    # originate the swing itself.
     assert "auras != null && auras.SightActive" in sword
     assert "resonance.Sight" in sword
+    assert "sightReachBonus" in sword
+    assert "weapon.reachMeters * (1f + sightReachBonus * resonanceValue)" in sword
     assert '"SIGHT_SWORD_DAMAGE"' in sword
     assert "bonusDamage = Mathf.Max(0f, damage - baseDamage)" in sword
 
 
-def test_shield_is_directional_collision_with_guard_integrity_chip_and_true_concord_counterfactual():
+def test_legacy_shield_resolution_remains_backward_compatible_but_is_not_the_active_input_path():
     projectile = read("Combat", "MindforgeProjectile.cs")
     shield = read("Combat", "GuardianSwordShieldController.cs")
+    combat_input = read("Combat", "GuardianCombatInput.cs")
+    bootstrap = read("Combat", "PhysicalArsenalBootstrap.cs")
 
+    # Projectile/analytics compatibility remains safe for old sessions and scenes.
     shield_index = projectile.index("GuardianShieldHitbox shield")
     vitals_index = projectile.index("CombatantVitals receiver")
     assert shield_index < vitals_index
     assert "shield.TryResolveProjectile(this, point)" in projectile
     assert "ConsumeByShield" in projectile
-
-    assert "shield.baseDamageAbsorption" in shield
-    assert "maxGuardAbsorptionBonus * guard" in shield
-    assert "shield.guardStaminaScale / stability" in shield
-    assert '"PERFECT_GUARD"' in shield
-    assert "BreakGuard();" in shield
-    assert "guardIntegrityRecoveryMultiplier" in shield
-    assert "guardBreakLockTicks" in shield
-    assert "_guardBreakUntilTick" in shield
-
     assert "TryResolveIncomingStrike" in shield
     assert "GuardStrikeResult" in shield
-    assert "shield.coverageDegrees" in shield
-    assert "Vector3.Angle(guardFacing, towardThreat)" in shield
-    assert "GuardStrikeResult.OutsideCoverage" in shield
-    assert "guardBreakDamageLeak" in shield
-
     assert "IsPerfectGuardWindow" in shield
-    assert "SecondsToTicks" in shield
-    assert "FixedTick - _guardStartedTick" in shield
 
-    assert "float baselineDamage" in shield
-    assert "float reflectedDamage = baselineDamage * concordMultiplier" in shield
-    assert "reflectedDamage - baselineDamage" in shield
-    assert 'concord ? "CONCORD_COUNTER_DAMAGE" : null' in shield
+    # Grounded World V1 does not expose that subsystem to the normal player path.
+    assert "guard_held = false" in combat_input
+    assert "guard_down = false" in combat_input
+    assert "physicalCombat?.SetGuardHeld(false, aim)" in combat_input
+    assert "Input.GetKey(KeyCode.E)" not in combat_input
+    assert 'NewChild("ShieldRoot"' not in bootstrap
+    assert "GuardianShieldHitbox shieldHitbox =" not in bootstrap
+    assert "physical.ConfigureRuntime(resonance, flux, target, null, hitStop, tuning)" in bootstrap
 
 
 def test_continuous_neural_resonance_cannot_issue_conventional_player_commands():
@@ -210,28 +211,28 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
 
     assert "Input.GetAxisRaw" not in combat_input
     assert "SampleWasdMovement" in combat_input
-    assert "SampleArrowAim" not in combat_input
     assert "GuardianTargetLock targetLock" in combat_input
     assert "targetLock.DirectionFrom(transform.position)" in combat_input
     assert "Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftShift)" in combat_input
+    assert "Input.GetMouseButtonDown(1)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftControl)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftAlt)" in combat_input
     assert "Input.GetKeyDown(KeyCode.F)" in combat_input
-    assert "Input.GetKey(KeyCode.X)" in combat_input
-    assert "Input.GetKey(KeyCode.E)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Q)" in combat_input
     assert "sword_attack_down = _swordAttackLatched" in combat_input
     assert "jump_down = _jumpLatched" in combat_input
     assert "jump_held = _jumpHeld" in combat_input
-    assert "guard_held = _guardHeld" in combat_input
-    assert "physicalCombat?.SetGuardHeld(command.guard_held, aim)" in combat_input
+    assert "fire_held = false" in combat_input
+    assert "guard_held = false" in combat_input
+    assert "guard_down = false" in combat_input
     assert "physicalCombat.TryLightAttack(aim)" in combat_input
     assert "physicalCombat.ActionState != GuardianActionState.Locomotion" in combat_input
     assert "if (command.counter_down && combat.BeginCounter()) return;" in combat_input
     assert "if (command.cleave_down && combat.RiftCleave(aim)) return;" in combat_input
     assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in combat_input
+    assert "combat.FirePulse(aim)" not in combat_input
 
     assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
     assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
@@ -243,49 +244,45 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
     assert "guard_held = guard_held" in tape
 
 
-def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
+def test_procedural_rig_hud_and_menu_present_the_grounded_energy_blade_language():
     bootstrap = read("Combat", "PhysicalArsenalBootstrap.cs")
     rig = read("Combat", "GuardianSwordShieldRig.cs")
-    hud = read("Presentation", "CombatStateHud.cs")
+    hud = read("Presentation", "GroundedCombatHud.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
     bridge = read("Telemetry", "PhysicalArsenalMarkerBridge.cs")
 
-    assert '"AetherbladeCore"' in bootstrap
-    assert '"AetherbladeEnergyEdge"' in bootstrap
+    assert '"AetherbladeWhiteCore"' in bootstrap
+    assert '"AetherbladeResonantSheath"' in bootstrap
+    assert '"AetherbladeEnergyScale"' in bootstrap
+    assert '"AetherbladeEmitter"' in bootstrap
     assert '"AetherbladeCrossguard"' in bootstrap
     assert '"AetherbladeGrip"' in bootstrap
     assert '"AetherbladePommel"' in bootstrap
-    assert '"VerdantWard"' in bootstrap
-    assert "CreatePbrMaterial" in bootstrap
-    assert "BoxCollider shieldCollider" in bootstrap
+    assert '"SwordEnergyTip"' in bootstrap
+    assert "GuardianDodgeRollPresentation" in bootstrap
     assert "TrailRenderer" in bootstrap
     assert "FracturedSignalMeleeDirector" in bootstrap
+    assert 'NewChild("ShieldRoot"' not in bootstrap
 
-    assert "maxSwordLengthBonus = 0.42f" in rig
-    assert "guardCoverageScale" in rig
+    assert "maxSwordLengthBonus = 0.72f" in rig
+    assert "scale.z *= 1f + maxSwordLengthBonus * sight" in rig
     assert "ApplySwordRenderer" in rig
-    assert "Color forged" in rig
     assert "swordTrail.emitting = attacking" in rig
-    assert "shieldLight.intensity" in rig
+    assert "swordLight.intensity" in rig
 
-    assert '"GUARD"' in hud
-    assert '"F SWORD · SPACE ×2 · SHIFT DODGE"' in hud
-    assert '"SPACE ×2 / HOLD HOVER · SHIFT AIR DASH"' in hud
-    assert "SPACE  DODGE" not in hud
-    assert '"HP {bossVitals.Health:F0} / {bossVitals.MaxHealth:F0}"' in hud
-    assert '"AETHER PARRY' in hud
+    assert '"GUARDIAN · CRITICAL"' in hud
+    assert '"ENDURANCE"' in hud
+    assert '"F / LMB BLADE   ·   SHIFT / RMB ROLL' in hud
+    assert "SuppressLegacyHud()" in hud
 
-    assert '"WARDEN LOADOUT"' in menu
+    assert '"GUARDIAN KIT"' in menu
     assert '"THIRD-PERSON CONTROLS"' in menu
-    assert "GUARD INTEGRITY" in menu
-    assert '"WASD"' in menu
-    assert '"MOUSE / ARROWS"' in menu
-    assert '"T"' in menu
-    assert '"SPACE"' in menu
-    assert '"SHIFT"' in menu
-    assert '"CTRL / ALT"' in menu
-    assert '"X / MMB"' in menu
+    assert '"Endurance Dodge Roll"' in menu
+    assert '"SHIFT / RMB"' in menu
     assert '"F / LMB"' in menu
+    assert '"ENDURANCE {stamina}"' in menu
+    assert '"X / MMB", "Pulse Shot"' not in menu
+    assert '"RMB / E", "Shield"' not in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
 
     assert '"SWORD_PARRY"' in bridge
@@ -293,6 +290,8 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
 
 
 def test_encounter_report_separates_physical_skill_and_sight_sword_payoff():
+    # Historical shield markers remain readable. Removing a control surface must not make
+    # existing evidence bundles uninterpretable.
     markers = [
         marker(1, "PHYSICAL_ARSENAL_READY", value=26.6, reason="MEDIUM", category="equipment"),
         marker(2, "NEURAL_PAYOFF_LEDGER_READY", reason="CONSERVATIVE_DIRECT_DAMAGE_AND_HEAL_V1", category="neural_payoff"),
