@@ -117,15 +117,15 @@ namespace Mindforge.Editor
             AssetDatabase.Refresh();
             Debug.Log(
                 "[Mindforge:Showcase] Grounded World V2 ready inside a continuous collision-backed basin with a tall enclosing wall. " +
-                "The district-specific Forge keep, Causeway rib gallery, Market court, Fracture tower, Cathedral ascent, Arena ring and " +
-                "Menagerie Crucible create distinct vertical silhouettes, landing pockets and combat spaces. No reachable route intentionally exposes " +
-                "the void. The combat core is energy-blade + endurance dodge roll + jump/double-jump/hover/air-dash; " +
-                "Pulse fire and the physical shield are retired from the normal control surface.");
+                "The district-specific Forge keep, Causeway rib gallery, Market court, Fracture tower, Cathedral ascent and Arena ring remain the " +
+                "core authored route; the Menagerie Crucible adds a dedicated combat district with distinct vertical silhouettes, landing pockets and " +
+                "combat spaces. No reachable route intentionally exposes the void. The combat core is energy-blade + endurance dodge roll + " +
+                "jump/double-jump/hover/air-dash; Pulse fire and the physical shield are retired from the normal control surface.");
             Debug.Log(
                 "[Mindforge:Showcase] Composition retained: Memory Forge → Synapse Causeway → Null Market → Fracture Court → Cathedral. " +
                 "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity " +
-                "3/3/4 wave demo. The persistent shortcut, geometric intent telegraphs, stable VEP targets and layered near/mid/far set dressing " +
-                "remain downstream of deterministic gameplay authority.");
+                "3/3/4 wave demo. The persistent shortcut, geometric intent telegraphs and stable VEP targets remain intact. " +
+                "Layered near/mid/far set dressing remains downstream of deterministic gameplay authority.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
