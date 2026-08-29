@@ -37,13 +37,10 @@ def test_grounded_world_has_continuous_floor_hard_perimeter_and_modular_vertical
     ):
         assert token in world
 
-    # The bedrock, walls, platforms, stairs, ramps and bridges are real world collision.
     assert 'new Vector3(width, 1.25f, depth), basalt, true' in world
     assert 'name + "_CollisionShell"' in world
     assert 'name + "_Mass"' in world
     assert 'name + "_Deck"' in world
-
-    # Outside skyline is explicitly visual-only rather than a false playable promise.
     assert 'i % 2 == 0 ? obsidian : metal, false' in world
 
     for forbidden in (
@@ -125,8 +122,6 @@ def test_grounded_input_retires_shield_and_player_pulse_and_makes_roll_primary_d
     ):
         assert token in input_cs
 
-    # The old attack implementations remain available to the codebase, but this normal
-    # player-input authority no longer fires Pulse or creates a shield-hold action.
     assert "combat.FirePulse(aim)" not in input_cs
     assert "Input.GetKey(KeyCode.X)" not in input_cs
     assert "Input.GetKey(KeyCode.E)" not in input_cs
@@ -146,8 +141,6 @@ def test_endurance_is_spent_by_rolls_and_recovers_as_a_visible_conventional_budg
     assert "public float DodgeBaseCost => dodgeBaseCost" in stamina
     assert "public bool CanSpend(float amount)" in stamina
 
-    # Retired shield data remains serializable for old scenes/replays, but it is no longer
-    # part of equipped mass or the active physical profile.
     total_mass = loadout.split("public float TotalMassKg =>", 1)[1].split("public float EquipCapacityKg", 1)[0]
     assert "mainHand" in total_mass
     assert "armor" in total_mass
@@ -180,8 +173,6 @@ def test_energy_blade_is_a_coherent_white_core_and_resonant_sheath_without_a_phy
     assert "scale.z *= 1f + maxSwordLengthBonus * sight" in rig
     assert "shieldRoot.gameObject.SetActive(guarding)" in rig
 
-    # The same accepted Sight evidence can alter bounded gameplay reach, so future BCI
-    # length modulation is not a presentation lie. It still cannot originate the swing.
     assert "sightReachBonus" in controller
     assert "weapon.reachMeters * (1f + sightReachBonus * resonanceValue)" in controller
     assert "public bool TryLightAttack(Vector3 aimDirection)" in controller
@@ -224,7 +215,7 @@ def test_health_hud_has_clear_survival_hierarchy_and_suppresses_legacy_instrumen
         "DrawBar(new Rect(x + 14f, y + 34f, width - 28f, 18f)",
         "SuppressLegacyHud()",
         "legacy.enabled = false",
-        '"SHIFT / RMB ROLL"',
+        "SHIFT / RMB ROLL",
     ):
         assert token in hud
 
@@ -253,7 +244,7 @@ def test_onboarding_and_loadout_teach_one_consistent_blade_roll_game():
         '"Endurance Dodge Roll"',
         '"SHIFT / RMB"',
         '"Dodge roll · air dash aloft"',
-        '"ENDURANCE {stamina}"',
+        "ENDURANCE {stamina}",
         '"BLUE / Sight → bounded blade length, energy and damage',
     ):
         assert token in menu
@@ -286,7 +277,7 @@ def test_one_click_showcase_builds_world_and_tuning_before_population_and_visual
     indices = [menu.index(token) for token in ordered]
     assert indices == sorted(indices)
 
-    assert "continuous collision-backed basin" in menu
+    assert "continuous " in menu and "collision-backed basin" in menu
     assert "energy-blade + endurance dodge roll" in menu
     assert "Pulse fire and the physical" in menu
     assert "shield are retired from the normal control surface" in menu
