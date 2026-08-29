@@ -9,6 +9,9 @@ namespace Mindforge.Traversal
     /// Rigidbody remains the only player physics body. While mounted, foot input/motor are
     /// disabled; Aetherblade attacks still go through GuardianSwordShieldController.
     /// BCI/neural state is intentionally absent from this component.
+    ///
+    /// V2 consumes the same GuardianCommandFrame stream as foot combat. Record/replay can
+    /// therefore cross mount -> ride -> mounted attack -> dismount without a sidecar tape.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public sealed class GuardianHoverbikeController : MonoBehaviour
@@ -18,6 +21,7 @@ namespace Mindforge.Traversal
         [SerializeField] private GuardianSwordShieldController bladeCombat;
         [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private CombatantVitals vitals;
+        [SerializeField] private GuardianInputTape inputTape;
         [SerializeField] private Camera cameraReference;
 
         [Header("Mount interaction")]
@@ -31,6 +35,7 @@ namespace Mindforge.Traversal
         [SerializeField] private float acceleration = 34f;
         [SerializeField] private float braking = 42f;
         [SerializeField] private float turnSharpness = 11.5f;
+        [SerializeField] private float boostTurnMultiplier = 0.78f;
         [SerializeField] private float rideHeight = 1.05f;
         [SerializeField] private float hoverSpring = 34f;
         [SerializeField] private float hoverDamping = 7.5f;
@@ -58,6 +63,7 @@ namespace Mindforge.Traversal
 
         public event Action<bool> MountedChanged;
         public event Action BoostStarted;
+        public event Action MountedAttackIssued;
 
         public bool Mounted => _mounted && _activeBike != null;
         public bool Boosting => Mounted && FixedTick < _boostUntilTick;
@@ -66,15 +72,11 @@ namespace Mindforge.Traversal
         public bool CanMountNearby => !_mounted && _nearbyBike != null;
         public float HorizontalSpeed => _body != null ? Vector3.ProjectOnPlane(_body.velocity, Vector3.up).magnitude : 0f;
         public float Speed01 => Mathf.Clamp01(HorizontalSpeed / Mathf.Max(0.1f, Boosting ? boostSpeed : cruiseSpeed));
+        public float CruiseSpeed => Mathf.Max(0.1f, cruiseSpeed);
+        public float BoostSpeed => Mathf.Max(CruiseSpeed, boostSpeed);
+        public Vector3 PlanarVelocity => _body != null ? Vector3.ProjectOnPlane(_body.velocity, Vector3.up) : Vector3.zero;
 
-        private long FixedTick
-        {
-            get
-            {
-                float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
-                return (long)Math.Round(Time.fixedTime / dt);
-            }
-        }
+        private long FixedTick => GuardianInputTape.FixedTickNow;
 
         private void Awake()
         {
@@ -106,10 +108,12 @@ namespace Mindforge.Traversal
                 _nextNearbyRefresh = Time.unscaledTime + Mathf.Max(0.05f, nearbyRefreshSeconds);
             }
 
+            // Live sampling happens in Update, but every edge is consumed only after the
+            // shared command frame resolves on FixedUpdate.
+            _moveInput = SampleWasdMovement();
             _mountLatched |= Input.GetKeyDown(mountKey);
             if (!_mounted) return;
 
-            _moveInput = SampleWasdMovement();
             _attackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
             _boostLatched |= Input.GetKeyDown(KeyCode.LeftShift) ||
                              Input.GetKeyDown(KeyCode.RightShift) ||
@@ -121,41 +125,62 @@ namespace Mindforge.Traversal
             ResolveDependencies();
             if (_body == null) return;
 
+            Vector3 liveAim = ResolveAimDirection();
+            GuardianCommandFrame live = new GuardianCommandFrame
+            {
+                tick = FixedTick,
+                move_x = _moveInput.x,
+                move_y = _moveInput.y,
+                aim_x = liveAim.x,
+                aim_y = liveAim.y,
+                aim_z = liveAim.z,
+                mount_toggle_down = _mountLatched,
+                mounted_attack_down = _mounted && _attackLatched,
+                mounted_boost_down = _mounted && _boostLatched,
+            };
+
+            _mountLatched = false;
+            _attackLatched = false;
+            _boostLatched = false;
+
+            int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
+            GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
+            Vector3 aim = ResolveCommandAim(command);
+
             if (!_mounted)
             {
-                if (_mountLatched) TryMountNearest();
-                _mountLatched = false;
+                if (command.mount_toggle_down) TryMountNearest();
                 return;
             }
 
-            if (_mountLatched)
+            if (command.mount_toggle_down)
             {
-                _mountLatched = false;
                 Dismount(false);
                 return;
             }
 
-            if (_boostLatched)
-            {
+            if (command.mounted_boost_down)
                 TryStartBoost();
-                _boostLatched = false;
-            }
 
-            Vector3 aim = ResolveAimDirection();
-            if (_attackLatched)
+            if (command.mounted_attack_down)
             {
-                _attackLatched = false;
-                bladeCombat?.TryLightAttack(aim);
+                bool accepted = bladeCombat != null && bladeCombat.TryLightAttack(aim);
+                if (accepted) MountedAttackIssued?.Invoke();
             }
 
-            ApplyMountedMovement(aim);
+            ApplyMountedMovement(aim, command.Move);
         }
 
         private void TryMountNearest()
         {
             if (_mounted) return;
             AetherHoverbikeMount bike = FindNearestAvailableBike(Mathf.Max(discoveryRadius, 0.5f));
-            if (bike == null || !bike.InRange(transform.position)) return;
+            if (bike == null || !bike.InRange(transform.position))
+            {
+                if (inputTape != null && inputTape.Mode == GuardianInputTapeMode.Replay)
+                    Debug.LogWarning("[Mindforge:Hoverbike] Replay mount edge could not resolve the authored bike in range.");
+                return;
+            }
 
             Vector3 mountPoint = bike.MountWorldPoint;
             _footMotorWasEnabled = footMotor != null && footMotor.enabled;
@@ -226,11 +251,11 @@ namespace Mindforge.Traversal
             if (footInput != null) footInput.enabled = _footInputWasEnabled;
         }
 
-        private void ApplyMountedMovement(Vector3 aim)
+        private void ApplyMountedMovement(Vector3 aim, Vector2 resolvedMove)
         {
             float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
-            Vector3 desiredDirection = CameraRelativeDirection(_moveInput);
-            float magnitude = Mathf.Clamp01(_moveInput.magnitude);
+            Vector3 desiredDirection = CameraRelativeDirection(resolvedMove);
+            float magnitude = Mathf.Clamp01(resolvedMove.magnitude);
             float actionScale = bladeCombat != null ? Mathf.Clamp(bladeCombat.MovementMultiplier, 0.58f, 1f) : 1f;
             float topSpeed = (Boosting ? boostSpeed : cruiseSpeed) * actionScale;
             Vector3 desiredHorizontal = desiredDirection * topSpeed * magnitude;
@@ -247,7 +272,8 @@ namespace Mindforge.Traversal
             if (face.sqrMagnitude > 0.01f)
             {
                 Quaternion target = Quaternion.LookRotation(face.normalized, Vector3.up);
-                float t = 1f - Mathf.Exp(-Mathf.Max(0.1f, turnSharpness) * dt);
+                float turn = Mathf.Max(0.1f, turnSharpness) * (Boosting ? Mathf.Clamp(boostTurnMultiplier, 0.25f, 1f) : 1f);
+                float t = 1f - Mathf.Exp(-turn * dt);
                 _body.MoveRotation(Quaternion.Slerp(_body.rotation, target, t));
             }
         }
@@ -318,6 +344,15 @@ namespace Mindforge.Traversal
             return aim.normalized;
         }
 
+        private Vector3 ResolveCommandAim(GuardianCommandFrame command)
+        {
+            Vector3 aim = command != null ? command.Aim : Vector3.zero;
+            aim = Vector3.ProjectOnPlane(aim, Vector3.up);
+            if (aim.sqrMagnitude < 0.01f) aim = ResolveAimDirection();
+            if (aim.sqrMagnitude < 0.01f) aim = Vector3.forward;
+            return aim.normalized;
+        }
+
         private Vector3 CameraRelativeDirection(Vector2 input)
         {
             Camera camera = cameraReference != null ? cameraReference : Camera.main;
@@ -374,6 +409,7 @@ namespace Mindforge.Traversal
             if (bladeCombat == null) bladeCombat = GetComponent<GuardianSwordShieldController>();
             if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
+            if (inputTape == null) inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
             if (cameraReference == null) cameraReference = Camera.main;
         }
     }
