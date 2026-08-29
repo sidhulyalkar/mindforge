@@ -11,24 +11,26 @@ namespace Mindforge.Combat
     [Serializable]
     public sealed class WeaponSpec
     {
-        public string id = "aetherblade_longsword";
-        public string displayName = "Aetherblade Longsword";
+        public string id = "aetherblade_energy_sword";
+        public string displayName = "Aetherblade";
         public WeaponArchetype archetype = WeaponArchetype.Sword;
-        [Min(0.1f)] public float massKg = 3.2f;
+        [Min(0.1f)] public float massKg = 2.8f;
         [Min(0.25f)] public float reachMeters = 2.15f;
         [Min(0.05f)] public float lightAttackSeconds = 0.42f;
         [Range(10f, 220f)] public float sweepDegrees = 132f;
         [Min(0f)] public float baseDamage = 24f;
         [Min(0f)] public float poiseDamage = 18f;
         [Min(0f)] public float staminaCost = 0f;
-        [Min(0f)] public float bladeRadius = 0.16f;
+        [Min(0f)] public float bladeRadius = 0.13f;
     }
 
     [Serializable]
     public sealed class ShieldSpec
     {
-        public string id = "verdant_ward_kite";
-        public string displayName = "Verdant Ward Shield";
+        // Compatibility data for legacy scenes/replays. Grounded World V1 does not equip
+        // or render this item and excludes its mass from movement load.
+        public string id = "verdant_ward_legacy";
+        public string displayName = "Verdant Ward · Legacy";
         public ShieldArchetype archetype = ShieldArchetype.Kite;
         [Min(0.1f)] public float massKg = 7.4f;
         [Range(0f, 1f)] public float baseDamageAbsorption = 0.78f;
@@ -52,13 +54,10 @@ namespace Mindforge.Combat
     }
 
     /// <summary>
-    /// Data-first equipment contract for the Guardian. The first competition build
-    /// ships one coherent sword/shield/armor kit, while the same contract can later
-    /// back a mutable inventory/build UI with multiple item families.
-    ///
-    /// Equipped mass still defines physical load and movement character. Ordinary
-    /// sword attacks and dodge movement are deliberately unlimited in the current
-    /// build; the shared green budget is now used only as shield Guard Integrity.
+    /// Data-first equipment contract for the Guardian. Grounded World V1 equips a single
+    /// Aetherblade plus Warden Weave; the old shield specification remains serializable
+    /// only for compatibility and contributes no active load. Equip mass therefore
+    /// describes the verbs the player can actually use.
     /// </summary>
     public sealed class GuardianEquipmentLoadout : MonoBehaviour
     {
@@ -72,7 +71,6 @@ namespace Mindforge.Combat
 
         public float TotalMassKg =>
             Mathf.Max(0f, mainHand?.massKg ?? 0f) +
-            Mathf.Max(0f, offHand?.massKg ?? 0f) +
             Mathf.Max(0f, armor?.massKg ?? 0f);
 
         public float EquipCapacityKg => Mathf.Max(1f, armor?.equipCapacityKg ?? 52f);
@@ -110,7 +108,7 @@ namespace Mindforge.Combat
             {
                 switch (LoadClass)
                 {
-                    case EquipLoadClass.Light: return 1.10f;
+                    case EquipLoadClass.Light: return 1.06f;
                     case EquipLoadClass.Medium: return 1.00f;
                     case EquipLoadClass.Heavy: return 0.86f;
                     default: return 0.66f;
@@ -124,7 +122,7 @@ namespace Mindforge.Combat
             {
                 switch (LoadClass)
                 {
-                    case EquipLoadClass.Light: return 0.92f;
+                    case EquipLoadClass.Light: return 0.96f;
                     case EquipLoadClass.Medium: return 1.00f;
                     case EquipLoadClass.Heavy: return 1.16f;
                     default: return 1.35f;
@@ -132,7 +130,6 @@ namespace Mindforge.Combat
             }
         }
 
-        // Retained for future build variants; current dodge authority does not spend it.
         public float RollStaminaMultiplier
         {
             get
