@@ -99,6 +99,7 @@ namespace Mindforge.Editor
                 NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
                 ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();
+                AetheriaHordeBossV1Builder.ApplyOpenScene();
                 AetheriaWorldV1Builder.ApplyOpenScene();
                 AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
@@ -134,6 +135,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Aetheria identity layer ready: Prism Bastion → Neon Causeway → Market of Broken Momentum → " +
                 "Choir of Ruined Towers → Hall of Excessive Gravitas → Menagerie Crucible. Two optional Prism hoverbikes use the existing Guardian " +
                 "Rigidbody as mounted authority; E mounts/dismounts and mounted F/LMB still routes through the authoritative Aetherblade controller.");
+            Debug.Log(
+                "[Mindforge:Showcase] Cyber-Mythic Horde ready: Scrap Goblin, Bass Golem and Aero Gargoyle are story-facing identities over existing " +
+                "Menagerie roles; Stalker and Gargoyle committed advances resolve through JourneyEnemyController. Lord Malatract is a serious presentation " +
+                "layer over the existing Fractured Signal projectile/melee scheduler, not a second boss authority.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
