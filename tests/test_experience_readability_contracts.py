@@ -32,28 +32,22 @@ def _marker(seq: int, time_s: float, event: str, *, reason: str | None = None, v
     )
 
 
-def test_combat_state_hud_is_gameplay_first_and_non_authoritative():
+def test_legacy_combat_state_hud_remains_non_authoritative_for_old_scenes():
     hud = _read("Presentation", "CombatStateHud.cs")
 
     for token in (
         "THE FRACTURED SIGNAL",
         "GUARDIAN",
-        '"GUARD"',
         "FLUX",
-        "BLUE · BLADE",
-        "GREEN · SHIELD",
         "CONCORD",
         "TWIN ECLIPSE",
         "SIGNAL BREAK · ATTACK NOW",
-        "PERFECT GUARD · REFLECT",
-        "AETHER PARRY",
-        "ControllerOnlyQualificationActive",
-        "CONTROLLER-ONLY MODE",
-        "BCI intentionally disabled",
         "RuntimeInitializeOnLoadMethod",
     ):
         assert token in hud
 
+    # GroundedCombatHud suppresses this compatibility HUD at runtime. It must still never
+    # own gameplay if an old scene instantiates it directly.
     for forbidden in (
         ".FirePulse(",
         ".RiftCleave(",
@@ -86,29 +80,32 @@ def test_radial_telegraph_previews_the_same_angular_lattice_as_spawn():
     assert "AttackFired?.Invoke(\"RADIAL\", count, heavy)" in director
 
 
-def test_onboarding_is_staged_around_aerial_physical_combat_then_arcane_options():
+def test_onboarding_is_staged_around_blade_roll_then_vertical_and_arcane_options():
     guide = _read("Presentation", "PlayerAgencyGuide.cs")
 
     assert "CurrentLesson()" in guide
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
     assert "T LOCK" in guide
-    assert "SPACE JUMP ×2 / HOLD HOVER" in guide
-    assert "SHIFT DASH / AIR DASH" in guide
-    assert "F SWORD" in guide
-    assert "RMB / E HOLD SHIELD" in guide
-    assert "PERFECT GUARD reflect" in guide
-    assert "X / MMB PULSE SHOT" in guide
-    assert "slash hostile projectiles back at the enemy" in guide
-    assert "Q RIFT CLEAVE" in guide
-    assert "C COUNTER PULSE" in guide
-    assert "TAB BUILD" in guide
+    assert "F / LMB AETHERBLADE" in guide
+    assert "SPACE JUMP ×2" in guide
+    assert "SHIFT / RMB DODGE ROLL" in guide
+    assert "VERTICAL WORLD" in guide
+    assert "double-jump / hover / air-dash create shortcuts" in guide
+    assert "Q CLEAVE" in guide
+    assert "C COUNTER" in guide
+    assert "TAB shows the full kit" in guide
     assert "FLUX FULL  |  R GRAVITY BLOOM" in guide
     assert "CONCORD ACTIVE  |  R TWIN ECLIPSE" in guide
+    assert "READ → SWING → ROLL → REPOSITION" in guide
 
     assert "combat.ActionAccepted += OnCombatAction" in guide
     assert "physicalCombat.SwordAttackStarted += OnSwordAttack" in guide
-    assert "physicalCombat.GuardChanged += OnGuardChanged" in guide
+    assert "motor.DashStarted += OnDashStarted" in guide
+    assert "GuardChanged" not in guide
+    assert "ShieldBlocked" not in guide
+    assert "PULSE_SHOT" not in guide
+
     for forbidden in (
         ".FirePulse(",
         ".RiftCleave(",
