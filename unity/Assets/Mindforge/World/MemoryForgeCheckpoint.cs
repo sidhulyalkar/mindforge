@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Mindforge.Combat;
 using Mindforge.Telemetry;
+using Mindforge.Traversal;
 
 namespace Mindforge.World
 {
@@ -21,6 +22,7 @@ namespace Mindforge.World
         [SerializeField] private GuardianSwordShieldController physicalCombat;
         [SerializeField] private GuardianCombatController secondaryCombat;
         [SerializeField] private GravityBloomAbility bloom;
+        [SerializeField] private GuardianHoverbikeController hoverbike;
         [SerializeField] private Transform respawnPoint;
         [SerializeField] private Transform interactionPoint;
         [SerializeField] private NullWardEncounterDirector world;
@@ -111,6 +113,7 @@ namespace Mindforge.World
         public void RestAndReconstruct()
         {
             if (!_active) PrimeAsStartingCheckpoint();
+            NormalizeMountedAuthority();
             ResetOwnedCombatWindows();
             world?.ResetOrdinaryEncounters();
             RestoreGuardian(false);
@@ -120,6 +123,13 @@ namespace Mindforge.World
         private void OnPlayerDied()
         {
             if (!_active || _respawnPending) return;
+
+            // A mount owns the temporary decision to disable foot input/motor. Normalize
+            // that state before checkpoint suspension snapshots conventional authority,
+            // otherwise an emergency dismount can re-enable controls during death and the
+            // checkpoint can remember the wrong pre-suspension state for respawn.
+            NormalizeMountedAuthority();
+
             _respawnPending = true;
             _respawnAtTick = FixedTick + Mathf.Max(1, respawnDelayTicks);
             targetLock?.SetLocked(false);
@@ -154,6 +164,12 @@ namespace Mindforge.World
             }
 
             ResumeGuardianAuthority();
+        }
+
+        private void NormalizeMountedAuthority()
+        {
+            ResolveGuardianAuthority();
+            hoverbike?.PrepareForAuthoritySuspension();
         }
 
         private void SuspendGuardianAuthority()
@@ -241,6 +257,7 @@ namespace Mindforge.World
             if (physicalCombat == null) physicalCombat = player.GetComponent<GuardianSwordShieldController>();
             if (secondaryCombat == null) secondaryCombat = player.GetComponent<GuardianCombatController>();
             if (bloom == null) bloom = player.GetComponent<GravityBloomAbility>();
+            if (hoverbike == null) hoverbike = player.GetComponent<GuardianHoverbikeController>();
         }
 
         private void Subscribe()
