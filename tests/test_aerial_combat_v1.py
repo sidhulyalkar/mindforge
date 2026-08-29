@@ -71,21 +71,24 @@ def test_airborne_attacks_keep_bounded_steering_without_erasing_ground_commitmen
     assert "physicalCombat.MovementMultiplier" in motor
 
 
-def test_shift_is_primary_dash_and_pulse_moves_to_x_or_middle_mouse():
+def test_shift_and_rmb_are_roll_air_dash_inputs_while_player_pulse_is_retired():
     source = read("Combat", "GuardianCombatInput.cs")
 
     for token in (
         "Input.GetKeyDown(KeyCode.LeftShift)",
         "Input.GetKeyDown(KeyCode.RightShift)",
-        "Input.GetKey(KeyCode.X) || Input.GetMouseButton(2)",
+        "Input.GetMouseButtonDown(1)",
         "Space: jump / double jump; hold while descending to hover / slow fall",
-        "Left/Right Shift: directional dodge / air dash",
-        "X or MMB: Pulse Shot",
+        "Shift or RMB: grounded dodge roll / air dash",
+        "Shield hold and player Pulse fire are intentionally retired",
+        "endurance.DodgeBaseCost",
     ):
         assert token in source
 
-    assert "_fireHeld = Input.GetKey(KeyCode.LeftShift)" not in source
-    arbitration = source.index("// One fixed command frame owns at most one committed action")
+    assert "Input.GetKey(KeyCode.X)" not in source
+    assert "Input.GetMouseButton(2)" not in source
+    assert "combat.FirePulse(aim)" not in source
+    arbitration = source.index("// Roll has first refusal")
     dash = source.index("if (command.dash_down", arbitration)
     jump = source.index("if (command.jump_down", arbitration)
     assert dash < jump
@@ -143,19 +146,19 @@ def test_fractured_signal_melee_has_truthful_vertical_reach_and_jumpable_slam():
     assert "Quaternion.AngleAxis(offset, Vector3.up) * center" in director
 
 
-def test_hud_teaches_aerial_controls_without_adding_a_third_large_panel():
+def test_grounded_hud_teaches_aerial_escape_without_restoring_shield_or_pulse_clutter():
     ward = read("World", "NullWardHud.cs")
-    hud = read("Presentation", "CombatStateHud.cs")
+    hud = read("Presentation", "GroundedCombatHud.cs")
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
 
-    assert "SPACE jump ×2 / hold to hover · SHIFT dash / air dash" in ward
-    assert "motor.HoverRemaining01" in hud
-    assert "SPACE ×2 / HOLD HOVER · SHIFT AIR DASH" in hud
-    assert "const float width = 326f" in hud
-    assert "const float width = 300f" in hud
-    assert "SPACE JUMP ×2 / HOLD HOVER" in guide
-    assert "X / MMB PULSE SHOT" in guide
-    assert "EEG never moves, jumps, hovers, air-dashes" in guide
-    assert '"SHIFT", "Directional dash · one air dash per airtime"' in menu
-    assert '"X / MMB", "Pulse Shot"' in menu
+    assert "SHIFT/RMB roll · SPACE jump ×2 / hold hover" in ward
+    assert '"ENDURANCE"' in hud
+    assert '"SPACE ×2 / HOLD · SHIFT AIR DASH"' in hud
+    assert '"F / LMB BLADE   ·   SHIFT / RMB ROLL' in hud
+    assert "SHIFT / RMB DODGE ROLL" in guide
+    assert "double-jump / hover / air-dash create shortcuts" in guide
+    assert "EEG never moves, jumps, hovers, rolls, air-dashes" in guide
+    assert '"SHIFT / RMB", "Dodge roll · air dash aloft"' in menu
+    assert '"X / MMB", "Pulse Shot"' not in menu
+    assert '"RMB / E", "Shield"' not in menu
