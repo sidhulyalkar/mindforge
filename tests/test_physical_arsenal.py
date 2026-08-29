@@ -68,7 +68,6 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
     assert "stamina.DodgeBaseCost" not in motor
     assert 'stamina.TrySpend(staminaCost, "DODGE_ROLL")' not in motor
 
-    # Dodge duration, input buffering and i-frames are all fixed-tick authority now.
     assert "_dashUntilTick" in motor
     assert "_invulnerableUntilTick" in motor
     assert "_dashQueuedUntilTick" in motor
@@ -76,7 +75,6 @@ def test_equipment_mass_remains_mechanical_but_basic_movement_and_dodge_are_unli
     assert "Time.fixedTime" in motor
     assert "Time.time" not in motor
 
-    # Guard Integrity still uses the shared defensive budget.
     assert "recoveryDelaySeconds" in stamina
     assert "TrySpend" in stamina
     assert "DrainUpTo" in stamina
@@ -102,7 +100,6 @@ def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles
     assert 'stamina.TrySpend(staminaCost, "SWORD_LIGHT")' not in sword
     assert "Time.time" not in sword
 
-    # Authoritative action permission is explicit and has no runtime animation dependency.
     assert "GuardianActionState" in sword
     assert "public bool CanAttack" in sword
     assert "public bool CanDodge" in sword
@@ -134,7 +131,6 @@ def test_sword_is_swept_physical_contact_free_to_swing_and_can_parry_projectiles
     ):
         assert token in attacks
 
-    # The same active sword volume can intercept hostile projectiles.
     assert "TrySwordParry(projectile, weapon, resonanceValue)" in sword
     assert "projectile.IsHostileToGuardian" in sword
     assert "projectile.ReflectTowards" in sword
@@ -175,7 +171,6 @@ def test_shield_is_directional_collision_with_guard_integrity_chip_and_true_conc
     assert "GuardStrikeResult.OutsideCoverage" in shield
     assert "guardBreakDamageLeak" in shield
 
-    # Perfect guard timing is converted to fixed ticks from the shield data contract.
     assert "IsPerfectGuardWindow" in shield
     assert "SecondsToTicks" in shield
     assert "FixedTick - _guardStartedTick" in shield
@@ -220,10 +215,11 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
     assert "targetLock.DirectionFrom(transform.position)" in combat_input
     assert "Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
+    assert "Input.GetKeyDown(KeyCode.LeftShift)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftControl)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftAlt)" in combat_input
     assert "Input.GetKeyDown(KeyCode.F)" in combat_input
-    assert "Input.GetKey(KeyCode.LeftShift)" in combat_input
+    assert "Input.GetKey(KeyCode.X)" in combat_input
     assert "Input.GetKey(KeyCode.E)" in combat_input
     assert "Input.GetKeyDown(KeyCode.Q)" in combat_input
     assert "sword_attack_down = _swordAttackLatched" in combat_input
@@ -273,7 +269,8 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     assert "shieldLight.intensity" in rig
 
     assert '"GUARD"' in hud
-    assert '"F SWORD · SPACE JUMP · CTRL/ALT DODGE"' in hud
+    assert '"F SWORD · SPACE ×2 · SHIFT DODGE"' in hud
+    assert '"SPACE ×2 / HOLD HOVER · SHIFT AIR DASH"' in hud
     assert "SPACE  DODGE" not in hud
     assert '"HP {bossVitals.Health:F0} / {bossVitals.MaxHealth:F0}"' in hud
     assert '"AETHER PARRY' in hud
@@ -285,7 +282,9 @@ def test_procedural_rig_hud_and_menu_present_the_new_combat_language():
     assert '"MOUSE / ARROWS"' in menu
     assert '"T"' in menu
     assert '"SPACE"' in menu
+    assert '"SHIFT"' in menu
     assert '"CTRL / ALT"' in menu
+    assert '"X / MMB"' in menu
     assert '"F / LMB"' in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
 
