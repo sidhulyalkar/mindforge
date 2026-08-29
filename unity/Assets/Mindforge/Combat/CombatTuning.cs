@@ -9,11 +9,12 @@ namespace Mindforge.Combat
         public float acceleration = 42f;
         public float maxSpeed = 7.2f;
         public float drag = 10f;
-        public float dashSpeed = 21f;
-        public float dashDuration = 0.145f;
-        public float dashCooldown = 0.78f;
+        [Tooltip("Ground dodge roll speed. Deliberately slower/longer than the old blink-like dash.")]
+        public float dashSpeed = 13.6f;
+        public float dashDuration = 0.28f;
+        public float dashCooldown = 0.20f;
 
-        [Header("Pulse Shot")]
+        [Header("Pulse Shot · dormant in grounded-world controls")]
         public float shotCooldown = 0.185f;
         public float shotSpeed = 19.5f;
         public float shotDamage = 13f;
@@ -54,12 +55,12 @@ namespace Mindforge.Combat
 
         [Header("Hit Stop")]
         [Tooltip("Crisp contact feedback for light impacts.")]
-        public float lightHitStop = 0.020f;
+        public float lightHitStop = 0.026f;
         [Tooltip("Rift Cleave / substantial direct impact.")]
-        public float heavyHitStop = 0.055f;
+        public float heavyHitStop = 0.065f;
         [Tooltip("Counter Pulse should read as sharp, not sluggish.")]
-        public float parryHitStop = 0.020f;
-        public float poiseBreakHitStop = 0.080f;
+        public float parryHitStop = 0.024f;
+        public float poiseBreakHitStop = 0.085f;
         [Tooltip("Rare payoff only. Full Twin Eclipse impact can afford the dramatic freeze.")]
         public float twinEclipseHitStop = 0.120f;
     }
