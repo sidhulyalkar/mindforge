@@ -24,26 +24,43 @@ namespace Mindforge.World
     }
 
     [Serializable]
+    public sealed class WorldQuestStepDefinition
+    {
+        public string id;
+        public string title;
+        [TextArea] public string description;
+        public WorldQuestCondition[] conditions = Array.Empty<WorldQuestCondition>();
+    }
+
+    [Serializable]
     public sealed class WorldQuestDefinition
     {
         public string id;
         public string title;
-        public WorldQuestCondition[] conditions = Array.Empty<WorldQuestCondition>();
+        [TextArea] public string description;
+        public int sort_order;
+        public string[] prerequisite_ids = Array.Empty<string>();
+        public WorldQuestStepDefinition[] steps = Array.Empty<WorldQuestStepDefinition>();
+        public WorldQuestRewardDefinition[] rewards = Array.Empty<WorldQuestRewardDefinition>();
     }
 
     [Serializable]
     public sealed class WorldQuestProgress
     {
         public string id;
-        public int satisfied;
-        public int total;
+        public bool active;
+        public int current_step;
+        public int completed_steps;
+        public int total_steps;
         public bool completed;
     }
 
     /// <summary>
-    /// Read-only quest/progression evaluator over semantic world state. It never executes
-    /// rewards or manipulates scene objects. Concrete reward and story systems may subscribe
-    /// to its semantic completion events later without making quest evaluation a god object.
+    /// Ordered read-only quest evaluator over semantic world state. Quest evaluation never
+    /// executes rewards, spawns content, opens gates, changes combat, or reads neural state.
+    /// Progress is monotonic during a run: once a step is satisfied it does not regress when
+    /// a transient world fact later changes. A full ConfigureRuntime/snapshot restore rebuilds
+    /// derived progress from durable semantic facts and prerequisite completion.
     /// </summary>
     [DefaultExecutionOrder(-780)]
     public sealed class WorldQuestRuntime : MonoBehaviour
@@ -55,10 +72,15 @@ namespace Mindforge.World
 
         private readonly Dictionary<string, WorldQuestProgress> _index =
             new Dictionary<string, WorldQuestProgress>(StringComparer.Ordinal);
+        private readonly Dictionary<string, WorldQuestDefinition> _definitions =
+            new Dictionary<string, WorldQuestDefinition>(StringComparer.Ordinal);
 
+        public event Action<string> QuestActivated;
         public event Action<string, int, int> QuestAdvanced;
         public event Action<string> QuestCompleted;
+
         public IReadOnlyList<WorldQuestProgress> Progress => progress;
+        public IReadOnlyList<WorldQuestDefinition> Definitions => definitions;
 
         private void Awake()
         {
@@ -69,81 +91,159 @@ namespace Mindforge.World
         private void OnEnable()
         {
             Resolve();
-            if (ledger != null) ledger.StateChanged += OnStateChanged;
-            EvaluateAll(false);
+            SubscribeLedger();
+            RebuildFromWorld(false);
         }
 
-        private void OnDisable()
-        {
-            if (ledger != null) ledger.StateChanged -= OnStateChanged;
-        }
+        private void OnDisable() => UnsubscribeLedger();
 
         public void ConfigureRuntime(
             WorldStateLedger stateLedger,
             WorldSignalBus signalBus,
             WorldQuestDefinition[] questDefinitions)
         {
-            if (ledger != null) ledger.StateChanged -= OnStateChanged;
+            UnsubscribeLedger();
             ledger = stateLedger;
             signals = signalBus;
             definitions = questDefinitions ?? Array.Empty<WorldQuestDefinition>();
+            SortDefinitions();
             RebuildProgress();
-            if (isActiveAndEnabled && ledger != null) ledger.StateChanged += OnStateChanged;
-            EvaluateAll(false);
+            if (isActiveAndEnabled) SubscribeLedger();
+            RebuildFromWorld(false);
         }
 
         public bool IsComplete(string questId)
         {
-            return !string.IsNullOrWhiteSpace(questId) &&
-                   _index.TryGetValue(questId.Trim(), out WorldQuestProgress value) &&
+            string id = Normalize(questId);
+            return !string.IsNullOrEmpty(id) &&
+                   _index.TryGetValue(id, out WorldQuestProgress value) &&
                    value != null && value.completed;
         }
 
-        private void OnStateChanged(string key, WorldStateEntry before, WorldStateEntry after)
+        public bool IsActive(string questId)
         {
-            EvaluateAll(true);
+            string id = Normalize(questId);
+            return !string.IsNullOrEmpty(id) &&
+                   _index.TryGetValue(id, out WorldQuestProgress value) &&
+                   value != null && value.active && !value.completed;
+        }
+
+        public WorldQuestDefinition GetDefinition(string questId)
+        {
+            string id = Normalize(questId);
+            return !string.IsNullOrEmpty(id) && _definitions.TryGetValue(id, out WorldQuestDefinition value)
+                ? value
+                : null;
+        }
+
+        public WorldQuestProgress GetProgress(string questId)
+        {
+            string id = Normalize(questId);
+            return !string.IsNullOrEmpty(id) && _index.TryGetValue(id, out WorldQuestProgress value)
+                ? value
+                : null;
+        }
+
+        public WorldQuestDefinition GetPrimaryActiveQuest()
+        {
+            for (int i = 0; i < definitions.Length; i++)
+            {
+                WorldQuestDefinition definition = definitions[i];
+                if (definition != null && IsActive(definition.id)) return definition;
+            }
+            return null;
+        }
+
+        public WorldQuestStepDefinition GetCurrentStep(string questId)
+        {
+            WorldQuestDefinition definition = GetDefinition(questId);
+            WorldQuestProgress state = GetProgress(questId);
+            if (definition == null || state == null || definition.steps == null || definition.steps.Length == 0) return null;
+            int index = Mathf.Clamp(state.current_step, 0, definition.steps.Length - 1);
+            return state.completed ? null : definition.steps[index];
+        }
+
+        private void OnStateChanged(string key, WorldStateEntry before, WorldStateEntry after)
+            => EvaluateAll(true);
+
+        private void OnSnapshotRestored()
+            => RebuildFromWorld(false);
+
+        private void RebuildFromWorld(bool emit)
+        {
+            RebuildProgress();
+            EvaluateAll(emit);
         }
 
         private void EvaluateAll(bool emit)
         {
             if (ledger == null || definitions == null) return;
-            for (int i = 0; i < definitions.Length; i++)
-                Evaluate(definitions[i], emit);
+
+            // Bounded convergence handles prerequisite chains without requiring authored
+            // definitions to be topologically sorted. Cycles simply never activate.
+            int passes = Mathf.Max(1, definitions.Length + 1);
+            for (int pass = 0; pass < passes; pass++)
+            {
+                bool changed = false;
+                for (int i = 0; i < definitions.Length; i++)
+                    changed |= Evaluate(definitions[i], emit);
+                if (!changed) break;
+            }
         }
 
-        private void Evaluate(WorldQuestDefinition definition, bool emit)
+        private bool Evaluate(WorldQuestDefinition definition, bool emit)
         {
-            if (definition == null || string.IsNullOrWhiteSpace(definition.id)) return;
-            string id = definition.id.Trim();
-            if (!_index.TryGetValue(id, out WorldQuestProgress state) || state == null) return;
-            if (state.completed) return;
+            if (definition == null || string.IsNullOrWhiteSpace(definition.id)) return false;
+            string id = Normalize(definition.id);
+            if (!_index.TryGetValue(id, out WorldQuestProgress state) || state == null) return false;
+            if (state.completed) return false;
 
-            WorldQuestCondition[] conditions = definition.conditions ?? Array.Empty<WorldQuestCondition>();
-            int satisfied = 0;
-            for (int i = 0; i < conditions.Length; i++)
+            bool changed = false;
+            if (!state.active)
             {
-                if (Satisfied(conditions[i])) satisfied++;
+                if (!PrerequisitesSatisfied(definition)) return false;
+                state.active = true;
+                changed = true;
+                if (emit)
+                {
+                    QuestActivated?.Invoke(id);
+                    signals?.Publish(
+                        WorldSignalKind.QuestActivated,
+                        "quest.activated",
+                        subject: id,
+                        reason: definition.title);
+                }
             }
 
-            int before = state.satisfied;
-            state.total = conditions.Length;
-            state.satisfied = satisfied;
-            bool complete = conditions.Length > 0 && satisfied >= conditions.Length;
+            WorldQuestStepDefinition[] steps = definition.steps ?? Array.Empty<WorldQuestStepDefinition>();
+            state.total_steps = steps.Length;
+            if (steps.Length == 0) return changed;
 
-            if (emit && satisfied != before)
+            while (state.current_step < steps.Length && StepSatisfied(steps[state.current_step]))
             {
-                QuestAdvanced?.Invoke(id, satisfied, state.total);
-                signals?.Publish(
-                    WorldSignalKind.QuestAdvanced,
-                    "quest.advanced",
-                    subject: id,
-                    intValue: satisfied,
-                    floatValue: state.total > 0 ? satisfied / (float)state.total : 0f,
-                    reason: definition.title);
+                state.completed_steps = state.current_step + 1;
+                state.current_step++;
+                changed = true;
+
+                if (emit)
+                {
+                    QuestAdvanced?.Invoke(id, state.completed_steps, state.total_steps);
+                    signals?.Publish(
+                        WorldSignalKind.QuestAdvanced,
+                        "quest.advanced",
+                        subject: id,
+                        stringValue: steps[state.completed_steps - 1] != null ? steps[state.completed_steps - 1].title : string.Empty,
+                        intValue: state.completed_steps,
+                        floatValue: state.total_steps > 0 ? state.completed_steps / (float)state.total_steps : 0f,
+                        reason: definition.title);
+                }
             }
 
-            if (!complete) return;
+            if (state.current_step < steps.Length) return changed;
+
             state.completed = true;
+            state.active = false;
+            changed = true;
             if (emit)
             {
                 QuestCompleted?.Invoke(id);
@@ -151,10 +251,35 @@ namespace Mindforge.World
                     WorldSignalKind.QuestCompleted,
                     "quest.completed",
                     subject: id,
-                    intValue: state.total,
+                    intValue: state.total_steps,
                     floatValue: 1f,
                     reason: definition.title);
             }
+            return changed;
+        }
+
+        private bool PrerequisitesSatisfied(WorldQuestDefinition definition)
+        {
+            string[] prerequisites = definition.prerequisite_ids ?? Array.Empty<string>();
+            for (int i = 0; i < prerequisites.Length; i++)
+            {
+                string id = Normalize(prerequisites[i]);
+                if (string.IsNullOrEmpty(id)) continue;
+                if (!IsComplete(id)) return false;
+            }
+            return true;
+        }
+
+        private bool StepSatisfied(WorldQuestStepDefinition step)
+        {
+            if (step == null) return false;
+            WorldQuestCondition[] conditions = step.conditions ?? Array.Empty<WorldQuestCondition>();
+            if (conditions.Length == 0) return false;
+            for (int i = 0; i < conditions.Length; i++)
+            {
+                if (!Satisfied(conditions[i])) return false;
+            }
+            return true;
         }
 
         private bool Satisfied(WorldQuestCondition condition)
@@ -181,22 +306,38 @@ namespace Mindforge.World
         {
             progress.Clear();
             _index.Clear();
+            _definitions.Clear();
             if (definitions == null) return;
 
             for (int i = 0; i < definitions.Length; i++)
             {
                 WorldQuestDefinition definition = definitions[i];
                 if (definition == null || string.IsNullOrWhiteSpace(definition.id)) continue;
-                string id = definition.id.Trim();
+                string id = Normalize(definition.id);
                 if (_index.ContainsKey(id)) continue;
+                definition.id = id;
                 WorldQuestProgress state = new WorldQuestProgress
                 {
                     id = id,
-                    total = definition.conditions != null ? definition.conditions.Length : 0,
+                    total_steps = definition.steps != null ? definition.steps.Length : 0,
                 };
                 progress.Add(state);
                 _index[id] = state;
+                _definitions[id] = definition;
             }
+        }
+
+        private void SortDefinitions()
+        {
+            if (definitions == null) return;
+            Array.Sort(definitions, (a, b) =>
+            {
+                if (ReferenceEquals(a, b)) return 0;
+                if (a == null) return 1;
+                if (b == null) return -1;
+                int order = a.sort_order.CompareTo(b.sort_order);
+                return order != 0 ? order : string.CompareOrdinal(Normalize(a.id), Normalize(b.id));
+            });
         }
 
         private void Resolve()
@@ -204,5 +345,24 @@ namespace Mindforge.World
             if (ledger == null) ledger = GetComponent<WorldStateLedger>();
             if (signals == null) signals = GetComponent<WorldSignalBus>();
         }
+
+        private void SubscribeLedger()
+        {
+            if (ledger == null) return;
+            ledger.StateChanged -= OnStateChanged;
+            ledger.StateChanged += OnStateChanged;
+            ledger.SnapshotRestored -= OnSnapshotRestored;
+            ledger.SnapshotRestored += OnSnapshotRestored;
+        }
+
+        private void UnsubscribeLedger()
+        {
+            if (ledger == null) return;
+            ledger.StateChanged -= OnStateChanged;
+            ledger.SnapshotRestored -= OnSnapshotRestored;
+        }
+
+        private static string Normalize(string value)
+            => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
     }
 }
