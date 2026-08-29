@@ -14,6 +14,7 @@ namespace Mindforge.Combat
     /// - Shift or RMB: grounded dodge roll / air dash
     /// - Ctrl / Alt: compatibility dodge aliases
     /// - F or LMB: energy-blade light chain / projectile parry
+    /// - E: mount/dismount edge is captured into the shared tape but consumed by the mount authority
     /// - Q: Rift Cleave
     /// - C: Counter Pulse
     /// - R: Gravity Bloom / Twin Eclipse
@@ -21,7 +22,7 @@ namespace Mindforge.Combat
     /// Shield hold and player Pulse fire are intentionally retired from the normal map in
     /// this tranche. The corresponding tape fields remain for backward-compatible replay,
     /// but this input authority never issues them. Neural evidence never originates
-    /// movement, target lock, attack, camera orbit, aim, jump, hover or dodge commands.
+    /// movement, target lock, attack, camera orbit, aim, jump, hover, dodge or mount commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -49,6 +50,7 @@ namespace Mindforge.Combat
         private bool _jumpHeld;
         private bool _bloomLatched;
         private bool _swordAttackLatched;
+        private bool _mountLatched;
         private long _fixedInputTick;
 
         private bool _dodgeCommandQueued;
@@ -91,6 +93,7 @@ namespace Mindforge.Combat
             _jumpHeld = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
+            _mountLatched = false;
             ClearDodgeCommand();
             motor?.SetMoveInput(Vector2.zero);
             motor?.SetJumpHeld(false);
@@ -105,6 +108,7 @@ namespace Mindforge.Combat
 
             _jumpLatched |= Input.GetKeyDown(KeyCode.Space);
             _jumpHeld = Input.GetKey(KeyCode.Space);
+            _mountLatched |= Input.GetKeyDown(KeyCode.E);
 
             // Dodge roll owns the highest-frequency defensive input. RMB becomes a roll
             // rather than an invisible/low-value guard stance; Shift remains the keyboard
@@ -138,7 +142,7 @@ namespace Mindforge.Combat
         {
             ResolveDependencies();
             if (motor == null || combat == null) return;
-            _fixedInputTick++;
+            _fixedInputTick = GuardianInputTape.FixedTickNow;
 
             Vector3 liveAim = ResolveAimDirection(out Vector3 liveAimPoint, out bool precisionAim);
             GuardianCommandFrame live = new GuardianCommandFrame
@@ -159,6 +163,9 @@ namespace Mindforge.Combat
                 sword_attack_down = _swordAttackLatched,
                 guard_held = false,
                 guard_down = false,
+                mount_toggle_down = _mountLatched,
+                mounted_attack_down = false,
+                mounted_boost_down = false,
             };
 
             _cleaveLatched = false;
@@ -167,6 +174,7 @@ namespace Mindforge.Combat
             _jumpLatched = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
+            _mountLatched = false;
 
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
