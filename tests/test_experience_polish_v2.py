@@ -22,8 +22,6 @@ def test_fallback_guardian_has_one_locomotion_owner_instead_of_two_stride_clocks
     ):
         assert token in avatar
 
-    # The fallback rig no longer runs a second speed-derived stride oscillator beneath
-    # GuardianMotionPolish. This was especially visible as bicycle legs while airborne.
     for duplicate_gait in (
         "_stride",
         "Mathf.Sin(_stride)",
@@ -62,31 +60,35 @@ def test_fallback_guardian_has_one_locomotion_owner_instead_of_two_stride_clocks
             assert forbidden not in source
 
 
-def test_null_ward_enemy_archetypes_get_distinct_collider_free_silhouettes():
-    builder = read("Editor", "NullWardEnemySilhouetteBuilder.cs")
+def test_null_ward_full_roster_gets_distinct_collider_free_silhouettes():
+    builder = read("Editor", "NullWardEnemySilhouetteV3Builder.cs")
     menu = read("Editor", "ShowcaseEditorMenu.cs")
 
     for token in (
-        'RootName = "ArchetypeSilhouetteV2"',
+        'RootName = "ArchetypeSilhouetteV3"',
+        "JourneyEnemyArchetype.Hollow",
+        "JourneyEnemyArchetype.Shardcaster",
+        "JourneyEnemyArchetype.SignalWarden",
         "JourneyEnemyArchetype.NullSentry",
         "JourneyEnemyArchetype.ChromePenitent",
         "legacyRenderer.enabled = false",
-        '"NullSentry_Keel"',
-        '"NullSentry_Fin_L"',
-        '"NullSentry_Fin_R"',
-        '"NullSentry_Visor"',
-        '"ChromePenitent_Chest"',
-        '"ChromePenitent_Pauldron_L"',
-        '"ChromePenitent_Pauldron_R"',
-        '"ChromePenitent_CleaverMass"',
-        '"ChromePenitent_ChestSignal"',
+        "BuildHollow",
+        "BuildShardcaster",
+        "BuildAetherNeedle",
+        "BuildSignalWarden",
+        "BuildNullSentry",
+        "BuildChromePenitent",
+        '"Hollow_Blade_L"',
+        '"Shardcaster_Orbit_L"',
+        '"Needle_Main"',
+        '"Warden_Pillar_L"',
+        '"Sentry_Keel"',
+        '"Penitent_Cleaver"',
         "UnityEngine.Object.DestroyImmediate(collider)",
         "renderer.sharedMaterial = material",
     ):
         assert token in builder
 
-    # Presentation geometry is dynamic with the enemy but has no collision or static
-    # batching identity of its own. Existing controller/collider authority stays below it.
     for forbidden in (
         "AddComponent<Rigidbody>",
         "AddComponent<Collider>",
@@ -104,11 +106,13 @@ def test_null_ward_enemy_archetypes_get_distinct_collider_free_silhouettes():
         assert forbidden not in builder
 
     world = menu.index("NullWardSceneBuilder.BuildOpenScene();")
-    silhouettes = menu.index("NullWardEnemySilhouetteBuilder.ApplyOpenScene();")
+    ecosystem = menu.index("NullWardArenaEcosystemBuilder.ApplyOpenScene();")
+    silhouettes = menu.index("NullWardEnemySilhouetteV3Builder.ApplyOpenScene();")
     visual_v2 = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
+    dressing = menu.index("NullWardArenaSetDressingV3Builder.ApplyOpenScene();")
     traversal = menu.index("NullWardTraversalPlayabilityBuilder.ApplyOpenScene();")
     gate = menu.index("CompetitionGateValidator.ValidateAndWrite(false);")
-    assert world < silhouettes < visual_v2 < traversal < gate
+    assert world < ecosystem < silhouettes < visual_v2 < dressing < traversal < gate
 
 
 def test_enemy_motion_identity_is_archetype_specific_but_presentation_only():
