@@ -8,6 +8,7 @@ using Mindforge.Combat;
 using Mindforge.Enemies;
 using Mindforge.Journey;
 using Mindforge.Presentation;
+using Mindforge.World;
 
 namespace Mindforge.Editor
 {
@@ -54,7 +55,8 @@ namespace Mindforge.Editor
             AssetDatabase.Refresh();
             Debug.Log(
                 "[Mindforge:AetheriaHordeV1] Rethemed three existing Menagerie roles as Scrap Goblin, Bass Golem and Aero Gargoyle; " +
-                "Stalker pounce now has collision-bounded committed advance; Aero Gargoyle gains a close dive; Lord Malatract presentation " +
+                "Stalker pounce now has collision-bounded committed advance; Aero Gargoyle gains a close dive; those post-Menagerie combat " +
+                "mutations are re-captured into the serialized role profiles so wave activation cannot erase them. Lord Malatract presentation " +
                 "is layered over the existing Fractured Signal boss authority. The roster remains exactly ten identities.");
         }
 
@@ -89,43 +91,64 @@ namespace Mindforge.Editor
             if (pounce == null) throw new InvalidOperationException("Rift Stalker is missing stalker_pounce.");
             SetAttackAdvance(pounce, 1.62f);
             RebuildCooldownState(stalker);
+            RefreshRoleProfile(stalker);
         }
 
         private static void ConfigureAeroGargoyleDive(JourneyEnemyController gargoyle)
         {
             EnemyAttackDefinition[] source = GetAttacks(gargoyle);
-            if (FindAttack(source, "gargoyle_dive") != null) return;
+            if (FindAttack(source, "gargoyle_dive") == null)
+            {
+                EnemyAttackDefinition dive = EnemyAttackDefinition.Create(
+                    "gargoyle_dive",
+                    EnemyAttackType.Melee,
+                    0.55f,
+                    4.10f,
+                    82f,
+                    5,
+                    178,
+                    60,
+                    2,
+                    76,
+                    0.88f,
+                    0.48f,
+                    12f,
+                    10f,
+                    2.2f,
+                    0f,
+                    1,
+                    0f,
+                    false,
+                    true,
+                    "gargoyle_dive",
+                    2.05f);
 
-            EnemyAttackDefinition dive = EnemyAttackDefinition.Create(
-                "gargoyle_dive",
-                EnemyAttackType.Melee,
-                0.55f,
-                4.10f,
-                82f,
-                5,
-                178,
-                60,
-                2,
-                76,
-                0.88f,
-                0.48f,
-                12f,
-                10f,
-                2.2f,
-                0f,
-                1,
-                0f,
-                false,
-                true,
-                "gargoyle_dive",
-                2.05f);
+                EnemyAttackDefinition[] expanded = new EnemyAttackDefinition[source.Length + 1];
+                Array.Copy(source, expanded, source.Length);
+                expanded[expanded.Length - 1] = dive;
+                SetField(gargoyle, "attackDefinitions", expanded);
+                SetField(gargoyle, "meleeVerticalReach", 2.0f);
+            }
 
-            EnemyAttackDefinition[] expanded = new EnemyAttackDefinition[source.Length + 1];
-            Array.Copy(source, expanded, source.Length);
-            expanded[expanded.Length - 1] = dive;
-            SetField(gargoyle, "attackDefinitions", expanded);
-            SetField(gargoyle, "meleeVerticalReach", 2.0f);
             RebuildCooldownState(gargoyle);
+            RefreshRoleProfile(gargoyle);
+        }
+
+        /// <summary>
+        /// ArenaMenagerieDirector intentionally restores a serialized role profile every
+        /// time a wave activates because JourneyEnemyController reapplies base archetype
+        /// defaults in OnEnable. Aetheria runs after the Menagerie authoring pass, so any
+        /// combat mutation made here must be captured again or runtime activation would
+        /// restore the earlier profile and silently erase the upgrade.
+        /// </summary>
+        private static void RefreshRoleProfile(JourneyEnemyController enemy)
+        {
+            if (enemy == null) return;
+            ArenaMenagerieRoleProfile profile = enemy.GetComponent<ArenaMenagerieRoleProfile>();
+            if (profile == null) profile = enemy.gameObject.AddComponent<ArenaMenagerieRoleProfile>();
+            profile.CaptureFromCurrent(enemy);
+            EditorUtility.SetDirty(profile);
+            EditorUtility.SetDirty(enemy);
         }
 
         private static EnemyAttackDefinition[] GetAttacks(JourneyEnemyController enemy)
