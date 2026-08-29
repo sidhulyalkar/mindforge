@@ -47,15 +47,12 @@ def test_variant_profile_survives_controller_on_enable_base_default_reapplicatio
     director = read("World", "ArenaMenagerieDirector.cs")
     profile = read("World", "ArenaMenagerieRoleProfile.cs")
 
-    # Snapshot occurs while the editor-authored custom role is still intact.
     assert "if (profile == null) profile = enemy.gameObject.AddComponent<ArenaMenagerieRoleProfile>()" in director
     assert "if (!profile.Captured) profile.CaptureFromCurrent(enemy)" in director
     capture = director.index("profile.CaptureFromCurrent(enemy)")
     deactivate = director.index("enemy.gameObject.SetActive(false)", capture)
     assert capture < deactivate
 
-    # Unity OnEnable may restore base archetype data, so the role profile must be restored
-    # after activation but before Arm gives the controller authority to attack.
     activate = director.index("enemy.gameObject.SetActive(true)")
     apply = director.index("profile?.Apply()", activate)
     arm = director.index("enemy.Arm()", apply)
@@ -76,7 +73,6 @@ def test_variant_profile_survives_controller_on_enable_base_default_reapplicatio
     ):
         assert token in profile
 
-    # The profile restores authored configuration only. It is not an attack brain.
     for forbidden in (
         "private void FixedUpdate()",
         "ReceiveDamage(",
@@ -115,7 +111,6 @@ def test_menagerie_variants_share_one_enemy_authority_but_have_distinct_attack_g
     assert "JourneyEnemyController" in builder
     assert "ArenaMenagerieDirector" in builder
 
-    # No parallel combat authority in the authoring layer.
     for forbidden in (
         "ReceiveDamage(",
         "RequestDash(",
@@ -128,6 +123,38 @@ def test_menagerie_variants_share_one_enemy_authority_but_have_distinct_attack_g
         "VepAuraStimulus",
     ):
         assert forbidden not in builder
+
+
+def test_signature_attacks_have_distinct_danger_geometry_but_no_new_gameplay_authority():
+    intent = read("Presentation", "JourneyEnemyIntentVfx.cs")
+
+    for token in (
+        'case "stalker_pounce":',
+        "DrawChargeLane(attack)",
+        'case "prism_maw_cone":',
+        "DrawConeWedge(attack)",
+        'case "choir_crescendo":',
+        'case "seraph_horizon":',
+        "DrawSpokeFan(attack",
+        'case "reaper_toll":',
+        "DrawHeavyDoomArc(attack)",
+        "controller.AttackTelegraphProgress01",
+        "controller.AttackTrackingLocked",
+        "controller.RecoveryProgress01",
+    ):
+        assert token in intent
+
+    assert "attack.Id" in intent
+    assert "Time.unscaledTime" in intent
+    for forbidden in (
+        "ReceiveDamage(",
+        "RequestDash(",
+        "TryLightAttack(",
+        "Instantiate(projectile",
+        "NeuralEvent",
+        "UdpNeuralReceiver",
+    ):
+        assert forbidden not in intent
 
 
 def test_ten_menagerie_roles_have_non_humanoid_identity_geometry_without_hitbox_drift():
@@ -169,11 +196,13 @@ def test_aetherblade_v2_is_nested_energy_presentation_not_gameplay_authority():
 
     for token in (
         'VisualRootName = "AetherbladeVisualPolishV2"',
+        'EnergyVisualRootName = "AetherbladeEnergyVisualsV2"',
+        'AfterimageTipName = "AetherbladeAfterimageTipV2"',
         '"AetherbladeOuterBloom"',
         '"AetherbladeTipCapV2"',
         '"AetherbladeEmitterVent_',
-        '"AetherbladeAfterimageTrailV2"',
         '"AetherbladeEmitterLightV2"',
+        "afterimageTip.AddComponent<TrailRenderer>()",
         "_combat.IsAttacking",
         "_combat.IsAttackActive",
         "_combat.AttackProgress",
@@ -183,6 +212,8 @@ def test_aetherblade_v2_is_nested_energy_presentation_not_gameplay_authority():
     ):
         assert token in blade
 
+    assert '_afterTrail.name = "AetherbladeAfterimageTrailV2"' not in blade
+    assert 'tipAnchor.Find(AfterimageTipName)' in blade
     for forbidden in (
         "ReceiveDamage(",
         "TryLightAttack(",
@@ -198,6 +229,33 @@ def test_aetherblade_v2_is_nested_energy_presentation_not_gameplay_authority():
         "damage =",
     ):
         assert forbidden not in blade
+
+
+def test_menagerie_hud_is_compact_identity_only_and_not_an_authority_surface():
+    hud = read("Presentation", "ArenaMenagerieHud.cs")
+
+    for token in (
+        '"MENAGERIE CRUCIBLE · CLEAR"',
+        '"MENAGERIE CRUCIBLE · WAVE',
+        '"SIGNAL QUIET · NEXT WAVE FORMING"',
+        'enemy.name.StartsWith("Menagerie_")',
+        "director.WaveIndex",
+        "director.WaveCount",
+        "new Rect(x, 14f, width, director.Complete ? 48f : 66f)",
+    ):
+        assert token in hud
+
+    for forbidden in (
+        "ReceiveDamage(",
+        "RequestDash(",
+        "TryLightAttack(",
+        "SetLocked(",
+        "NeuralEvent",
+        "sight_score",
+        "guard_score",
+        "Input.Get",
+    ):
+        assert forbidden not in hud
 
 
 def test_showcase_build_orders_menagerie_population_before_identity_presentation():
@@ -219,6 +277,7 @@ def test_new_unity_scripts_have_unique_pinned_guids():
         UNITY / "Editor" / "ArenaMenagerieV1Builder.cs.meta",
         UNITY / "Editor" / "ArenaMenagerieSilhouetteV1Builder.cs.meta",
         UNITY / "Presentation" / "AetherbladeVisualPolishV2.cs.meta",
+        UNITY / "Presentation" / "ArenaMenagerieHud.cs.meta",
     )
     guids = []
     for path in metas:
