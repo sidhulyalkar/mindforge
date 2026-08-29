@@ -10,10 +10,10 @@ namespace Mindforge.World
     /// authored enemies are active. It never moves the Guardian, resolves damage, or reads
     /// neural evidence. Waves are fixed-tick deterministic so capture/replay timing is stable.
     ///
-    /// Important: the scheduler intentionally does not call ResetForCheckpoint on fresh
-    /// menagerie instances. That generic reset reapplies the base archetype defaults and
-    /// would erase the serialized role-specific attack grammar authored by the editor pass.
-    /// Rebuild the showcase scene to restart a completed menagerie run.
+    /// Important: JourneyEnemyController reapplies base archetype defaults in OnEnable.
+    /// The serialized ArenaMenagerieRoleProfile is therefore re-applied immediately after
+    /// activation and before Arm(), preserving authored variant behavior without creating a
+    /// second combat authority. Rebuild the showcase scene to restart a completed run.
     /// </summary>
     public sealed class ArenaMenagerieDirector : MonoBehaviour
     {
@@ -144,6 +144,8 @@ namespace Mindforge.World
                 }
 
                 enemy.gameObject.SetActive(true);
+                ArenaMenagerieRoleProfile profile = enemy.GetComponent<ArenaMenagerieRoleProfile>();
+                profile?.Apply();
                 enemy.Defeated -= OnEnemyDefeated;
                 enemy.Defeated += OnEnemyDefeated;
                 enemy.Arm();
