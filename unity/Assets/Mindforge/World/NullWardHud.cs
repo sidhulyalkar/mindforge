@@ -12,7 +12,7 @@ namespace Mindforge.World
         [SerializeField] private MemoryForgeCheckpoint checkpoint;
         [SerializeField] private WorldShortcut shortcut;
         [SerializeField] private float bannerSeconds = 2.1f;
-        [SerializeField] private float controlsHintSeconds = 16f;
+        [SerializeField] private float controlsHintSeconds = 13f;
 
         private GUIStyle _objective;
         private GUIStyle _small;
@@ -124,10 +124,12 @@ namespace Mindforge.World
             if (world == null) return;
             EnsureStyles();
 
-            const float left = 18f;
-            const float top = 18f;
+            // Player health/endurance owns the upper-left. World objective sits beneath it
+            // so exploration information never competes with survival state.
+            const float left = 24f;
+            const float top = 148f;
             bool showControls = Time.realtimeSinceStartupAsDouble - _enteredAt <= Mathf.Max(0f, controlsHintSeconds);
-            float width = Mathf.Min(showControls ? 540f : 390f, Screen.width * 0.50f);
+            float width = Mathf.Min(showControls ? 520f : 390f, Screen.width * 0.48f);
             float height = showControls ? 58f : 38f;
             GUI.Box(new Rect(left, top, width, height), string.Empty);
             GUI.Label(new Rect(left + 12f, top + 5f, width - 24f, 26f),
@@ -137,15 +139,15 @@ namespace Mindforge.World
             if (showControls)
             {
                 GUI.Label(new Rect(left + 12f, top + 32f, width - 24f, 18f),
-                    "SPACE jump ×2 / hold to hover · SHIFT dash / air dash · T lock · F sword · RMB/E guard",
+                    "SHIFT/RMB roll · SPACE jump ×2 / hold hover · T lock · F/LMB Aetherblade",
                     _small);
             }
 
             if (!string.IsNullOrEmpty(_bannerText) && Time.realtimeSinceStartupAsDouble < _bannerUntil)
             {
                 float bannerWidth = Mathf.Min(560f, Screen.width - 80f);
-                GUI.Box(new Rect((Screen.width - bannerWidth) * 0.5f, 88f, bannerWidth, 42f), string.Empty);
-                GUI.Label(new Rect((Screen.width - bannerWidth) * 0.5f, 88f, bannerWidth, 42f), _bannerText, _banner);
+                GUI.Box(new Rect((Screen.width - bannerWidth) * 0.5f, 92f, bannerWidth, 42f), string.Empty);
+                GUI.Label(new Rect((Screen.width - bannerWidth) * 0.5f, 92f, bannerWidth, 42f), _bannerText, _banner);
             }
         }
 
