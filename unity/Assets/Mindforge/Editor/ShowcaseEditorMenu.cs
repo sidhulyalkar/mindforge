@@ -90,10 +90,10 @@ namespace Mindforge.Editor
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
 
-                // Arena ecosystem runs before presentation so every newly-authored enemy
-                // receives the same silhouette, telegraph and static-world treatment as
-                // the original Sentry/Penitent pair.
+                // Gameplay population comes before visual layers so every newly-authored
+                // enemy receives honest collision, silhouette and intent presentation.
                 NullWardArenaEcosystemBuilder.ApplyOpenScene();
+                NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
@@ -115,9 +115,10 @@ namespace Mindforge.Editor
             AssetDatabase.Refresh();
             Debug.Log(
                 "[Mindforge:Showcase] Full Null Ward arena ecosystem ready. The controller-only path now runs from " +
-                "Memory Forge through a populated Synapse Causeway, mixed-pressure Null Market and Fracture Court " +
-                "before the Signal Cathedral and existing Fractured Signal boss arena. Five ordinary enemy " +
-                "archetypes plus the elevated Aether Needle variant use distinct collider-free silhouettes and " +
+                "the Memory Forge through a populated Synapse Causeway, mixed-pressure Null Market, the eastern " +
+                "maintenance loop with its persistent shortcut, and Fracture Court before the Signal Cathedral " +
+                "and existing Fractured Signal boss arena. Five ordinary enemy archetypes plus the elevated " +
+                "Aether Needle variant use distinct collider-free silhouettes, honest root hit volumes and " +
                 "geometric intent telegraphs. Layered near/mid/far set dressing extends the Ward and boss-arena " +
                 "skyline without adding gameplay colliders. A presentation-budget report is emitted before Play " +
                 "Mode; controller-only runtime performance evidence is emitted during play. Runtime retains the " +
