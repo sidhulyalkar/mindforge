@@ -117,8 +117,8 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Grounded World V2 ready inside a continuous collision-backed basin with a tall enclosing wall. " +
                 "The district-specific Forge keep, Causeway rib gallery, Market court, Fracture tower, Cathedral ascent and Arena ring " +
                 "create distinct vertical silhouettes, landing pockets and shortcut routes. No reachable route intentionally exposes " +
-                "the void. The combat core is energy-blade + endurance dodge roll + jump/double-jump/hover/air-dash; player Pulse " +
-                "fire and the physical shield remain retired from the normal controls.");
+                "the void. The combat core is energy-blade + endurance dodge roll + jump/double-jump/hover/air-dash; " +
+                "Pulse fire and the physical shield remain retired from the normal controls.");
             Debug.Log(
                 "[Mindforge:Showcase] Composition retained: Memory Forge → Synapse Causeway → Null Market → Fracture Court → Cathedral. " +
                 "Five ordinary enemy roles remain in the encounter grammar; the persistent shortcut, geometric intent telegraphs, " +
