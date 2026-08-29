@@ -39,9 +39,10 @@ def test_guardian_third_person_heading_and_aerial_commands_are_replayable():
     assert "Mouse/trackpad or arrow keys: orbit camera" in source
     assert "T: conventional target lock" in source
     assert "Space: jump / double jump; hold while descending to hover / slow fall" in source
-    assert "Left/Right Shift: directional dodge / air dash" in source
-    assert "Left Ctrl / Left Alt: compatibility dodge aliases" in source
-    assert "X or MMB: Pulse Shot" in source
+    assert "Shift or RMB: grounded dodge roll / air dash" in source
+    assert "Ctrl / Alt: compatibility dodge aliases" in source
+    assert "F or LMB: energy-blade light chain / projectile parry" in source
+    assert "Shield hold and player Pulse fire are intentionally retired" in source
     assert "GuardianTargetLock targetLock" in source
     assert "targetLock.Locked" in source
     assert "targetLock.DirectionFrom(transform.position)" in source
@@ -55,6 +56,8 @@ def test_guardian_third_person_heading_and_aerial_commands_are_replayable():
     assert "dash_down = _dashLatched" in source
     assert "jump_down = _jumpLatched" in source
     assert "jump_held = _jumpHeld" in source
+    assert "fire_held = false" in source
+    assert "guard_held = false" in source
     assert "inputTape.Resolve(live, fixedHz)" in source
 
     resolve_index = source.index("GuardianCommandFrame command =")
@@ -67,19 +70,18 @@ def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: WASD move · camera · T lock · Space jump/double-jump/hover · Shift dash/air-dash · sword · shield · skills",
-        "BCI: bounded blade/shield resonance after accepted Sight/Guard",
-        "EEG never moves, jumps, hovers, air-dashes, locks a target, rotates the camera, swings, blocks, fires, or parries",
+        "HANDS: move · camera · target lock · jump/double-jump/hover · roll/air-dash · Aetherblade · skills",
+        "accepted Sight can boundedly amplify blade length/energy/damage",
+        "EEG never moves, jumps, hovers, rolls, air-dashes, locks a target, rotates the camera, swings, or parries",
         "KeyCode.F10",
         "JudgeLensFlag",
         "PrecisionAimActive",
         "CurrentAimPoint",
         "TargetFocusActive",
         "TARGET LOCK",
-        "T  LOCK ON",
-        "SPACE JUMP ×2 / HOLD HOVER",
-        "SHIFT DASH / AIR DASH",
-        "X / MMB PULSE SHOT",
+        "SHIFT / RMB DODGE ROLL",
+        "VERTICAL WORLD",
+        "READ → SWING → ROLL → REPOSITION",
     ):
         assert token in guide
 
