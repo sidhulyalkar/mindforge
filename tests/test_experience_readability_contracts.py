@@ -86,20 +86,19 @@ def test_radial_telegraph_previews_the_same_angular_lattice_as_spawn():
     assert "AttackFired?.Invoke(\"RADIAL\", count, heavy)" in director
 
 
-def test_onboarding_is_staged_around_third_person_physical_combat_then_arcane_options():
+def test_onboarding_is_staged_around_aerial_physical_combat_then_arcane_options():
     guide = _read("Presentation", "PlayerAgencyGuide.cs")
 
     assert "CurrentLesson()" in guide
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
-    assert "T LOCK ON" in guide
-    assert "SPACE JUMP" in guide
-    assert "CTRL / ALT DODGE" in guide
-    assert "third-person combat" in guide
+    assert "T LOCK" in guide
+    assert "SPACE JUMP ×2 / HOLD HOVER" in guide
+    assert "SHIFT DASH / AIR DASH" in guide
     assert "F SWORD" in guide
     assert "RMB / E HOLD SHIELD" in guide
     assert "PERFECT GUARD reflect" in guide
-    assert "SHIFT PULSE SHOT" in guide
+    assert "X / MMB PULSE SHOT" in guide
     assert "slash hostile projectiles back at the enemy" in guide
     assert "Q RIFT CLEAVE" in guide
     assert "C COUNTER PULSE" in guide
