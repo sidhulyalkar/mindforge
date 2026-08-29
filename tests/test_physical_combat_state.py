@@ -34,27 +34,28 @@ def test_dodge_has_real_short_iframe_not_full_motion_immunity():
     assert iframe_index < destroy_index
 
 
-def test_fixed_tick_action_grammar_prevents_overlays_and_accepts_one_special_per_frame():
+def test_fixed_tick_action_grammar_makes_roll_first_and_never_overlays_specials():
     source = read("Combat", "GuardianCombatInput.cs")
     physical = read("Combat", "GuardianSwordShieldController.cs")
 
     dash_block = source.index("if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))")
-    guard_block = source.index("physicalCombat?.SetGuardHeld(command.guard_held, aim)")
+    dash_lockout = source.index("if (motor.IsDashing) return;")
+    jump_block = source.index("if (command.jump_down &&", dash_block)
     sword_block = source.index("if (command.sword_attack_down)")
     commitment_block = source.index("physicalCombat.ActionState != GuardianActionState.Locomotion")
     counter_block = source.index("if (command.counter_down && combat.BeginCounter()) return;")
     cleave_block = source.index("if (command.cleave_down && combat.RiftCleave(aim)) return;")
     bloom_block = source.index("if (command.bloom_down && bloom != null && bloom.TryActivate()) return;")
-    ranged_block = source.index("if (command.fire_held) combat.FirePulse(aim)")
-    assert dash_block < guard_block < sword_block < commitment_block
-    assert commitment_block < counter_block < cleave_block < bloom_block < ranged_block
+    assert dash_block < dash_lockout < jump_block < sword_block < commitment_block
+    assert commitment_block < counter_block < cleave_block < bloom_block
 
-    assert "if (motor.RequestDash(aim)) return;" in source
-    assert "if (motor.IsDashing)" in source
-    assert "if (physicalCombat != null && physicalCombat.IsGuarding) return;" in source
+    assert "if (motor.RequestDash(aim))" in source
+    assert 'endurance?.TrySpend(cost, motor.IsGrounded ? "DODGE_ROLL" : "AIR_DASH")' in source
+    assert "if (motor.IsDashing) return;" in source
+    assert "physicalCombat?.SetGuardHeld(false, aim)" in source
     assert "bool accepted = physicalCombat != null && physicalCombat.TryLightAttack(aim);" in source
     assert "if (accepted) return;" in source
-    assert "One fixed command frame owns at most one committed action" in source
+    assert "combat.FirePulse(aim)" not in source
 
     assert "public GuardianActionState ActionState => ResolveActionState()" in physical
     assert "public bool CanDodge => ActionState == GuardianActionState.Locomotion || ActionState == GuardianActionState.Guard" in physical
@@ -62,7 +63,7 @@ def test_fixed_tick_action_grammar_prevents_overlays_and_accepts_one_special_per
     assert "motor != null && motor.IsDashing" in physical
 
 
-def test_guard_stance_costs_mobility_and_guard_integrity_recovery_even_without_being_hit():
+def test_legacy_guard_compatibility_still_costs_mobility_if_old_content_invokes_it():
     physical = read("Combat", "GuardianSwordShieldController.cs")
     stamina = read("Combat", "GuardianStamina.cs")
     motor = read("Combat", "GuardianMotor.cs")
