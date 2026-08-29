@@ -180,8 +180,20 @@ namespace Mindforge.Presentation
         {
             Transform direct = _avatar.Find(name);
             if (direct != null) return direct;
-            Transform motion = _avatar.Find("Motion_" + name);
-            return motion != null ? motion.Find(name) : null;
+
+            Transform bodyMotion = _avatar.Find("Motion_Body");
+            if (bodyMotion != null)
+            {
+                Transform wrapper = bodyMotion.Find("Motion_" + name);
+                if (wrapper != null)
+                {
+                    Transform wrappedChild = wrapper.Find(name);
+                    if (wrappedChild != null) return wrappedChild;
+                }
+            }
+
+            Transform legacyMotion = _avatar.Find("Motion_" + name);
+            return legacyMotion != null ? legacyMotion.Find(name) : null;
         }
 
         private void BindMotionNodes()
