@@ -7,8 +7,8 @@ using Mindforge.SoulWisp;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Non-authoritative presentation for the competition build. It teaches the
-    /// third-person physical control contract without changing combat or neural authority.
+    /// Non-authoritative presentation for the grounded-world build. It teaches the
+    /// conventional blade/roll/aerial contract without changing combat or neural authority.
     /// </summary>
     public sealed class PlayerAgencyGuide : MonoBehaviour
     {
@@ -17,18 +17,17 @@ namespace Mindforge.Presentation
         [SerializeField] private GuardianCombatInput input;
         [SerializeField] private GuardianCombatController combat;
         [SerializeField] private GuardianSwordShieldController physicalCombat;
+        [SerializeField] private GuardianMotor motor;
         [SerializeField] private FluxMeter flux;
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private AwakeningCalibrationDirector calibration;
         [SerializeField] private ShowcaseCameraRig cameraRig;
-        [SerializeField] private float combatGuideSeconds = 34f;
+        [SerializeField] private float combatGuideSeconds = 28f;
 
         private bool _judgeLens;
         private bool _combatObserved;
         private bool _swordUsed;
-        private bool _shieldRaised;
-        private bool _shieldBlocked;
-        private bool _pulseUsed;
+        private bool _rollUsed;
         private bool _cleaveUsed;
         private bool _counterUsed;
         private double _combatGuideUntil;
@@ -57,7 +56,6 @@ namespace Mindforge.Presentation
         }
 
         private void OnDisable() => Unsubscribe();
-
         private void Start() => _judgeLens = CommandLineContains(JudgeLensFlag);
 
         private void Resolve()
@@ -65,6 +63,7 @@ namespace Mindforge.Presentation
             if (input == null) input = FindObjectOfType<GuardianCombatInput>(true);
             if (combat == null) combat = FindObjectOfType<GuardianCombatController>(true);
             if (physicalCombat == null) physicalCombat = FindObjectOfType<GuardianSwordShieldController>(true);
+            if (motor == null) motor = FindObjectOfType<GuardianMotor>(true);
             if (flux == null) flux = FindObjectOfType<FluxMeter>(true);
             if (auras == null) auras = FindObjectOfType<AuraBuffController>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
@@ -81,28 +80,25 @@ namespace Mindforge.Presentation
             if (physicalCombat != null)
             {
                 physicalCombat.SwordAttackStarted -= OnSwordAttack;
-                physicalCombat.GuardChanged -= OnGuardChanged;
-                physicalCombat.ShieldBlocked -= OnShieldBlocked;
                 physicalCombat.SwordAttackStarted += OnSwordAttack;
-                physicalCombat.GuardChanged += OnGuardChanged;
-                physicalCombat.ShieldBlocked += OnShieldBlocked;
+            }
+            if (motor != null)
+            {
+                motor.DashStarted -= OnDashStarted;
+                motor.DashStarted += OnDashStarted;
             }
         }
 
         private void Unsubscribe()
         {
             if (combat != null) combat.ActionAccepted -= OnCombatAction;
-            if (physicalCombat != null)
-            {
-                physicalCombat.SwordAttackStarted -= OnSwordAttack;
-                physicalCombat.GuardChanged -= OnGuardChanged;
-                physicalCombat.ShieldBlocked -= OnShieldBlocked;
-            }
+            if (physicalCombat != null) physicalCombat.SwordAttackStarted -= OnSwordAttack;
+            if (motor != null) motor.DashStarted -= OnDashStarted;
         }
 
         private void Update()
         {
-            if (input == null || combat == null || physicalCombat == null || calibration == null || cameraRig == null)
+            if (input == null || combat == null || physicalCombat == null || motor == null || calibration == null || cameraRig == null)
             {
                 Unsubscribe();
                 Resolve();
@@ -119,14 +115,12 @@ namespace Mindforge.Presentation
         }
 
         private void OnSwordAttack() => _swordUsed = true;
-        private void OnGuardChanged(bool raised) { if (raised) _shieldRaised = true; }
-        private void OnShieldBlocked(float incoming, float chip) => _shieldBlocked = true;
+        private void OnDashStarted() => _rollUsed = true;
 
         private void OnCombatAction(string action)
         {
             switch (action)
             {
-                case "PULSE_SHOT": _pulseUsed = true; break;
                 case "RIFT_CLEAVE": _cleaveUsed = true; break;
                 case "COUNTER_PULSE": _counterUsed = true; break;
             }
@@ -150,7 +144,7 @@ namespace Mindforge.Presentation
             if (!CombatOpen())
             {
                 GUI.Box(new Rect(left, Screen.height - 74f, width, 48f),
-                    "AWAKENING  |  BLUE resonates with blade · GREEN resonates with shield  |  HANDS keep every combat decision");
+                    "AWAKENING  |  BLUE / Sight resonates with blade length and energy  |  HANDS keep every movement and combat decision");
             }
             else
             {
@@ -170,23 +164,19 @@ namespace Mindforge.Presentation
             bool guideWindow = Time.realtimeSinceStartupAsDouble <= _combatGuideUntil;
 
             if (auras != null && auras.ConcordActive && flux != null && flux.IsFull)
-                return "CONCORD ACTIVE  |  R TWIN ECLIPSE  |  your brain creates the opening, your hand chooses when to use it";
+                return "CONCORD ACTIVE  |  R TWIN ECLIPSE  |  neural state creates an opening; your hand still chooses when to strike";
 
             if (flux != null && flux.IsFull)
-                return "FLUX FULL  |  R GRAVITY BLOOM  |  capture hostile projectiles, then return them";
+                return "FLUX FULL  |  R GRAVITY BLOOM  |  use the opening after you have read the room";
 
             if (!guideWindow) return null;
             if (!_swordUsed)
-                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK   ·   SPACE JUMP ×2 / HOLD HOVER   ·   SHIFT DASH / AIR DASH   ·   F SWORD";
-            if (!_shieldRaised)
-                return "RMB / E HOLD SHIELD   |   T lock-on keeps you facing the threat while WASD strafes around it";
-            if (!_shieldBlocked)
-                return "READ THE TELEGRAPH   |   PERFECT GUARD reflect with precise RMB/E timing · SHIFT through danger · jump/hover above low pressure";
-            if (!_pulseUsed)
-                return "X / MMB PULSE SHOT   |   F can slash hostile projectiles back at the enemy   |   air dash to change lanes mid-combat";
+                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK   ·   F / LMB AETHERBLADE   ·   SPACE JUMP ×2";
+            if (!_rollUsed)
+                return "SHIFT / RMB DODGE ROLL   |   roll through telegraphed ground attacks · use Space twice to take the high route";
             if (!_cleaveUsed || !_counterUsed)
-                return "Q RIFT CLEAVE   ·   C COUNTER PULSE   ·   TAB BUILD   |   neural focus amplifies tools you already control";
-            return "BUILD FLUX   |   near miss, sword/shield parry, Echo pressure and Signal Break create your high-impact R windows";
+                return "VERTICAL WORLD   |   stairs are safe · double-jump / hover / air-dash create shortcuts   ·   Q CLEAVE   ·   C COUNTER";
+            return "READ → SWING → ROLL → REPOSITION   |   TAB shows the full kit   ·   blade swings can parry hostile projectiles";
         }
 
         private void DrawAimReticle()
@@ -238,17 +228,17 @@ namespace Mindforge.Presentation
             const float width = 500f;
             const float height = 184f;
             float left = Screen.width - width - 18f;
-            float top = 18f;
+            float top = 38f;
             GUI.Box(new Rect(left, top, width, height), string.Empty);
 
             string bci = calibration != null && calibration.ControllerOnlyQualificationActive
                 ? "BCI: deliberately DISABLED for controller-only validation"
-                : "BCI: bounded blade/shield resonance after accepted Sight/Guard";
+                : "BCI: accepted Sight can boundedly amplify blade length/energy/damage; Guard channel retained for evaluation";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 38f), "HANDS: WASD move · camera · T lock · Space jump/double-jump/hover · Shift dash/air-dash · sword · shield · skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 38f), "HANDS: move · camera · target lock · jump/double-jump/hover · roll/air-dash · Aetherblade · skills", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 78f, width - 32f, 32f), bci, _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 112f, width - 32f, 40f), "EEG never moves, jumps, hovers, air-dashes, locks a target, rotates the camera, swings, blocks, fires, or parries", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 112f, width - 32f, 40f), "EEG never moves, jumps, hovers, rolls, air-dashes, locks a target, rotates the camera, swings, or parries", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 156f, width - 32f, 20f), "T is conventional target lock · F10 hides this explainer", _leftStyle);
         }
 
