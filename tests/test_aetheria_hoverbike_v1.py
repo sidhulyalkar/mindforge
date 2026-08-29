@@ -38,6 +38,17 @@ def test_aetheria_builder_layers_identity_over_existing_safe_world_and_adds_two_
     assert "VepAuraStimulus" not in builder
 
 
+def test_moving_hoverbike_geometry_is_removed_from_static_batching_after_world_authoring():
+    safety = read("Editor", "AetheriaDynamicMountSafetyBuilder.cs")
+
+    assert "AetheriaWorldV1Builder.RootName" in safety
+    assert "GetComponentsInChildren<AetherHoverbikeMount>(true)" in safety
+    assert "GameObjectUtility.SetStaticEditorFlags(t.gameObject, 0)" in safety
+    assert "ReceiveDamage(" not in safety
+    assert "RequestDash(" not in safety
+    assert "NeuralEvent" not in safety
+
+
 def test_hoverbike_keeps_guardian_rigidbody_as_sole_player_body_and_excludes_bci_authority():
     bike = read("Traversal", "GuardianHoverbikeController.cs")
     mount = read("Traversal", "AetherHoverbikeMount.cs")
@@ -173,8 +184,9 @@ def test_showcase_inserts_aetheria_after_truthful_enemy_identity_and_before_ambi
     ordinary_silhouette = menu.index("NullWardEnemySilhouetteV3Builder.ApplyOpenScene();")
     menagerie_silhouette = menu.index("ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();")
     aetheria = menu.index("AetheriaWorldV1Builder.ApplyOpenScene();")
+    dynamic_mount = menu.index("AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();")
     visual = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
-    assert ecosystem < menagerie < menagerie_collision < ordinary_collision < ordinary_silhouette < menagerie_silhouette < aetheria < visual
+    assert ecosystem < menagerie < menagerie_collision < ordinary_collision < ordinary_silhouette < menagerie_silhouette < aetheria < dynamic_mount < visual
 
     assert "E mounts/dismounts a nearby Prism hoverbike" in menu
     assert "Two optional Prism hoverbikes use the existing Guardian" in menu
@@ -210,6 +222,7 @@ def test_new_aetheria_unity_scripts_have_unique_guids():
         UNITY / "Presentation" / "PrismSquirePresentationV1.cs.meta",
         UNITY / "Presentation" / "AetheriaNarrativeDirector.cs.meta",
         UNITY / "Editor" / "AetheriaWorldV1Builder.cs.meta",
+        UNITY / "Editor" / "AetheriaDynamicMountSafetyBuilder.cs.meta",
     )
     guids = []
     for path in metas:
