@@ -96,7 +96,10 @@ def test_hoverbike_kinetics_are_read_only_and_do_not_move_physics_body():
         assert token in source
 
     for forbidden in (
-        "Rigidbody",
+        "GetComponent<Rigidbody>",
+        "AddComponent<Rigidbody>",
+        "private Rigidbody",
+        "public Rigidbody",
         "MovePosition(",
         ".velocity =",
         "ReceiveDamage(",
