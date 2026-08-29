@@ -17,6 +17,8 @@ namespace Mindforge.Editor
     {
         public static void ApplyOpenScene()
         {
+            NormalizeGroundUnderlay();
+
             ShowcaseCameraRig cameraRig = UnityEngine.Object.FindObjectOfType<ShowcaseCameraRig>(true);
             if (cameraRig != null)
             {
@@ -54,7 +56,22 @@ namespace Mindforge.Editor
             }
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[Mindforge:GroundedTuningV1] Applied elevated diorama framing and 0.28 s endurance dodge-roll tuning.");
+            Debug.Log("[Mindforge:GroundedTuningV1] Applied recessed safety underlay, elevated diorama framing and 0.28 s endurance dodge-roll tuning.");
+        }
+
+        private static void NormalizeGroundUnderlay()
+        {
+            GameObject root = EditorSceneLookup.FindIncludingInactive(GroundedWorldV1Builder.RootName);
+            if (root == null) return;
+            Transform[] all = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t == null || !t.name.StartsWith("GroundPlate_", StringComparison.Ordinal)) continue;
+                Vector3 p = t.position;
+                p.y = -0.16f;
+                t.position = p;
+            }
         }
 
         private static void Set(SerializedObject target, string propertyName, float value)
