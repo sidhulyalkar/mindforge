@@ -21,10 +21,12 @@ namespace Mindforge.Combat
 
         [Header("Engagement")]
         [SerializeField] private float engageDistance = 5.0f;
+        [SerializeField] private float engageVerticalReach = 2.2f;
 
         [Header("Fracture cleave")]
         [SerializeField] private float cleaveRange = 3.65f;
         [SerializeField] private float cleaveArcDegrees = 138f;
+        [SerializeField] private float cleaveVerticalReach = 1.85f;
         [SerializeField] private float cleaveDamage = 22f;
         [SerializeField] private float cleavePoise = 18f;
         [SerializeField] private float cleaveTelegraphPhaseOne = 0.76f;
@@ -33,6 +35,7 @@ namespace Mindforge.Combat
 
         [Header("Fracture slam")]
         [SerializeField] private float slamRadius = 3.05f;
+        [SerializeField] private float slamVerticalReach = 1.05f;
         [SerializeField] private float slamDamage = 29f;
         [SerializeField] private float slamPoise = 29f;
         [SerializeField] private float slamTelegraphPhaseTwo = 0.82f;
@@ -49,7 +52,9 @@ namespace Mindforge.Combat
             {
                 if (player == null || bossVitals == null || !bossVitals.IsAlive) return false;
                 Vector3 delta = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up);
-                return delta.sqrMagnitude <= engageDistance * engageDistance;
+                float vertical = Mathf.Abs(player.position.y - transform.position.y);
+                return delta.sqrMagnitude <= engageDistance * engageDistance &&
+                       vertical <= Mathf.Max(0.5f, engageVerticalReach);
             }
         }
 
@@ -139,6 +144,7 @@ namespace Mindforge.Combat
 
         private string ResolveCleave(Vector3 lockedDirection, float range, float arc, float damage, float poise, bool heavy)
         {
+            if (VerticalDistanceToPlayer() > Mathf.Max(0.4f, cleaveVerticalReach)) return "JUMPED";
             Vector3 delta = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up);
             float distance = delta.magnitude;
             if (distance > range || distance < 0.001f) return "SPACED";
@@ -148,9 +154,16 @@ namespace Mindforge.Combat
 
         private string ResolveSlam(float radius, float damage, float poise, bool heavy)
         {
+            if (VerticalDistanceToPlayer() > Mathf.Max(0.25f, slamVerticalReach)) return "JUMPED";
             Vector3 delta = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up);
             if (delta.magnitude > radius) return "SPACED";
             return ResolveContact(damage, poise, heavy, player.position + Vector3.up * 0.42f);
+        }
+
+        private float VerticalDistanceToPlayer()
+        {
+            if (player == null) return float.PositiveInfinity;
+            return Mathf.Abs(player.position.y - transform.position.y);
         }
 
         private string ResolveContact(float damage, float poise, bool heavy, Vector3 hitPoint)
