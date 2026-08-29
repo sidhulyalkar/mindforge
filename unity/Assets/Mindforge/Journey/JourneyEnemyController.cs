@@ -29,6 +29,8 @@ namespace Mindforge.Journey
     /// deterministic PRNG. Presentation listens to events and never owns gameplay.
     /// Tracking is allowed only during the authored anticipation fraction; the final
     /// telegraph phase is committed so a correctly timed dodge can actually evade it.
+    /// Optional melee advances resolve through this same fixed-tick authority and are
+    /// collision-bounded before contact is tested.
     /// </summary>
     [RequireComponent(typeof(CombatantVitals), typeof(Rigidbody))]
     public sealed class JourneyEnemyController : MonoBehaviour
@@ -479,10 +481,11 @@ namespace Mindforge.Journey
             ResolveDependencies();
             if (player == null || playerVitals == null || !playerVitals.IsAlive) return;
 
-            float verticalDelta = Mathf.Abs((player.position.y + 0.85f) - (transform.position.y + 0.80f));
+            Vector3 attackOrigin = ResolveCommittedMeleeAdvance(attack);
+            float verticalDelta = Mathf.Abs((player.position.y + 0.85f) - (attackOrigin.y + 0.80f));
             if (verticalDelta > Mathf.Max(0.4f, meleeVerticalReach)) return;
 
-            Vector3 delta = Planar(player.position - transform.position);
+            Vector3 delta = Planar(player.position - attackOrigin);
             float distance = delta.magnitude;
             if (!attack.RangeValid(distance) || distance <= 0.001f) return;
             if (Vector3.Angle(_lockedAttackDirection, delta.normalized) > attack.MaximumFacingAngle * 0.5f) return;
@@ -492,7 +495,7 @@ namespace Mindforge.Journey
                 ? playerDefense.TryResolveIncomingStrike(
                     attack.Damage,
                     attack.PoiseDamage,
-                    transform.position,
+                    attackOrigin,
                     player.position + Vector3.up * 0.8f,
                     attack.Heavy)
                 : GuardStrikeResult.NotGuarded;
@@ -509,6 +512,35 @@ namespace Mindforge.Journey
                 player.position + Vector3.up * 0.8f,
                 CombatTeam.Enemy,
                 attack.Heavy));
+        }
+
+        private Vector3 ResolveCommittedMeleeAdvance(EnemyAttackDefinition attack)
+        {
+            Vector3 origin = body != null ? body.position : transform.position;
+            if (attack == null || attack.AdvanceDistance <= 0.001f) return origin;
+
+            Vector3 direction = Planar(_lockedAttackDirection);
+            if (direction.sqrMagnitude <= 0.001f) direction = Planar(transform.forward);
+            if (direction.sqrMagnitude <= 0.001f) direction = Vector3.forward;
+            direction.Normalize();
+
+            float requested = attack.AdvanceDistance;
+            float safeDistance = requested;
+            if (body != null && body.SweepTest(direction, out RaycastHit hit, requested, QueryTriggerInteraction.Ignore))
+                safeDistance = Mathf.Clamp(hit.distance - 0.08f, 0f, requested);
+
+            Vector3 target = origin + direction * safeDistance;
+            if (body != null)
+            {
+                body.velocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.MovePosition(target);
+            }
+            else
+            {
+                transform.position = target;
+            }
+            return target;
         }
 
         private void ResolveProjectile(EnemyAttackDefinition attack)
