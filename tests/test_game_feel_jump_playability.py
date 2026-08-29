@@ -68,7 +68,7 @@ def test_jump_has_modern_forgiveness_variable_height_air_control_and_one_air_jum
         assert forbidden not in motor
 
 
-def test_space_is_aerial_traversal_shift_is_primary_dash_and_tape_records_edges():
+def test_space_is_aerial_traversal_shift_is_primary_roll_and_tape_records_edges():
     input_source = read("Combat", "GuardianCombatInput.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
@@ -77,6 +77,7 @@ def test_space_is_aerial_traversal_shift_is_primary_dash_and_tape_records_edges(
         "Input.GetKey(KeyCode.Space)",
         "Input.GetKeyDown(KeyCode.LeftShift)",
         "Input.GetKeyDown(KeyCode.RightShift)",
+        "Input.GetMouseButtonDown(1)",
         "Input.GetKeyDown(KeyCode.LeftControl)",
         "Input.GetKeyDown(KeyCode.LeftAlt)",
         "jump_down = _jumpLatched",
@@ -97,13 +98,12 @@ def test_space_is_aerial_traversal_shift_is_primary_dash_and_tape_records_edges(
         assert token in tape
 
 
-def test_input_suspension_clears_held_and_edge_triggered_actions():
+def test_input_suspension_clears_all_active_edge_triggered_actions_and_neutralizes_retired_guard():
     input_source = read("Combat", "GuardianCombatInput.cs")
     disable = input_source[input_source.index("private void OnDisable()"):input_source.index("private void Update()")]
 
     for token in (
         "_move = Vector2.zero",
-        "_fireHeld = false",
         "_cleaveLatched = false",
         "_counterLatched = false",
         "_dashLatched = false",
@@ -111,13 +111,16 @@ def test_input_suspension_clears_held_and_edge_triggered_actions():
         "_jumpHeld = false",
         "_bloomLatched = false",
         "_swordAttackLatched = false",
-        "_guardHeld = false",
-        "_guardDownLatched = false",
         "motor?.SetMoveInput(Vector2.zero)",
         "motor?.SetJumpHeld(false)",
         "physicalCombat?.SetGuardHeld(false, _currentAimDirection)",
     ):
         assert token in disable
+
+    # Retired controls must not linger as held runtime state that can fire when the input
+    # authority is re-enabled after checkpoint/calibration suspension.
+    for retired in ("_fireHeld", "_guardHeld", "_guardDownLatched"):
+        assert retired not in input_source
 
 
 def test_camera_is_tighter_smooths_vertical_travel_and_ignores_dynamic_actors_for_collision():
@@ -187,13 +190,13 @@ def test_jump_and_landing_have_downstream_visual_language_without_movement_autho
             assert forbidden not in source
 
 
-def test_null_ward_hud_teaches_aerial_controls_then_gets_out_of_the_way():
+def test_null_ward_hud_teaches_grounded_roll_and_aerial_controls_then_gets_out_of_the_way():
     hud = read("World", "NullWardHud.cs")
 
     for token in (
-        "controlsHintSeconds = 16f",
+        "controlsHintSeconds = 13f",
         "showControls = Time.realtimeSinceStartupAsDouble - _enteredAt",
-        "SPACE jump ×2 / hold to hover · SHIFT dash / air dash",
+        "SHIFT/RMB roll · SPACE jump ×2 / hold hover · T lock · F/LMB Aetherblade",
         "float height = showControls ? 58f : 38f",
     ):
         assert token in hud
