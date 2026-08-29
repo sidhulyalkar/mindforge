@@ -82,16 +82,17 @@ def test_shift_and_rmb_are_roll_air_dash_inputs_while_player_pulse_is_retired():
         "Shift or RMB: grounded dodge roll / air dash",
         "Shield hold and player Pulse fire are intentionally retired",
         "endurance.DodgeBaseCost",
+        "dodgeCommandBufferSeconds = 0.15f",
     ):
         assert token in source
 
     assert "Input.GetKey(KeyCode.X)" not in source
     assert "Input.GetMouseButton(2)" not in source
     assert "combat.FirePulse(aim)" not in source
-    arbitration = source.index("// Roll has first refusal")
-    dash = source.index("if (command.dash_down", arbitration)
-    jump = source.index("if (command.jump_down", arbitration)
+    dash = source.index("if (command.dash_down)")
+    jump = source.index("if (command.jump_down", dash)
     assert dash < jump
+    assert "QueueDodgeCommand(aim)" in source[dash:jump]
 
 
 def test_existing_input_tape_fields_replay_aerial_actions_without_new_schema_surface():
