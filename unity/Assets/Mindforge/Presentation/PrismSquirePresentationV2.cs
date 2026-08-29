@@ -120,7 +120,8 @@ namespace Mindforge.Presentation
                 _root = existing;
                 _capeRoot = _root.Find("AetherHalfCape");
                 _reactorRing = _root.Find("BackReactor/ReactorRing");
-                _crestRoot = _root.Find("HeroCrest");
+                Transform existingHead = FindRigNode("Head");
+                _crestRoot = existingHead != null ? existingHead.Find("HeroCrest") : null;
                 _leftShoulder = _root.Find("ShoulderFins/Left");
                 _rightShoulder = _root.Find("ShoulderFins/Right");
                 _built = true;
@@ -169,8 +170,8 @@ namespace Mindforge.Presentation
 
             if (head != null)
             {
-                _crestRoot = Node("HeroCrest", _root, Vector3.zero);
-                Part("CrestBlade", head, new Vector3(0f, 0.50f, -0.04f), new Vector3(0.10f, 0.38f, 0.28f), _gold, new Vector3(-8f, 0f, 0f));
+                _crestRoot = Node("HeroCrest", head, Vector3.zero);
+                Part("CrestBlade", _crestRoot, new Vector3(0f, 0.50f, -0.04f), new Vector3(0.10f, 0.38f, 0.28f), _gold, new Vector3(-8f, 0f, 0f));
                 Part("VisorBrow", head, new Vector3(0f, 0.15f, 0.35f), new Vector3(0.56f, 0.08f, 0.04f), _cyan, Vector3.zero);
                 Part("CheekL", head, new Vector3(-0.28f, -0.07f, 0.25f), new Vector3(0.12f, 0.26f, 0.12f), _pearl, new Vector3(0f, 0f, -18f));
                 Part("CheekR", head, new Vector3(0.28f, -0.07f, 0.25f), new Vector3(0.12f, 0.26f, 0.12f), _pearl, new Vector3(0f, 0f, 18f));
