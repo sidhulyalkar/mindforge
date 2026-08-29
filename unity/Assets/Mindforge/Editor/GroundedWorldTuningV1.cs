@@ -18,6 +18,7 @@ namespace Mindforge.Editor
         public static void ApplyOpenScene()
         {
             NormalizeGroundUnderlay();
+            ConfigureGuardianMotor();
 
             ShowcaseCameraRig cameraRig = UnityEngine.Object.FindObjectOfType<ShowcaseCameraRig>(true);
             if (cameraRig != null)
@@ -56,7 +57,21 @@ namespace Mindforge.Editor
             }
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[Mindforge:GroundedTuningV1] Applied recessed safety underlay, elevated diorama framing and 0.28 s endurance dodge-roll tuning.");
+            Debug.Log("[Mindforge:GroundedTuningV1] Applied recessed safety underlay, elevated diorama framing and weighted endurance dodge-roll tuning.");
+        }
+
+        private static void ConfigureGuardianMotor()
+        {
+            GuardianMotor motor = UnityEngine.Object.FindObjectOfType<GuardianMotor>(true);
+            if (motor == null) return;
+            SerializedObject serialized = new SerializedObject(motor);
+            Set(serialized, "dodgeInvulnerabilitySeconds", 0.16f);
+            Set(serialized, "dashInputBufferSeconds", 0.12f);
+            Set(serialized, "dashExitVelocityRetention", 0.28f);
+            // Air movement stays expressive but does not inherit the full ground-roll i-frame.
+            Set(serialized, "airDashInvulnerabilitySeconds", 0.075f);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(motor);
         }
 
         private static void NormalizeGroundUnderlay()
