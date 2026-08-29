@@ -78,7 +78,7 @@ namespace Mindforge.Presentation
             float y = panel.y + 22f;
             GUI.Label(new Rect(x, y, panel.width - 56f, 38f), "WARDEN LOADOUT", _title);
             GUI.Label(new Rect(x, y + 36f, panel.width - 56f, 24f),
-                "Third-person physical combat · hands own movement, jump, camera, lock-on and every action · neural focus amplifies equipment", _subtitle);
+                "Third-person physical combat · hands own movement, aerial traversal, camera, lock-on and every action · neural focus amplifies equipment", _subtitle);
             GUI.Label(new Rect(panel.xMax - 150f, y + 4f, 122f, 24f), "TAB  CLOSE", _key);
             y += 78f;
 
@@ -101,38 +101,39 @@ namespace Mindforge.Presentation
                     ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor currently contributes physical load; mitigation remains intentionally unclaimed."
                     : "No armor equipped");
 
-            Rect rules = new Rect(rightX, y, rightWidth, 274f);
+            Rect rules = new Rect(rightX, y, rightWidth, 318f);
             Fill(rules, Card);
             Stroke(rules, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "THIRD-PERSON CONTROLS", _section);
             float ky = rules.y + 48f;
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move relative to camera");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "MOUSE / ARROWS", "Orbit camera");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Jump · tap/hold changes height");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "CTRL / ALT", "Directional dodge");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Jump ×2 · hold descending to hover");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT", "Directional dash · one air dash per airtime");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "CTRL / ALT", "Compatibility dash aliases");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "T", "Lock / unlock enemy");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F / LMB", "Sword / combo / bullet parry");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT", "Pulse Shot");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "X / MMB", "Pulse Shot");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "RMB / E", "Shield");
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "Q · C · R", "Cleave · Counter · Bloom");
 
-            Rect neural = new Rect(rightX, y + 288f, rightWidth, 112f);
+            Rect neural = new Rect(rightX, y + 332f, rightWidth, 106f);
             Fill(neural, Card);
             Stroke(neural, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
-            GUI.Label(new Rect(neural.x + 16f, neural.y + 12f, neural.width - 32f, 24f), "NEURAL RESONANCE", _section);
-            GUI.Label(new Rect(neural.x + 16f, neural.y + 40f, neural.width - 32f, 64f),
-                "BLUE / Sight → blade length, energy and bounded damage\nGREEN / Guard → shield coverage, stability and absorption\nEEG never moves, jumps, rotates camera, locks targets, swings, blocks or dodges.", _body);
+            GUI.Label(new Rect(neural.x + 16f, neural.y + 10f, neural.width - 32f, 22f), "NEURAL RESONANCE", _section);
+            GUI.Label(new Rect(neural.x + 16f, neural.y + 34f, neural.width - 32f, 68f),
+                "BLUE / Sight → blade length, energy and bounded damage\nGREEN / Guard → shield coverage, stability and absorption\nEEG never moves, jumps, hovers, dashes, locks, swings or blocks.", _body);
 
-            float summaryY = y + 418f;
-            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 114f);
+            float summaryY = y + 452f;
+            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 100f);
             Fill(summary, new Color(0.050f, 0.060f, 0.080f, 0.98f));
             Stroke(summary, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 10f, summary.width - 32f, 24f), "CURRENT PHYSICAL PROFILE", _section);
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 8f, summary.width - 32f, 22f), "CURRENT PHYSICAL PROFILE", _section);
             string integrity = guardIntegrity != null ? $"{guardIntegrity.Value:F0} / {guardIntegrity.Max:F0}" : "-";
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 39f, summary.width - 32f, 22f),
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 34f, summary.width - 32f, 20f),
                 $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   GUARD INTEGRITY {integrity}", _item);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 68f, summary.width - 32f, 38f),
-                "Movement, jumping, camera orbit, target lock, dashes and ordinary sword attacks are conventional player controls. Difficulty comes from enemy patterns, spacing, timing, HP and defense rather than a movement stamina tax.", _muted);
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 60f, summary.width - 32f, 34f),
+                "Movement, aerial traversal, camera orbit, target lock, dashes and ordinary sword attacks are conventional player controls. Enemy patterns, spacing, timing, HP and defense create pressure rather than a movement stamina tax.", _muted);
         }
 
         private void DrawLoadoutCard(Rect rect, string slot, string item, Color accent, string details)
