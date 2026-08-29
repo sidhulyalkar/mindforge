@@ -25,7 +25,7 @@ def test_wasd_is_direct_input_and_camera_owns_mouse_arrow_orbit():
         assert key in camera
     assert "arrowYawSpeed" in camera
     assert "arrowPitchSpeed" in camera
-    assert "orbit the third-person camera" in combat
+    assert "orbit camera (handled by ShowcaseCameraRig)" in combat
 
 
 def test_movement_uses_target_velocity_response_and_third_person_facing():
@@ -54,7 +54,7 @@ def test_movement_uses_target_velocity_response_and_third_person_facing():
     assert "_body.constraints &= ~(RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezePositionY)" in motor
 
 
-def test_ground_dashes_remain_chainable_while_air_dash_is_one_per_airtime():
+def test_ground_rolls_remain_chainable_while_air_dash_is_one_per_airtime():
     motor = read("Combat", "GuardianMotor.cs")
 
     assert "tuning.dashCooldown" not in motor
@@ -76,21 +76,21 @@ def test_showcase_focuses_game_view_when_play_mode_starts():
     assert "PlayModeStateChange.EnteredPlayMode" in editor
     assert 'GetType("UnityEditor.GameView")' in editor
     assert "gameView?.Focus()" in editor
-    assert "Space jumps twice and holds hover while descending" in editor
-    assert "Shift dashes on ground or in air" in editor
+    assert "Space jumps twice and holds hover" in editor
+    assert "Shift/RMB dodge-rolls on ground and air-dashes aloft" in editor
 
 
-def test_laptop_control_copy_matches_third_person_aerial_mapping():
+def test_laptop_control_copy_matches_grounded_roll_and_aerial_mapping():
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
 
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
-    assert "SPACE JUMP ×2 / HOLD HOVER" in guide
-    assert "SHIFT DASH / AIR DASH" in guide
+    assert "SPACE JUMP ×2" in guide
+    assert "SHIFT / RMB DODGE ROLL" in guide
     assert '"WASD", "Move relative to camera"' in menu
-    assert '"MOUSE / ARROWS", "Orbit camera"' in menu
+    assert '"MOUSE / ARROWS", "Orbit diorama camera"' in menu
     assert '"SPACE", "Jump ×2 · hold descending to hover"' in menu
-    assert '"SHIFT", "Directional dash · one air dash per airtime"' in menu
-    assert '"CTRL / ALT", "Compatibility dash aliases"' in menu
+    assert '"SHIFT / RMB", "Dodge roll · air dash aloft"' in menu
+    assert '"CTRL / ALT", "Compatibility roll aliases"' in menu
     assert '"T", "Lock / unlock enemy"' in menu
