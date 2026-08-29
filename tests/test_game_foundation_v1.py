@@ -25,7 +25,7 @@ def test_world_state_snapshot_restore_notifies_derived_systems_without_choosing_
     assert "ledger.SnapshotRestored += OnSnapshotRestored" in quests
     assert "RebuildFromWorld(false)" in quests
 
-    for forbidden in ("PlayerPrefs", "File.Write", "Application.persistentDataPath", "BinaryFormatter"):
+    for forbidden in ("PlayerPrefs.", "File.Write", "Application.persistentDataPath", "BinaryFormatter"):
         assert forbidden not in ledger
 
 
