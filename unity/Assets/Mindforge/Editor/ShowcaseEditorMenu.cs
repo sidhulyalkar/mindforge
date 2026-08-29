@@ -94,6 +94,7 @@ namespace Mindforge.Editor
                 GroundedWorldTuningV1.ApplyOpenScene();
                 NullWardArenaEcosystemBuilder.ApplyOpenScene();
                 ArenaMenagerieV1Builder.ApplyOpenScene();
+                ArenaMenagerieColliderV1Builder.ApplyOpenScene();
                 NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
                 ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();
