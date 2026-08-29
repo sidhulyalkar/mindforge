@@ -10,6 +10,7 @@ namespace Mindforge.Presentation
     /// boss bar appears only once the final encounter is active. This component observes
     /// gameplay state only and never mutates combat or neural authority.
     /// </summary>
+    [DefaultExecutionOrder(950)]
     public sealed class GroundedCombatHud : MonoBehaviour
     {
         private CombatantVitals _player;
@@ -45,8 +46,7 @@ namespace Mindforge.Presentation
         private void OnEnable()
         {
             Resolve();
-            CombatStateHud legacy = FindObjectOfType<CombatStateHud>(true);
-            if (legacy != null) legacy.enabled = false;
+            SuppressLegacyHud();
             if (_player != null)
             {
                 _player.Damaged -= OnDamaged;
@@ -57,6 +57,19 @@ namespace Mindforge.Presentation
         private void OnDisable()
         {
             if (_player != null) _player.Damaged -= OnDamaged;
+        }
+
+        private void Update()
+        {
+            // RuntimeInitialize ordering is intentionally unspecified. If the legacy HUD
+            // installs a frame later, keep presentation ownership singular.
+            SuppressLegacyHud();
+        }
+
+        private static void SuppressLegacyHud()
+        {
+            CombatStateHud legacy = FindObjectOfType<CombatStateHud>(true);
+            if (legacy != null && legacy.enabled) legacy.enabled = false;
         }
 
         private void Resolve()
@@ -106,7 +119,7 @@ namespace Mindforge.Presentation
             Fill(panel, Panel);
             Stroke(panel, flashing ? new Color(1f, 0.20f, 0.22f, 0.95f) : new Color(0.24f, 0.34f, 0.48f, 0.66f), flashing ? 2f : 1f);
 
-            GUI.Label(new Rect(x + 14f, y + 8f, 150f, 22f), low ? "GUARDIAN · CRITICAL" : "GUARDIAN", _title);
+            GUI.Label(new Rect(x + 14f, y + 8f, 180f, 22f), low ? "GUARDIAN · CRITICAL" : "GUARDIAN", _title);
             GUI.Label(new Rect(x + 220f, y + 8f, 146f, 22f), $"{_player.Health:F0} / {_player.MaxHealth:F0}", _value);
 
             DrawBar(new Rect(x + 14f, y + 34f, width - 28f, 18f), hp01, low ? HealthLow : Health);
