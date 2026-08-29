@@ -33,12 +33,9 @@ def test_arena_ecosystem_uses_existing_fixed_tick_enemy_authority_for_new_roles(
     ):
         assert token in ecosystem
 
-    # Elevated threats make the aerial kit offensive rather than merely evasive.
     assert "new Vector3(5.35f, 1.35f, -27.2f)" in ecosystem
     assert "new Vector3(-3.65f, 1.72f, -19.55f)" in ecosystem
 
-    # The source of attack timing, deterministic selection and damage stays the existing
-    # controller rather than a second arena-only gameplay loop.
     for token in (
         "private void FixedUpdate()",
         "ChooseAttack(distance, toPlayer)",
@@ -77,10 +74,42 @@ def test_fracture_court_is_inserted_before_protocol_as_a_required_third_stage():
     ):
         assert token in ecosystem
 
-    # The normal world director still owns activation, clear detection and protocol gating.
     assert "if (!_protocolUnlocked && RequiredZonesCleared()) UnlockProtocol();" in director
     assert "if (zone.started && !zone.cleared && IsZoneCleared(zone))" in director
     assert "if (zone == null || !zone.requiredForProtocol) continue;" in director
+
+
+def test_enemy_collider_profiles_match_archetype_visual_mass_without_new_hit_authority():
+    profiles = read("Editor", "NullWardEnemyColliderProfileBuilder.cs")
+
+    for token in (
+        "ecosystem.GetComponentsInChildren<JourneyEnemyController>(true)",
+        "enemy.GetComponent<CapsuleCollider>()",
+        "float scale = Mathf.Clamp(core.localScale.x / 0.30f, 0.50f, 1.80f)",
+        "case JourneyEnemyArchetype.Hollow:",
+        "radius = 0.38f",
+        "height = 1.18f",
+        "case JourneyEnemyArchetype.Shardcaster:",
+        "radius = needle ? 0.34f : 0.46f",
+        "case JourneyEnemyArchetype.SignalWarden:",
+        "radius = 0.61f",
+        "height = 2.12f",
+        "collider.radius = radius * scale",
+        "collider.height = Mathf.Max(collider.radius * 2.05f, height * scale)",
+    ):
+        assert token in profiles
+
+    for forbidden in (
+        "AddComponent<CapsuleCollider>",
+        "AddComponent<Rigidbody>",
+        "ReceiveDamage(",
+        "FirePulse(",
+        "TryLightAttack(",
+        "TryApply(",
+        "NeuralEvent",
+        "VepAuraStimulus",
+    ):
+        assert forbidden not in profiles
 
 
 def test_enemy_intent_vfx_exposes_spatial_attack_geometry_without_combat_authority():
@@ -175,6 +204,7 @@ def test_showcase_rebuild_is_one_click_and_orders_gameplay_before_presentation_l
         "ArenaEnvironmentV3Builder.BuildOpenScene();",
         "NullWardSceneBuilder.BuildOpenScene();",
         "NullWardArenaEcosystemBuilder.ApplyOpenScene();",
+        "NullWardEnemyColliderProfileBuilder.ApplyOpenScene();",
         "NullWardEnemySilhouetteV3Builder.ApplyOpenScene();",
         "NullWardVisualInfrastructureBuilder.ApplyOpenScene();",
         "NullWardArenaSetDressingV3Builder.ApplyOpenScene();",
@@ -185,6 +215,7 @@ def test_showcase_rebuild_is_one_click_and_orders_gameplay_before_presentation_l
     indices = [menu.index(step) for step in steps]
     assert indices == sorted(indices)
 
-    assert "five ordinary enemy" in menu
+    assert "Five ordinary enemy" in menu
+    assert "persistent shortcut" in menu
     assert "geometric intent telegraphs" in menu
     assert "Layered near/mid/far set dressing" in menu
