@@ -34,29 +34,37 @@ def test_dodge_has_real_short_iframe_not_full_motion_immunity():
     assert iframe_index < destroy_index
 
 
-def test_fixed_tick_action_grammar_makes_roll_first_and_never_overlays_specials():
+def test_fixed_tick_action_grammar_buffers_roll_first_without_erasing_commitment():
     source = read("Combat", "GuardianCombatInput.cs")
     physical = read("Combat", "GuardianSwordShieldController.cs")
 
-    dash_block = source.index("if (command.dash_down && (physicalCombat == null || physicalCombat.CanDodge))")
-    dash_lockout = source.index("if (motor.IsDashing) return;")
-    jump_block = source.index("if (command.jump_down &&", dash_block)
-    sword_block = source.index("if (command.sword_attack_down)")
-    commitment_block = source.index("physicalCombat.ActionState != GuardianActionState.Locomotion")
-    counter_block = source.index("if (command.counter_down && combat.BeginCounter()) return;")
-    cleave_block = source.index("if (command.cleave_down && combat.RiftCleave(aim)) return;")
-    bloom_block = source.index("if (command.bloom_down && bloom != null && bloom.TryActivate()) return;")
-    assert dash_block < dash_lockout < jump_block < sword_block < commitment_block
+    dash_block = source.index("if (command.dash_down)")
+    queue_call = source.index("QueueDodgeCommand(aim)", dash_block)
+    consume_call = source.index("TryConsumeQueuedDodge()", queue_call)
+    dash_lockout = source.index("if (motor.IsDashing) return;", consume_call)
+    jump_block = source.index("if (command.jump_down &&", dash_lockout)
+    sword_block = source.index("if (command.sword_attack_down)", jump_block)
+    commitment_block = source.index("physicalCombat.ActionState != GuardianActionState.Locomotion", sword_block)
+    counter_block = source.index("if (command.counter_down && combat.BeginCounter()) return;", commitment_block)
+    cleave_block = source.index("if (command.cleave_down && combat.RiftCleave(aim)) return;", counter_block)
+    bloom_block = source.index("if (command.bloom_down && bloom != null && bloom.TryActivate()) return;", cleave_block)
+    assert dash_block < queue_call < consume_call < dash_lockout < jump_block < sword_block < commitment_block
     assert commitment_block < counter_block < cleave_block < bloom_block
 
-    assert "if (motor.RequestDash(aim))" in source
-    assert 'endurance?.TrySpend(cost, motor.IsGrounded ? "DODGE_ROLL" : "AIR_DASH")' in source
-    assert "if (motor.IsDashing) return;" in source
+    assert "dodgeCommandBufferSeconds = 0.15f" in source
+    assert "_dodgeCommandExpiresTick = _fixedInputTick + SecondsToInputTicks" in source
+    assert "if (physicalCombat != null && !physicalCombat.CanDodge) return false;" in source
+    assert "if (!motor.RequestDash(_dodgeCommandAim))" in source
+    assert 'endurance?.TrySpend(cost, grounded ? "DODGE_ROLL" : "AIR_DASH")' in source
+    assert "ClearDodgeCommand();" in source
+    assert "if (_dodgeCommandQueued) return;" in source
     assert "physicalCombat?.SetGuardHeld(false, aim)" in source
     assert "bool accepted = physicalCombat != null && physicalCombat.TryLightAttack(aim);" in source
     assert "if (accepted) return;" in source
     assert "combat.FirePulse(aim)" not in source
 
+    # The queue waits for authoritative permission. It does not change the sword's legal
+    # dodge state or grant an animation-owned cancel window.
     assert "public GuardianActionState ActionState => ResolveActionState()" in physical
     assert "public bool CanDodge => ActionState == GuardianActionState.Locomotion || ActionState == GuardianActionState.Guard" in physical
     assert "public bool CanAttack => ActionState == GuardianActionState.Locomotion" in physical
