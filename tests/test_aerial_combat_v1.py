@@ -118,9 +118,28 @@ def test_ordinary_enemies_respect_height_for_melee_and_track_airborne_targets_wi
     ):
         assert token in enemy
 
-    # Locomotion remains planar while projectile authority is allowed to aim in 3D.
     assert "Vector3 toPlayer = Planar(player.position - transform.position)" in enemy
     assert "Vector3 next = body.position + _desiredMove.normalized * moveSpeed * Time.fixedDeltaTime" in enemy
+
+
+def test_fractured_signal_melee_has_truthful_vertical_reach_and_jumpable_slam():
+    boss = read("Combat", "FracturedSignalMeleeDirector.cs")
+
+    for token in (
+        "engageVerticalReach = 2.2f",
+        "cleaveVerticalReach = 1.85f",
+        "slamVerticalReach = 1.05f",
+        "vertical <= Mathf.Max(0.5f, engageVerticalReach)",
+        'return "JUMPED"',
+        "VerticalDistanceToPlayer() > Mathf.Max(0.4f, cleaveVerticalReach)",
+        "VerticalDistanceToPlayer() > Mathf.Max(0.25f, slamVerticalReach)",
+    ):
+        assert token in boss
+
+    # Boss primary projectile fans already use the player's full 3D position. Aerial
+    # height therefore redirects pressure rather than becoming permanent invulnerability.
+    director = read("Combat", "FracturedSignalDirector.cs")
+    assert "Vector3 targetDir = (player.position - origin).normalized" in director
 
 
 def test_hud_teaches_aerial_controls_without_adding_a_third_large_panel():
