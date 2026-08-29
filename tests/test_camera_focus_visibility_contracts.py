@@ -63,7 +63,6 @@ def test_camera_is_third_person_orbit_and_consumes_lock_without_owning_it():
     ):
         assert token in camera
 
-    # T belongs to GuardianTargetLock, not the presentation camera.
     assert "Input.GetKeyDown(targetFocusToggleKey)" not in camera
     assert "Input.GetKeyDown(KeyCode.T)" not in camera
 
@@ -119,12 +118,12 @@ def test_lock_mode_is_discoverable_and_creates_stable_bci_gaze_anchors():
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
     wisp = read("SoulWisp", "SoulWispController.cs")
 
-    assert "T LOCK ON" in guide
+    assert "T  LOCK ON" in guide
     assert "TARGET LOCK" in guide
     assert "cameraRig.TargetFocusActive" in guide
     assert "cameraRig.FocusTarget" in guide
     assert '"T", "Lock / unlock enemy"' in menu
-    assert "EEG never moves, jumps, rotates camera, locks targets" in menu
+    assert "EEG never moves, jumps, hovers, dashes, locks, swings or blocks" in menu
 
     assert "StableLockAnchorsActive" in wisp
     assert "lockedHorizontalSeparation = 1.18f" in wisp
