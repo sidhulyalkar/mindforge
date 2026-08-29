@@ -4,13 +4,15 @@ Aetheria V2 is a hardening pass, not an ability expansion. Its purpose is to mak
 
 ## 1. One conventional-input history
 
-`GuardianInputTape` schema v4 extends the canonical fixed-tick command frame with three mounted edges:
+`GuardianInputTape` schema v4 extends the canonical fixed-tick command frame with mounted state/action edges:
 
 - `mount_toggle_down`
 - `mounted_attack_down`
 - `mounted_boost_down`
 
-Movement and aim reuse the existing `move_*` and `aim_*` fields. The tape is idempotent per absolute fixed tick so foot and mounted consumers can resolve the same simulation tick without recording or consuming two frames. V1-V3 tapes remain loadable and deserialize the new fields as false.
+It also records `mounted_move_*`, the already-resolved world-space travel vector. Mounted attack aim remains in the existing `aim_*` vector. This separation matters: replay must not reinterpret a recorded WASD input through whatever camera yaw happens to be live later.
+
+The tape is idempotent per absolute fixed tick so foot and mounted consumers can resolve the same simulation tick without recording or consuming two frames. V1-V3 tapes remain loadable and deserialize the new fields as false/zero.
 
 Replay remains fail-neutral. A recorded mount edge must still find the same available authored bike within the interaction radius; replay never teleports into a successful mount.
 
@@ -85,7 +87,7 @@ Software CI can qualify source contracts, Python tooling and browser modules. It
 
 Before promotion, Unity must verify:
 
-1. record a route containing foot movement, mount, cruise, boost, mounted attack, dismount and foot combat; replay it without live-input fallback;
+1. record a route containing foot movement, mount, cruise, boost, mounted attack, dismount and foot combat; replay it without live-input fallback and with a deliberately different free-camera orientation to prove mounted travel is camera-independent;
 2. repeated mount/dismount never leaves foot authority disabled;
 3. cruise and boost camera remain comfortable and collision-safe;
 4. FOV remains constant through foot/mounted transitions;
