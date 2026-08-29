@@ -103,6 +103,7 @@ namespace Mindforge.Editor
                 AetheriaWorldV1Builder.ApplyOpenScene();
                 AetheriaStateOfArtV2Builder.ApplyOpenScene();
                 HackathonPlaythroughV1Builder.ApplyOpenScene();
+                GameFoundationV1Builder.ApplyOpenScene();
                 AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
@@ -149,6 +150,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Hackathon Playthrough V1 ready: every major Aetheria district receives a denser near/mid/far visual layer; " +
                 "all ten Menagerie enemies receive unique close/mid-distance silhouette detail; the Guardian receives Prism Squire V2 armor; " +
                 "the Crucible is restaged as 3/4/3 with wave beacons and victory crown; monotonic playthrough state is exposed for future quests/story.");
+            Debug.Log(
+                "[Mindforge:Showcase] Game Foundation V1 ready: concrete gameplay publishes semantic facts into a typed world-state ledger; " +
+                "quests evaluate state without scene side effects; snapshot capture is persistence-agnostic; semantic signals mirror onto the passive " +
+                "observer telemetry lane for future save, story, replay and esports spectator systems.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
