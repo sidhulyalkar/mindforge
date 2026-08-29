@@ -11,9 +11,9 @@ namespace Mindforge.World
     /// neural evidence. Waves are fixed-tick deterministic so capture/replay timing is stable.
     ///
     /// Important: JourneyEnemyController reapplies base archetype defaults in OnEnable.
-    /// The serialized ArenaMenagerieRoleProfile is therefore re-applied immediately after
-    /// activation and before Arm(), preserving authored variant behavior without creating a
-    /// second combat authority. Rebuild the showcase scene to restart a completed run.
+    /// We snapshot each editor-authored role before its first deactivation, then re-apply
+    /// that serialized profile immediately after activation and before Arm(). This preserves
+    /// variant behavior without creating a second combat authority.
     /// </summary>
     public sealed class ArenaMenagerieDirector : MonoBehaviour
     {
@@ -115,6 +115,11 @@ namespace Mindforge.World
             {
                 JourneyEnemyController enemy = roster[i];
                 if (enemy == null) continue;
+
+                ArenaMenagerieRoleProfile profile = enemy.GetComponent<ArenaMenagerieRoleProfile>();
+                if (profile == null) profile = enemy.gameObject.AddComponent<ArenaMenagerieRoleProfile>();
+                if (!profile.Captured) profile.CaptureFromCurrent(enemy);
+
                 enemy.ConfigureCheckpointLifecycle(true);
                 enemy.Disarm();
                 enemy.gameObject.SetActive(false);
