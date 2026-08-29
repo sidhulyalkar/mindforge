@@ -30,12 +30,13 @@ def test_motor_owns_yaw_instead_of_accepting_contact_induced_spin():
     assert "_body.position =" not in motor
 
 
-def test_persistent_combat_hud_teaches_current_aerial_mapping_without_space_dodge_regression():
-    hud = read("Presentation", "CombatStateHud.cs")
+def test_persistent_gameplay_hud_teaches_roll_and_air_dash_without_space_dodge_regression():
+    hud = read("Presentation", "GroundedCombatHud.cs")
 
-    assert "F SWORD · SPACE ×2 · SHIFT DODGE" in hud
-    assert "SPACE ×2 / HOLD HOVER · SHIFT AIR DASH" in hud
+    assert "F / LMB BLADE   ·   SHIFT / RMB ROLL" in hud
+    assert "SPACE ×2 / HOLD · SHIFT AIR DASH" in hud
     assert "SPACE  DODGE" not in hud
+    assert "SuppressLegacyHud()" in hud
 
-    for forbidden in ("RequestJump(", "RequestDash(", "TryApply(", "ReceiveDamage("):
+    for forbidden in ("RequestJump(", "RequestDash(", "TryApply(", "ReceiveDamage(", "TrySpend("):
         assert forbidden not in hud
