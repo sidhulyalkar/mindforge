@@ -45,7 +45,7 @@ def test_vertical_world_has_ground_routes_landing_pockets_and_aerial_shortcuts()
         '"CausewayGallery_LandingA"',
         '"CausewayGallery_LandingB"',
         '"MarketCourt_AerialPocket"',
-        '"FractureTower_Pocket_"',
+        '$"FractureTower_Pocket_{level}"',
         '"CathedralSidePocket_N"',
         '"CathedralSidePocket_S"',
         "direct double",
@@ -116,4 +116,5 @@ def test_showcase_builds_safe_shell_then_authored_composition_before_population(
     assert shell < composition < tuning < population < silhouettes < dressing < gate
     assert "Forge keep, Causeway rib gallery, Market court, Fracture" in menu
     assert "tower, Cathedral ascent and Arena ring" in menu
-    assert "No reachable route intentionally exposes the void" in menu
+    assert "No reachable route intentionally exposes" in menu
+    assert "the void" in menu
