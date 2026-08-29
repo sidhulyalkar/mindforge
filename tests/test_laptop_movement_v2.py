@@ -54,16 +54,19 @@ def test_movement_uses_target_velocity_response_and_third_person_facing():
     assert "_body.constraints &= ~(RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezePositionY)" in motor
 
 
-def test_dashes_are_unlimited_directional_and_can_buffer_chains():
+def test_ground_dashes_remain_chainable_while_air_dash_is_one_per_airtime():
     motor = read("Combat", "GuardianMotor.cs")
 
     assert "tuning.dashCooldown" not in motor
     assert "dashInputBufferSeconds" in motor
     assert "_dashQueued = true" in motor
     assert "_dashQueuedUntil" in motor
-    assert "StartDash(ResolveDashDirection(_queuedDashFallback))" in motor
+    assert "StartDash(ResolveDashDirection(_queuedDashFallback), queuedAirDash)" in motor
+    assert "if (!_grounded && _airDashConsumed) return false" in motor
+    assert "_airDashConsumed = false" in motor
     assert "FaceDirectionImmediate(_dashDirection)" in motor
     assert "DashStarted?.Invoke()" in motor
+    assert "AirDashStarted?.Invoke()" in motor
 
 
 def test_showcase_focuses_game_view_when_play_mode_starts():
@@ -73,19 +76,21 @@ def test_showcase_focuses_game_view_when_play_mode_starts():
     assert "PlayModeStateChange.EnteredPlayMode" in editor
     assert 'GetType("UnityEditor.GameView")' in editor
     assert "gameView?.Focus()" in editor
-    assert "Space jumps; Ctrl/Alt dodges" in editor
+    assert "Space jumps twice and holds hover while descending" in editor
+    assert "Shift dashes on ground or in air" in editor
 
 
-def test_laptop_control_copy_matches_third_person_mapping():
+def test_laptop_control_copy_matches_third_person_aerial_mapping():
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
 
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
-    assert "SPACE JUMP" in guide
-    assert "CTRL / ALT DODGE" in guide
+    assert "SPACE JUMP ×2 / HOLD HOVER" in guide
+    assert "SHIFT DASH / AIR DASH" in guide
     assert '"WASD", "Move relative to camera"' in menu
     assert '"MOUSE / ARROWS", "Orbit camera"' in menu
-    assert '"SPACE", "Jump · tap/hold changes height"' in menu
-    assert '"CTRL / ALT", "Directional dodge"' in menu
+    assert '"SPACE", "Jump ×2 · hold descending to hover"' in menu
+    assert '"SHIFT", "Directional dash · one air dash per airtime"' in menu
+    assert '"CTRL / ALT", "Compatibility dash aliases"' in menu
     assert '"T", "Lock / unlock enemy"' in menu
