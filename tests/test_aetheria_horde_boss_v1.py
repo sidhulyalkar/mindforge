@@ -51,7 +51,7 @@ def test_aetheria_horde_reuses_ten_menagerie_slots_and_authors_two_committed_adv
         'FindAttack(attacks, "stalker_pounce")',
         'SetAttackAdvance(pounce, 1.62f)',
         '"gargoyle_dive"',
-        '"gargoyle_dive",\n                2.05f)',
+        '2.05f);',
         'SetField(gargoyle, "meleeVerticalReach", 2.0f)',
         'LordMalatractPresentationV1',
     ):
