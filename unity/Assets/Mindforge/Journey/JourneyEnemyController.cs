@@ -27,6 +27,8 @@ namespace Mindforge.Journey
     /// Reusable fixed-tick enemy authority for teaching encounters and the Null Ward.
     /// Attacks are data, filtered by cooldown/range/facing/LOS and selected by a stable
     /// deterministic PRNG. Presentation listens to events and never owns gameplay.
+    /// Tracking is allowed only during the authored anticipation fraction; the final
+    /// telegraph phase is committed so a correctly timed dodge can actually evade it.
     /// </summary>
     [RequireComponent(typeof(CombatantVitals), typeof(Rigidbody))]
     public sealed class JourneyEnemyController : MonoBehaviour
@@ -75,7 +77,10 @@ namespace Mindforge.Journey
         private Quaternion _spawnRotation;
         private Vector3 _desiredMove;
         private long _nextDecisionTick;
+        private long _attackStartedTick;
         private long _attackResolveTick;
+        private long _recoveryStartedTick;
+        private int _recoveryDurationTicks;
         private long _recoverUntilTick;
         private JourneyEnemyAttackKind _pendingAttack;
         private int _pendingAttackIndex = -1;
@@ -110,6 +115,36 @@ namespace Mindforge.Journey
                 : null;
         public string CurrentAttackId => CurrentAttackDefinition != null ? CurrentAttackDefinition.Id : string.Empty;
         public uint DeterministicSeed => deterministicSeed;
+        public float AttackTelegraphProgress01
+        {
+            get
+            {
+                EnemyAttackDefinition attack = CurrentAttackDefinition;
+                if (_pendingAttack == JourneyEnemyAttackKind.None || attack == null) return 0f;
+                long elapsed = Math.Max(0L, FixedTick - _attackStartedTick);
+                return Mathf.Clamp01(elapsed / (float)Mathf.Max(1, attack.TelegraphTicks));
+            }
+        }
+        public bool AttackTrackingLocked
+        {
+            get
+            {
+                EnemyAttackDefinition attack = CurrentAttackDefinition;
+                return attack != null && _pendingAttack != JourneyEnemyAttackKind.None &&
+                       AttackTelegraphProgress01 >= attack.TrackingLock01;
+            }
+        }
+        public bool IsRecovering
+            => _pendingAttack == JourneyEnemyAttackKind.None && _recoveryDurationTicks > 0 && FixedTick < _recoverUntilTick;
+        public float RecoveryProgress01
+        {
+            get
+            {
+                if (!IsRecovering) return 1f;
+                long elapsed = Math.Max(0L, FixedTick - _recoveryStartedTick);
+                return Mathf.Clamp01(elapsed / (float)Mathf.Max(1, _recoveryDurationTicks));
+            }
+        }
 
         private long FixedTick
         {
@@ -145,6 +180,7 @@ namespace Mindforge.Journey
             _desiredMove = Vector3.zero;
             _pendingAttack = JourneyEnemyAttackKind.None;
             _pendingAttackIndex = -1;
+            _recoveryDurationTicks = 0;
             if (!_defeatedDormant) _deathHandled = false;
         }
 
@@ -205,6 +241,9 @@ namespace Mindforge.Journey
             _desiredMove = Vector3.zero;
             _lockedAttackDirection = Vector3.zero;
             _lockedProjectileDirection = Vector3.zero;
+            _attackStartedTick = 0;
+            _recoveryStartedTick = 0;
+            _recoveryDurationTicks = 0;
 
             transform.SetPositionAndRotation(_spawnPosition, _spawnRotation);
             _home = _spawnPosition;
@@ -238,6 +277,7 @@ namespace Mindforge.Journey
             _armed = true;
             _pendingAttack = JourneyEnemyAttackKind.None;
             _pendingAttackIndex = -1;
+            _recoveryDurationTicks = 0;
             _recoverUntilTick = FixedTick + 18;
             _nextDecisionTick = FixedTick + Mathf.Max(1, firstAttackDelayTicks);
             _home = transform.position;
@@ -250,6 +290,7 @@ namespace Mindforge.Journey
             _desiredMove = Vector3.zero;
             _pendingAttack = JourneyEnemyAttackKind.None;
             _pendingAttackIndex = -1;
+            _recoveryDurationTicks = 0;
             if (body != null) body.velocity = Vector3.zero;
             ArmedChanged?.Invoke(false);
         }
@@ -267,7 +308,9 @@ namespace Mindforge.Journey
             {
                 long shift = Math.Max(0L, FixedTick - _pauseStartedTick);
                 _nextDecisionTick += shift;
+                _attackStartedTick += shift;
                 _attackResolveTick += shift;
+                _recoveryStartedTick += shift;
                 _recoverUntilTick += shift;
                 for (int i = 0; i < _attackCooldownUntil.Length; i++)
                     _attackCooldownUntil[i] += shift;
@@ -378,7 +421,9 @@ namespace Mindforge.Journey
             if (_lockedAttackDirection.sqrMagnitude < 0.001f) _lockedAttackDirection = transform.forward;
             _lockedAttackDirection.Normalize();
             _lockedProjectileDirection = ResolveProjectileAimDirection();
+            _attackStartedTick = FixedTick;
             _attackResolveTick = FixedTick + attack.TelegraphTicks;
+            _recoveryDurationTicks = 0;
             if (attackIndex < _attackCooldownUntil.Length)
                 _attackCooldownUntil[attackIndex] = FixedTick + attack.CooldownTicks;
 
@@ -389,7 +434,7 @@ namespace Mindforge.Journey
         private void TrackPendingAttack(Vector3 toPlayer)
         {
             EnemyAttackDefinition attack = CurrentAttackDefinition;
-            if (attack == null || attack.TrackingStrength <= 0f) return;
+            if (attack == null || attack.TrackingStrength <= 0f || AttackTrackingLocked) return;
 
             float t = Mathf.Clamp01(attack.TrackingStrength * 8f * Time.fixedDeltaTime);
             if (attack.Type == EnemyAttackType.Projectile || attack.Type == EnemyAttackType.Burst)
@@ -421,7 +466,9 @@ namespace Mindforge.Journey
             else if (attack.Type == EnemyAttackType.Retreat) ResolveRetreat(attack);
             else ResolveProjectile(attack);
 
-            _recoverUntilTick = FixedTick + attack.ActiveTicks + attack.RecoveryTicks;
+            _recoveryDurationTicks = Mathf.Max(1, attack.ActiveTicks + attack.RecoveryTicks);
+            _recoveryStartedTick = FixedTick;
+            _recoverUntilTick = FixedTick + _recoveryDurationTicks;
             _nextDecisionTick = _recoverUntilTick + Mathf.Max(1, decisionCadenceTicks);
             AttackResolved?.Invoke(kind);
             _pendingAttackIndex = -1;
@@ -594,6 +641,7 @@ namespace Mindforge.Journey
             _desiredMove = Vector3.zero;
             _pendingAttack = JourneyEnemyAttackKind.None;
             _pendingAttackIndex = -1;
+            _recoveryDurationTicks = 0;
             if (body != null)
             {
                 body.velocity = Vector3.zero;
@@ -675,7 +723,7 @@ namespace Mindforge.Journey
                     defeatFluxReward = 0.12f;
                     attackDefinitions = new[]
                     {
-                        EnemyAttackDefinition.Create("hollow_slash", EnemyAttackType.Melee, 0.35f, 2.05f, 82f, 10, 122, 67, 2, 94, 0.12f, 9f, 7f, 1.4f, 0f, 1, 0f, false, false, "hollow_slash"),
+                        EnemyAttackDefinition.Create("hollow_slash", EnemyAttackType.Melee, 0.35f, 2.05f, 82f, 10, 122, 67, 2, 94, 0.12f, 0.56f, 9f, 7f, 1.4f, 0f, 1, 0f, false, false, "hollow_slash"),
                     };
                     break;
 
@@ -689,7 +737,7 @@ namespace Mindforge.Journey
                     defeatFluxReward = 0.16f;
                     attackDefinitions = new[]
                     {
-                        EnemyAttackDefinition.Create("shard_bolt", EnemyAttackType.Projectile, 2.5f, 13.5f, 100f, 10, 150, 86, 1, 82, 0.72f, 7f, 3f, 0f, 10.5f, 1, 0f, true, false, "shard_bolt"),
+                        EnemyAttackDefinition.Create("shard_bolt", EnemyAttackType.Projectile, 2.5f, 13.5f, 100f, 10, 150, 86, 1, 82, 0.72f, 0.66f, 7f, 3f, 0f, 10.5f, 1, 0f, true, false, "shard_bolt"),
                     };
                     break;
 
@@ -704,8 +752,8 @@ namespace Mindforge.Journey
                     defeatFluxReward = 0.55f;
                     attackDefinitions = new[]
                     {
-                        EnemyAttackDefinition.Create("warden_cleave", EnemyAttackType.Melee, 0.45f, 2.45f, 94f, 7, 128, 60, 2, 74, 0.22f, 15f, 15f, 2.4f, 0f, 1, 0f, false, true, "warden_cleave"),
-                        EnemyAttackDefinition.Create("warden_burst", EnemyAttackType.Burst, 2.0f, 14.5f, 105f, 4, 180, 79, 1, 70, 0.68f, 8.5f, 5f, 0f, 12f, 3, 18f, true, false, "warden_burst"),
+                        EnemyAttackDefinition.Create("warden_cleave", EnemyAttackType.Melee, 0.45f, 2.45f, 94f, 7, 128, 60, 2, 74, 0.22f, 0.54f, 15f, 15f, 2.4f, 0f, 1, 0f, false, true, "warden_cleave"),
+                        EnemyAttackDefinition.Create("warden_burst", EnemyAttackType.Burst, 2.0f, 14.5f, 105f, 4, 180, 79, 1, 70, 0.68f, 0.64f, 8.5f, 5f, 0f, 12f, 3, 18f, true, false, "warden_burst"),
                     };
                     break;
 
@@ -719,9 +767,9 @@ namespace Mindforge.Journey
                     defeatFluxReward = 0.18f;
                     attackDefinitions = new[]
                     {
-                        EnemyAttackDefinition.Create("sentry_tracking_bolt", EnemyAttackType.Projectile, 3.2f, 15f, 100f, 6, 156, 66, 1, 58, 0.78f, 7.5f, 3f, 0f, 10.8f, 1, 0f, true, false, "sentry_tracking_bolt"),
-                        EnemyAttackDefinition.Create("sentry_fan_burst", EnemyAttackType.Burst, 4.0f, 13f, 105f, 4, 210, 72, 1, 72, 0.46f, 5.5f, 2.5f, 0f, 9.8f, 3, 24f, true, false, "sentry_fan_burst"),
-                        EnemyAttackDefinition.Create("sentry_retreat_pulse", EnemyAttackType.Retreat, 0.0f, 3.2f, 145f, 8, 240, 24, 1, 30, 0f, 0f, 0f, 2.8f, 0f, 1, 0f, false, false, "sentry_retreat_pulse"),
+                        EnemyAttackDefinition.Create("sentry_tracking_bolt", EnemyAttackType.Projectile, 3.2f, 15f, 100f, 6, 156, 66, 1, 58, 0.78f, 0.62f, 7.5f, 3f, 0f, 10.8f, 1, 0f, true, false, "sentry_tracking_bolt"),
+                        EnemyAttackDefinition.Create("sentry_fan_burst", EnemyAttackType.Burst, 4.0f, 13f, 105f, 4, 210, 72, 1, 72, 0.46f, 0.58f, 5.5f, 2.5f, 0f, 9.8f, 3, 24f, true, false, "sentry_fan_burst"),
+                        EnemyAttackDefinition.Create("sentry_retreat_pulse", EnemyAttackType.Retreat, 0.0f, 3.2f, 145f, 8, 240, 24, 1, 30, 0f, 0.40f, 0f, 0f, 2.8f, 0f, 1, 0f, false, false, "sentry_retreat_pulse"),
                     };
                     break;
 
@@ -736,9 +784,9 @@ namespace Mindforge.Journey
                     defeatFluxReward = 0.22f;
                     attackDefinitions = new[]
                     {
-                        EnemyAttackDefinition.Create("penitent_fast_slash", EnemyAttackType.Melee, 0.35f, 2.10f, 82f, 7, 96, 45, 2, 60, 0.20f, 9.5f, 7f, 1.5f, 0f, 1, 0f, false, false, "penitent_fast_slash"),
-                        EnemyAttackDefinition.Create("penitent_delayed_overhead", EnemyAttackType.Melee, 0.45f, 2.35f, 62f, 4, 180, 72, 2, 96, 0.34f, 14f, 15f, 2.5f, 0f, 1, 0f, false, true, "penitent_delayed_overhead"),
-                        EnemyAttackDefinition.Create("penitent_sweep", EnemyAttackType.Melee, 0.55f, 2.55f, 118f, 5, 160, 56, 2, 78, 0.16f, 11f, 10f, 1.9f, 0f, 1, 0f, false, false, "penitent_sweep"),
+                        EnemyAttackDefinition.Create("penitent_fast_slash", EnemyAttackType.Melee, 0.35f, 2.10f, 82f, 7, 96, 45, 2, 60, 0.20f, 0.50f, 9.5f, 7f, 1.5f, 0f, 1, 0f, false, false, "penitent_fast_slash"),
+                        EnemyAttackDefinition.Create("penitent_delayed_overhead", EnemyAttackType.Melee, 0.45f, 2.35f, 62f, 4, 180, 72, 2, 96, 0.34f, 0.60f, 14f, 15f, 2.5f, 0f, 1, 0f, false, true, "penitent_delayed_overhead"),
+                        EnemyAttackDefinition.Create("penitent_sweep", EnemyAttackType.Melee, 0.55f, 2.55f, 118f, 5, 160, 56, 2, 78, 0.16f, 0.52f, 11f, 10f, 1.9f, 0f, 1, 0f, false, false, "penitent_sweep"),
                     };
                     break;
             }
