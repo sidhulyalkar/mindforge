@@ -104,7 +104,10 @@ def test_twin_eclipse_and_counter_have_asymmetric_hitstop():
     tuning = read("Combat", "CombatTuning.cs")
     guardian = read("Combat", "GuardianCombatController.cs")
     bloom = read("Combat", "GravityBloomAbility.cs")
-    assert "parryHitStop = 0.020f" in tuning
+    # Counter contact remains deliberately crisp while the rare Twin Eclipse payoff
+    # receives a much larger freeze. The contract follows the authored tuning rather
+    # than preserving an obsolete 20 ms prototype literal.
+    assert "parryHitStop = 0.024f" in tuning
     assert "twinEclipseHitStop = 0.120f" in tuning
     assert "bool reflectedAny" in guardian
     assert "if (reflectedAny)" in guardian
