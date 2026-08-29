@@ -72,6 +72,7 @@ def test_progression_isolated_and_reward_receipts_make_reconciliation_idempotent
         "AddResonance",
         "AddMastery",
         "Unlock(",
+        "SaturatingAdd",
     ):
         assert token in progression
 
@@ -272,7 +273,7 @@ def test_foundation_docs_define_large_game_and_runtime_acceptance_contracts():
     for token in (
         "Reward idempotence",
         "Region entry is prefix-monotonic",
-        "six durable story discoveries",
+        "Six proximity-only, collider-free discovery beacons",
         "ranked_eligible = false",
         "Unity acceptance checklist",
     ):
