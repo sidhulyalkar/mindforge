@@ -15,9 +15,14 @@ namespace Mindforge.World
         BossStarted = 7,
         WorldCompleted = 8,
         StateChanged = 9,
-        QuestAdvanced = 10,
-        QuestCompleted = 11,
-        Interaction = 12,
+        QuestActivated = 10,
+        QuestAdvanced = 11,
+        QuestCompleted = 12,
+        Interaction = 13,
+        StoryDiscovered = 14,
+        ProgressionChanged = 15,
+        RewardGranted = 16,
+        RunSplit = 17,
     }
 
     [Serializable]
