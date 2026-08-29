@@ -173,7 +173,8 @@ namespace Mindforge.Editor
             FracturedSignalDirector boss = UnityEngine.Object.FindObjectOfType<FracturedSignalDirector>(true);
             if (boss == null) throw new InvalidOperationException("Aetheria Horde V1 requires the Fractured Signal boss authority.");
 
-            boss.gameObject.name = "Lord_Malatract";
+            // Preserve the legacy boss GameObject name for scene lookup/checkpoint/qualification
+            // compatibility. Lord Malatract is a presentation and narrative identity only.
             LordMalatractPresentationV1 presentation = boss.GetComponent<LordMalatractPresentationV1>();
             if (presentation == null) presentation = boss.gameObject.AddComponent<LordMalatractPresentationV1>();
             EditorUtility.SetDirty(boss.gameObject);
