@@ -52,7 +52,8 @@ namespace Mindforge.Editor
             gameView?.Focus();
             Debug.Log(
                 "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
-                "Shift/RMB dodge-rolls on ground and air-dashes aloft; T locks; F/LMB swings/parries with the Aetherblade.");
+                "Shift/RMB dodge-rolls on ground and air-dashes aloft; T locks; F/LMB swings/parries with the Aetherblade; " +
+                "E mounts/dismounts a nearby Prism hoverbike, where Shift/RMB becomes boost.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -98,6 +99,7 @@ namespace Mindforge.Editor
                 NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
                 ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();
+                AetheriaWorldV1Builder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
                 NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
@@ -127,6 +129,10 @@ namespace Mindforge.Editor
                 "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity " +
                 "3/3/4 wave demo. The persistent shortcut, geometric intent telegraphs and stable VEP targets remain intact. " +
                 "Layered near/mid/far set dressing remains downstream of deterministic gameplay authority.");
+            Debug.Log(
+                "[Mindforge:Showcase] Aetheria identity layer ready: Prism Bastion → Neon Causeway → Market of Broken Momentum → " +
+                "Choir of Ruined Towers → Hall of Excessive Gravitas → Menagerie Crucible. Two optional Prism hoverbikes use the existing Guardian " +
+                "Rigidbody as mounted authority; E mounts/dismounts and mounted F/LMB still routes through the authoritative Aetherblade controller.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
