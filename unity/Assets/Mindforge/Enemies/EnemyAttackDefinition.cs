@@ -14,6 +14,8 @@ namespace Mindforge.Enemies
     /// <summary>
     /// Gameplay definition for one enemy attack. The definition is authoritative data;
     /// presentationId only selects animation/VFX/audio after gameplay has chosen it.
+    /// TrackingLock01 defines the fixed-tick point in the telegraph where aim becomes
+    /// committed, so late player movement can evade a correctly-read attack.
     /// </summary>
     [Serializable]
     public sealed class EnemyAttackDefinition
@@ -29,6 +31,7 @@ namespace Mindforge.Enemies
         [SerializeField, Min(0)] private int activeTicks = 1;
         [SerializeField, Min(1)] private int recoveryTicks = 60;
         [SerializeField, Range(0f, 1f)] private float trackingStrength;
+        [SerializeField, Range(0.15f, 1f)] private float trackingLock01 = 0.72f;
         [SerializeField, Min(0f)] private float damage = 8f;
         [SerializeField, Min(0f)] private float poiseDamage = 5f;
         [SerializeField, Min(0f)] private float knockback = 1.4f;
@@ -50,6 +53,7 @@ namespace Mindforge.Enemies
         public int ActiveTicks => Mathf.Max(0, activeTicks);
         public int RecoveryTicks => Mathf.Max(1, recoveryTicks);
         public float TrackingStrength => Mathf.Clamp01(trackingStrength);
+        public float TrackingLock01 => Mathf.Clamp(trackingLock01 <= 0f ? 0.72f : trackingLock01, 0.15f, 1f);
         public float Damage => Mathf.Max(0f, damage);
         public float PoiseDamage => Mathf.Max(0f, poiseDamage);
         public float Knockback => Mathf.Max(0f, knockback);
@@ -78,6 +82,7 @@ namespace Mindforge.Enemies
             int active,
             int recovery,
             float tracking,
+            float trackingLock,
             float attackDamage,
             float attackPoise,
             float attackKnockback,
@@ -101,6 +106,7 @@ namespace Mindforge.Enemies
                 activeTicks = active,
                 recoveryTicks = recovery,
                 trackingStrength = tracking,
+                trackingLock01 = trackingLock,
                 damage = attackDamage,
                 poiseDamage = attackPoise,
                 knockback = attackKnockback,
