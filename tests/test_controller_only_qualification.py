@@ -23,7 +23,8 @@ def test_controller_only_qualification_is_explicit_and_excluded_from_release_bui
     assert "receiver.enabled = false" in bootstrap
     assert '"QUALIFICATION_MODE"' in bootstrap
     assert '"CONTROLLER_ONLY_NO_BCI"' in bootstrap
-    assert "BCI DISABLED" in bootstrap
+    assert '"SHOWCASE · BCI OFF · {_activationReason}"' in bootstrap
+    assert "Screen.width - 290f" in bootstrap
 
     assert "EnterControllerOnlyQualification" in awakening
     assert "ControllerOnlyQualificationActive = true" in awakening
