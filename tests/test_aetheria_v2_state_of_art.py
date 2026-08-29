@@ -123,13 +123,15 @@ def test_hoverbike_kinetics_are_read_only_and_do_not_move_physics_body():
         assert forbidden not in source
 
 
-def test_procedural_audio_is_cached_and_event_driven_not_gameplay_authority():
+def test_procedural_audio_is_cached_event_driven_and_does_not_double_fire_air_dash():
     source = read("Presentation", "AetheriaCombatAudioV2.cs")
+    motor = read("Combat", "GuardianMotor.cs")
     for token in (
         "AudioClip.Create(",
         "clip.SetData(data, 0)",
         "motor.Jumped +=",
         "motor.DoubleJumped +=",
+        "motor.DashStarted += OnDash",
         "motor.Landed +=",
         "blade.SwordAttackStarted +=",
         "blade.SwordHit +=",
@@ -140,8 +142,19 @@ def test_procedural_audio_is_cached_and_event_driven_not_gameplay_authority():
         "boss.AttackFired +=",
         "bossMelee.MeleeTelegraphed +=",
         "_motorLoop.clip = _motor",
+        "motor != null && motor.IsAirDashing",
+        'Tone("PrismBike_MotorLoop", 0.32f, 75f, 75f',
     ):
         assert token in source
+
+    # GuardianMotor emits the generic dash edge for every dash and additionally emits the
+    # air-specific edge. Audio listens only to the generic event and branches on resolved
+    # motor state, preventing an air dash from stacking two one-shots.
+    assert "DashStarted?.Invoke();" in motor
+    assert "if (airDash) AirDashStarted?.Invoke();" in motor
+    assert "motor.AirDashStarted +=" not in source
+    assert "motor.AirDashStarted -=" not in source
+    assert "OnAirDash" not in source
 
     # Synthesis happens once in BuildClips; Update only changes a cached loop source.
     update = source[source.index("private void Update()"):source.index("private void Resolve()")]
