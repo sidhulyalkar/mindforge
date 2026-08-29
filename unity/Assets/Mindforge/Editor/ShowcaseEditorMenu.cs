@@ -101,6 +101,7 @@ namespace Mindforge.Editor
                 ArenaMenagerieSilhouetteV1Builder.ApplyOpenScene();
                 AetheriaHordeBossV1Builder.ApplyOpenScene();
                 AetheriaWorldV1Builder.ApplyOpenScene();
+                AetheriaStateOfArtV2Builder.ApplyOpenScene();
                 AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();
                 NullWardVisualInfrastructureBuilder.ApplyOpenScene();
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
@@ -139,6 +140,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Cyber-Mythic Horde ready: Scrap Goblin, Bass Golem and Aero Gargoyle are story-facing identities over existing " +
                 "Menagerie roles; Stalker and Gargoyle committed advances resolve through JourneyEnemyController. Lord Malatract is a serious presentation " +
                 "layer over the existing Fractured Signal projectile/melee scheduler, not a second boss authority.");
+            Debug.Log(
+                "[Mindforge:Showcase] Aetheria V2 polish ready: one v4 fixed-tick conventional-input tape now crosses foot/mount mode; " +
+                "mounted camera composition uses physical distance/look-ahead while keeping FOV fixed; kinetic bike motion, procedural audio and " +
+                "Malatract phase staging remain read-only presentation consumers.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
