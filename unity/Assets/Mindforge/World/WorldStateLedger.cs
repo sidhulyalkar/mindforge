@@ -47,6 +47,8 @@ namespace Mindforge.World
     /// Semantic fact ledger. It stores explicit world facts but owns no physical gameplay.
     /// Snapshot capture/restore is memory-only so persistence format and platform storage can
     /// be decided later without coupling quests or encounters to PlayerPrefs/filesystem APIs.
+    /// Restore always notifies derived state consumers exactly once through SnapshotRestored;
+    /// optional per-key semantic signals remain a separate observability choice.
     /// </summary>
     [DefaultExecutionOrder(-810)]
     public sealed class WorldStateLedger : MonoBehaviour
@@ -58,6 +60,7 @@ namespace Mindforge.World
             new Dictionary<string, WorldStateEntry>(StringComparer.Ordinal);
 
         public event Action<string, WorldStateEntry, WorldStateEntry> StateChanged;
+        public event Action SnapshotRestored;
         public IReadOnlyList<WorldStateEntry> Entries => entries;
 
         private void Awake()
@@ -87,19 +90,25 @@ namespace Mindforge.World
         public bool TryGetBool(string key, out bool value)
         {
             value = false;
-            return TryGet(key, WorldStateValueType.Bool, out WorldStateEntry entry) && (value = entry.bool_value) == entry.bool_value;
+            if (!TryGet(key, WorldStateValueType.Bool, out WorldStateEntry entry)) return false;
+            value = entry.bool_value;
+            return true;
         }
 
         public bool TryGetInt(string key, out int value)
         {
             value = 0;
-            return TryGet(key, WorldStateValueType.Int, out WorldStateEntry entry) && (value = entry.int_value) == entry.int_value;
+            if (!TryGet(key, WorldStateValueType.Int, out WorldStateEntry entry)) return false;
+            value = entry.int_value;
+            return true;
         }
 
         public bool TryGetFloat(string key, out float value)
         {
             value = 0f;
-            return TryGet(key, WorldStateValueType.Float, out WorldStateEntry entry) && (value = entry.float_value) == entry.float_value;
+            if (!TryGet(key, WorldStateValueType.Float, out WorldStateEntry entry)) return false;
+            value = entry.float_value;
+            return true;
         }
 
         public bool TryGetString(string key, out string value)
@@ -126,18 +135,24 @@ namespace Mindforge.World
         {
             entries.Clear();
             _index.Clear();
-            if (snapshot == null || snapshot.entries == null) return;
 
-            for (int i = 0; i < snapshot.entries.Count; i++)
+            if (snapshot != null && snapshot.entries != null)
             {
-                WorldStateEntry source = snapshot.entries[i];
-                if (source == null || string.IsNullOrWhiteSpace(source.key)) continue;
-                WorldStateEntry copy = source.Copy();
-                copy.key = NormalizeKey(copy.key);
-                entries.Add(copy);
-                _index[copy.key] = copy;
-                if (emitSignals) Publish(copy, "snapshot_restore");
+                for (int i = 0; i < snapshot.entries.Count; i++)
+                {
+                    WorldStateEntry source = snapshot.entries[i];
+                    if (source == null || string.IsNullOrWhiteSpace(source.key)) continue;
+                    WorldStateEntry copy = source.Copy();
+                    copy.key = NormalizeKey(copy.key);
+                    if (_index.ContainsKey(copy.key)) continue;
+                    entries.Add(copy);
+                    _index[copy.key] = copy;
+                    if (emitSignals) Publish(copy, "snapshot_restore");
+                }
+                entries.Sort((a, b) => string.CompareOrdinal(a.key, b.key));
             }
+
+            SnapshotRestored?.Invoke();
         }
 
         private bool Upsert(WorldStateEntry next, string reason)
@@ -212,6 +227,7 @@ namespace Mindforge.World
                 }
                 _index[entry.key] = entry;
             }
+            entries.Sort((a, b) => string.CompareOrdinal(a.key, b.key));
         }
 
         private static bool Equivalent(WorldStateEntry a, WorldStateEntry b)
