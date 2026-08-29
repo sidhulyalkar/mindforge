@@ -32,11 +32,12 @@ def test_guardian_motor_upgrades_prototype_planar_body_into_fixed_tick_3d_moveme
     assert "_body.AddForce" not in motor
 
 
-def test_jump_has_modern_forgiveness_variable_height_and_air_control():
+def test_jump_has_modern_forgiveness_variable_height_air_control_and_one_air_jump():
     motor = read("Combat", "GuardianMotor.cs")
 
     for token in (
         "jumpVelocity = 7.2f",
+        "airJumpVelocity = 6.8f",
         "coyoteTimeSeconds = 0.11f",
         "jumpBufferSeconds = 0.13f",
         "jumpReleaseVelocityMultiplier = 0.52f",
@@ -48,13 +49,14 @@ def test_jump_has_modern_forgiveness_variable_height_and_air_control():
         "airAcceleration = 34f",
         "airSpeedMultiplier = 0.92f",
         "public bool RequestJump()",
+        "public bool CanAirJump",
         "ConsumeBufferedJump()",
         "Jumped?.Invoke()",
+        "DoubleJumped?.Invoke()",
         "Landed?.Invoke",
     ):
         assert token in motor
 
-    # Jump/gravity remain conventional gameplay authority and never touch neural state.
     for forbidden in (
         "NeuralEvent",
         "UdpNeuralReceiver",
@@ -66,13 +68,15 @@ def test_jump_has_modern_forgiveness_variable_height_and_air_control():
         assert forbidden not in motor
 
 
-def test_space_is_jump_ctrl_alt_are_dodge_and_tape_records_both_jump_edges():
+def test_space_is_aerial_traversal_shift_is_primary_dash_and_tape_records_edges():
     input_source = read("Combat", "GuardianCombatInput.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
     for token in (
         "Input.GetKeyDown(KeyCode.Space)",
         "Input.GetKey(KeyCode.Space)",
+        "Input.GetKeyDown(KeyCode.LeftShift)",
+        "Input.GetKeyDown(KeyCode.RightShift)",
         "Input.GetKeyDown(KeyCode.LeftControl)",
         "Input.GetKeyDown(KeyCode.LeftAlt)",
         "jump_down = _jumpLatched",
@@ -183,13 +187,13 @@ def test_jump_and_landing_have_downstream_visual_language_without_movement_autho
             assert forbidden not in source
 
 
-def test_null_ward_hud_teaches_controls_then_gets_out_of_the_way():
+def test_null_ward_hud_teaches_aerial_controls_then_gets_out_of_the_way():
     hud = read("World", "NullWardHud.cs")
 
     for token in (
         "controlsHintSeconds = 16f",
         "showControls = Time.realtimeSinceStartupAsDouble - _enteredAt",
-        "SPACE jump · CTRL/ALT dodge",
+        "SPACE jump ×2 / hold to hover · SHIFT dash / air dash",
         "float height = showControls ? 58f : 38f",
     ):
         assert token in hud
