@@ -20,6 +20,12 @@ def test_second_combo_step_reverses_authoritative_sweep_direction():
     light_two = definition[definition.index('Create("aetherblade_light_2"'):definition.index('Create("aetherblade_light_3"')]
     assert "true, false, \"guardian_light_2\"" in light_two
 
+    # New grounded-world rhythm keeps the opener/return quick and reserves commitment for
+    # the high-poise third cut.
+    assert 'Create("aetherblade_light_1", 10, 19, 13' in definition
+    assert 'Create("aetherblade_light_2", 11, 21, 14' in definition
+    assert 'Create("aetherblade_light_3", 15, 25, 22' in definition
+
 
 def test_rendered_weapon_uses_same_combo_step_direction():
     rig = (COMBAT / "GuardianSwordShieldRig.cs").read_text(encoding="utf-8")
@@ -27,7 +33,7 @@ def test_rendered_weapon_uses_same_combo_step_direction():
     controller = (COMBAT / "GuardianSwordShieldController.cs").read_text(encoding="utf-8")
 
     assert "comboStep == 2" in rig
-    assert "Mathf.Lerp(72f, -72f, eased)" in rig
+    assert "Mathf.Lerp(76f, -78f, eased)" in rig
     assert "comboStep >= 3" in rig
     assert "combat.ComboStep" in driver
     assert "combat.AttackProgress" in driver
