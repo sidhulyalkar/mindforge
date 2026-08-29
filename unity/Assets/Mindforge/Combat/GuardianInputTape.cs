@@ -38,15 +38,18 @@ namespace Mindforge.Combat
         public bool jump_down;
         public bool jump_held;
 
-        // v4 mounted traversal controls. Movement/aim continue to use the canonical
-        // move/aim vectors so a tape has one spatial command vocabulary. These edges
-        // describe the state transition and actions that only have meaning while riding.
+        // v4 mounted traversal controls. Mounted travel is recorded after camera-relative
+        // input has been resolved into world space so replay never depends on live camera yaw.
         public bool mount_toggle_down;
         public bool mounted_attack_down;
         public bool mounted_boost_down;
+        public float mounted_move_x;
+        public float mounted_move_y;
+        public float mounted_move_z;
 
         public Vector2 Move => new Vector2(move_x, move_y);
         public Vector3 Aim => new Vector3(aim_x, aim_y, aim_z);
+        public Vector3 MountedMove => new Vector3(mounted_move_x, mounted_move_y, mounted_move_z);
 
         public GuardianCommandFrame CopyForTick(long newTick)
         {
@@ -71,6 +74,9 @@ namespace Mindforge.Combat
                 mount_toggle_down = mount_toggle_down,
                 mounted_attack_down = mounted_attack_down,
                 mounted_boost_down = mounted_boost_down,
+                mounted_move_x = mounted_move_x,
+                mounted_move_y = mounted_move_y,
+                mounted_move_z = mounted_move_z,
             };
         }
 
@@ -96,6 +102,13 @@ namespace Mindforge.Combat
                 aim_x = other.aim_x;
                 aim_y = other.aim_y;
                 aim_z = other.aim_z;
+            }
+
+            if (other.MountedMove.sqrMagnitude > 0.000001f)
+            {
+                mounted_move_x = other.mounted_move_x;
+                mounted_move_y = other.mounted_move_y;
+                mounted_move_z = other.mounted_move_z;
             }
 
             fire_held |= other.fire_held;
