@@ -28,9 +28,6 @@ namespace Mindforge.Editor
             EditorPrefs.SetBool(ShowcasePreviewBootstrap.EditorPreferenceKey, true);
             Selection.activeGameObject = GameObject.Find("Guardian");
 
-            // Starting Play Mode from a menu can leave keyboard focus on the Scene,
-            // Console or Inspector window. Register before entering play so the Game
-            // view explicitly receives third-person keyboard/mouse input on laptops.
             EditorApplication.playModeStateChanged -= FocusGameViewWhenPlayStarts;
             EditorApplication.playModeStateChanged += FocusGameViewWhenPlayStarts;
             EditorApplication.delayCall += () =>
@@ -53,7 +50,9 @@ namespace Mindforge.Editor
             if (gameViewType == null) return;
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
             gameView?.Focus();
-            Debug.Log("[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover while descending; Shift dashes on ground or in air; T locks; F/LMB swords; RMB/E guards; X/MMB fires Pulse.");
+            Debug.Log(
+                "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
+                "Shift/RMB dodge-rolls on ground and air-dashes aloft; T locks; F/LMB swings/parries with the Aetherblade.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -84,14 +83,13 @@ namespace Mindforge.Editor
                 ShowcaseSceneDecorator.DecorateOpenScene();
                 CinematicSceneDetailer.EnhanceOpenScene();
 
-                // Keep the qualified boss arena at its existing world-space origin.
-                // The Null Ward extends backward along -Z and rejoins the arena at the
-                // Signal Cathedral threshold without translating Arena V3 rune geometry.
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
 
-                // Gameplay population comes before visual layers so every newly-authored
-                // enemy receives honest collision, silhouette and intent presentation.
+                // World topology comes before population/presentation. The continuous basin
+                // and perimeter are gameplay collision; modular terraces are reusable world
+                // tiles; later passes remain presentation/detail layers on top.
+                GroundedWorldV1Builder.ApplyOpenScene();
                 NullWardArenaEcosystemBuilder.ApplyOpenScene();
                 NullWardEnemyColliderProfileBuilder.ApplyOpenScene();
                 NullWardEnemySilhouetteV3Builder.ApplyOpenScene();
@@ -114,16 +112,12 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(
-                "[Mindforge:Showcase] Full Null Ward arena ecosystem ready. The controller-only path now runs from " +
-                "the Memory Forge through a populated Synapse Causeway, mixed-pressure Null Market, the eastern " +
-                "maintenance loop with its persistent shortcut, and Fracture Court before the Signal Cathedral " +
-                "and existing Fractured Signal boss arena. Five ordinary enemy archetypes plus the elevated " +
-                "Aether Needle variant use distinct collider-free silhouettes, honest root hit volumes and " +
-                "geometric intent telegraphs. Layered near/mid/far set dressing extends the Ward and boss-arena " +
-                "skyline without adding gameplay colliders. A presentation-budget report is emitted before Play " +
-                "Mode; controller-only runtime performance evidence is emitted during play. Runtime retains the " +
-                "tighter third-person camera, conventional multi-target lock, double jump, hold-Space hover, " +
-                "ground/air Shift dash, pooled effects and stable Wisp gaze anchors.");
+                "[Mindforge:Showcase] Grounded World V1 ready. The Null Ward and boss arena now sit inside one continuous " +
+                "collision-backed basin with a tall enclosing wall, reusable stacked terrace/stair/ramp/bridge tiles and a " +
+                "fog-layered exterior skyline. No reachable route intentionally exposes the void. The combat core is now " +
+                "energy-blade + endurance dodge roll + jump/double-jump/hover/air-dash; player Pulse fire and the physical " +
+                "shield are retired from the normal control surface. Enemy ecosystem, stable VEP targets, encounter authority " +
+                "and qualification boundaries remain intact. Presentation-budget evidence is emitted before Play Mode.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
