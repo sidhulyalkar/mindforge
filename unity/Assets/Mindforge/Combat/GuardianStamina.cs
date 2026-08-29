@@ -4,16 +4,16 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Shared defensive Guard Integrity budget. Basic movement/sword/dodge are unlimited;
-    /// guarding still has a deterministic pressure budget so holding the shield forever
-    /// is not free. Neural modulation may improve outcomes but never creates an action.
+    /// Shared conventional endurance budget. Ground dodge rolls and air dashes spend it;
+    /// the removed shield stance no longer owns the player's primary defensive economy.
+    /// Neural modulation never creates a dodge or movement action.
     /// </summary>
     public sealed class GuardianStamina : MonoBehaviour
     {
         [SerializeField] private float maxStamina = 100f;
-        [SerializeField] private float recoveryPerSecond = 31f;
-        [SerializeField] private float recoveryDelaySeconds = 0.62f;
-        [SerializeField] private float dodgeBaseCost = 24f;
+        [SerializeField] private float recoveryPerSecond = 42f;
+        [SerializeField] private float recoveryDelaySeconds = 0.48f;
+        [SerializeField] private float dodgeBaseCost = 22f;
 
         private float _value;
         private long _recoverAfterTick = long.MinValue / 4;
