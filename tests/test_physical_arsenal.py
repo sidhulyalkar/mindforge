@@ -82,8 +82,9 @@ def test_equipment_mass_and_endurance_match_the_active_blade_roll_profile():
 
     assert "endurance.DodgeBaseCost" in combat_input
     assert "endurance.CanSpend(cost)" in combat_input
-    assert "if (motor.RequestDash(aim))" in combat_input
-    assert 'endurance?.TrySpend(cost, motor.IsGrounded ? "DODGE_ROLL" : "AIR_DASH")' in combat_input
+    assert "QueueDodgeCommand(aim)" in combat_input
+    assert "motor.RequestDash(_dodgeCommandAim)" in combat_input
+    assert 'endurance?.TrySpend(cost, grounded ? "DODGE_ROLL" : "AIR_DASH")' in combat_input
 
 
 def test_sword_is_swept_physical_contact_and_can_parry_projectiles():
