@@ -48,7 +48,7 @@ def test_equipment_mass_and_endurance_match_the_active_blade_roll_profile():
     combat_input = read("Combat", "GuardianCombatInput.cs")
 
     assert "WeaponArchetype" in equipment
-    assert "ShieldArchetype" in equipment  # legacy serialization remains supported
+    assert "ShieldArchetype" in equipment
     assert "ArmorWeightClass" in equipment
     assert "EquipLoadClass" in equipment
     assert 'displayName = "Aetherblade"' in equipment
@@ -80,7 +80,6 @@ def test_equipment_mass_and_endurance_match_the_active_blade_roll_profile():
     assert "TrySpend" in stamina
     assert "DrainUpTo" in stamina
 
-    # The input authority, not the motor or BCI path, owns conventional roll spending.
     assert "endurance.DodgeBaseCost" in combat_input
     assert "endurance.CanSpend(cost)" in combat_input
     assert "if (motor.RequestDash(aim))" in combat_input
@@ -110,7 +109,7 @@ def test_sword_is_swept_physical_contact_and_can_parry_projectiles():
     assert "GuardianActionState" in sword
     assert "public bool CanAttack" in sword
     assert "public bool CanDodge" in sword
-    assert "public bool CanGuard" in sword  # compatibility surface
+    assert "public bool CanGuard" in sword
     assert "public bool CanCounter" in sword
     assert "public bool CanMove" in sword
     assert "public bool CanTurn" in sword
@@ -146,8 +145,6 @@ def test_sword_is_swept_physical_contact_and_can_parry_projectiles():
     assert "SwordProjectileParried" in sword
     assert '"SIGHT_SWORD_PARRY_DAMAGE"' in sword
 
-    # Sight resonance can boundedly alter the result of a hand-commanded swing, never
-    # originate the swing itself.
     assert "auras != null && auras.SightActive" in sword
     assert "resonance.Sight" in sword
     assert "sightReachBonus" in sword
@@ -162,7 +159,6 @@ def test_legacy_shield_resolution_remains_backward_compatible_but_is_not_the_act
     combat_input = read("Combat", "GuardianCombatInput.cs")
     bootstrap = read("Combat", "PhysicalArsenalBootstrap.cs")
 
-    # Projectile/analytics compatibility remains safe for old sessions and scenes.
     shield_index = projectile.index("GuardianShieldHitbox shield")
     vitals_index = projectile.index("CombatantVitals receiver")
     assert shield_index < vitals_index
@@ -172,7 +168,6 @@ def test_legacy_shield_resolution_remains_backward_compatible_but_is_not_the_act
     assert "GuardStrikeResult" in shield
     assert "IsPerfectGuardWindow" in shield
 
-    # Grounded World V1 does not expose that subsystem to the normal player path.
     assert "guard_held = false" in combat_input
     assert "guard_down = false" in combat_input
     assert "physicalCombat?.SetGuardHeld(false, aim)" in combat_input
@@ -280,7 +275,7 @@ def test_procedural_rig_hud_and_menu_present_the_grounded_energy_blade_language(
     assert '"Endurance Dodge Roll"' in menu
     assert '"SHIFT / RMB"' in menu
     assert '"F / LMB"' in menu
-    assert '"ENDURANCE {stamina}"' in menu
+    assert "ENDURANCE {stamina}" in menu
     assert '"X / MMB", "Pulse Shot"' not in menu
     assert '"RMB / E", "Shield"' not in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
@@ -290,8 +285,6 @@ def test_procedural_rig_hud_and_menu_present_the_grounded_energy_blade_language(
 
 
 def test_encounter_report_separates_physical_skill_and_sight_sword_payoff():
-    # Historical shield markers remain readable. Removing a control surface must not make
-    # existing evidence bundles uninterpretable.
     markers = [
         marker(1, "PHYSICAL_ARSENAL_READY", value=26.6, reason="MEDIUM", category="equipment"),
         marker(2, "NEURAL_PAYOFF_LEDGER_READY", reason="CONSERVATIVE_DIRECT_DAMAGE_AND_HEAL_V1", category="neural_payoff"),
