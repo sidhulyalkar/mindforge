@@ -14,6 +14,10 @@ namespace Mindforge.Traversal
     /// therefore cross mount -> ride -> mounted attack -> dismount without a sidecar tape.
     /// Camera-relative steering is resolved to world space before recording, so replay
     /// movement does not depend on whatever camera yaw happens to be live later.
+    ///
+    /// V0.5 optionally delegates the contextual interact edge to GuardianInteractionRouterV1.
+    /// The hoverbike still owns mount/dismount physics and mounted motion; the router only
+    /// decides which explicit player interaction request should be sent here.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public sealed class GuardianHoverbikeController : MonoBehaviour
@@ -24,12 +28,13 @@ namespace Mindforge.Traversal
         [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private CombatantVitals vitals;
         [SerializeField] private GuardianInputTape inputTape;
+        [SerializeField] private GuardianControlProfileV1 controls;
         [SerializeField] private Camera cameraReference;
 
         [Header("Mount interaction")]
-        [SerializeField] private KeyCode mountKey = KeyCode.E;
         [SerializeField, Min(0.5f)] private float discoveryRadius = 3.2f;
         [SerializeField, Min(0.05f)] private float nearbyRefreshSeconds = 0.18f;
+        [SerializeField] private bool contextInteractionOwned;
 
         [Header("Mounted movement · fixed tick")]
         [SerializeField] private float cruiseSpeed = 15.2f;
@@ -71,7 +76,8 @@ namespace Mindforge.Traversal
         public bool Boosting => Mounted && FixedTick < _boostUntilTick;
         public AetherHoverbikeMount ActiveBike => Mounted ? _activeBike : null;
         public AetherHoverbikeMount NearbyBike => !_mounted ? _nearbyBike : null;
-        public bool CanMountNearby => !_mounted && _nearbyBike != null;
+        public bool CanMountNearby => !_mounted && _nearbyBike != null && CanMount(_nearbyBike);
+        public bool ContextInteractionOwned => contextInteractionOwned;
         public float HorizontalSpeed => _body != null ? Vector3.ProjectOnPlane(_body.velocity, Vector3.up).magnitude : 0f;
         public float Speed01 => Mathf.Clamp01(HorizontalSpeed / Mathf.Max(0.1f, Boosting ? boostSpeed : cruiseSpeed));
         public float CruiseSpeed => Mathf.Max(0.1f, cruiseSpeed);
@@ -111,15 +117,18 @@ namespace Mindforge.Traversal
             }
 
             // Live sampling happens in Update, but every edge is consumed only after the
-            // shared command frame resolves on FixedUpdate.
-            _moveInput = SampleWasdMovement();
-            _mountLatched |= Input.GetKeyDown(mountKey);
+            // shared command frame resolves on FixedUpdate. When the context router is
+            // installed it owns only the interact edge; mounted movement/attack/boost stay here.
+            _moveInput = controls != null ? controls.SampleMovement() : Vector2.zero;
+            if (!contextInteractionOwned && controls != null)
+                _mountLatched |= controls.Pressed(GuardianControlAction.Interact);
             if (!_mounted) return;
 
-            _attackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
-            _boostLatched |= Input.GetKeyDown(KeyCode.LeftShift) ||
-                             Input.GetKeyDown(KeyCode.RightShift) ||
-                             Input.GetMouseButtonDown(1);
+            if (controls != null)
+            {
+                _attackLatched |= controls.Pressed(GuardianControlAction.Blade);
+                _boostLatched |= controls.Pressed(GuardianControlAction.EvadeBoost);
+            }
         }
 
         private void FixedUpdate()
@@ -137,7 +146,7 @@ namespace Mindforge.Traversal
                 aim_x = liveAim.x,
                 aim_y = liveAim.y,
                 aim_z = liveAim.z,
-                mount_toggle_down = _mountLatched,
+                mount_toggle_down = !contextInteractionOwned && _mountLatched,
                 mounted_attack_down = _mounted && _attackLatched,
                 mounted_boost_down = _mounted && _boostLatched,
                 mounted_move_x = liveMountedMove.x,
@@ -155,11 +164,11 @@ namespace Mindforge.Traversal
 
             if (!_mounted)
             {
-                if (command.mount_toggle_down) TryMountNearest();
+                if (!contextInteractionOwned && command.mount_toggle_down) TryMountNearest();
                 return;
             }
 
-            if (command.mount_toggle_down)
+            if (!contextInteractionOwned && command.mount_toggle_down)
             {
                 Dismount(false);
                 return;
@@ -177,32 +186,24 @@ namespace Mindforge.Traversal
             ApplyMountedMovement(aim, command.MountedMove);
         }
 
-        /// <summary>
-        /// Normalizes mounted state before an external physical-authority transition such
-        /// as checkpoint rest/death suspension. Dismount restores the pre-mount foot
-        /// authority first, allowing the checkpoint to snapshot the true conventional
-        /// authority state and then suspend it exactly once.
-        /// </summary>
-        public void PrepareForAuthoritySuspension()
+        public void SetContextInteractionOwned(bool owned)
         {
-            ResolveDependencies();
+            contextInteractionOwned = owned;
             _mountLatched = false;
-            _attackLatched = false;
-            _boostLatched = false;
-            _moveInput = Vector2.zero;
-            if (_mounted) Dismount(true);
         }
 
-        private void TryMountNearest()
+        public bool CanMount(AetherHoverbikeMount bike)
         {
-            if (_mounted) return;
-            AetherHoverbikeMount bike = FindNearestAvailableBike(Mathf.Max(discoveryRadius, 0.5f));
-            if (bike == null || !bike.InRange(transform.position))
-            {
-                if (inputTape != null && inputTape.Mode == GuardianInputTapeMode.Replay)
-                    Debug.LogWarning("[Mindforge:Hoverbike] Replay mount edge could not resolve the authored bike in range.");
-                return;
-            }
+            ResolveDependencies();
+            if (_mounted || bike == null || bike.Occupied || !bike.InRange(transform.position)) return false;
+            if (vitals != null && !vitals.IsAlive) return false;
+            return bladeCombat == null || bladeCombat.ActionState == GuardianActionState.Locomotion;
+        }
+
+        public bool TryMount(AetherHoverbikeMount bike)
+        {
+            ResolveDependencies();
+            if (!CanMount(bike)) return false;
 
             Vector3 mountPoint = bike.MountWorldPoint;
             _footMotorWasEnabled = footMotor != null && footMotor.enabled;
@@ -217,7 +218,7 @@ namespace Mindforge.Traversal
             if (!bike.AttachTo(transform))
             {
                 RestoreFootAuthority();
-                return;
+                return false;
             }
 
             _activeBike = bike;
@@ -229,6 +230,41 @@ namespace Mindforge.Traversal
             _attackLatched = false;
             _boostLatched = false;
             MountedChanged?.Invoke(true);
+            return true;
+        }
+
+        public bool TryMountNearest()
+        {
+            if (_mounted) return false;
+            AetherHoverbikeMount bike = FindNearestAvailableBike(Mathf.Max(discoveryRadius, 0.5f));
+            if (bike == null || !TryMount(bike))
+            {
+                if (inputTape != null && inputTape.Mode == GuardianInputTapeMode.Replay)
+                    Debug.LogWarning("[Mindforge:Hoverbike] Replay mount edge could not resolve the authored bike in range.");
+                return false;
+            }
+            return true;
+        }
+
+        public void RequestDismount(bool emergency = false)
+        {
+            if (_mounted) Dismount(emergency);
+        }
+
+        /// <summary>
+        /// Normalizes mounted state before an external physical-authority transition such
+        /// as checkpoint rest/death suspension. Dismount restores the pre-mount foot
+        /// authority first, allowing the checkpoint to snapshot the true conventional
+        /// authority state and then suspend it exactly once.
+        /// </summary>
+        public void PrepareForAuthoritySuspension()
+        {
+            ResolveDependencies();
+            _mountLatched = false;
+            _attackLatched = false;
+            _boostLatched = false;
+            _moveInput = Vector2.zero;
+            if (_mounted) Dismount(true);
         }
 
         private void Dismount(bool emergency)
@@ -406,17 +442,6 @@ namespace Mindforge.Traversal
             return best;
         }
 
-        private static Vector2 SampleWasdMovement()
-        {
-            float x = 0f;
-            float y = 0f;
-            if (Input.GetKey(KeyCode.A)) x -= 1f;
-            if (Input.GetKey(KeyCode.D)) x += 1f;
-            if (Input.GetKey(KeyCode.S)) y -= 1f;
-            if (Input.GetKey(KeyCode.W)) y += 1f;
-            return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
-        }
-
         private int SecondsToTicks(float seconds)
         {
             float dt = Mathf.Max(0.0001f, Time.fixedDeltaTime);
@@ -432,6 +457,7 @@ namespace Mindforge.Traversal
             if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
             if (vitals == null) vitals = GetComponent<CombatantVitals>();
             if (inputTape == null) inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
+            if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
             if (cameraReference == null) cameraReference = Camera.main;
         }
     }
