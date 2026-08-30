@@ -16,7 +16,7 @@ namespace Mindforge.Editor
     /// </summary>
     public static class ExternalArtReplacementV09
     {
-        private const string ReplacementMarker = "__ExternalV09";
+        public const string ReplacementMarker = "__ExternalV09";
 
         // V0.10 uses explicit recipe -> asset bindings. It may temporarily suppress this V0.9
         // filename heuristic while invoking the inherited production hook, so two replacement
