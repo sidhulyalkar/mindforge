@@ -21,6 +21,7 @@ namespace Mindforge.Editor
     {
         public const string Root = "Assets/Mindforge/Generated/ProductionV09";
         public const string TriplanarShaderName = "Mindforge/ProductionTriplanarLitV09";
+        public const string TriplanarShaderPath = "Assets/Mindforge/Shaders/ProductionTriplanarLitV09.shader";
         public const string Ivory = "ProdIvoryStoneV09";
         public const string Pearl = "ProdPearlCeramicV09";
         public const string WarmStone = "ProdWarmStoneV09";
@@ -36,6 +37,9 @@ namespace Mindforge.Editor
         public static void EnsureAuthored()
         {
             EnsureFolder(Root);
+            // Force shader import/validation before producing or mutating scene-facing materials.
+            // If the URP API ever changes, the showcase fails here rather than rendering pink.
+            RequireTriplanarShader();
 
             Texture2D ivoryAlbedo = EnsureSurfaceTexture("IvoryAlbedo", new Color(0.91f, 0.92f, 0.89f), 0.10f, 2.7f, 17.3f);
             Texture2D ivoryNormal = EnsureNormalTexture("IvoryNormal", 2.7f, 17.3f, 1.15f);
@@ -70,6 +74,19 @@ namespace Mindforge.Editor
 
         public static Material Load(string name)
             => AssetDatabase.LoadAssetAtPath<Material>($"{Root}/{name}.mat");
+
+        private static Shader RequireTriplanarShader()
+        {
+            Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(TriplanarShaderPath);
+            if (shader == null) shader = Shader.Find(TriplanarShaderName);
+            if (shader == null)
+                throw new InvalidOperationException($"{TriplanarShaderName} is required for V0.9 production surfaces.");
+            if (ShaderUtil.ShaderHasError(shader))
+                throw new InvalidOperationException(
+                    $"{TriplanarShaderName} imported with Unity shader compiler errors. " +
+                    "Production material authoring refuses to continue with a magenta fallback.");
+            return shader;
+        }
 
         private static Texture2D EnsureSurfaceTexture(string name, Color baseColor, float variation, float scale, float seed)
         {
@@ -171,9 +188,7 @@ namespace Mindforge.Editor
         {
             string path = $"{Root}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            Shader shader = Shader.Find(TriplanarShaderName);
-            if (shader == null)
-                throw new InvalidOperationException($"{TriplanarShaderName} is required for V0.9 production surfaces.");
+            Shader shader = RequireTriplanarShader();
 
             if (material == null)
             {
