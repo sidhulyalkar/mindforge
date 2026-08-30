@@ -41,7 +41,8 @@ namespace Mindforge.Editor
         private static Mesh BuildBrokenSlab()
         {
             // Irregular top/bottom rings avoid the perfect-box silhouette that dominated the
-            // prototype. The mesh remains simple enough to repeat dozens of times if needed.
+            // prototype. Winding is explicitly outward so stock URP back-face culling remains
+            // valid and we do not need a more expensive Cull Off material workaround.
             Vector3[] top =
             {
                 new Vector3(-0.54f, 0.13f, -0.42f),
@@ -71,10 +72,11 @@ namespace Mindforge.Editor
             for (int i = 0; i < 5; i++)
             {
                 int next = (i + 1) % 5;
-                triangles.Add(topCenter); triangles.Add(i); triangles.Add(next);
-                triangles.Add(bottomCenter); triangles.Add(5 + next); triangles.Add(5 + i);
-                AddQuad(triangles, i, 5 + i, 5 + next, next);
+                triangles.Add(topCenter); triangles.Add(next); triangles.Add(i);
+                triangles.Add(bottomCenter); triangles.Add(5 + i); triangles.Add(5 + next);
+                AddQuad(triangles, i, next, 5 + next, 5 + i);
             }
+            AssertConvexOutward(vertices, triangles, "BrokenSlab");
             return Finish(vertices, triangles);
         }
 
@@ -91,41 +93,65 @@ namespace Mindforge.Editor
             };
             List<int> triangles = new List<int>
             {
-                0,1,2, 0,2,3, 0,3,4, 0,4,1,
-                5,2,1, 5,3,2, 5,4,3, 5,1,4,
+                0,2,1, 0,3,2, 0,4,3, 0,1,4,
+                5,1,2, 5,2,3, 5,3,4, 5,4,1,
             };
+            AssertConvexOutward(vertices, triangles, "SignalShard");
             return Finish(vertices, triangles);
         }
 
         private static Mesh BuildHangingRibbon(int verticalSegments)
         {
             verticalSegments = Mathf.Max(4, verticalSegments);
-            List<Vector3> vertices = new List<Vector3>((verticalSegments + 1) * 2);
-            List<Vector2> uv = new List<Vector2>((verticalSegments + 1) * 2);
-            List<int> triangles = new List<int>(verticalSegments * 12);
+            const float thickness = 0.018f;
+            List<Vector3> vertices = new List<Vector3>((verticalSegments + 1) * 4);
+            List<Vector2> uv = new List<Vector2>((verticalSegments + 1) * 4);
+            List<int> triangles = new List<int>(verticalSegments * 24 + 12);
 
+            // Give the cloth real thickness and independent front/back vertices. The earlier
+            // tempting shortcut of drawing opposite-winding triangles over the same vertices
+            // makes RecalculateNormals average opposing faces toward zero. A tiny closed ribbon
+            // is both more robust and better lit under the ordinary production material.
             for (int i = 0; i <= verticalSegments; i++)
             {
                 float t = i / (float)verticalSegments;
                 float y = 0.5f - t;
                 float taper = Mathf.Lerp(1f, 0.78f, t);
                 float z = Mathf.Sin(t * Mathf.PI * 1.35f) * 0.075f + t * t * 0.055f;
-                vertices.Add(new Vector3(-0.5f * taper, y, z));
-                vertices.Add(new Vector3( 0.5f * taper, y, z + 0.018f * Mathf.Sin(t * 9f)));
+                float leftX = -0.5f * taper;
+                float rightX = 0.5f * taper;
+                float ripple = 0.018f * Mathf.Sin(t * 9f);
+
+                vertices.Add(new Vector3(leftX, y, z - thickness));
+                vertices.Add(new Vector3(rightX, y, z + ripple - thickness));
+                vertices.Add(new Vector3(leftX, y, z + thickness));
+                vertices.Add(new Vector3(rightX, y, z + ripple + thickness));
+                uv.Add(new Vector2(0f, 1f - t));
+                uv.Add(new Vector2(1f, 1f - t));
                 uv.Add(new Vector2(0f, 1f - t));
                 uv.Add(new Vector2(1f, 1f - t));
             }
 
             for (int i = 0; i < verticalSegments; i++)
             {
-                int a = i * 2;
-                int b = a + 1;
-                int c = a + 3;
-                int d = a + 2;
-                AddQuad(triangles, a, d, c, b);
-                // Double-sided without requiring a special cull-off material variant.
-                AddQuad(triangles, b, c, d, a);
+                int fl = i * 4;
+                int fr = fl + 1;
+                int bl = fl + 2;
+                int br = fl + 3;
+                int nfl = fl + 4;
+                int nfr = fl + 5;
+                int nbl = fl + 6;
+                int nbr = fl + 7;
+
+                AddQuad(triangles, fl, fr, nfr, nfl);      // front, -Z
+                AddQuad(triangles, bl, nbl, nbr, br);      // back, +Z
+                AddQuad(triangles, fl, nfl, nbl, bl);      // left edge
+                AddQuad(triangles, fr, br, nbr, nfr);      // right edge
             }
+
+            int last = verticalSegments * 4;
+            AddQuad(triangles, 0, 2, 3, 1);                       // top cap
+            AddQuad(triangles, last, last + 1, last + 3, last + 2); // bottom cap
             return Finish(vertices, uv, triangles);
         }
 
@@ -175,6 +201,24 @@ namespace Mindforge.Editor
             return Finish(vertices, uv, triangles);
         }
 
+        private static void AssertConvexOutward(List<Vector3> vertices, List<int> triangles, string label)
+        {
+            Vector3 center = Vector3.zero;
+            for (int i = 0; i < vertices.Count; i++) center += vertices[i];
+            center /= Mathf.Max(1, vertices.Count);
+
+            for (int i = 0; i + 2 < triangles.Count; i += 3)
+            {
+                Vector3 a = vertices[triangles[i]];
+                Vector3 b = vertices[triangles[i + 1]];
+                Vector3 c = vertices[triangles[i + 2]];
+                Vector3 face = Vector3.Cross(b - a, c - a);
+                Vector3 centroid = (a + b + c) / 3f;
+                if (face.sqrMagnitude < 1e-9f || Vector3.Dot(face, centroid - center) <= 0f)
+                    throw new InvalidOperationException($"{label} generated a degenerate or inward-facing triangle at index {i / 3}.");
+            }
+        }
+
         private static void AddQuad(List<int> triangles, int a, int b, int c, int d)
         {
             triangles.Add(a); triangles.Add(b); triangles.Add(c);
@@ -198,8 +242,17 @@ namespace Mindforge.Editor
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
+
+            Vector3[] normals = mesh.normals;
+            for (int i = 0; i < normals.Length; i++)
+                if (!IsFinite(normals[i]) || normals[i].sqrMagnitude < 0.25f)
+                    throw new InvalidOperationException($"Generated story mesh contains an invalid normal at vertex {i}.");
             return mesh;
         }
+
+        private static bool IsFinite(Vector3 v)
+            => !float.IsNaN(v.x) && !float.IsNaN(v.y) && !float.IsNaN(v.z) &&
+               !float.IsInfinity(v.x) && !float.IsInfinity(v.y) && !float.IsInfinity(v.z);
 
         private static void EnsureFolder(string fullPath)
         {
