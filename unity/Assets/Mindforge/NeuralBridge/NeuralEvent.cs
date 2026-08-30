@@ -35,6 +35,13 @@ namespace Mindforge.Neural
         public long decoder_time_ns;
         public int authority_ttl_ms;
 
+        // Optional V0.8 derived calibration metadata. These are scalar decoder outputs,
+        // never raw EEG. Older v1/v2 producers may omit them without changing behavior.
+        public float stimulus_hz;
+        public int candidate_rank;
+        public float selected_sight_hz;
+        public float selected_guard_hz;
+
         public AuraTarget Target
         {
             get
@@ -58,9 +65,10 @@ namespace Mindforge.Neural
         public bool IsParticipantStop => string.Equals(@event, "PARTICIPANT_STOP", StringComparison.Ordinal);
         public bool IsCalibrationServiceReady => string.Equals(@event, "CALIBRATION_SERVICE_READY", StringComparison.Ordinal);
         public bool IsCalibrationHeartbeat => string.Equals(@event, "CALIBRATION_HEARTBEAT", StringComparison.Ordinal);
+        public bool IsCalibrationCandidateScore => string.Equals(@event, "CALIBRATION_CANDIDATE_SCORE", StringComparison.Ordinal);
         public bool IsCalibrationReady => string.Equals(@event, "CALIBRATION_READY", StringComparison.Ordinal);
         public bool IsCalibrationFailed => string.Equals(@event, "CALIBRATION_FAILED", StringComparison.Ordinal);
-        public bool IsCalibrationStatus => IsCalibrationServiceReady || IsCalibrationHeartbeat || IsCalibrationReady || IsCalibrationFailed;
+        public bool IsCalibrationStatus => IsCalibrationServiceReady || IsCalibrationHeartbeat || IsCalibrationCandidateScore || IsCalibrationReady || IsCalibrationFailed;
         public bool IsControl => IsLost || IsRecovered || IsParticipantStop;
     }
 }
