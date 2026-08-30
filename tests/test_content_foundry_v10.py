@@ -105,18 +105,33 @@ def test_unity_compiler_uses_explicit_bindings_and_strips_external_authority():
     assert "full-rebuild qualification" in text
     assert "ValidateExpectedHash(binding);" in text
     assert "ShaderUtil.ShaderHasError" in text
+    assert "mesh.GetIndexCount(s)" in text
+    assert "mesh.triangles" not in text
     assert "Triangle budget exceeded" in text
     assert "Material budget exceeded" in text
 
 
-def test_foundry_suppresses_v09_filename_heuristic_only_while_compiling():
+def test_foundry_suppresses_and_removes_v09_filename_heuristic_when_it_takes_over():
     foundry = UNITY.read_text(encoding="utf-8")
     legacy = LEGACY_REPLACER.read_text(encoding="utf-8")
+    assert "public const string ReplacementMarker" in legacy
     assert "public static bool SuppressAutomaticReplacement" in legacy
     assert "if (SuppressAutomaticReplacement) return 0;" in legacy
     assert "ExternalArtReplacementV09.SuppressAutomaticReplacement = true;" in foundry
     assert "ExternalArtReplacementV09.SuppressAutomaticReplacement = legacySuppression;" in foundry
+    assert "RestoreFallbacksAndRemoveReplacements(production.transform, ExternalArtReplacementV09.ReplacementMarker)" in foundry
     assert "finally" in foundry
+
+
+def test_incremental_cache_is_reversible_scene_aware_and_bound_asset_content_aware():
+    text = UNITY.read_text(encoding="utf-8")
+    assert "SceneMatchesBindings(production.transform, bindings)" in text
+    assert "RestoreFallbacksAndRemoveReplacements(production.transform, ReplacementMarker)" in text
+    assert "renderers[r].enabled = true" in text
+    assert "FileSha256(absolute)" in text
+    assert "AssetDatabase.GetAssetDependencyHash" in text
+    assert "ProductionTriplanarLitV09.shader" in text
+    assert '"Library", "MindforgeContentFoundry"' in text
 
 
 def test_blender_normalizer_is_static_only_and_enforces_recipe_budgets():
@@ -138,9 +153,8 @@ def test_blender_normalizer_is_static_only_and_enforces_recipe_budgets():
     assert '"bci": False' in text
 
 
-def test_incremental_cache_is_local_and_full_showcase_gate_is_not_replaced():
+def test_full_showcase_gate_is_not_replaced():
     text = UNITY.read_text(encoding="utf-8")
-    assert '"Library", "MindforgeContentFoundry"' in text
     assert "canonical ShowcaseEditorMenu full rebuild" in text
     showcase = (ROOT / "unity/Assets/Mindforge/Editor/ShowcaseEditorMenu.cs").read_text(encoding="utf-8")
     assert "CompetitionSceneAssembler.BuildCompetitionScene();" in showcase
