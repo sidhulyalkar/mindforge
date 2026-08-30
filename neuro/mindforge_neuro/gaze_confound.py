@@ -79,6 +79,7 @@ class PolicyMetrics:
     overt_accuracy: float | None
     covert_accuracy: float | None
     dissociation_accuracy: float | None
+    median_non_target_score_ratio: float | None
     median_peripheral_leakage_ratio: float | None
 
     def to_dict(self) -> dict[str, object]:
@@ -107,6 +108,18 @@ def _gaze_winner(window: EvidenceWindow) -> str | None:
     if window.sight_eccentricity_deg == window.guard_eccentricity_deg:
         return None
     return "sight" if window.sight_eccentricity_deg < window.guard_eccentricity_deg else "guard"
+
+
+def _score_ratio(window: EvidenceWindow) -> float | None:
+    if window.truth == "sight":
+        target, non_target = window.sight_score, window.guard_score
+    elif window.truth == "guard":
+        target, non_target = window.guard_score, window.sight_score
+    else:
+        return None
+    if target <= 1e-9:
+        return None
+    return max(0.0, float(non_target) / float(target))
 
 
 def decide(window: EvidenceWindow, policy: SelectionPolicy) -> str | None:
@@ -190,15 +203,22 @@ def evaluate_policy(windows: Iterable[EvidenceWindow], policy: SelectionPolicy) 
         if disagreements else None
     )
 
-    leakage: list[float] = []
+    # Protocol-conditioned leakage can be measured on any labeled two-target dataset. It says
+    # how large the non-target tag is relative to the instructed target, but it does not prove
+    # where the participant actually looked.
+    protocol_leakage = [ratio for w in commands if (ratio := _score_ratio(w)) is not None]
+
+    # Gaze-verified peripheral leakage is strictly stronger evidence and is populated only after
+    # a synchronized eye-tracking adapter confirms the intended target was also the nearer gaze
+    # target for that window.
+    gaze_verified_leakage: list[float] = []
     for w in commands:
         gaze = _gaze_winner(w)
         if gaze is None or gaze != w.truth:
             continue
-        target = w.sight_score if w.truth == "sight" else w.guard_score
-        non_target = w.guard_score if w.truth == "sight" else w.sight_score
-        if target > 1e-9:
-            leakage.append(max(0.0, float(non_target) / float(target)))
+        ratio = _score_ratio(w)
+        if ratio is not None:
+            gaze_verified_leakage.append(ratio)
 
     def condition_accuracy(name: str) -> float | None:
         subset = [w for w in commands if w.condition.lower() == name]
@@ -224,7 +244,12 @@ def evaluate_policy(windows: Iterable[EvidenceWindow], policy: SelectionPolicy) 
         overt_accuracy=condition_accuracy("overt"),
         covert_accuracy=condition_accuracy("covert"),
         dissociation_accuracy=condition_accuracy("dissociation"),
-        median_peripheral_leakage_ratio=float(np.median(leakage)) if leakage else None,
+        median_non_target_score_ratio=(
+            float(np.median(protocol_leakage)) if protocol_leakage else None
+        ),
+        median_peripheral_leakage_ratio=(
+            float(np.median(gaze_verified_leakage)) if gaze_verified_leakage else None
+        ),
     )
 
 
