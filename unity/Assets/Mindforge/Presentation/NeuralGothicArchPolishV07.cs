@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -18,14 +19,14 @@ namespace Mindforge.Presentation
 
         [SerializeField] private Material architectureMaterial;
         [SerializeField] private Material signalMaterial;
-        [SerializeField, Range(0, 64)] private int maxSharedArches = 24;
+        [SerializeField, Range(0, 64)] private int maxSharedArches = 12;
         [SerializeField, Range(0.02f, 0.30f)] private float architectureThickness = 0.14f;
         [SerializeField, Range(0.01f, 0.12f)] private float signalThickness = 0.035f;
 
         public void ConfigureRuntime(
             Material architecture,
             Material signal,
-            int archBudget = 24)
+            int archBudget = 12)
         {
             architectureMaterial = architecture;
             signalMaterial = signal;
@@ -38,6 +39,7 @@ namespace Mindforge.Presentation
             Clear();
             GeneratedWorldCellV07[] cells = GetComponentsInChildren<GeneratedWorldCellV07>(true);
             if (cells == null || cells.Length == 0) return 0;
+            Array.Sort(cells, CompareCells);
 
             Dictionary<Vector2Int, GeneratedWorldCellV07> byGrid = new Dictionary<Vector2Int, GeneratedWorldCellV07>();
             for (int i = 0; i < cells.Length; i++)
@@ -130,7 +132,7 @@ namespace Mindforge.Presentation
             CreateBeam("PointedArchSignal_Left", root, innerLeft, innerApex, signalThickness, signalMaterial, false);
             CreateBeam("PointedArchSignal_Right", root, innerRight, innerApex, signalThickness, signalMaterial, false);
 
-            GameObject key = CreateVisual(
+            CreateVisual(
                 "PointedArch_Key",
                 PrimitiveType.Sphere,
                 root,
@@ -138,7 +140,6 @@ namespace Mindforge.Presentation
                 Vector3.one * 0.18f,
                 signalMaterial,
                 false);
-            if (key != null) key.transform.localScale = Vector3.one * 0.18f;
             return true;
         }
 
@@ -198,6 +199,15 @@ namespace Mindforge.Presentation
             }
             go.isStatic = true;
             return go;
+        }
+
+        private static int CompareCells(GeneratedWorldCellV07 a, GeneratedWorldCellV07 b)
+        {
+            if (ReferenceEquals(a, b)) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+            int y = a.Grid.y.CompareTo(b.Grid.y);
+            return y != 0 ? y : a.Grid.x.CompareTo(b.Grid.x);
         }
     }
 }
