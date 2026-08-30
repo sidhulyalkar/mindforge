@@ -16,6 +16,7 @@ def test_pointed_arch_polish_follows_shared_topology_and_adds_no_collision():
         'Revision = "NEURAL_GOTHIC_ARCH_POLISH_V07"',
         'RootName = "NeuralGothicArchPolish_V07"',
         "GeneratedWorldCellV07[] cells",
+        "Array.Sort(cells, CompareCells)",
         "Dictionary<Vector2Int, GeneratedWorldCellV07>",
         "cell.IsOpen(direction)",
         "neighbor.IsOpen(opposite)",
@@ -26,7 +27,8 @@ def test_pointed_arch_polish_follows_shared_topology_and_adds_no_collision():
         "PointedArchSignal_Left",
         "PointedArchSignal_Right",
         "PointedArch_Key",
-        "maxSharedArches = 24",
+        "maxSharedArches = 12",
+        "CompareCells(GeneratedWorldCellV07 a, GeneratedWorldCellV07 b)",
     ):
         assert token in source
 
@@ -93,6 +95,7 @@ def test_readability_builder_layers_after_v07_and_reaudits_scene_budget():
         "annex.AddComponent<NeuralGothicArchPolishV07>()",
         "v07Root.AddComponent<BciSafeDecorativeLightingV07>()",
         "FindObjectOfType<AwakeningCalibrationDirector>(true)",
+        "archBudget: 12",
         "showcaseScale: 1f",
         "bciScale: 0.38f",
         "audit.Evaluate(true)",
