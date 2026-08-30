@@ -42,7 +42,9 @@ This is the closest match for desktop Mindforge. Pupil Labs maps Neon scene-came
 - `GazeMapper(device.get_calibration())`;
 - four or more AprilTags with known screen coordinates;
 - `receive_matched_scene_video_frame_and_gaze()`;
-- `gaze_mapper.process_frame(...)` to recover screen-space gaze.
+- `gaze_mapper.process_frame(...)` to recover normalized surface gaze.
+
+The current mapper returns `MarkerMappedGaze.x/y` directly in normalized surface coordinates and reports whether the point is on the tracked surface. Its surface registration converts top-left display pixels into bottom-left surface UV coordinates. Mindforge therefore forwards valid mapped values directly and declares `coordinate_origin=bottom_left`; it does not divide them by display dimensions again.
 
 Mindforge V0.11 follows that public API shape in `tools/mindforge_gaze.py neon-screen` but does not vendor Pupil Labs code.
 
@@ -119,6 +121,8 @@ The `GazeTargetLockAssist` runs after the ordinary target-lock component. If the
 
 This is deliberately conservative. It creates a perceptible gameplay benefit without the eye-tracking "Midas touch" problem where merely looking at an object accidentally activates it.
 
+Desktop surface mapping also depends on scene-camera frames to locate the monitor, so it should be treated as an attention-selection channel rather than a frame-critical parry/attack channel. Neon XR can later provide a direct world-space gaze ray without that screen-surface mapping step.
+
 ## GazeEvent v1 boundary
 
 `contracts/gaze_event.v1.schema.json` contains only derived game-space evidence:
@@ -161,9 +165,9 @@ The bridge:
 3. gets the scene-camera calibration;
 4. defines the display as a tracked Pupil surface;
 5. receives matched scene frames + gaze;
-6. maps gaze into screen pixels;
-7. normalizes to `[0, 1]`;
-8. emits `GazeEvent v1` on loopback UDP `19746`.
+6. maps gaze directly into normalized display-surface coordinates;
+7. rejects mapped points outside the tracked display and preserves the mapper's bottom-left surface origin in `GazeEvent v1`;
+8. emits the derived event on loopback UDP `19746`.
 
 All four markers must remain visible to the glasses' scene camera. For a first validation, use one monitor and 100% OS scaling where practical; multi-monitor and scaled-window mapping should be qualified separately rather than assumed.
 
@@ -205,6 +209,7 @@ Acceptance gate:
 - look between enemies without `T` => no lock changes;
 - gaze disconnect => suggestion expires within the configured timeout;
 - malformed, stale, out-of-order packets cannot affect gameplay;
+- off-surface mapped gaze is rejected rather than clamped into a false edge target;
 - mouse simulation, replay, and live Neon use the same Unity path.
 
 ### V0.11B: gaze-aware contextual interaction
