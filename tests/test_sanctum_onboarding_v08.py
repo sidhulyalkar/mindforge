@@ -161,7 +161,7 @@ def test_participant_specific_calibration_extension_is_derived_data_only_and_per
         assert token in source
 
 
-def test_sanctum_has_natural_world_reveal_and_restrained_bright_palette():
+def test_sanctum_has_natural_world_reveal_true_bright_surfaces_and_blue_sky():
     materials = read("Editor", "SanctumMaterialAuthoringV08.cs")
     builder = read("Editor", "SanctumOnboardingV08Builder.cs")
 
@@ -172,8 +172,13 @@ def test_sanctum_has_natural_world_reveal_and_restrained_bright_palette():
         "SanctumBlueGlassV08",
         "SanctumWaterV08",
         "SanctumGardenV08",
+        "SanctumSkyV08",
     ):
         assert name in materials
+
+    assert 'material.SetTexture("_BaseMap", Texture2D.whiteTexture)' in materials
+    assert 'Shader.Find("Skybox/Procedural")' in materials
+    assert "RenderSettings.skybox = sky" in materials
 
     for token in (
         '"WaterL"',
@@ -189,13 +194,39 @@ def test_sanctum_has_natural_world_reveal_and_restrained_bright_palette():
         assert token in builder
 
 
+def test_memory_forge_is_represented_by_bright_hero_art_without_duplicate_authority():
+    hero = read("Editor", "SanctumHeroV08Builder.cs")
+
+    assert "FindObjectOfType<MemoryForgeCheckpoint>" in hero
+    assert "checkpoint.InteractionPoint" in hero
+    assert '"Memory_Forge_Sanctum_Altar_V08"' in hero
+    assert '"ForgeCore"' in hero
+    assert '"ForgeHaloOuter"' in hero
+    assert "AddComponent<MemoryForgeCheckpoint>" not in hero
+    assert "AddComponent<MemoryForgeInteractionV1>" not in hero
+
+
+def test_profile_v2_restores_opening_phase_and_threshold_physical_state():
+    restore = read("World", "OpeningExperiencePersistenceV08.cs")
+
+    for token in (
+        '"profile.opening.v08.phase"',
+        "Enum.TryParse",
+        "opening?.RestorePhase(restoredPhase)",
+        '"profile.opening.sanctum_threshold_unlocked"',
+        "sanctumThreshold?.SetOpen(true, true)",
+    ):
+        assert token in restore
+
+
 def test_v08_runs_after_v07_but_before_validation():
     menu = read("Editor", "ShowcaseEditorMenu.cs")
     v06 = menu.index("WorldV06Builder.ApplyOpenScene();")
     v07 = menu.index("WorldV07Builder.ApplyOpenScene();")
     v08 = menu.index("SanctumOnboardingV08Builder.ApplyOpenScene();")
+    hero = menu.index("SanctumHeroV08Builder.ApplyOpenScene();")
     validation = menu.index("CompetitionGateValidator.ValidateAndWrite(false);")
-    assert v06 < v07 < v08 < validation
+    assert v06 < v07 < v08 < hero < validation
 
     # Preserve the exact wording required by the V0.5 UI regression contract.
     assert "Tab opens kit + controls + objective" in menu
@@ -204,8 +235,10 @@ def test_v08_runs_after_v07_but_before_validation():
 def test_v08_unity_guids_exist_and_are_unique_repository_wide():
     metas = (
         UNITY / "World" / "OpeningExperienceV08.cs.meta",
+        UNITY / "World" / "OpeningExperiencePersistenceV08.cs.meta",
         UNITY / "Editor" / "SanctumMaterialAuthoringV08.cs.meta",
         UNITY / "Editor" / "SanctumOnboardingV08Builder.cs.meta",
+        UNITY / "Editor" / "SanctumHeroV08Builder.cs.meta",
     )
     expected = []
     for path in metas:
