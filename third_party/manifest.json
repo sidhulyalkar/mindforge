@@ -39,6 +39,15 @@
       "asset_policy": "Procedural texture-authoring workflow reference only. V0.9 texture synthesis is an original Unity/C# implementation; no Material Maker source or binary textures are copied."
     },
     {
+      "id": "cyanilux.urp_shader_code_templates",
+      "name": "URP Shader Code Templates",
+      "upstream": "https://github.com/Cyanilux/URP_ShaderCodeTemplates",
+      "license": "CC0-1.0",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Used to cross-check URP ForwardLit, ShadowCaster and DepthOnly pass structure. Mindforge's world-space triplanar coordinates, axis blending, normal-basis conversion and distance-bounded normal sampling are project-authored; no upstream shader file is vendored."
+    },
+    {
       "id": "quaternius.production_art_source",
       "name": "Quaternius production art packs",
       "upstream": "https://quaternius.com/",
