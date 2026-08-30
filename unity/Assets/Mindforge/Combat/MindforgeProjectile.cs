@@ -1,5 +1,6 @@
 using UnityEngine;
 using Mindforge.Presentation;
+using Mindforge.World;
 
 namespace Mindforge.Combat
 {
@@ -78,7 +79,14 @@ namespace Mindforge.Combat
             _consumed = false;
             _neuralPayoffKind = neuralPayoffKind;
             _neuralBonusDamage = Mathf.Clamp(neuralBonusDamage, 0f, Mathf.Max(0f, newDamage));
-            _body.velocity = velocity;
+
+            // V0.8 changes readability at the projectile boundary instead of rewriting every
+            // enemy attack table. Only hostile launch velocity is scaled. Reflected Guardian
+            // shots preserve their explicit speed and therefore remain mechanically crisp.
+            Vector3 launchVelocity = newTeam == CombatTeam.Enemy
+                ? velocity * OpeningExperienceDirectorV08.EnemyProjectileSpeedScale
+                : velocity;
+            _body.velocity = launchVelocity;
             ApplyVisualIdentity();
         }
 
