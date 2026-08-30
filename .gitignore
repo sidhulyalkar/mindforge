@@ -14,6 +14,12 @@ unity/Assets/Mindforge/Generated/
 unity/Assets/Mindforge/Scenes/Mindforge_Competition.unity
 unity/Assets/Mindforge/Scenes/Mindforge_Competition.unity.meta
 
+# Local production-art source packs
+# Some third-party art licenses permit incorporation into the built game while restricting
+# redistribution of the raw asset files. Keep the source drop private/local and use the
+# editor ingestion seam in ExternalArtDropV09.cs.
+unity/Assets/Mindforge/LocalArt/
+
 # IDE / OS
 .vscode/
 .idea/
