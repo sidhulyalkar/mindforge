@@ -6,10 +6,13 @@ ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtV09Builder.cs"
 MATERIALS = ROOT / "unity/Assets/Mindforge/Editor/ProductionMaterialAuthoringV09.cs"
 MESHES = ROOT / "unity/Assets/Mindforge/Editor/ProductionMeshLibraryV09.cs"
+POSTFX = ROOT / "unity/Assets/Mindforge/Editor/ProductionPostFxV09Builder.cs"
 EXTERNAL = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtDropV09.cs"
 REPLACEMENT = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtReplacementV09.cs"
 HOOK = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtAutoHookV09.cs"
 HUD = ROOT / "unity/Assets/Mindforge/Presentation/ProductionHudV09.cs"
+PLAYER_GUIDE = ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs"
+CONTROLLER_ONLY = ROOT / "unity/Assets/Mindforge/Qualification/ControllerOnlyQualificationBootstrap.cs"
 GUARDIAN = ROOT / "unity/Assets/Mindforge/Presentation/ProductionGuardianV09.cs"
 ECHO = ROOT / "unity/Assets/Mindforge/Presentation/ProductionEchoVisualV09.cs"
 ECHO_BOOTSTRAP = ROOT / "unity/Assets/Mindforge/Presentation/ProductionEchoVisualBootstrapV09.cs"
@@ -112,6 +115,32 @@ def test_v09_production_art_does_not_create_gameplay_authority():
         assert token not in text
     assert "UnityEngine.Object.DestroyImmediate(collider)" in text
     assert "GetComponentsInChildren<Collider>" not in text
+
+
+def test_production_postfx_is_restrained_gameplay_safe_urp_finishing():
+    text = read(POSTFX)
+    assert "UnityEngine.Rendering.Universal" in text
+    assert "VolumeProfile" in text
+    assert "TonemappingMode.ACES" in text
+    assert "profile.Add<Bloom>(true)" in text
+    assert "bloom.intensity.Override(0.22f)" in text
+    assert "color.contrast.Override(7f)" in text
+    assert "vignette.intensity.Override(0.115f)" in text
+    assert "renderPostProcessing = true" in text
+    assert "AntialiasingMode.SubpixelMorphologicalAntiAliasing" in text
+    assert "AntialiasingQuality.High" in text
+    for forbidden in (
+        "DepthOfField",
+        "MotionBlur",
+        "ChromaticAberration",
+        "LensDistortion",
+        "AddComponent<Rigidbody>",
+        "TakeDamage",
+        "Input.Get",
+        "UdpNeuralReceiver",
+        "NeuralEvent",
+    ):
+        assert forbidden not in text
 
 
 def test_local_asset_ingestion_is_gitignored_and_strips_external_authority():
@@ -217,8 +246,13 @@ def test_fractured_echo_gets_a_lifecycle_safe_production_reliquary_shell():
     assert "_visualRoot.gameObject.SetActive(true)" in text
     assert "Destroy(_ownedMeshes[i])" in text
     for forbidden in (
-        "Rigidbody",
-        "Collider",
+        "GetComponent<Rigidbody>",
+        "GetComponentsInChildren<Rigidbody>",
+        "AddComponent<Rigidbody>",
+        "GetComponent<Collider>",
+        "GetComponentsInChildren<Collider>",
+        "AddComponent<Collider>",
+        "collider.enabled",
         "TakeDamage",
         "SetExternalPause",
         "projectilePrefab",
@@ -236,8 +270,10 @@ def test_spawned_boss_echoes_are_skinned_by_a_bounded_presentation_only_scanner(
     assert "echo.gameObject.AddComponent<ProductionEchoVisualV09>()" in text
     assert "visual.ConfigureRuntime(shell, hostile, trim)" in text
     for forbidden in (
-        "Rigidbody",
-        "Collider",
+        "GetComponent<Rigidbody>",
+        "AddComponent<Rigidbody>",
+        "GetComponent<Collider>",
+        "AddComponent<Collider>",
         "TakeDamage",
         "SetExternalPause",
         "ConfigureWorldEcho",
@@ -262,6 +298,26 @@ def test_compact_hud_replaces_debug_panels_without_claiming_neural_authority():
         assert forbidden not in text
 
 
+def test_production_hud_becomes_single_ordinary_ui_voice_but_keeps_spatial_reticles_and_judge_lens():
+    guide = read(PLAYER_GUIDE)
+    controller = read(CONTROLLER_ONLY)
+    assert "DrawAimReticle();" in guide
+    assert "DrawTargetFocusIndicator();" in guide
+    assert "if (ProductionHudV09.Active)" in guide
+    assert "if (_judgeLens) DrawJudgeLens();" in guide
+    assert guide.index("DrawTargetFocusIndicator();") < guide.index("if (ProductionHudV09.Active)")
+    # The old lesson/lock/Tab vocabulary remains available outside production mode.
+    assert '"TAB") + "  KIT + CONTROLS"' in guide
+    assert "CurrentLesson()" in guide
+
+    # Controller-only provenance still exists, but its duplicate watermark yields to the
+    # production chip while the exact GameMarker declaration remains unchanged.
+    assert "if (ProductionHudV09.Active) return;" in controller
+    assert '"QUALIFICATION_MODE"' in controller
+    assert 'reason: "CONTROLLER_ONLY_NO_BCI"' in controller
+    assert '$"SHOWCASE · BCI OFF · {_activationReason}"' in controller
+
+
 def test_deferred_scene_save_hook_runs_v09_after_the_synchronous_v08_visual_stack():
     text = read(HOOK)
     assert "EditorSceneManager.sceneSaved += _ =>" in text
@@ -269,6 +325,8 @@ def test_deferred_scene_save_hook_runs_v09_after_the_synchronous_v08_visual_stac
     assert "EditorSceneManager.sceneSaved += _ => TryApply();" not in text
     assert "ReferenceFidelityReady()" in text
     assert "ProductionArtV09Builder.ApplyOpenScene();" in text
+    assert "EnsurePostFx(production);" in text
+    assert "ProductionPostFxV09Builder.ApplyOpenScene();" in text
     assert "ExternalArtReplacementV09.ApplyOpenScene();" in text
     assert "arena.AddComponent<ProductionHudV09>()" in text
     assert "arena.AddComponent<ProductionEchoVisualBootstrapV09>()" in text
@@ -277,9 +335,13 @@ def test_deferred_scene_save_hook_runs_v09_after_the_synchronous_v08_visual_stac
     assert "production.ConfigureRuntime(pearl, graphite, gold, aether);" in text
 
 
-def test_v09_new_runtime_scripts_have_unique_unity_meta_guids():
+def test_v09_new_runtime_and_editor_scripts_have_unique_unity_meta_guids():
     assets = ROOT / "unity/Assets"
-    metas = [Path(str(ECHO) + ".meta"), Path(str(ECHO_BOOTSTRAP) + ".meta")]
+    metas = [
+        Path(str(ECHO) + ".meta"),
+        Path(str(ECHO_BOOTSTRAP) + ".meta"),
+        Path(str(POSTFX) + ".meta"),
+    ]
     for meta in metas:
         assert meta.exists(), meta
         guid_line = next(line for line in meta.read_text(encoding="utf-8").splitlines() if line.startswith("guid: "))
