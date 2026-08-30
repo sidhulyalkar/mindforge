@@ -26,7 +26,9 @@ def test_wasd_is_canonical_direct_input_and_camera_owns_mouse_arrow_orbit():
         assert key in camera
     assert "arrowYawSpeed" in camera
     assert "arrowPitchSpeed" in camera
-    assert "orbit camera (handled by ShowcaseCameraRig)" in combat
+    assert "Canonical player vocabulary is supplied by GuardianControlProfileV1" in combat
+    assert "KeyCode.LeftArrow" not in read("Combat", "GuardianTargetLock.cs")
+    assert "KeyCode.RightArrow" not in read("Combat", "GuardianTargetLock.cs")
 
 
 def test_movement_uses_target_velocity_response_and_third_person_facing():
