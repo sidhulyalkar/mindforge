@@ -22,6 +22,7 @@ def read(path: Path) -> str:
 
 def test_v09_is_a_visual_replacement_pass_not_another_primitive_clutter_layer():
     text = read(ART)
+    normalized = " ".join(text.split())
     assert 'RootName = "Mindforge_Production_Art_V09"' in text
     assert "HideSanctumBlockoutRenderers" in text
     assert "RethemeGroundedWorld" in text
@@ -36,8 +37,8 @@ def test_v09_is_a_visual_replacement_pass_not_another_primitive_clutter_layer():
         "Production_Skyline",
     ):
         assert token in text
-    assert "the old geometry as collision proxies" in text
-    assert "leaves colliders/interactions untouched" in text
+    assert "treats the old geometry as collision proxies" in normalized
+    assert "leaves colliders/interactions untouched" in normalized
 
 
 def test_production_materials_generate_real_albedo_and_normal_texture_detail():
