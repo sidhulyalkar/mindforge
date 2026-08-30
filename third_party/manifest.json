@@ -4,7 +4,8 @@
     "allow_reference_only_without_vendored_files": true,
     "require_license_notice_for_vendored_code": true,
     "require_asset_level_provenance_for_binary_art": true,
-    "unknown_or_ambiguous_assets_allowed": false
+    "unknown_or_ambiguous_assets_allowed": false,
+    "local_only_restricted_source_art_must_be_gitignored": true
   },
   "entries": [
     {
@@ -18,6 +19,33 @@
         "unity/Assets/Mindforge/ThirdParty/Wfc/LICENSE.txt"
       ],
       "asset_policy": "No upstream sample images or tile artwork are copied."
+    },
+    {
+      "id": "ellisonleao.magictools",
+      "name": "magictools",
+      "upstream": "https://github.com/ellisonleao/magictools",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Discovery/catalog reference only. Every downstream tool or asset retains its own license and must be reviewed independently before use."
+    },
+    {
+      "id": "rodzill4.material_maker",
+      "name": "Material Maker",
+      "upstream": "https://github.com/RodZill4/material-maker",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Procedural texture-authoring workflow reference only. V0.9 texture synthesis is an original Unity/C# implementation; no Material Maker source or binary textures are copied."
+    },
+    {
+      "id": "quaternius.production_art_source",
+      "name": "Quaternius production art packs",
+      "upstream": "https://quaternius.com/",
+      "license": "QAL-1.0 global license page last updated 2026-08-28; individual legacy pack pages may display earlier CC0 terms",
+      "usage": "local_asset_source",
+      "vendored_paths": [],
+      "asset_policy": "Conservative project policy: raw Quaternius source assets are never committed to the public Mindforge repository. User-obtained packs live only under git-ignored unity/Assets/Mindforge/LocalArt and may be incorporated into built game products subject to the license version governing the obtained asset."
     },
     {
       "id": "chichord.unity_modular_procedural_generation",
@@ -35,7 +63,7 @@
       "license": "CC0-1.0 for the example ShaderGraph directory",
       "usage": "reference_only",
       "vendored_paths": [],
-      "asset_policy": "No ShaderGraph or binary art imported in V0.7."
+      "asset_policy": "No ShaderGraph or binary art imported in V0.7/V0.9."
     },
     {
       "id": "delt06.urp_toon_shader_cyberpunk_demo",
@@ -53,7 +81,7 @@
       "license": "MIT",
       "usage": "reference_only",
       "vendored_paths": [],
-      "asset_policy": "URP technique reference only; no shader or binary assets copied in V0.7."
+      "asset_policy": "URP technique reference only; no shader or binary assets copied in V0.7/V0.9."
     }
   ],
   "binary_art_assets": []
