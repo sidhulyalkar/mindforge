@@ -46,6 +46,7 @@ namespace Mindforge.World
 
         public int Seed => seed;
         public Vector2Int GridSize => gridSize;
+        public Transform GeneratedRoot => transform.Find(GeneratedRootName);
 
         private void Start()
         {
@@ -147,6 +148,19 @@ namespace Mindforge.World
                 instance.transform.localPosition = localPosition;
                 BuildFallbackTile(instance.transform, tile);
             }
+
+            GeneratedWorldCellV07 metadata = instance.GetComponent<GeneratedWorldCellV07>();
+            if (metadata == null) metadata = instance.AddComponent<GeneratedWorldCellV07>();
+            metadata.Configure(
+                x,
+                y,
+                tile.id,
+                tile.north,
+                tile.east,
+                tile.south,
+                tile.west,
+                tile.heightSteps,
+                cellSize);
         }
 
         private void BuildFallbackTile(Transform parent, WorldTileDefinitionV06 tile)
