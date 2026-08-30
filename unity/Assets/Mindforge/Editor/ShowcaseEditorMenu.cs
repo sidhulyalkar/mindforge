@@ -53,7 +53,7 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
                 "Shift/RMB evades on foot and boosts while mounted; T locks and mouse wheel cycles targets; F/LMB swings/parries; " +
-                "E is the single contextual world action for ride/dismount/reconstruct; Q/C/R are advanced skills; Tab opens kit + controls + objective.");
+                "E is the single contextual world action for ride/dismount/reconstruct/world use; Q/C/R are advanced skills; Tab opens kit + controls + objective.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -111,9 +111,12 @@ namespace Mindforge.Editor
                 // Semantic systems bind only after the final authored gameplay/world graph exists.
                 GameFoundationV1Builder.ApplyOpenScene();
 
-                // Player-facing control, interaction and safe persistence bind last so they
-                // reference the final Guardian, mount, checkpoint and semantic foundation.
+                // Player-facing control and context bind after the semantic foundation.
                 UxInteractionSaveV05Builder.ApplyOpenScene();
+
+                // V0.6 persistent physical content binds last. Its stable ids and save adapters
+                // therefore observe the final authored world without owning earlier systems.
+                WorldPersistenceContentV06Builder.ApplyOpenScene();
             }
             finally
             {
@@ -163,7 +166,11 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] UX + Interaction + Save V0.5 ready: one canonical control profile drives gameplay labels; E is one contextual action; " +
                 "arrows remain camera-only while mouse wheel cycles locked targets; V5 input tapes record context separately from legacy mount edges; " +
-                "safe profile persistence stores progression/reward receipts plus non-physical story/profile facts only. Full encounter/boss resume remains gated on physical restore adapters.");
+                "safe profile persistence stores progression/reward receipts plus non-physical story/profile facts only.");
+            Debug.Log(
+                "[Mindforge:Showcase] World Persistence + Content V0.6 proof ready: an optional Market Resonance Cache uses stable physical authority ids, " +
+                "a persistent collision-backed gate and receipt-safe +25 Resonance pickup. Memory Forge rest captures a validated, deterministic safe-boundary " +
+                "world snapshot. Arbitrary mid-combat encounter/boss resume remains intentionally unclaimed until dedicated authority adapters are qualified.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
