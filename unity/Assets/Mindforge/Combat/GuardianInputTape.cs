@@ -47,6 +47,10 @@ namespace Mindforge.Combat
         public float mounted_move_y;
         public float mounted_move_z;
 
+        // v5 contextual world interaction. This is deliberately separate from the historical
+        // mount edge so old V4 E presses cannot acquire new gameplay meanings during replay.
+        public bool context_down;
+
         public Vector2 Move => new Vector2(move_x, move_y);
         public Vector3 Aim => new Vector3(aim_x, aim_y, aim_z);
         public Vector3 MountedMove => new Vector3(mounted_move_x, mounted_move_y, mounted_move_z);
@@ -77,14 +81,15 @@ namespace Mindforge.Combat
                 mounted_move_x = mounted_move_x,
                 mounted_move_y = mounted_move_y,
                 mounted_move_z = mounted_move_z,
+                context_down = context_down,
             };
         }
 
         /// <summary>
         /// Multiple conventional-input consumers may contribute to one simulation tick.
         /// One-shot edges are unioned; held movement/aim are replaced only by meaningful
-        /// values. This keeps one command frame authoritative across foot and mounted mode
-        /// without creating a second vehicle tape or advancing replay twice per tick.
+        /// values. This keeps one command frame authoritative across foot, mounted and
+        /// contextual interaction modes without creating sidecar tapes.
         /// </summary>
         public void MergeFrom(GuardianCommandFrame other)
         {
@@ -124,6 +129,7 @@ namespace Mindforge.Combat
             mount_toggle_down |= other.mount_toggle_down;
             mounted_attack_down |= other.mounted_attack_down;
             mounted_boost_down |= other.mounted_boost_down;
+            context_down |= other.context_down;
         }
 
         public static GuardianCommandFrame Neutral(long tick)
@@ -133,7 +139,7 @@ namespace Mindforge.Combat
     [Serializable]
     public sealed class GuardianInputTapeEnvelope
     {
-        public string schema = GuardianInputTape.SchemaV4;
+        public string schema = GuardianInputTape.SchemaV5;
         public string session_id;
         public string generated_utc;
         public int fixed_hz;
@@ -146,9 +152,9 @@ namespace Mindforge.Combat
     /// filesystem stalls. Replay fails neutral when exhausted; it never falls back to
     /// live input because that would silently destroy determinism.
     ///
-    /// V4 makes resolution idempotent per absolute simulation tick. Foot and mounted
-    /// consumers may both ask for the same tick without duplicating a recorded frame or
-    /// consuming two replay frames.
+    /// Resolution is idempotent per absolute simulation tick. Foot, mounted and context
+    /// consumers may all ask for the same tick without duplicating a recorded frame or
+    /// consuming multiple replay frames.
     /// </summary>
     public sealed class GuardianInputTape : MonoBehaviour
     {
@@ -156,6 +162,7 @@ namespace Mindforge.Combat
         public const string SchemaV2 = "mindforge.guardian_input_tape.v2";
         public const string SchemaV3 = "mindforge.guardian_input_tape.v3";
         public const string SchemaV4 = "mindforge.guardian_input_tape.v4";
+        public const string SchemaV5 = "mindforge.guardian_input_tape.v5";
 
         [SerializeField] private GuardianInputTapeMode mode = GuardianInputTapeMode.Live;
         [SerializeField] private string tapePath;
@@ -171,7 +178,9 @@ namespace Mindforge.Combat
         public GuardianInputTapeMode Mode => mode;
         public int ReplayIndex => _replayIndex;
         public int FrameCount => _tape != null && _tape.frames != null ? _tape.frames.Count : 0;
+        public string LoadedSchema => _tape != null ? _tape.schema : SchemaV5;
         public string LatestSavedPath { get; private set; }
+        public bool IsLegacyPreContextReplay => mode == GuardianInputTapeMode.Replay && LoadedSchema != SchemaV5;
 
         public static long FixedTickNow
         {
@@ -255,7 +264,7 @@ namespace Mindforge.Combat
             if (_tape != null) return;
             _tape = new GuardianInputTapeEnvelope
             {
-                schema = SchemaV4,
+                schema = SchemaV5,
                 session_id = MindforgeSessionContext.GameSessionId,
                 generated_utc = DateTime.UtcNow.ToString("O"),
                 fixed_hz = _fixedHz,
@@ -268,15 +277,16 @@ namespace Mindforge.Combat
             if (!File.Exists(path))
                 throw new FileNotFoundException("Guardian input replay tape not found", path);
             _tape = JsonUtility.FromJson<GuardianInputTapeEnvelope>(File.ReadAllText(path));
-            if (_tape == null ||
-                (_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3 && _tape.schema != SchemaV4) ||
-                _tape.frames == null)
+            if (_tape == null || !SupportedSchema(_tape.schema) || _tape.frames == null)
                 throw new InvalidDataException($"Unsupported or malformed Guardian input tape: {path}");
             _replayIndex = 0;
             _lastResolvedTick = long.MinValue;
             _lastResolvedFrame = null;
             Debug.Log($"[Mindforge] Guardian input replay loaded: {path} schema={_tape.schema} frames={_tape.frames.Count}");
         }
+
+        private static bool SupportedSchema(string schema)
+            => schema == SchemaV1 || schema == SchemaV2 || schema == SchemaV3 || schema == SchemaV4 || schema == SchemaV5;
 
         private string ResolveTapePath(bool forReplay)
         {
