@@ -59,6 +59,7 @@ jobs:
           python -m py_compile tools/content_foundry.py
           python -m py_compile tools/mindforge_gaze.py
           python -m py_compile tools/evaluate_ssvep_game_design.py
+          python -m py_compile tools/run_moabb_guttmann_ssvep.py
           python -m py_compile tools/blender/normalize_static_asset_v10.py
 
       - name: Validate Content Foundry contracts
