@@ -61,6 +61,24 @@ namespace Mindforge.Presentation
         {
             if (_guardian == null || _boss == null) return;
 
+            // Unity does not define Start ordering across runtime bootstraps. Keep the actors
+            // aligned to their visible floors until the Guardian actually leaves the spawn area.
+            if (_guardian.position.z < -16.5f && _guardian.position.y < 0.92f)
+            {
+                Vector3 p = _guardian.position;
+                p.y = 1.05f;
+                _guardian.position = p;
+                Rigidbody body = _guardian.GetComponent<Rigidbody>();
+                if (body != null && body.velocity.y < 0f)
+                    body.velocity = new Vector3(body.velocity.x, 0f, body.velocity.z);
+            }
+            if (!_bossReleased && _boss.transform.position.y < 5.75f)
+            {
+                Vector3 p = _boss.transform.position;
+                p.y = 5.9f;
+                _boss.transform.position = p;
+            }
+
             if (!_bossReleased && _guardian.position.z >= bossReleaseZ)
             {
                 _bossReleased = true;
