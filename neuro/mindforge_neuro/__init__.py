@@ -17,6 +17,17 @@ from .calibration import (
     personalized_ssvep_config,
     rank_participant_frequency_pairs,
 )
+from .gaze_confound import (
+    EvidenceWindow,
+    GameDesignRecommendation,
+    PolicyMetrics,
+    SelectionPolicy,
+    decide as decide_gaze_conditioned_ssvep,
+    evaluate_policy,
+    gameplay_loss,
+    recommend_game_architecture,
+    tune_policy,
+)
 from .markers import GameMarker, GameMarkerType, UdpGameMarkerSource
 from .dev_sources import DecisionSimulationConfig, DecisionSimulator, NeuralEventTape, TapeEntry
 
@@ -34,6 +45,15 @@ __all__ = [
     "calibrate_decoder",
     "rank_participant_frequency_pairs",
     "personalized_ssvep_config",
+    "EvidenceWindow",
+    "SelectionPolicy",
+    "PolicyMetrics",
+    "GameDesignRecommendation",
+    "decide_gaze_conditioned_ssvep",
+    "evaluate_policy",
+    "gameplay_loss",
+    "tune_policy",
+    "recommend_game_architecture",
     "GameMarker",
     "GameMarkerType",
     "UdpGameMarkerSource",
