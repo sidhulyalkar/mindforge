@@ -7,11 +7,9 @@ using Mindforge.Presentation;
 namespace Mindforge.Editor
 {
     /// <summary>
-    /// Transitional integration hook while the V0.9 production-art tranche is developed.
-    /// V0.8 builders save the scene during the canonical one-click showcase rebuild. V0.9
-    /// waits for the reference-fidelity root and, crucially, defers scene-save reactions to
-    /// the next editor update. That lets the synchronous V0.8 crisp-geometry/enemy-scope
-    /// calls finish before V0.9 replaces visible blockout presentation.
+    /// Fallback integration hook for manual editor workflows. The canonical one-click showcase
+    /// now applies V0.9 synchronously. This hook only repairs incomplete manually assembled
+    /// scenes and becomes a no-op once the complete production presentation is already present.
     /// </summary>
     [InitializeOnLoad]
     public static class ProductionArtAutoHookV09
@@ -42,6 +40,12 @@ namespace Mindforge.Editor
         {
             if (_applying || EditorApplication.isPlayingOrWillChangePlaymode || !ReferenceFidelityReady()) return;
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
+
+            // Canonical Build + Play has already completed every V0.9 stage synchronously.
+            // Its final scene save may still enqueue this fallback callback; detect that state
+            // and do literally no additional presentation work before Play Mode starts.
+            if (production != null && CompletePresentationReady(production)) return;
+
             if (production != null)
             {
                 ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
@@ -59,6 +63,21 @@ namespace Mindforge.Editor
             GameObject sanctum = EditorSceneLookup.FindIncludingInactive(SanctumOnboardingV08Builder.RootName);
             if (sanctum == null) return false;
             return sanctum.transform.Find(SanctumReferenceFidelityV08Builder.RootName) != null;
+        }
+
+        private static bool CompletePresentationReady(GameObject production)
+        {
+            if (production == null) return false;
+            if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) == null) return false;
+            if (production.transform.Find(ProductionPostFxV09Builder.RootName) == null) return false;
+
+            GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");
+            GameObject guardian = EditorSceneLookup.FindIncludingInactive("Guardian");
+            if (arena == null || guardian == null) return false;
+
+            return arena.GetComponent<ProductionHudV09>() != null &&
+                   arena.GetComponent<ProductionEchoVisualBootstrapV09>() != null &&
+                   guardian.GetComponent<ProductionGuardianV09>() != null;
         }
 
         private static void ApplyInternal(bool forceRebuild)
