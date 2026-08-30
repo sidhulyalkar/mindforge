@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -19,6 +20,8 @@ namespace Mindforge.Presentation
         private static Mesh _gripMesh;
         private static Mesh _crossguardMesh;
         private static Mesh _pommelMesh;
+
+        public bool Built => _built;
 
         private void LateUpdate()
         {
@@ -44,12 +47,16 @@ namespace Mindforge.Presentation
             Material pommelMaterial = pommel.sharedMaterial;
             if (hiltMaterial == null || gripMaterial == null || pommelMaterial == null) return false;
 
+            EnsureMeshes();
+
+            // Hide only the four visual primitive renderers after every replacement mesh has
+            // passed validation. The underlying Transform hierarchy and all combat authority
+            // objects stay exactly where PhysicalArsenalBootstrap authored them.
             emitter.enabled = false;
             crossguard.enabled = false;
             grip.enabled = false;
             pommel.enabled = false;
 
-            EnsureMeshes();
             GameObject rootGo = new GameObject(RootName);
             rootGo.transform.SetParent(sword, false);
             Transform root = rootGo.transform;
@@ -62,6 +69,9 @@ namespace Mindforge.Presentation
             // Two small structural collars add silhouette breaks without adding lights/VFX.
             Part("EmitterCollar", root, _gripMesh, new Vector3(0f, 0f, 0.16f), new Vector3(1.55f, 1.55f, 0.28f), hiltMaterial);
             Part("PommelCollar", root, _gripMesh, new Vector3(0f, 0f, -0.47f), new Vector3(1.20f, 1.20f, 0.22f), hiltMaterial);
+
+            if (rootGo.GetComponentInChildren<Collider>(true) != null || rootGo.GetComponentInChildren<Rigidbody>(true) != null)
+                throw new InvalidOperationException("Production Aetherblade hilt acquired physics authority.");
             return true;
         }
 
@@ -77,7 +87,7 @@ namespace Mindforge.Presentation
             for (int i = 0; i < renderers.Length; i++)
             {
                 Renderer renderer = renderers[i];
-                if (renderer == null || !renderer.name.StartsWith("AetherbladeEmitterVent_")) continue;
+                if (renderer == null || !renderer.name.StartsWith("AetherbladeEmitterVent_", StringComparison.Ordinal)) continue;
                 renderer.enabled = false;
                 found++;
             }
@@ -122,14 +132,18 @@ namespace Mindforge.Presentation
 
         private static Mesh BuildLathe(string name, int segments, float[] z, float[] radius)
         {
+            if (z == null || radius == null || z.Length < 2 || z.Length != radius.Length)
+                throw new ArgumentException("Aetherblade lathe profile requires matched radius/z rings.");
+
             segments = Mathf.Max(12, segments);
-            int rings = Mathf.Min(z.Length, radius.Length);
+            int rings = z.Length;
             List<Vector3> vertices = new List<Vector3>((segments + 1) * rings + 2);
             List<Vector2> uv = new List<Vector2>(vertices.Capacity);
             List<int> triangles = new List<int>(segments * (rings - 1) * 6 + segments * 6);
 
             for (int r = 0; r < rings; r++)
             {
+                if (radius[r] <= 0f) throw new ArgumentException("Aetherblade lathe radius must stay positive.");
                 for (int i = 0; i <= segments; i++)
                 {
                     float u = i / (float)segments;
@@ -186,11 +200,13 @@ namespace Mindforge.Presentation
                     uv.Add(new Vector2(shape[i].x + 0.5f, shape[i].y + 0.5f));
                 }
             }
+
             int n = shape.Length;
             for (int i = 1; i < n - 1; i++)
             {
-                triangles.Add(0); triangles.Add(i + 1); triangles.Add(i);
-                triangles.Add(n); triangles.Add(n + i); triangles.Add(n + i + 1);
+                // Negative-Z face points backward; positive-Z face points forward.
+                triangles.Add(0); triangles.Add(i); triangles.Add(i + 1);
+                triangles.Add(n); triangles.Add(n + i + 1); triangles.Add(n + i);
             }
             for (int i = 0; i < n; i++)
             {
@@ -237,6 +253,9 @@ namespace Mindforge.Presentation
 
         private static Mesh Finish(string name, List<Vector3> vertices, List<Vector2> uv, List<int> triangles)
         {
+            if (vertices == null || triangles == null || vertices.Count < 3 || triangles.Count < 3 || triangles.Count % 3 != 0)
+                throw new InvalidOperationException("Invalid production Aetherblade mesh recipe: " + name);
+
             Mesh mesh = new Mesh { name = name };
             mesh.SetVertices(vertices);
             mesh.SetUVs(0, uv);
@@ -244,7 +263,23 @@ namespace Mindforge.Presentation
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
+            ValidateNormals(mesh);
             return mesh;
+        }
+
+        private static void ValidateNormals(Mesh mesh)
+        {
+            Vector3[] normals = mesh.normals;
+            if (normals == null || normals.Length != mesh.vertexCount)
+                throw new InvalidOperationException("Production Aetherblade mesh has missing normals: " + mesh.name);
+            for (int i = 0; i < normals.Length; i++)
+            {
+                Vector3 n = normals[i];
+                if (float.IsNaN(n.x) || float.IsNaN(n.y) || float.IsNaN(n.z) ||
+                    float.IsInfinity(n.x) || float.IsInfinity(n.y) || float.IsInfinity(n.z) ||
+                    n.sqrMagnitude < 0.20f)
+                    throw new InvalidOperationException("Production Aetherblade mesh has invalid normal: " + mesh.name + " @ " + i);
+            }
         }
     }
 }
