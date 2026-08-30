@@ -23,6 +23,7 @@ DEFAULT_PLAN = ROOT / "experiments" / "reports" / "content-foundry-plan.json"
 RECIPE_SCHEMA = "mindforge.content_asset_recipe.v1"
 BINDING_SCHEMA = "mindforge.local_asset_bindings.v1"
 ROLES = {"column", "arch", "door", "spire", "tree", "rock", "prop", "humanoid", "robot"}
+AXES = {"+x", "-x", "+y", "-y", "+z", "-z"}
 ASSET_ID = re.compile(r"^mf_[a-z0-9_]+$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -55,9 +56,12 @@ def validate_recipe(path: Path, data: dict[str, Any]) -> list[str]:
         e.append(f"{label}: invalid asset_id")
     if data.get("semantic_role") not in ROLES:
         e.append(f"{label}: invalid semantic_role")
+
     districts = data.get("districts")
-    if not isinstance(districts, list) or not districts or len(districts) != len(set(districts)):
-        e.append(f"{label}: districts must be non-empty and unique")
+    if not isinstance(districts, list) or not districts or any(not isinstance(v, str) or not v.strip() for v in districts):
+        e.append(f"{label}: districts must contain non-empty strings")
+    elif len(districts) != len(set(districts)):
+        e.append(f"{label}: districts must be unique")
 
     source = data.get("source", {})
     if source.get("kind") not in {"generated_fallback", "authored", "local_art", "ai_generated"}:
@@ -69,30 +73,51 @@ def validate_recipe(path: Path, data: dict[str, Any]) -> list[str]:
             e.append(f"{label}: source.{key} is required")
     prompt_hash = source.get("prompt_hash")
     if prompt_hash is not None and (not isinstance(prompt_hash, str) or not SHA256.fullmatch(prompt_hash)):
-        e.append(f"{label}: prompt_hash must be null or SHA-256")
+        e.append(f"{label}: prompt_hash must be null or lowercase SHA-256")
+    reference_hashes = source.get("reference_hashes", [])
+    if not isinstance(reference_hashes, list) or any(not isinstance(v, str) or not SHA256.fullmatch(v) for v in reference_hashes):
+        e.append(f"{label}: reference_hashes must be lowercase SHA-256 values")
 
     geometry = data.get("geometry", {})
     size = geometry.get("target_size_m")
     if not isinstance(size, list) or len(size) != 3 or any(not isinstance(v, (int, float)) or v <= 0 for v in size):
         e.append(f"{label}: target_size_m must contain three positive values")
+    forward = geometry.get("forward_axis")
+    up = geometry.get("up_axis")
+    if forward not in AXES or up not in AXES:
+        e.append(f"{label}: forward_axis/up_axis must be signed x/y/z axes")
+    elif forward[-1] == up[-1]:
+        e.append(f"{label}: forward_axis and up_axis cannot be collinear")
+    if geometry.get("pivot_policy") not in {"bottom_center", "center", "authored"}:
+        e.append(f"{label}: invalid pivot_policy")
     if not isinstance(geometry.get("max_triangles"), int) or geometry.get("max_triangles", 0) < 12:
         e.append(f"{label}: max_triangles is invalid")
     if not isinstance(geometry.get("max_submeshes"), int) or not 1 <= geometry.get("max_submeshes", 0) <= 16:
         e.append(f"{label}: max_submeshes is invalid")
-    if geometry.get("forward_axis") == geometry.get("up_axis"):
-        e.append(f"{label}: forward_axis and up_axis must differ")
 
     render = data.get("render", {})
     lod = render.get("lod_ratios")
-    if not isinstance(lod, list) or not lod or lod[0] != 1.0 or any(lod[i] <= lod[i + 1] for i in range(len(lod) - 1)):
-        e.append(f"{label}: lod_ratios must begin at 1.0 and strictly decrease")
+    if (
+        not isinstance(lod, list)
+        or not 1 <= len(lod) <= 4
+        or any(not isinstance(v, (int, float)) or not 0 < v <= 1 for v in lod)
+        or lod[0] != 1.0
+        or any(lod[i] <= lod[i + 1] for i in range(len(lod) - 1))
+    ):
+        e.append(f"{label}: lod_ratios must be 1..4 values, begin at 1.0 and strictly decrease")
     if not isinstance(render.get("max_materials"), int) or not 1 <= render.get("max_materials", 0) <= 8:
         e.append(f"{label}: max_materials is invalid")
+    if not isinstance(render.get("texture_max_px"), int) or not 128 <= render.get("texture_max_px", 0) <= 4096:
+        e.append(f"{label}: texture_max_px is invalid")
+    if not isinstance(render.get("material_family"), str) or not render.get("material_family", "").strip():
+        e.append(f"{label}: material_family is required")
 
     unity = data.get("unity", {})
     tokens = unity.get("target_tokens")
     if not isinstance(tokens, list) or not tokens or any(not isinstance(v, str) or not v.strip() for v in tokens):
         e.append(f"{label}: target_tokens are required")
+    elif len(tokens) != len(set(tokens)):
+        e.append(f"{label}: target_tokens must be unique")
     if not isinstance(unity.get("fallback_symbol"), str) or not unity.get("fallback_symbol", "").strip():
         e.append(f"{label}: fallback_symbol is required")
 
@@ -148,6 +173,9 @@ def validate(recipes_root: Path, bindings_path: Path):
             unity_path = item.get("unity_asset_path")
             if not isinstance(unity_path, str) or not unity_path.startswith("Assets/Mindforge/LocalArt/") or ".." in unity_path:
                 errors.append(f"unsafe local binding path for {item['asset_id']}")
+            expected = item.get("expected_sha256")
+            if expected is not None and (not isinstance(expected, str) or not SHA256.fullmatch(expected)):
+                errors.append(f"expected_sha256 must be null or lowercase SHA-256 for {item['asset_id']}")
     return recipes, bindings, errors
 
 
@@ -171,7 +199,8 @@ def make_plan(recipes, bindings, blender_present: bool) -> dict[str, Any]:
     return {
         "schema": "mindforge.content_foundry_plan.v1",
         "generated_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "authority": {"gameplay": false, "collision": false, "bci": false},
+        "canonical_promotion_evidence": False,
+        "authority": {"gameplay": False, "collision": False, "bci": False},
         "recipe_count": len(recipes),
         "bound_local_asset_count": bound_count,
         "recipes": manifest,
@@ -181,14 +210,19 @@ def make_plan(recipes, bindings, blender_present: bool) -> dict[str, Any]:
             "validate": validation_hash,
             "normalize": normalization_hash,
             "unity_ingest": unity_hash,
-            "visual_capture": capture_hash
+            "visual_capture": capture_hash,
         },
         "stages": [
-            {"id": "validate", "status": "ready", "observed_runtime_evidence": false},
-            {"id": "normalize", "status": "ready" if bound_count == 0 or blender_present else "external_tool_missing", "required": bound_count > 0, "observed_runtime_evidence": false},
-            {"id": "unity_ingest", "status": "requires_unity_editor", "observed_runtime_evidence": false},
-            {"id": "visual_capture", "status": "requires_unity_editor", "observed_runtime_evidence": false}
-        ]
+            {"id": "validate", "status": "ready", "observed_runtime_evidence": False},
+            {
+                "id": "normalize",
+                "status": "ready" if bound_count == 0 or blender_present else "external_tool_missing",
+                "required": bound_count > 0,
+                "observed_runtime_evidence": False,
+            },
+            {"id": "unity_ingest", "status": "requires_unity_editor", "observed_runtime_evidence": False},
+            {"id": "visual_capture", "status": "requires_unity_editor", "observed_runtime_evidence": False},
+        ],
     }
 
 
