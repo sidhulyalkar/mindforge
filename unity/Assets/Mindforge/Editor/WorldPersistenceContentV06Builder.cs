@@ -134,7 +134,7 @@ namespace Mindforge.Editor
             GameObject pickupVisual = new GameObject("ResonancePrismVisual");
             pickupVisual.transform.SetParent(pickupRoot.transform, false);
             pickupVisual.transform.localPosition = new Vector3(0f, 1.15f, 0f);
-            DecorativePart("ResonanceCore", pickupVisual.transform, Vector3.zero, new Vector3(0.62f, 1.15f, 0.62f), cyan, PrimitiveType.Octahedron);
+            DecorativePart("ResonanceCore", pickupVisual.transform, Vector3.zero, new Vector3(0.62f, 1.15f, 0.62f), cyan);
             DecorativePart("ResonanceHaloA", pickupVisual.transform, Vector3.zero, new Vector3(1.35f, 0.08f, 0.18f), green);
             DecorativePart("ResonanceHaloB", pickupVisual.transform, Vector3.zero, new Vector3(0.18f, 0.08f, 1.35f), green);
 
@@ -181,14 +181,9 @@ namespace Mindforge.Editor
             Transform parent,
             Vector3 localPosition,
             Vector3 localScale,
-            Material material,
-            PrimitiveType primitive = PrimitiveType.Cube)
+            Material material)
         {
-            // Unity has no built-in Octahedron primitive. Keep the call-site semantic and
-            // map it to a rotated cube, preserving a simple collider-free prism silhouette.
-            PrimitiveType actual = primitive == (PrimitiveType)999 ? PrimitiveType.Cube : primitive;
-            if (primitive == PrimitiveType.Octahedron) actual = PrimitiveType.Cube;
-            GameObject go = GameObject.CreatePrimitive(actual);
+            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPosition;
