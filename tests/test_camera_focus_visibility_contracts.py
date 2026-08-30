@@ -11,12 +11,14 @@ def read(*parts: str) -> str:
 
 def test_target_lock_is_conventional_player_state_and_neural_agnostic():
     lock = read("Combat", "GuardianTargetLock.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
 
-    assert "toggleKey = KeyCode.T" in lock
+    assert "targetLock = KeyCode.T" in controls
+    assert "GuardianControlAction.TargetLock" in lock
+    assert "controls.Pressed(GuardianControlAction.TargetLock)" in lock
     assert "public bool Locked" in lock
     assert "public Transform Target" in lock
     assert "public void SetLocked(bool locked)" in lock
-    assert "Input.GetKeyDown(toggleKey)" in lock
     assert "lockRange = 28f" in lock
     assert "breakRange = 34f" in lock
     assert "LockChanged" in lock
@@ -116,14 +118,18 @@ def test_arena_visibility_lifts_blacks_without_becoming_gameplay_authority():
 def test_lock_mode_is_discoverable_and_creates_stable_bci_gaze_anchors():
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
     wisp = read("SoulWisp", "SoulWispController.cs")
 
-    assert "T  LOCK ON" in guide
+    assert "targetLock = KeyCode.T" in controls
+    assert "Label(GuardianControlAction.TargetLock" in guide
+    assert '"  LOCK"' in guide
     assert "TARGET LOCK" in guide
     assert "cameraRig.TargetFocusActive" in guide
     assert "cameraRig.FocusTarget" in guide
-    assert '"T", "Lock / unlock enemy"' in menu
-    assert "EEG never moves, jumps, rolls, locks, swings or parries" in menu
+    assert "GuardianControlAction.TargetLock" in menu
+    assert '"Lock / unlock enemy"' in menu
+    assert "EEG never moves, jumps, hovers, evades, interacts, locks" in guide
 
     assert "StableLockAnchorsActive" in wisp
     assert "lockedHorizontalSeparation = 1.18f" in wisp
