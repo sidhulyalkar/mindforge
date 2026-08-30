@@ -10,7 +10,8 @@ namespace Mindforge.Editor
     /// Transitional integration hook while the V0.9 production-art tranche is developed.
     /// V0.8 builders save the scene during the canonical one-click showcase rebuild; this
     /// hook observes that save and immediately applies V0.9 if it is not already present.
-    /// It also installs the compact HUD and smooth Guardian shell using generated materials.
+    /// It also installs the compact HUD and smooth Guardian shell using generated materials,
+    /// then applies optional local licensed-art substitutions when LocalArt is populated.
     /// </summary>
     [InitializeOnLoad]
     public static class ProductionArtAutoHookV09
@@ -44,6 +45,7 @@ namespace Mindforge.Editor
             if (production != null)
             {
                 EnsurePresentationComponents();
+                ExternalArtReplacementV09.ApplyOpenScene();
                 return;
             }
             ApplyInternal(false);
@@ -59,9 +61,11 @@ namespace Mindforge.Editor
                 if (forceRebuild || existing == null)
                     ProductionArtV09Builder.ApplyOpenScene();
                 EnsurePresentationComponents();
+                int external = ExternalArtReplacementV09.ApplyOpenScene();
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 EditorSceneManager.SaveOpenScenes();
                 AssetDatabase.SaveAssets();
+                Debug.Log($"[Mindforge:V09:Art] Complete production presentation applied; local external replacements={external}.");
             }
             finally
             {
