@@ -40,6 +40,7 @@ from mindforge_neuro.ssvep import SsvepDecoder  # noqa: E402
 UNICORN8 = ["Fz", "C3", "Cz", "C4", "Pz", "PO7", "Oz", "PO8"]
 POSTERIOR_INDICES = (4, 5, 6, 7)
 LABEL_TO_TARGET = {"10.0": AuraTarget.SIGHT, "12.0": AuraTarget.GUARD}
+PUBLIC_PREFILTER_HZ = (1.0, 90.0)
 
 
 def _require_moabb():
@@ -69,12 +70,13 @@ def run(subjects: list[int], *, window_seconds: float) -> list[EvidenceWindow]:
 
     GuttmannFlury2025_SSVEP, SSVEP = _require_moabb()
     dataset = GuttmannFlury2025_SSVEP(subjects=subjects)
-    # MOABB 1.6.x requires n_classes when an explicit event subset is supplied.
-    # Pinning this to two also asserts that a future dataset adapter cannot silently
-    # re-introduce the 11/13-Hz classes into the Mindforge 10/12 comparison.
+    # Keep a broad 1-90 Hz public-data preprocessing envelope. Mindforge's FBCCA performs
+    # its own 6-35 Hz filter-bank internally, while assess_window_quality intentionally needs
+    # the 35-90 Hz region to retain EMG/artifact evidence. Pre-filtering to 35 Hz here would
+    # make the public benchmark artificially cleaner than the live runtime contract.
     paradigm = SSVEP(
-        fmin=6.0,
-        fmax=35.0,
+        fmin=PUBLIC_PREFILTER_HZ[0],
+        fmax=PUBLIC_PREFILTER_HZ[1],
         events=["10.0", "12.0"],
         n_classes=2,
         tmin=0.0,
@@ -110,10 +112,10 @@ def run(subjects: list[int], *, window_seconds: float) -> list[EvidenceWindow]:
         # MNE/MOABB arrays are volts. Mindforge quality/decoder contracts are microvolts.
         eeg_uv = epoch[:, :expected_samples] * 1e6
         decision = decoder.decide(eeg_uv)
-        scores = decoder.score(eeg_uv) if not decision.quality.artifact else {
-            AuraTarget.SIGHT: 0.0,
-            AuraTarget.GUARD: 0.0,
-        }
+        # Always retain decoder scores in the derived benchmark, even for artifact-rejected
+        # windows. This keeps forced-choice frequency separability distinct from gameplay
+        # authority. The quality field separately determines whether the runtime may act.
+        scores = decoder.score(eeg_uv)
 
         subject_id = str(subjects[0])
         if metadata is not None and hasattr(metadata, "iloc") and index < len(metadata):
@@ -167,6 +169,7 @@ def main() -> int:
         "window_seconds": args.window_seconds,
         "channels": UNICORN8,
         "decode_channels": [UNICORN8[i] for i in POSTERIOR_INDICES],
+        "public_prefilter_hz": PUBLIC_PREFILTER_HZ,
         "frequencies_hz": {"sight": 10.0, "guard": 12.0},
         "output": str(args.output),
         "claim_boundary": "EEG-only frequency-separability evidence; gaze/eccentricity not yet joined.",
