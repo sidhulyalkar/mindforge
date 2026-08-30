@@ -54,7 +54,7 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
                 "Shift/RMB evades on foot and boosts while mounted; T locks and mouse wheel cycles targets; F/LMB swings/parries; " +
                 "E is the single contextual world action for ride/dismount/reconstruct/open/take/talk/commune; Q/C/R are advanced skills; " +
-                "Tab opens kit + controls + current objective + persistent world state.");
+                "Tab opens kit + controls + objective + persistent world state.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
