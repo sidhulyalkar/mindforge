@@ -49,6 +49,7 @@ namespace Mindforge.Editor
             if (production != null)
             {
                 ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
+                EnsureHorizon(production);
                 EnsureStorytelling(production);
                 EnsureNeuralSanctum(production);
                 EnsureLighting(production);
@@ -70,6 +71,7 @@ namespace Mindforge.Editor
         private static bool CompletePresentationReady(GameObject production)
         {
             if (production == null) return false;
+            if (production.transform.Find(ProductionHorizonV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionNeuralSanctumV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionLightingV09Builder.RootName) == null) return false;
@@ -96,6 +98,7 @@ namespace Mindforge.Editor
 
                 GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
                 int quarantined = ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
+                EnsureHorizon(production);
                 EnsureStorytelling(production);
                 EnsureNeuralSanctum(production);
                 EnsureLighting(production);
@@ -108,12 +111,19 @@ namespace Mindforge.Editor
                 Debug.Log(
                     $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
                     $"legacy renderers quarantined={quarantined}; local external replacements={external}; " +
-                    "district storytelling + production neural sanctum + consolidated light hierarchy + skyline shadow budget + restrained URP finish enabled.");
+                    "natural horizon + neural megastructures + district storytelling + production neural sanctum + consolidated light hierarchy + restrained URP finish enabled.");
             }
             finally
             {
                 _applying = false;
             }
+        }
+
+        private static void EnsureHorizon(GameObject production)
+        {
+            if (production == null) return;
+            if (production.transform.Find(ProductionHorizonV09Builder.RootName) != null) return;
+            ProductionHorizonV09Builder.ApplyOpenScene();
         }
 
         private static void EnsureStorytelling(GameObject production)
