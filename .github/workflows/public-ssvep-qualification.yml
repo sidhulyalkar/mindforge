@@ -1,0 +1,70 @@
+name: public-ssvep-qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      subjects:
+        description: 'Space-separated Guttmann subject ids'
+        required: false
+        default: '1'
+      window_seconds:
+        description: 'Decoder evidence window in seconds'
+        required: false
+        default: '1.25'
+  push:
+    branches:
+      - feat/v11-gaze-attention-platform
+    paths:
+      - '.github/workflows/public-ssvep-qualification.yml'
+
+jobs:
+  guttmann-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install public-data benchmark stack
+        run: |
+          python -m pip install -U pip
+          pip install -e '.[public-data]'
+      - name: Resolve qualification inputs
+        id: inputs
+        shell: bash
+        run: |
+          subjects="${{ github.event.inputs.subjects }}"
+          window="${{ github.event.inputs.window_seconds }}"
+          if [ -z "$subjects" ]; then subjects="1"; fi
+          if [ -z "$window" ]; then window="1.25"; fi
+          echo "subjects=$subjects" >> "$GITHUB_OUTPUT"
+          echo "window=$window" >> "$GITHUB_OUTPUT"
+      - name: Run real Guttmann 10/12-Hz EEG benchmark
+        shell: bash
+        run: |
+          mkdir -p experiments/public
+          read -r -a SUBJECTS <<< "${{ steps.inputs.outputs.subjects }}"
+          python tools/run_moabb_guttmann_ssvep.py \
+            --subjects "${SUBJECTS[@]}" \
+            --window-seconds "${{ steps.inputs.outputs.window }}" \
+            --output experiments/public/guttmann-10-12.jsonl
+          python tools/evaluate_ssvep_game_design.py evaluate \
+            experiments/public/guttmann-10-12.jsonl \
+            --output experiments/public/guttmann-10-12-report.json
+      - name: Record exact source revision
+        shell: bash
+        run: |
+          git rev-parse HEAD > experiments/public/source-revision.txt
+      - name: Upload derived public SSVEP evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindforge-public-ssvep-${{ github.sha }}
+          path: |
+            experiments/public/guttmann-10-12.jsonl
+            experiments/public/guttmann-10-12-report.json
+            experiments/public/source-revision.txt
+          if-no-files-found: error
+          retention-days: 30
