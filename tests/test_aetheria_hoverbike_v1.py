@@ -160,9 +160,12 @@ def test_narrative_and_mount_hud_are_read_only_presentation_surfaces():
     ):
         assert token in narrative
 
-    assert '"E · MOUNT PRISM HOVERBIKE"' in hud
+    assert '"PRISM HOVERBIKE ·' in hud
     assert "bike.HorizontalSpeed" in hud
     assert "bike.Boosting" in hud
+    assert "MOUNT PRISM HOVERBIKE" not in hud
+    assert "DISMOUNT" not in hud
+    assert "GuardianInteractionRouterV1 is the single player-facing owner of E offers" in hud
 
     for source in (narrative, hud):
         for forbidden in (
@@ -194,7 +197,7 @@ def test_showcase_inserts_aetheria_after_truthful_enemy_identity_and_before_ambi
     visual = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
     assert ecosystem < menagerie < menagerie_collision < ordinary_collision < ordinary_silhouette < menagerie_silhouette < aetheria < v2 < dynamic_mount < visual
 
-    assert "E interacts with the current world offer" in menu
+    assert "E is the single contextual world action" in menu
     assert "Two optional Prism hoverbikes use the existing Guardian" in menu
     assert "Rigidbody as mounted authority" in menu
     assert "UxInteractionSaveV05Builder.ApplyOpenScene();" in menu
