@@ -30,7 +30,7 @@
   },
   "unity": {
     "target_tokens": ["Tree", "Cypress", "GardenCanopy"],
-    "fallback_symbol": "ProductionMeshLibraryV09.OrganicGardenCanopy"
+    "fallback_symbol": "ProductionMeshLibraryV09.GardenCanopy"
   },
   "authority": {
     "gameplay": false,
