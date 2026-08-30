@@ -41,14 +41,12 @@ namespace Mindforge.Editor
             if (_applying || EditorApplication.isPlayingOrWillChangePlaymode || !ReferenceFidelityReady()) return;
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
 
-            // Canonical Build + Play has already completed every V0.9 stage synchronously.
-            // Its final scene save may still enqueue this fallback callback; detect that state
-            // and do literally no additional presentation work before Play Mode starts.
             if (production != null && CompletePresentationReady(production)) return;
 
             if (production != null)
             {
                 ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
+                EnsureStructuralRefinement(production);
                 EnsureHorizon(production);
                 EnsureStorytelling(production);
                 EnsureMemoryForge(production);
@@ -72,6 +70,7 @@ namespace Mindforge.Editor
         private static bool CompletePresentationReady(GameObject production)
         {
             if (production == null) return false;
+            if (production.transform.Find(ProductionStructuralRefinementV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionHorizonV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) == null) return false;
             if (EditorSceneLookup.FindIncludingInactive("Memory_Forge_Sanctum_Altar_V08")?.transform.Find(ProductionMemoryForgeV09Builder.RootName) == null) return false;
@@ -100,6 +99,7 @@ namespace Mindforge.Editor
 
                 GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
                 int quarantined = ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
+                EnsureStructuralRefinement(production);
                 EnsureHorizon(production);
                 EnsureStorytelling(production);
                 EnsureMemoryForge(production);
@@ -114,12 +114,20 @@ namespace Mindforge.Editor
                 Debug.Log(
                     $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
                     $"legacy renderers quarantined={quarantined}; local external replacements={external}; " +
-                    "natural horizon + neural megastructures + district storytelling + production Memory Forge + production neural sanctum + consolidated light hierarchy + restrained URP finish enabled.");
+                    "stock structural meshes refined + natural horizon + neural megastructures + district storytelling + production Memory Forge + " +
+                    "production neural sanctum + consolidated light hierarchy + restrained URP finish enabled.");
             }
             finally
             {
                 _applying = false;
             }
+        }
+
+        private static void EnsureStructuralRefinement(GameObject production)
+        {
+            if (production == null) return;
+            if (production.transform.Find(ProductionStructuralRefinementV09Builder.RootName) != null) return;
+            ProductionStructuralRefinementV09Builder.ApplyOpenScene();
         }
 
         private static void EnsureHorizon(GameObject production)
