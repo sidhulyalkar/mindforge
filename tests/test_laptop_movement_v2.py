@@ -9,15 +9,16 @@ def read(*parts: str) -> str:
     return UNITY.joinpath(*parts).read_text(encoding="utf-8")
 
 
-def test_wasd_is_direct_input_and_camera_owns_mouse_arrow_orbit():
+def test_wasd_is_canonical_direct_input_and_camera_owns_mouse_arrow_orbit():
     combat = read("Combat", "GuardianCombatInput.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
     camera = read("Presentation", "ShowcaseCameraRig.cs")
 
-    assert "SampleWasdMovement" in combat
+    assert "controls.SampleMovement()" in combat
     assert "Input.GetAxisRaw" not in combat
     assert "SampleArrowAim" not in combat
     for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
-        assert key in combat
+        assert key in controls
 
     assert 'Input.GetAxis("Mouse X")' in camera
     assert 'Input.GetAxis("Mouse Y")' in camera
@@ -69,7 +70,7 @@ def test_ground_rolls_remain_chainable_while_air_dash_is_one_per_airtime():
     assert "AirDashStarted?.Invoke()" in motor
 
 
-def test_showcase_focuses_game_view_when_play_mode_starts():
+def test_showcase_focuses_game_view_when_play_mode_starts_and_teaches_v05_vocabulary():
     editor = read("Editor", "ShowcaseEditorMenu.cs")
 
     assert "EditorApplication.playModeStateChanged += FocusGameViewWhenPlayStarts" in editor
@@ -77,20 +78,43 @@ def test_showcase_focuses_game_view_when_play_mode_starts():
     assert 'GetType("UnityEditor.GameView")' in editor
     assert "gameView?.Focus()" in editor
     assert "Space jumps twice and holds hover" in editor
-    assert "Shift/RMB dodge-rolls on ground and air-dashes aloft" in editor
+    assert "Shift/RMB evades on foot and boosts while mounted" in editor
+    assert "T locks and mouse wheel cycles targets" in editor
+    assert "E is the single contextual world action" in editor
+    assert "Tab opens kit + controls + objective" in editor
 
 
-def test_laptop_control_copy_matches_grounded_roll_and_aerial_mapping():
+def test_laptop_control_copy_is_rendered_from_one_canonical_profile():
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
+
+    for token in (
+        "interact = KeyCode.E",
+        "targetLock = KeyCode.T",
+        "jumpHover = KeyCode.Space",
+        "evadeBoostPrimary = KeyCode.LeftShift",
+        "rightMouseEvades = true",
+        "blade = KeyCode.F",
+        "menu = KeyCode.Tab",
+    ):
+        assert token in controls
 
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
-    assert "SPACE JUMP ×2" in guide
-    assert "SHIFT / RMB DODGE ROLL" in guide
+    assert "GuardianControlAction.JumpHover" in guide
+    assert "GuardianControlAction.EvadeBoost" in guide
+    assert "GuardianControlAction.Interact" in guide
+    assert "MOUSE WHEEL CYCLES LOCKED TARGETS" in guide
+
     assert '"WASD", "Move relative to camera"' in menu
-    assert '"MOUSE / ARROWS", "Orbit diorama camera"' in menu
-    assert '"SPACE", "Jump ×2 · hold descending to hover"' in menu
-    assert '"SHIFT / RMB", "Dodge roll · air dash aloft"' in menu
-    assert '"CTRL / ALT", "Compatibility roll aliases"' in menu
-    assert '"T", "Lock / unlock enemy"' in menu
+    assert '"MOUSE / ARROWS", "Orbit camera"' in menu
+    assert "GuardianControlAction.JumpHover" in menu
+    assert '"Jump ×2 · hold descending to hover"' in menu
+    assert "GuardianControlAction.EvadeBoost" in menu
+    assert '"Evade · air dash · mounted boost"' in menu
+    assert "GuardianControlAction.Interact" in menu
+    assert '"Context: ride · dismount · reconstruct · use world"' in menu
+    assert "GuardianControlAction.TargetLock" in menu
+    assert '"Lock / unlock enemy · wheel cycles target"' in menu
+    assert "Compatibility roll aliases" not in menu
