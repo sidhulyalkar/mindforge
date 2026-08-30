@@ -7,8 +7,9 @@ using Mindforge.SoulWisp;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Non-authoritative presentation for the grounded-world build. It teaches the
-    /// conventional blade/roll/aerial contract without changing combat or neural authority.
+    /// Non-authoritative presentation for the grounded-world build. V0.5 uses progressive
+    /// disclosure: teach the tiny core vocabulary first, reveal advanced skills only after
+    /// the player has swung and evaded, and keep the complete kit one Tab away.
     /// </summary>
     public sealed class PlayerAgencyGuide : MonoBehaviour
     {
@@ -22,12 +23,15 @@ namespace Mindforge.Presentation
         [SerializeField] private AuraBuffController auras;
         [SerializeField] private AwakeningCalibrationDirector calibration;
         [SerializeField] private ShowcaseCameraRig cameraRig;
-        [SerializeField] private float combatGuideSeconds = 28f;
+        [SerializeField] private GuardianControlProfileV1 controls;
+        [SerializeField] private GuardianInteractionRouterV1 interactionRouter;
+        [SerializeField] private float combatGuideSeconds = 22f;
 
         private bool _judgeLens;
         private bool _combatObserved;
         private bool _swordUsed;
         private bool _rollUsed;
+        private bool _interactionUsed;
         private bool _cleaveUsed;
         private bool _counterUsed;
         private double _combatGuideUntil;
@@ -68,6 +72,8 @@ namespace Mindforge.Presentation
             if (auras == null) auras = FindObjectOfType<AuraBuffController>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
             if (cameraRig == null) cameraRig = FindObjectOfType<ShowcaseCameraRig>(true);
+            if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
+            if (interactionRouter == null) interactionRouter = FindObjectOfType<GuardianInteractionRouterV1>(true);
         }
 
         private void Subscribe()
@@ -87,6 +93,11 @@ namespace Mindforge.Presentation
                 motor.DashStarted -= OnDashStarted;
                 motor.DashStarted += OnDashStarted;
             }
+            if (interactionRouter != null)
+            {
+                interactionRouter.InteractionPerformed -= OnInteraction;
+                interactionRouter.InteractionPerformed += OnInteraction;
+            }
         }
 
         private void Unsubscribe()
@@ -94,18 +105,20 @@ namespace Mindforge.Presentation
             if (combat != null) combat.ActionAccepted -= OnCombatAction;
             if (physicalCombat != null) physicalCombat.SwordAttackStarted -= OnSwordAttack;
             if (motor != null) motor.DashStarted -= OnDashStarted;
+            if (interactionRouter != null) interactionRouter.InteractionPerformed -= OnInteraction;
         }
 
         private void Update()
         {
-            if (input == null || combat == null || physicalCombat == null || motor == null || calibration == null || cameraRig == null)
+            if (input == null || combat == null || physicalCombat == null || motor == null || calibration == null || cameraRig == null || controls == null)
             {
                 Unsubscribe();
                 Resolve();
                 Subscribe();
             }
 
-            if (Input.GetKeyDown(KeyCode.F10)) _judgeLens = !_judgeLens;
+            if (controls != null && controls.Pressed(GuardianControlAction.JudgeLens))
+                _judgeLens = !_judgeLens;
 
             if (!_combatObserved && CombatOpen())
             {
@@ -116,6 +129,7 @@ namespace Mindforge.Presentation
 
         private void OnSwordAttack() => _swordUsed = true;
         private void OnDashStarted() => _rollUsed = true;
+        private void OnInteraction(string id) => _interactionUsed = true;
 
         private void OnCombatAction(string action)
         {
@@ -138,46 +152,58 @@ namespace Mindforge.Presentation
             DrawAimReticle();
             DrawTargetFocusIndicator();
 
-            float width = Mathf.Min(Screen.width - 32f, 1040f);
+            float width = Mathf.Min(Screen.width - 32f, 860f);
             float left = (Screen.width - width) * 0.5f;
 
             if (!CombatOpen())
             {
-                GUI.Box(new Rect(left, Screen.height - 74f, width, 48f),
-                    "AWAKENING  |  BLUE / Sight resonates with blade length and energy  |  HANDS keep every movement and combat decision");
+                GUI.Box(new Rect(left, Screen.height - 74f, width, 44f),
+                    "AWAKENING  ·  Sight can transform the blade  ·  your hands still own every action");
             }
             else
             {
                 string lesson = CurrentLesson();
-                if (!string.IsNullOrEmpty(lesson))
-                    GUI.Box(new Rect(left, Screen.height - 74f, width, 48f), lesson);
+                // Do not compete with a nearby context prompt for the same bottom-center space.
+                bool contextPromptVisible = interactionRouter != null && interactionRouter.HasOffer;
+                if (!string.IsNullOrEmpty(lesson) && !contextPromptVisible)
+                    GUI.Box(new Rect(left, Screen.height - 74f, width, 44f), lesson);
             }
 
-            string focusState = cameraRig != null && cameraRig.TargetFocusActive ? "T  LOCKED" : "T  LOCK ON";
+            string lockKey = Label(GuardianControlAction.TargetLock, "T");
+            string focusState = cameraRig != null && cameraRig.TargetFocusActive ? lockKey + "  LOCKED" : lockKey + "  LOCK";
             GUI.Label(new Rect(18f, Screen.height - 34f, 180f, 22f), focusState, _centerStyle);
-            GUI.Label(new Rect(Screen.width - 176f, Screen.height - 34f, 160f, 22f), "F10  JUDGE LENS", _centerStyle);
+            GUI.Label(new Rect(Screen.width - 196f, Screen.height - 34f, 178f, 22f),
+                Label(GuardianControlAction.Menu, "TAB") + "  KIT + CONTROLS", _centerStyle);
             if (_judgeLens) DrawJudgeLens();
         }
 
         private string CurrentLesson()
         {
-            bool guideWindow = Time.realtimeSinceStartupAsDouble <= _combatGuideUntil;
-
             if (auras != null && auras.ConcordActive && flux != null && flux.IsFull)
-                return "CONCORD ACTIVE  |  R TWIN ECLIPSE  |  neural state creates an opening; your hand still chooses when to strike";
+                return "CONCORD ACTIVE  ·  " + Label(GuardianControlAction.Bloom, "R") + " TWIN ECLIPSE  ·  neural state opens the window; you choose the strike";
 
             if (flux != null && flux.IsFull)
-                return "FLUX FULL  |  R GRAVITY BLOOM  |  use the opening after you have read the room";
+                return "FLUX FULL  ·  " + Label(GuardianControlAction.Bloom, "R") + " GRAVITY BLOOM";
 
-            if (!guideWindow) return null;
+            if (Time.realtimeSinceStartupAsDouble > _combatGuideUntil) return null;
             if (!_swordUsed)
-                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   T LOCK   ·   F / LMB AETHERBLADE   ·   SPACE JUMP ×2";
+                return "WASD MOVE   ·   MOUSE / ARROWS CAMERA   ·   " +
+                       Label(GuardianControlAction.JumpHover, "SPACE") + " JUMP / HOVER   ·   " +
+                       Label(GuardianControlAction.Blade, "F / LMB") + " AETHERBLADE";
             if (!_rollUsed)
-                return "SHIFT / RMB DODGE ROLL   |   roll through telegraphed ground attacks · use Space twice to take the high route";
+                return Label(GuardianControlAction.EvadeBoost, "SHIFT / RMB") + " EVADE   ·   " +
+                       Label(GuardianControlAction.TargetLock, "T") + " LOCK   ·   MOUSE WHEEL CYCLES LOCKED TARGETS";
+            if (!_interactionUsed)
+                return Label(GuardianControlAction.Interact, "E") + " INTERACT   ·   one context button rides bikes, reconstructs at shrines, and will operate the world";
             if (!_cleaveUsed || !_counterUsed)
-                return "VERTICAL WORLD   |   stairs are safe · double-jump / hover / air-dash create shortcuts   ·   Q CLEAVE   ·   C COUNTER";
-            return "READ → SWING → ROLL → REPOSITION   |   TAB shows the full kit   ·   blade swings can parry hostile projectiles";
+                return Label(GuardianControlAction.Cleave, "Q") + " CLEAVE   ·   " +
+                       Label(GuardianControlAction.Counter, "C") + " COUNTER   ·   " +
+                       Label(GuardianControlAction.Bloom, "R") + " BLOOM";
+            return "READ → COMMIT → EVADE → REPOSITION   ·   " + Label(GuardianControlAction.Menu, "TAB") + " shows the full kit";
         }
+
+        private string Label(GuardianControlAction action, string fallback)
+            => controls != null ? controls.Label(action) : fallback;
 
         private void DrawAimReticle()
         {
@@ -233,13 +259,13 @@ namespace Mindforge.Presentation
 
             string bci = calibration != null && calibration.ControllerOnlyQualificationActive
                 ? "BCI: deliberately DISABLED for controller-only validation"
-                : "BCI: accepted Sight can boundedly amplify blade length/energy/damage; Guard channel retained for evaluation";
+                : "BCI: accepted Sight can boundedly amplify blade length/energy/damage; Guard remains an evaluated neural channel";
 
             GUI.Label(new Rect(left + 16f, top + 10f, width - 32f, 26f), "MINDFORGE AUTHORITY SPLIT", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 38f), "HANDS: move · camera · target lock · jump/double-jump/hover · roll/air-dash · Aetherblade · skills", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 40f, width - 32f, 38f), "HANDS: move · camera · interact · target lock · jump/hover · evade · Aetherblade · skills", _leftStyle);
             GUI.Label(new Rect(left + 16f, top + 78f, width - 32f, 32f), bci, _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 112f, width - 32f, 40f), "EEG never moves, jumps, hovers, rolls, air-dashes, locks a target, rotates the camera, swings, or parries", _leftStyle);
-            GUI.Label(new Rect(left + 16f, top + 156f, width - 32f, 20f), "T is conventional target lock · F10 hides this explainer", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 112f, width - 32f, 40f), "EEG never moves, jumps, hovers, evades, interacts, locks a target, rotates the camera, swings, or parries", _leftStyle);
+            GUI.Label(new Rect(left + 16f, top + 156f, width - 32f, 20f), Label(GuardianControlAction.JudgeLens, "F10") + " hides this explainer", _leftStyle);
         }
 
         private void EnsureStyles()
