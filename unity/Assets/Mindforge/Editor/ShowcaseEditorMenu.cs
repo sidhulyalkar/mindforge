@@ -19,7 +19,9 @@ namespace Mindforge.Editor
         // them to ensure later showcase passes do not silently erase previously qualified scope.
         private const string InheritedShowcaseContract =
             "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity roster and a 3/4/3 hackathon encounter. " +
-            "Scrap Goblin, Bass Golem and Aero Gargoyle remain story-facing identities over existing roles. The persistent shortcut remains intact. V0.7 is presentation-only.";
+            "Scrap Goblin, Bass Golem and Aero Gargoyle remain story-facing identities over existing roles; Lord Malatract still resolves through the existing Fractured Signal projectile/melee scheduler. " +
+            "The persistent shortcut and geometric intent telegraphs remain intact. Layered near/mid/far set dressing remains downstream of deterministic gameplay authority. " +
+            "All ten Menagerie enemies receive unique close/mid-distance silhouette detail. V0.7 is presentation-only: topology, E routing, persistence, combat and BCI remain untouched.";
 
         [MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase", priority = 1)]
         public static void BuildAndPlay()
