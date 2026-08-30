@@ -7,6 +7,7 @@ using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using Mindforge.Presentation;
 
 namespace Mindforge.Editor
 {
@@ -91,31 +92,21 @@ namespace Mindforge.Editor
             Cache previous = ReadCache();
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
 
-            if (previous != null && previous.fingerprint == fingerprint && production != null)
+            if (previous != null && previous.fingerprint == fingerprint &&
+                ProductionBaseReady(production) && SceneMatchesBindings(production.transform, bindings))
             {
                 Debug.Log($"[Mindforge:Foundry] cache HIT {fingerprint.Substring(0, 12)}. Canonical full-rebuild qualification is unchanged.");
                 return;
             }
 
-            // V0.9 still exposes an exploratory filename heuristic. Suppress it only while
-            // Foundry invokes the inherited production hook so explicit recipe bindings are the
-            // sole local-art replacement authority in this path. Standalone V0.9 stays unchanged.
-            bool legacySuppression = ExternalArtReplacementV09.SuppressAutomaticReplacement;
-            ExternalArtReplacementV09.SuppressAutomaticReplacement = true;
-            try
-            {
-                ProductionArtAutoHookV09.ApplyNow();
-            }
-            finally
-            {
-                ExternalArtReplacementV09.SuppressAutomaticReplacement = legacySuppression;
-            }
+            EnsureProductionBase(ref production);
 
-            production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
-            if (production == null)
-                throw new UnityEditor.Build.BuildFailedException("Foundry requires the V0.8 reference-fidelity scene before production compilation.");
+            // Any exploratory V0.9 local replacements are removed before V0.10 takes over.
+            // Original generated renderer siblings are re-enabled first, making the operation
+            // reversible when bindings are changed or deleted.
+            RestoreFallbacksAndRemoveReplacements(production.transform, ExternalArtReplacementV09.ReplacementMarker);
+            RestoreFallbacksAndRemoveReplacements(production.transform, ReplacementMarker);
 
-            RemoveExistingFoundryReplacements(production.transform);
             int replacements = ApplyBindings(recipes, bindings, production.transform);
             ValidateReplacementAuthority(production.transform);
             PresentationBudgetAudit.Run();
@@ -139,6 +130,48 @@ namespace Mindforge.Editor
         {
             if (File.Exists(CachePath)) File.Delete(CachePath);
             Debug.Log("[Mindforge:Foundry] incremental cache cleared.");
+        }
+
+        private static void EnsureProductionBase(ref GameObject production)
+        {
+            if (ProductionBaseReady(production)) return;
+
+            bool legacySuppression = ExternalArtReplacementV09.SuppressAutomaticReplacement;
+            ExternalArtReplacementV09.SuppressAutomaticReplacement = true;
+            try
+            {
+                ProductionArtAutoHookV09.ApplyNow();
+            }
+            finally
+            {
+                ExternalArtReplacementV09.SuppressAutomaticReplacement = legacySuppression;
+            }
+
+            production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
+            if (!ProductionBaseReady(production))
+                throw new UnityEditor.Build.BuildFailedException("Foundry could not establish a complete V0.9 production base from the V0.8 reference-fidelity scene.");
+        }
+
+        private static bool ProductionBaseReady(GameObject production)
+        {
+            if (production == null) return false;
+            Transform root = production.transform;
+            if (root.Find(ProductionStructuralRefinementV09Builder.RootName) == null) return false;
+            if (root.Find(ProductionHorizonV09Builder.RootName) == null) return false;
+            if (root.Find(ProductionWorldStorytellingV09Builder.RootName) == null) return false;
+            if (root.Find(ProductionNeuralSanctumV09Builder.RootName) == null) return false;
+            if (root.Find(ProductionLightingV09Builder.RootName) == null) return false;
+            if (root.Find(ProductionPostFxV09Builder.RootName) == null) return false;
+
+            GameObject altar = EditorSceneLookup.FindIncludingInactive("Memory_Forge_Sanctum_Altar_V08");
+            if (altar == null || altar.transform.Find(ProductionMemoryForgeV09Builder.RootName) == null) return false;
+            GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");
+            GameObject guardian = EditorSceneLookup.FindIncludingInactive("Guardian");
+            if (arena == null || guardian == null) return false;
+            return arena.GetComponent<ProductionHudV09>() != null &&
+                   arena.GetComponent<ProductionEchoVisualBootstrapV09>() != null &&
+                   guardian.GetComponent<ProductionGuardianV09>() != null &&
+                   guardian.GetComponent<ProductionAetherbladeHiltV09>() != null;
         }
 
         private static List<LoadedRecipe> LoadRecipes()
@@ -193,20 +226,19 @@ namespace Mindforge.Editor
             return value;
         }
 
+        private static string LocalAssetAbsolutePath(Binding binding)
+        {
+            string relative = binding.unity_asset_path.Substring("Assets/".Length).Replace('/', Path.DirectorySeparatorChar);
+            return Path.Combine(Application.dataPath, relative);
+        }
+
         private static void ValidateExpectedHash(Binding binding)
         {
             if (string.IsNullOrWhiteSpace(binding.expected_sha256)) return;
-            string relative = binding.unity_asset_path.Substring("Assets/".Length).Replace('/', Path.DirectorySeparatorChar);
-            string absolute = Path.Combine(Application.dataPath, relative);
+            string absolute = LocalAssetAbsolutePath(binding);
             if (!File.Exists(absolute)) throw new UnityEditor.Build.BuildFailedException("Bound LocalArt source is missing: " + binding.unity_asset_path);
-            using (SHA256 sha = SHA256.Create())
-            using (FileStream stream = File.OpenRead(absolute))
-            {
-                byte[] bytes = sha.ComputeHash(stream);
-                StringBuilder actual = new StringBuilder(bytes.Length * 2);
-                for (int i = 0; i < bytes.Length; i++) actual.Append(bytes[i].ToString("x2"));
-                if (!string.Equals(actual.ToString(), binding.expected_sha256, StringComparison.OrdinalIgnoreCase)) throw new UnityEditor.Build.BuildFailedException("Bound LocalArt SHA-256 mismatch: " + binding.asset_id);
-            }
+            string actual = FileSha256(absolute);
+            if (!string.Equals(actual, binding.expected_sha256, StringComparison.OrdinalIgnoreCase)) throw new UnityEditor.Build.BuildFailedException("Bound LocalArt SHA-256 mismatch: " + binding.asset_id);
         }
 
         private static int ApplyBindings(List<LoadedRecipe> recipes, Bindings bindings, Transform production)
@@ -231,7 +263,7 @@ namespace Mindforge.Editor
             for (int i = 0; i < all.Length; i++)
             {
                 Transform candidate = all[i];
-                if (candidate == null || candidate.name.IndexOf(ReplacementMarker, StringComparison.Ordinal) >= 0) continue;
+                if (candidate == null || candidate.name.IndexOf(ReplacementMarker, StringComparison.Ordinal) >= 0 || candidate.name.IndexOf(ExternalArtReplacementV09.ReplacementMarker, StringComparison.Ordinal) >= 0) continue;
                 if (!Matches(candidate.name, recipe.unity.target_tokens)) continue;
                 if (candidate.GetComponentsInChildren<Renderer>(true).Length == 0) continue;
                 targets.Add(candidate);
@@ -285,7 +317,7 @@ namespace Mindforge.Editor
 
         private static void ValidateAssetBudget(GameObject root, Recipe recipe)
         {
-            int triangles = 0;
+            long triangles = 0;
             int submeshes = 0;
             HashSet<Material> materials = new HashSet<Material>();
             MeshFilter[] filters = root.GetComponentsInChildren<MeshFilter>(true);
@@ -293,8 +325,8 @@ namespace Mindforge.Editor
             {
                 Mesh mesh = filters[i] != null ? filters[i].sharedMesh : null;
                 if (mesh == null) continue;
-                triangles += mesh.triangles.Length / 3;
                 submeshes += mesh.subMeshCount;
+                for (int s = 0; s < mesh.subMeshCount; s++) triangles += (long)mesh.GetIndexCount(s) / 3L;
             }
             Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
@@ -315,12 +347,51 @@ namespace Mindforge.Editor
             if (!bounds.HasValue || bounds.Value.size.sqrMagnitude < 0.0001f) throw new UnityEditor.Build.BuildFailedException("Foundry replacement has degenerate bounds: " + recipe.asset_id);
         }
 
-        private static void RemoveExistingFoundryReplacements(Transform root)
+        private static int RestoreFallbacksAndRemoveReplacements(Transform root, string marker)
         {
             Transform[] all = root.GetComponentsInChildren<Transform>(true);
             List<GameObject> remove = new List<GameObject>();
-            for (int i = 0; i < all.Length; i++) if (all[i] != null && all[i].name.IndexOf(ReplacementMarker, StringComparison.Ordinal) >= 0) remove.Add(all[i].gameObject);
+            int restored = 0;
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform replacement = all[i];
+                if (replacement == null) continue;
+                int markerIndex = replacement.name.IndexOf(marker, StringComparison.Ordinal);
+                if (markerIndex < 0) continue;
+                string originalName = replacement.name.Substring(0, markerIndex);
+                Transform original = replacement.parent != null ? replacement.parent.Find(originalName) : null;
+                if (original != null)
+                {
+                    Renderer[] renderers = original.GetComponentsInChildren<Renderer>(true);
+                    for (int r = 0; r < renderers.Length; r++) if (renderers[r] != null) renderers[r].enabled = true;
+                    restored++;
+                }
+                remove.Add(replacement.gameObject);
+            }
             for (int i = 0; i < remove.Count; i++) if (remove[i] != null) UnityEngine.Object.DestroyImmediate(remove[i]);
+            return restored;
+        }
+
+        private static bool SceneMatchesBindings(Transform root, Bindings bindings)
+        {
+            Transform[] all = root.GetComponentsInChildren<Transform>(true);
+            if (bindings.bindings.Length == 0)
+            {
+                for (int i = 0; i < all.Length; i++)
+                    if (all[i] != null && all[i].name.IndexOf(ReplacementMarker, StringComparison.Ordinal) >= 0) return false;
+                return true;
+            }
+            for (int b = 0; b < bindings.bindings.Length; b++)
+            {
+                string suffix = ReplacementMarker + bindings.bindings[b].asset_id;
+                bool found = false;
+                for (int i = 0; i < all.Length; i++)
+                {
+                    if (all[i] != null && all[i].name.EndsWith(suffix, StringComparison.Ordinal)) { found = true; break; }
+                }
+                if (!found) return false;
+            }
+            return true;
         }
 
         private static void ValidateReplacementAuthority(Transform root)
@@ -366,11 +437,46 @@ namespace Mindforge.Editor
         private static string Fingerprint(List<LoadedRecipe> recipes, Bindings bindings)
         {
             StringBuilder text = new StringBuilder("mindforge.content_foundry.v10\n");
+            text.Append(Application.unityVersion).Append('\n');
+            AppendDependencyHash(text, "Assets/Mindforge/Editor/ProductionArtV09Builder.cs");
+            AppendDependencyHash(text, "Assets/Mindforge/Editor/ProductionArtAutoHookV09.cs");
+            AppendDependencyHash(text, "Assets/Mindforge/Editor/ProductionMeshLibraryV09.cs");
+            AppendDependencyHash(text, "Assets/Mindforge/Editor/ProductionMaterialAuthoringV09.cs");
+            AppendDependencyHash(text, "Assets/Mindforge/Shaders/ProductionTriplanarLitV09.shader");
             for (int i = 0; i < recipes.Count; i++) text.Append(recipes[i].Path).Append('\n').Append(recipes[i].Raw).Append('\n');
-            text.Append(JsonUtility.ToJson(bindings));
+            text.Append(JsonUtility.ToJson(bindings)).Append('\n');
+            for (int i = 0; i < bindings.bindings.Length; i++)
+            {
+                Binding binding = bindings.bindings[i];
+                string absolute = LocalAssetAbsolutePath(binding);
+                text.Append(binding.asset_id).Append('|').Append(binding.unity_asset_path).Append('|');
+                text.Append(File.Exists(absolute) ? FileSha256(absolute) : "MISSING").Append('\n');
+            }
+            return Sha256Text(text.ToString());
+        }
+
+        private static void AppendDependencyHash(StringBuilder text, string assetPath)
+        {
+            text.Append(assetPath).Append('=').Append(AssetDatabase.GetAssetDependencyHash(assetPath).ToString()).Append('\n');
+        }
+
+        private static string FileSha256(string path)
+        {
+            using (SHA256 sha = SHA256.Create())
+            using (FileStream stream = File.OpenRead(path))
+            {
+                byte[] bytes = sha.ComputeHash(stream);
+                StringBuilder hex = new StringBuilder(bytes.Length * 2);
+                for (int i = 0; i < bytes.Length; i++) hex.Append(bytes[i].ToString("x2"));
+                return hex.ToString();
+            }
+        }
+
+        private static string Sha256Text(string value)
+        {
             using (SHA256 sha = SHA256.Create())
             {
-                byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(text.ToString()));
+                byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(value));
                 StringBuilder hex = new StringBuilder(bytes.Length * 2);
                 for (int i = 0; i < bytes.Length; i++) hex.Append(bytes[i].ToString("x2"));
                 return hex.ToString();
