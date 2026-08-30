@@ -21,7 +21,7 @@ namespace Mindforge.Editor
             "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity roster and a 3/4/3 hackathon encounter. " +
             "Scrap Goblin, Bass Golem and Aero Gargoyle remain story-facing identities over existing roles; Lord Malatract still resolves through the existing Fractured Signal projectile/melee scheduler. " +
             "The persistent shortcut and geometric intent telegraphs remain intact. Layered near/mid/far set dressing remains downstream of deterministic gameplay authority. " +
-            "All ten Menagerie enemies receive unique close/mid-distance silhouette detail. V0.7 is presentation-only: topology, E routing, persistence, combat and BCI remain untouched.";
+            "all ten Menagerie enemies receive unique close/mid-distance silhouette detail. V0.7 is presentation-only: topology, E routing, persistence, combat and BCI remain untouched.";
 
         [MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase", priority = 1)]
         public static void BuildAndPlay()
@@ -124,6 +124,7 @@ namespace Mindforge.Editor
                 // preserving semantic/persistence/input/neural authorities built above.
                 SanctumOnboardingV08Builder.ApplyOpenScene();
                 SanctumHeroV08Builder.ApplyOpenScene();
+                SanctumReferenceFidelityV08Builder.ApplyOpenScene();
             }
             finally
             {
@@ -181,6 +182,11 @@ namespace Mindforge.Editor
                 "bright Memory Forge altar on the existing checkpoint, three resonance preview stations, two-station controller fallback, Python-accepted calibration shortcut, " +
                 "participant-specific derived frequency ranking, no Causeway Rift Hollows, and hostile projectile readability scaling from 60% during onboarding to 82% after release. " +
                 "Controller preview is never neural evidence; profile-v2 restores opening phase/threshold state.");
+            Debug.Log(
+                "[Mindforge:Showcase] Sanctum Reference Fidelity V0.8 ready: pointed cathedral ribs, crisp shadow/gold edge reveals, side-chapel resonance stations, " +
+                "protected 10m+ processional clearance, a 9.5m exterior road with separate walkways, layered near/mid/far city composition and structured phase-ring infrastructure. " +
+                "Ordinary enemies now read as Choir Reliquary Sentry, Chrome Penitent Lancer, Shard Cantor, Needle Seraph, Cathedral Warden and deeper Rift Stalker silhouettes; " +
+                "these visuals are collider-free, amber/white threat-coded and remain downstream of the existing deterministic enemy controllers.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
