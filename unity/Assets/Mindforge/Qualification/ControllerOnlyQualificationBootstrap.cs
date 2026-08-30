@@ -5,6 +5,7 @@ using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.Combat;
 using Mindforge.Neural;
+using Mindforge.Presentation;
 using Mindforge.SoulWisp;
 using Mindforge.Telemetry;
 
@@ -126,6 +127,12 @@ namespace Mindforge.Qualification
         private void OnGUI()
         {
             if (!_active) return;
+
+            // The compact V0.9 HUD carries the same explicit SHOWCASE · BCI OFF declaration.
+            // Avoid rendering a second qualification watermark over the production frame.
+            // Non-production qualification scenes retain this original persistent watermark.
+            if (ProductionHudV09.Active) return;
+
             if (_watermark == null)
             {
                 _watermark = new GUIStyle(GUI.skin.label)

@@ -36,12 +36,17 @@ def test_third_party_manifest_has_strict_policy_and_known_sources():
     assert "unity/Assets/Mindforge/ThirdParty/Wfc/LICENSE.txt" in wfc["vendored_paths"]
 
     for entry in entries.values():
-        assert entry["upstream"].startswith("https://github.com/")
+        assert entry["upstream"].startswith("https://")
         assert entry["license"].strip()
-        assert entry["usage"] in {"adapted_code", "reference_only", "vendored_asset"}
+        assert entry["usage"] in {"adapted_code", "reference_only", "vendored_asset", "local_asset_source"}
+        if entry["usage"] != "local_asset_source":
+            # V0.7 code/reference provenance is GitHub-addressable. V0.9 explicitly adds
+            # a separate local-only category for upstream asset sites whose raw files must
+            # not be published by this repository.
+            assert entry["upstream"].startswith("https://github.com/")
         for relative in entry["vendored_paths"]:
             assert (ROOT / relative).exists(), relative
-        if entry["usage"] == "reference_only":
+        if entry["usage"] in {"reference_only", "local_asset_source"}:
             assert entry["vendored_paths"] == []
 
 

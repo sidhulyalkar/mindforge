@@ -33,6 +33,8 @@ namespace Mindforge.Presentation
         [SerializeField] private float shoulderOffset = 0.70f;
         [SerializeField] private float freeLookAhead = 5.6f;
         [SerializeField] private float gameplayFieldOfView = 58f;
+        [SerializeField] private float gameplayNearClip = 0.06f;
+        [SerializeField] private float gameplayFarClip = 420f;
         [SerializeField] private float initialYaw = 0f;
         [SerializeField] private float initialPitch = 12f;
         [SerializeField] private float minPitch = -10f;
@@ -279,12 +281,13 @@ namespace Mindforge.Presentation
 
             if (gameplayCamera != null)
             {
-                // Deliberately fixed across foot, jump, hover and mounted speed. Speed
-                // composition is achieved by physical orbit/look-ahead only so the coded
-                // stimulus projection is not modulated by locomotion state.
+                // Deliberately fixed across foot, jump, hover and mounted speed.
+                // Coded stimulus angular size is not modulated by locomotion. Near/far clipping
+                // only controls visibility depth; the 420m minimum preserves the cathedral-city
+                // skyline requested by the Sanctum visual-clarity policy.
                 gameplayCamera.fieldOfView = Mathf.Clamp(gameplayFieldOfView, 45f, 75f);
-                gameplayCamera.nearClipPlane = 0.06f;
-                gameplayCamera.farClipPlane = 140f;
+                gameplayCamera.nearClipPlane = Mathf.Clamp(gameplayNearClip, 0.02f, 0.10f);
+                gameplayCamera.farClipPlane = Mathf.Max(420f, gameplayFarClip);
             }
         }
 
