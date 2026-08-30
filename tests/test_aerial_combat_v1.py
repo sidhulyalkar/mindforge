@@ -71,15 +71,23 @@ def test_airborne_attacks_keep_bounded_steering_without_erasing_ground_commitmen
     assert "physicalCombat.MovementMultiplier" in motor
 
 
-def test_shift_and_rmb_are_roll_air_dash_inputs_while_player_pulse_is_retired():
+def test_shift_and_rmb_are_canonical_evade_air_dash_inputs_while_player_pulse_is_retired():
     source = read("Combat", "GuardianCombatInput.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
 
     for token in (
-        "Input.GetKeyDown(KeyCode.LeftShift)",
-        "Input.GetKeyDown(KeyCode.RightShift)",
+        "evadeBoostPrimary = KeyCode.LeftShift",
+        "evadeBoostSecondary = KeyCode.RightShift",
+        "rightMouseEvades = true",
         "Input.GetMouseButtonDown(1)",
-        "Space: jump / double jump; hold while descending to hover / slow fall",
-        "Shift or RMB: grounded dodge roll / air dash",
+        "jumpHover = KeyCode.Space",
+    ):
+        assert token in controls
+
+    for token in (
+        "controls.Pressed(GuardianControlAction.EvadeBoost)",
+        "controls.Pressed(GuardianControlAction.JumpHover)",
+        "controls.Held(GuardianControlAction.JumpHover)",
         "Shield hold and player Pulse fire are intentionally retired",
         "endurance.DodgeBaseCost",
         "dodgeCommandBufferSeconds = 0.15f",
@@ -95,10 +103,11 @@ def test_shift_and_rmb_are_roll_air_dash_inputs_while_player_pulse_is_retired():
     assert "QueueDodgeCommand(aim)" in source[dash:jump]
 
 
-def test_existing_input_tape_fields_replay_aerial_actions_without_new_schema_surface():
+def test_existing_input_tape_fields_replay_aerial_actions_without_new_aerial_schema_surface():
     tape = read("Combat", "GuardianInputTape.cs")
 
     assert 'SchemaV3 = "mindforge.guardian_input_tape.v3"' in tape
+    assert 'SchemaV5 = "mindforge.guardian_input_tape.v5"' in tape
     assert "public bool dash_down" in tape
     assert "public bool jump_down" in tape
     assert "public bool jump_held" in tape
@@ -140,8 +149,6 @@ def test_fractured_signal_melee_has_truthful_vertical_reach_and_jumpable_slam():
     ):
         assert token in boss
 
-    # Boss primary projectile fans already use the player's full 3D position. Aerial
-    # height therefore redirects pressure rather than becoming permanent invulnerability.
     director = read("Combat", "FracturedSignalDirector.cs")
     assert "Vector3 center = (player.position - origin).normalized" in director
     assert "Quaternion.AngleAxis(offset, Vector3.up) * center" in director
@@ -157,9 +164,11 @@ def test_grounded_hud_teaches_aerial_escape_without_restoring_shield_or_pulse_cl
     assert '"ENDURANCE"' in hud
     assert '"SPACE ×2 / HOLD · SHIFT AIR DASH"' in hud
     assert '"F / LMB BLADE   ·   SHIFT / RMB ROLL' in hud
-    assert "SHIFT / RMB DODGE ROLL" in guide
-    assert "double-jump / hover / air-dash create shortcuts" in guide
-    assert "EEG never moves, jumps, hovers, rolls, air-dashes" in guide
-    assert '"SHIFT / RMB", "Dodge roll · air dash aloft"' in menu
-    assert '"X / MMB", "Pulse Shot"' not in menu
-    assert '"RMB / E", "Shield"' not in menu
+    assert "GuardianControlAction.EvadeBoost" in guide
+    assert '" EVADE   ·   "' in guide
+    assert "MOUSE WHEEL CYCLES LOCKED TARGETS" in guide
+    assert "EEG never moves, jumps, hovers, evades" in guide
+    assert "GuardianControlAction.EvadeBoost" in menu
+    assert '"Dodge roll · air dash · mounted boost"' in menu
+    assert '"Pulse Shot"' not in menu
+    assert '"Shield"' not in menu
