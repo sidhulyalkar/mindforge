@@ -8,8 +8,8 @@ namespace Mindforge.World
 {
     /// <summary>
     /// Conventional world interaction that permanently opens one traversal shortcut for
-    /// the current run. It observes Guardian action state only to avoid accepting an
-    /// interaction mid-commitment; it has no combat, neural or calibration authority.
+    /// the current run. V0.6 can delegate its input/prompt to the shared contextual router
+    /// while this component remains the physical shortcut authority and telemetry source.
     /// </summary>
     public sealed class WorldShortcut : MonoBehaviour
     {
@@ -23,11 +23,16 @@ namespace Mindforge.World
         [SerializeField] private UdpGameMarkerSender markers;
 
         private bool _unlocked;
+        private bool _externalInteractionOwned;
         private GUIStyle _promptStyle;
 
         public event Action<string> Unlocked;
         public bool IsUnlocked => _unlocked;
         public string ShortcutId => shortcutId;
+        public bool ExternalInteractionOwned => _externalInteractionOwned;
+        public Transform InteractionPoint => interactionPoint != null ? interactionPoint : transform;
+        public float InteractionRadius => Mathf.Max(0.5f, interactionRadius);
+        public bool CanUnlockNow => !_unlocked && PlayerInRange() && CanInteract();
 
         public void ConfigureRuntime(
             Transform guardian,
@@ -44,6 +49,8 @@ namespace Mindforge.World
             markers = markerSender;
         }
 
+        public void SetExternalInteractionOwned(bool owned) => _externalInteractionOwned = owned;
+
         private void Start()
         {
             Resolve();
@@ -52,7 +59,7 @@ namespace Mindforge.World
 
         private void Update()
         {
-            if (_unlocked || !PlayerInRange() || !CanInteract()) return;
+            if (_externalInteractionOwned || !CanUnlockNow) return;
             if (Input.GetKeyDown(interactKey)) Unlock();
         }
 
@@ -66,11 +73,17 @@ namespace Mindforge.World
             return true;
         }
 
+        public void RestoreUnlocked(bool unlocked, bool immediate = true)
+        {
+            _unlocked = unlocked;
+            gate?.SetOpen(unlocked, immediate);
+        }
+
         private bool PlayerInRange()
         {
-            if (player == null || interactionPoint == null) return false;
-            Vector3 delta = Vector3.ProjectOnPlane(player.position - interactionPoint.position, Vector3.up);
-            float radius = Mathf.Max(0.5f, interactionRadius);
+            if (player == null || InteractionPoint == null) return false;
+            Vector3 delta = Vector3.ProjectOnPlane(player.position - InteractionPoint.position, Vector3.up);
+            float radius = InteractionRadius;
             return delta.sqrMagnitude <= radius * radius;
         }
 
@@ -85,7 +98,7 @@ namespace Mindforge.World
 
         private void OnGUI()
         {
-            if (_unlocked || !PlayerInRange() || !CanInteract()) return;
+            if (_externalInteractionOwned || !CanUnlockNow) return;
             if (_promptStyle == null)
             {
                 _promptStyle = new GUIStyle(GUI.skin.box)
