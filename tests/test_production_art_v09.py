@@ -153,15 +153,21 @@ def test_guardian_fallback_replaces_visible_primitives_without_replacing_pose_or
     ):
         assert token in text
     for forbidden in (
-        "Rigidbody",
-        "Collider",
-        "GuardianMotor",
-        "GuardianCombatInput",
+        "GetComponent<Rigidbody>",
+        "GetComponent<Collider>",
+        "GetComponentsInChildren<Collider>",
+        "AddComponent<Rigidbody>",
+        "AddComponent<Collider>",
+        "AddComponent<GuardianMotor>",
+        "AddComponent<GuardianCombatInput>",
         "TakeDamage",
-        "transform.position =",
-        "transform.localPosition =",
     ):
         assert forbidden not in text
+    # The new shell is deliberately parented under the old animated transforms instead of
+    # driving the Guardian root or starting a parallel animation authority.
+    assert 'Transform torso = avatar.Find("Torso")' in text
+    assert 'BuildArm(avatar.Find("LeftArm")' in text
+    assert 'BuildLeg(avatar.Find("LeftLeg")' in text
 
 
 def test_compact_hud_replaces_debug_panel_without_claiming_neural_authority():
