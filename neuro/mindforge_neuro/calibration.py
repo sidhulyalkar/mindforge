@@ -95,6 +95,35 @@ def calibrate_decoder(decoder: SsvepDecoder, trials: Iterable[tuple[AuraTarget, 
                               accepted / max(1, sum(counts.values())), counts)
 
 
+def _has_low_order_harmonic_collision(
+    first_hz: float,
+    second_hz: float,
+    *,
+    harmonics: int,
+    maximum_evidence_hz: float,
+    minimum_separation_hz: float,
+) -> bool:
+    """Return True when decoder-visible low-order harmonics become nearly identical.
+
+    FBCCA intentionally uses harmonic reference components. A pair can therefore be well separated
+    at its fundamentals while becoming ambiguous at a low-order harmonic, e.g. 3*8 == 2*12 ==
+    24 Hz. Only harmonics inside the decoder's evidence band are considered here.
+    """
+    if minimum_separation_hz <= 0:
+        return False
+    first = [
+        order * first_hz
+        for order in range(1, harmonics + 1)
+        if order * first_hz <= maximum_evidence_hz
+    ]
+    second = [
+        order * second_hz
+        for order in range(1, harmonics + 1)
+        if order * second_hz <= maximum_evidence_hz
+    ]
+    return any(abs(a - b) < minimum_separation_hz for a in first for b in second)
+
+
 def rank_participant_frequency_pairs(
     trials: Iterable[tuple[float, np.ndarray]],
     *,
@@ -102,6 +131,7 @@ def rank_participant_frequency_pairs(
     model_id: str = "participant-frequency-ranking-v1",
     minimum_trials_per_frequency: int = 3,
     minimum_frequency_separation_hz: float = 1.5,
+    minimum_harmonic_separation_hz: float = 0.75,
 ) -> ParticipantFrequencyProfile:
     """Rank candidate two-target SSVEP frequency pairs for one participant.
 
@@ -110,12 +140,18 @@ def rank_participant_frequency_pairs(
     implementation as gameplay. The objective prioritizes balanced classification accuracy,
     then separation margin, true-frequency response strength and usable signal quality.
 
+    Candidate pairs with decoder-visible low-order harmonic collisions are rejected before scoring.
+    This prevents an empirically noisy calibration sample from selecting a structurally ambiguous
+    reference pair such as 8/12 Hz when three harmonics are used.
+
     This function does not choose renderer timing, alter stimulus luminance, or export EEG.
     The selected pair must still pass device-specific refresh/photodiode qualification.
     """
     base = base_config or SsvepConfig()
     minimum_trials_per_frequency = max(2, int(minimum_trials_per_frequency))
     minimum_frequency_separation_hz = max(0.1, float(minimum_frequency_separation_hz))
+    minimum_harmonic_separation_hz = max(0.0, float(minimum_harmonic_separation_hz))
+    maximum_evidence_hz = max(high for _low, high in base.filter_bands_hz)
 
     grouped: dict[float, list[np.ndarray]] = {}
     for raw_hz, eeg in trials:
@@ -131,6 +167,14 @@ def rank_participant_frequency_pairs(
     evaluations: list[FrequencyPairEvaluation] = []
     for sight_hz, guard_hz in combinations(candidates, 2):
         if guard_hz - sight_hz < minimum_frequency_separation_hz:
+            continue
+        if _has_low_order_harmonic_collision(
+            sight_hz,
+            guard_hz,
+            harmonics=base.harmonics,
+            maximum_evidence_hz=maximum_evidence_hz,
+            minimum_separation_hz=minimum_harmonic_separation_hz,
+        ):
             continue
         if min(len(grouped[sight_hz]), len(grouped[guard_hz])) < minimum_trials_per_frequency:
             continue
@@ -190,7 +234,9 @@ def rank_participant_frequency_pairs(
 
     if not evaluations:
         raise ValueError(
-            "no candidate frequency pair had enough clean trials and required frequency separation")
+            "no candidate frequency pair had enough clean trials, fundamental separation, "
+            "and decoder-visible harmonic separation"
+        )
 
     evaluations.sort(key=lambda item: (
         -item.objective,
