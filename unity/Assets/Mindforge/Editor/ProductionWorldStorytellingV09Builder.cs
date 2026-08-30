@@ -90,7 +90,7 @@ namespace Mindforge.Editor
             Material ivory, Material pearl, Material graphite, Material gold)
         {
             // The pristine nave gets two intentionally unequal repair stories on its outer edge.
-            Part("Sanctum_Left_SettledSlab_A", root, slab, new Vector3(-12.8f, 0.55f, -54.5f), new Vector3(2.8f, 1.2f, 1.6f), warmOr(ivory), new Vector3(11f, -18f, 7f));
+            Part("Sanctum_Left_SettledSlab_A", root, slab, new Vector3(-12.8f, 0.55f, -54.5f), new Vector3(2.8f, 1.2f, 1.6f), ivory, new Vector3(11f, -18f, 7f));
             Part("Sanctum_Left_SettledSlab_B", root, slab, new Vector3(-13.5f, 1.05f, -51.4f), new Vector3(1.9f, 0.9f, 1.2f), graphite, new Vector3(-23f, 31f, 18f));
             Part("Sanctum_Right_VotiveRibbon", root, ribbon, new Vector3(12.55f, 6.25f, -47.7f), new Vector3(1.25f, 5.2f, 1f), pearl, new Vector3(0f, -8f, 0f), false);
             Part("Sanctum_Right_GoldMend", root, cable, new Vector3(12.7f, 5.7f, -52.0f), new Vector3(4.4f, 2.1f, 1.0f), gold, new Vector3(0f, 90f, 8f), false);
@@ -119,8 +119,8 @@ namespace Mindforge.Editor
             Part("Market_SouthEast_CounterRemnant", root, slab, c + new Vector3(7.8f, 0.48f, 5.3f), new Vector3(2.1f, 0.8f, 1.35f), graphite, new Vector3(-7f, -31f, 5f));
             Part("Market_West_TradeBanner", root, ribbon, c + new Vector3(-6.9f, 5.4f, 1.8f), new Vector3(1.35f, 4.4f, 1f), pearl, new Vector3(0f, 78f, 0f), false);
             Part("Market_East_TradeBanner", root, ribbon, c + new Vector3(7.1f, 4.8f, -2.3f), new Vector3(0.9f, 3.4f, 1f), gold, new Vector3(0f, -84f, 0f), false);
-            Part("Market_North_ServiceCable", root, cable, c + new Vector3(0.8f, 7.2f, -5.9f), new Vector3(8.6f, 2.2f, 1f), graphite, new Vector3(0f, 0f, 1f), false);
-            Part("Market_South_ServiceCable", root, cable, c + new Vector3(-1.4f, 6.5f, 5.8f), new Vector3(6.7f, 1.9f, 1f), gold, new Vector3(0f, 180f, -4f), false);
+            Part("Market_North_ServiceCable", root, cable, c + new Vector3(0.8f, 7.2f, -6.8f), new Vector3(8.6f, 2.2f, 1f), graphite, new Vector3(0f, 0f, 1f), false);
+            Part("Market_South_ServiceCable", root, cable, c + new Vector3(-1.4f, 6.5f, 6.8f), new Vector3(6.7f, 1.9f, 1f), gold, new Vector3(0f, 180f, -4f), false);
         }
 
         private static void BuildFractureDamage(
@@ -161,8 +161,6 @@ namespace Mindforge.Editor
             Part("Cathedral_West_FallenCap", root, slab, c + new Vector3(-8.4f, 0.52f, -12.8f), new Vector3(2.7f, 1.0f, 1.45f), ivory, new Vector3(9f, -21f, 14f));
             Part("Cathedral_East_FallenCap", root, slab, c + new Vector3(8.7f, 0.46f, 5.1f), new Vector3(2.1f, 0.82f, 1.25f), graphite, new Vector3(-12f, 34f, -9f));
         }
-
-        private static Material warmOr(Material fallback) => fallback;
 
         private static Transform Zone(Transform parent, string name)
         {
