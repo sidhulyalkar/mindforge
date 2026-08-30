@@ -8,10 +8,10 @@ namespace Mindforge.Editor
 {
     /// <summary>
     /// Transitional integration hook while the V0.9 production-art tranche is developed.
-    /// V0.8 builders save the scene during the canonical one-click showcase rebuild; this
-    /// hook observes that save and immediately applies V0.9 if it is not already present.
-    /// It also installs the compact HUD and smooth Guardian shell using generated materials,
-    /// then applies optional local licensed-art substitutions when LocalArt is populated.
+    /// V0.8 builders save the scene during the canonical one-click showcase rebuild. V0.9
+    /// waits specifically for the reference-fidelity root, preventing the production layer
+    /// from running halfway through the V0.8 visual sequence. It then installs the compact
+    /// HUD and smooth Guardian shell and applies optional local licensed-art substitutions.
     /// </summary>
     [InitializeOnLoad]
     public static class ProductionArtAutoHookV09
@@ -27,10 +27,9 @@ namespace Mindforge.Editor
         [MenuItem("Mindforge/Showcase/Apply Complete Production Presentation V0.9", priority = 43)]
         public static void ApplyNow()
         {
-            GameObject sanctum = EditorSceneLookup.FindIncludingInactive(SanctumOnboardingV08Builder.RootName);
-            if (sanctum == null)
+            if (!ReferenceFidelityReady())
             {
-                Debug.LogWarning("[Mindforge:V09:Art] Build the cinematic showcase first; Sanctum V0.8 is not present.");
+                Debug.LogWarning("[Mindforge:V09:Art] Build the complete V0.8 reference-fidelity showcase first.");
                 return;
             }
             ApplyInternal(true);
@@ -38,9 +37,7 @@ namespace Mindforge.Editor
 
         private static void TryApply()
         {
-            if (_applying || EditorApplication.isPlayingOrWillChangePlaymode) return;
-            GameObject sanctum = EditorSceneLookup.FindIncludingInactive(SanctumOnboardingV08Builder.RootName);
-            if (sanctum == null) return;
+            if (_applying || EditorApplication.isPlayingOrWillChangePlaymode || !ReferenceFidelityReady()) return;
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
             if (production != null)
             {
@@ -49,6 +46,13 @@ namespace Mindforge.Editor
                 return;
             }
             ApplyInternal(false);
+        }
+
+        private static bool ReferenceFidelityReady()
+        {
+            GameObject sanctum = EditorSceneLookup.FindIncludingInactive(SanctumOnboardingV08Builder.RootName);
+            if (sanctum == null) return false;
+            return sanctum.transform.Find(SanctumReferenceFidelityV08Builder.RootName) != null;
         }
 
         private static void ApplyInternal(bool forceRebuild)
@@ -65,7 +69,7 @@ namespace Mindforge.Editor
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 EditorSceneManager.SaveOpenScenes();
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[Mindforge:V09:Art] Complete production presentation applied; local external replacements={external}.");
+                Debug.Log($"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; local external replacements={external}.");
             }
             finally
             {
