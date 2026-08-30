@@ -85,6 +85,7 @@ def test_shader_has_no_screen_effect_or_gameplay_or_neural_authority():
 def test_only_opaque_production_surfaces_migrate_to_shared_triplanar_shader():
     text = read(MATERIALS)
     assert 'TriplanarShaderName = "Mindforge/ProductionTriplanarLitV09"' in text
+    assert 'TriplanarShaderPath = "Assets/Mindforge/Shaders/ProductionTriplanarLitV09.shader"' in text
     assert text.count("EnsureWorldLitMaterial(") == 6  # five calls + helper declaration
     assert "material.shader = shader" in text
     for prop in ("_MetersPerTile", "_BlendSharpness", "_NormalFadeDistance"):
@@ -95,6 +96,17 @@ def test_only_opaque_production_surfaces_migrate_to_shared_triplanar_shader():
     assert "EnsureTransparentMaterial(Water" in text
     assert "EnsureTransparentMaterial(Glass" in text
     assert 'Shader.Find("Universal Render Pipeline/Lit")' in text
+
+
+def test_unity_editor_import_gate_refuses_magenta_shader_fallback():
+    text = read(MATERIALS)
+    assert "RequireTriplanarShader();" in text
+    assert "AssetDatabase.LoadAssetAtPath<Shader>(TriplanarShaderPath)" in text
+    assert "ShaderUtil.ShaderHasError(shader)" in text
+    assert "imported with Unity shader compiler errors" in text
+    # Every opaque material helper re-checks the same imported shader, so manual material
+    # authoring cannot bypass the gate after the initial EnsureAuthored call.
+    assert "Shader shader = RequireTriplanarShader();" in text
 
 
 def test_world_scale_is_tuned_per_material_not_one_magic_repeat_value():
