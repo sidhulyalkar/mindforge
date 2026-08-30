@@ -12,8 +12,9 @@ Examples:
 
 The ``neon-screen`` command uses Pupil Labs' official Real-Time API plus the MIT-licensed
 ``real_time_screen_gaze`` package. Four AprilTags are placed in small top-most windows
-at the display corners so the glasses' scene camera can map gaze into screen pixels.
-For the first hardware slice, run Mindforge borderless/full-screen on that display.
+at the display corners so the glasses' scene camera can map gaze into a normalized
+screen surface. For the first hardware slice, run Mindforge borderless/full-screen on
+that display.
 """
 
 from __future__ import annotations
@@ -334,22 +335,26 @@ def run_neon_screen(args: argparse.Namespace) -> int:
                 if frame is None or gaze is None:
                     continue
                 result = mapper.process_frame(frame, gaze)
+                if result is None:
+                    continue
                 mapped = result.mapped_gaze.get(surface.uid, ())
                 for surface_gaze in mapped:
-                    x_px = float(surface_gaze.x)
-                    y_px = float(surface_gaze.y)
-                    if not (math.isfinite(x_px) and math.isfinite(y_px)):
+                    if not surface_gaze.is_on_aoi:
+                        continue
+                    x_norm = float(surface_gaze.x)
+                    y_norm = float(surface_gaze.y)
+                    if not (math.isfinite(x_norm) and math.isfinite(y_norm)):
                         continue
                     emitter.send(
                         GazeEvent.create(
                             seq=seq,
                             source_mode="live_pupil_neon_surface",
-                            x=x_px / width,
-                            y=y_px / height,
+                            x=x_norm,
+                            y=y_norm,
                             confidence=1.0,
                             fixation=False,
                             worn=bool(getattr(gaze, "worn", True)),
-                            coordinate_origin="top_left",
+                            coordinate_origin="bottom_left",
                             surface="primary_display",
                         )
                     )
