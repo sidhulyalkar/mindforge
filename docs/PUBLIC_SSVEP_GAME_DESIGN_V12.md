@@ -78,20 +78,26 @@ Data: `10.5281/zenodo.19081765`
 - 16 posterior/parietal channels;
 - four simultaneously presented circles;
 - 4.6, 6.43, 8.03 and 10.7 Hz;
-- explicit covert-attention tasks with central fixation;
-- explicit overt-attention tasks;
-- no-attention/control task.
+- each experimental task lasts 30 seconds;
+- Tasks 2–5: central fixation plus covert attention to top/bottom/right/left respectively;
+- Tasks 6–9: overt gaze plus attention to the corresponding target;
+- Task 1: spontaneous activity with no stimuli;
+- Task 10: spontaneous/no-command activity while the stimuli remain present.
 
-This is our cheapest way to test whether a *gaze-independent* Mindforge mode deserves continued investment.
+Task 10 is particularly valuable for Mindforge because it approximates the dangerous production state: **coded visual stimulation is physically present but the user intends no command**. It provides a direct public-data stress test for idle false activations instead of inferring zero-class behavior from forced-choice trials.
+
+This is our cheapest way to test whether a *gaze-independent* Mindforge mode deserves continued investment and whether an always-listening mode is safe enough to consider at all.
 
 #### Mindforge analyses
 
 - compare overt vs covert target classification using identical decoder families;
 - use left/right targets as the closest analogue to the two-orb game geometry;
 - quantify the loss in SNR/accuracy/latency from overt to covert attention;
-- measure false selection during the no-attention task;
-- test FBCCA vs template/TRCA-style subject-specific decoding where trial structure permits;
-- test whether adding alpha lateralization/topographic features improves covert decoding.
+- slide non-overlapping candidate decision windows through Task 10 and measure false activations per minute;
+- use Task 1 to distinguish stimulus-driven idle evidence from ordinary spontaneous EEG;
+- test FBCCA vs template/TRCA-style subject-specific decoding where task structure permits;
+- test whether adding alpha lateralization/topographic features improves covert decoding;
+- report every participant rather than hiding non-responders behind a cohort mean.
 
 If covert performance is weak or highly participant-dependent, the production game should not require gaze-independent attention. That is not a scientific failure; it is a product-design result.
 
