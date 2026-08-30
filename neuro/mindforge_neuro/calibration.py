@@ -207,3 +207,23 @@ def rank_participant_frequency_pairs(
         candidate_frequencies_hz=candidates,
         model_id=str(model_id),
     )
+
+
+def personalized_ssvep_config(
+    profile: ParticipantFrequencyProfile,
+    *,
+    base_config: SsvepConfig | None = None,
+) -> SsvepConfig:
+    """Create the gameplay decoder config chosen by participant calibration.
+
+    This is intentionally a pure configuration transform. Calling it does not imply that the
+    display has passed timing qualification and does not mutate a running decoder in place.
+    """
+    base = base_config or SsvepConfig()
+    config = replace(
+        base,
+        blue_frequency_hz=float(profile.selected_sight_hz),
+        green_frequency_hz=float(profile.selected_guard_hz),
+    )
+    config.validate()
+    return config
