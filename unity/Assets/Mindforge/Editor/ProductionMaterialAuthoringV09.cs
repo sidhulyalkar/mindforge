@@ -6,19 +6,21 @@ using UnityEngine;
 namespace Mindforge.Editor
 {
     /// <summary>
-    /// Editor-time material synthesis for the production-art pass. The important design
-    /// change is that large surfaces no longer depend on a single flat base color: each
-    /// material gets deterministic low-frequency structure, fine grain and a tangent-space
-    /// normal texture. Assets are generated locally under Assets/Mindforge/Generated so
-    /// the public repository stays text-first and can later swap to authored PBR scans.
+    /// Editor-time material synthesis for the production-art pass. Large architectural
+    /// surfaces use one shared world-space/triplanar URP shader so a 20 m wall and a 1 m
+    /// pedestal keep the same texel density instead of inheriting stretched primitive UVs.
+    /// Emissive semantic surfaces, glass and water deliberately remain on their existing
+    /// material paths so BCI/telegraph readability never depends on the triplanar layer.
     ///
     /// The procedural-texture workflow is conceptually informed by tools such as the
-    /// MIT-licensed Material Maker project, but this implementation is original Unity/C#
-    /// code and copies no upstream source or binary artwork.
+    /// MIT-licensed Material Maker project. URP pass structure was checked against Unity's
+    /// public shader libraries and the CC0 Cyanilux URP shader templates. Mindforge's
+    /// triplanar sampling/normal blending implementation is authored locally.
     /// </summary>
     public static class ProductionMaterialAuthoringV09
     {
         public const string Root = "Assets/Mindforge/Generated/ProductionV09";
+        public const string TriplanarShaderName = "Mindforge/ProductionTriplanarLitV09";
         public const string Ivory = "ProdIvoryStoneV09";
         public const string Pearl = "ProdPearlCeramicV09";
         public const string WarmStone = "ProdWarmStoneV09";
@@ -46,11 +48,18 @@ namespace Mindforge.Editor
             Texture2D gardenAlbedo = EnsureSurfaceTexture("GardenAlbedo", new Color(0.18f, 0.33f, 0.16f), 0.17f, 5.6f, 123.4f);
             Texture2D gardenNormal = EnsureNormalTexture("GardenNormal", 5.6f, 123.4f, 1.15f);
 
-            EnsureLitMaterial(Ivory, ivoryAlbedo, ivoryNormal, new Color(0.99f, 0.99f, 0.97f), 0.03f, 0.54f, 0.72f);
-            EnsureLitMaterial(Pearl, pearlAlbedo, pearlNormal, new Color(0.91f, 0.96f, 0.98f), 0.08f, 0.67f, 0.62f);
-            EnsureLitMaterial(WarmStone, warmAlbedo, warmNormal, Color.white, 0.02f, 0.39f, 0.86f);
-            EnsureLitMaterial(Graphite, graphiteAlbedo, graphiteNormal, new Color(0.58f, 0.64f, 0.72f), 0.40f, 0.43f, 0.65f);
-            EnsureLitMaterial(Garden, gardenAlbedo, gardenNormal, Color.white, 0.0f, 0.25f, 0.9f);
+            // World metres per texture repeat are intentionally material-specific. Stone gets
+            // broad geological variation; ceramic/graphite read slightly finer; garden canopy
+            // gets the tightest breakup. All share one shader and therefore one rendering path.
+            EnsureWorldLitMaterial(Ivory, ivoryAlbedo, ivoryNormal, new Color(0.99f, 0.99f, 0.97f), 0.03f, 0.54f, 0.72f, 2.45f, 5.2f, 82f);
+            EnsureWorldLitMaterial(Pearl, pearlAlbedo, pearlNormal, new Color(0.91f, 0.96f, 0.98f), 0.08f, 0.67f, 0.62f, 1.75f, 5.8f, 74f);
+            EnsureWorldLitMaterial(WarmStone, warmAlbedo, warmNormal, Color.white, 0.02f, 0.39f, 0.86f, 2.80f, 4.8f, 82f);
+            EnsureWorldLitMaterial(Graphite, graphiteAlbedo, graphiteNormal, new Color(0.58f, 0.64f, 0.72f), 0.40f, 0.43f, 0.65f, 1.45f, 6.2f, 68f);
+            EnsureWorldLitMaterial(Garden, gardenAlbedo, gardenNormal, Color.white, 0.0f, 0.25f, 0.9f, 1.05f, 4.2f, 58f);
+
+            // These remain ordinary URP/Lit. Gold pieces are small enough that object UV scale
+            // is not the production bottleneck, while transparent water/glass need URP's stock
+            // surface controls rather than the opaque architectural shader.
             EnsureMetalMaterial(Gold, new Color(0.88f, 0.67f, 0.24f), 0.92f, 0.74f);
             EnsureTransparentMaterial(Water, new Color(0.08f, 0.34f, 0.48f, 0.66f), 0.86f, 0.10f);
             EnsureTransparentMaterial(Glass, new Color(0.18f, 0.52f, 0.70f, 0.34f), 0.93f, 0.02f);
@@ -148,24 +157,45 @@ namespace Mindforge.Editor
             return norm > 0f ? sum / norm : 0.5f;
         }
 
-        private static Material EnsureLitMaterial(string name, Texture2D albedo, Texture2D normal, Color tint, float metallic, float smoothness, float bumpScale)
+        private static Material EnsureWorldLitMaterial(
+            string name,
+            Texture2D albedo,
+            Texture2D normal,
+            Color tint,
+            float metallic,
+            float smoothness,
+            float bumpScale,
+            float metresPerTile,
+            float blendSharpness,
+            float normalFadeDistance)
         {
             string path = $"{Root}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find(TriplanarShaderName);
+            if (shader == null)
+                throw new InvalidOperationException($"{TriplanarShaderName} is required for V0.9 production surfaces.");
+
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null) throw new InvalidOperationException("URP/Lit shader is required for V0.9 production materials.");
                 material = new Material(shader) { name = name };
                 AssetDatabase.CreateAsset(material, path);
             }
+            else if (material.shader != shader)
+            {
+                // Existing V0.9 material assets may already have been authored with URP/Lit.
+                // Deterministically migrate them in-place so scene references stay stable.
+                material.shader = shader;
+            }
+
             material.SetTexture("_BaseMap", albedo);
             material.SetColor("_BaseColor", tint);
             material.SetFloat("_Metallic", metallic);
             material.SetFloat("_Smoothness", smoothness);
             material.SetTexture("_BumpMap", normal);
             material.SetFloat("_BumpScale", bumpScale);
-            material.SetFloat("_OcclusionStrength", 0.9f);
+            material.SetFloat("_MetersPerTile", Mathf.Max(0.25f, metresPerTile));
+            material.SetFloat("_BlendSharpness", Mathf.Clamp(blendSharpness, 1f, 12f));
+            material.SetFloat("_NormalFadeDistance", Mathf.Max(10f, normalFadeDistance));
             material.EnableKeyword("_NORMALMAP");
             EditorUtility.SetDirty(material);
             return material;
@@ -175,12 +205,16 @@ namespace Mindforge.Editor
         {
             string path = $"{Root}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) throw new InvalidOperationException("URP/Lit shader is required for V0.9 production metals.");
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null) throw new InvalidOperationException("URP/Lit shader is required for V0.9 production materials.");
                 material = new Material(shader) { name = name };
                 AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
             }
             material.SetColor("_BaseColor", color);
             material.SetFloat("_Metallic", metallic);
@@ -193,12 +227,16 @@ namespace Mindforge.Editor
         {
             string path = $"{Root}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) throw new InvalidOperationException("URP/Lit shader is required for V0.9 transparent materials.");
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null) throw new InvalidOperationException("URP/Lit shader is required for V0.9 production materials.");
                 material = new Material(shader) { name = name };
                 AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
             }
             material.SetColor("_BaseColor", color);
             material.SetFloat("_Metallic", metallic);
