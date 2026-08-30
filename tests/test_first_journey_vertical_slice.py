@@ -31,6 +31,7 @@ def test_first_journey_plan_has_explicit_learning_and_promotion_gates():
 
 def test_target_lock_v2_discovers_cycles_and_reacquires_only_conventional_enemies():
     lock = read("Combat", "GuardianTargetLock.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
 
     for token in (
         "FindObjectsOfType<CombatantVitals>(true)",
@@ -38,16 +39,19 @@ def test_target_lock_v2_discovers_cycles_and_reacquires_only_conventional_enemie
         "AcquireBestTarget",
         "TargetChanged",
         "Cycle(int direction)",
-        "KeyCode.LeftArrow",
-        "KeyCode.RightArrow",
         "Input.mouseScrollDelta.y",
         "HasLineOfSight",
         "ReacquireOrUnlock",
         "maximumAcquireAngle = 105f",
         "distanceScoreWeight = 0.42f",
         "angleScoreWeight = 0.58f",
+        "controls.Pressed(GuardianControlAction.TargetLock)",
     ):
         assert token in lock
+
+    assert "targetLock = KeyCode.T" in controls
+    assert "KeyCode.LeftArrow" not in lock
+    assert "KeyCode.RightArrow" not in lock
 
     for forbidden in (
         "NeuralEvent",
@@ -77,8 +81,6 @@ def test_reflection_and_wisp_systems_follow_current_player_owned_target():
     assert "targetLock.TargetChanged += OnTargetChanged" in wisp
     assert "Transform activeTarget = EffectiveTarget" in wisp
     assert "PlaceStableLockedTargets(activeTarget)" in wisp
-    # VEP coding remains in the dedicated stimulus components; target-lock code only
-    # moves their transforms and never rewrites frequency as the target changes.
     assert "sightStimulus?.Configure(sightFrequencyHz, sightColor)" in wisp
     assert "guardStimulus?.Configure(guardFrequencyHz, guardColor)" in wisp
     stable = wisp[wisp.index("private void PlaceStableLockedTargets") : wisp.index("private void PlaceStableAura")]
@@ -105,7 +107,6 @@ def test_journey_enemy_authority_is_readable_reusable_and_uses_existing_defense_
     ):
         assert token in enemy
 
-    # One pending attack at a time is the readability contract for the teaching enemies.
     assert "JourneyEnemyAttackKind _pendingAttack" in enemy
     assert "if (_pendingAttack != JourneyEnemyAttackKind.None)" in enemy
     assert "_pendingAttack = JourneyEnemyAttackKind.None" in enemy
@@ -200,13 +201,9 @@ def test_authored_route_contains_all_teaching_spaces_and_keeps_final_arena_in_pl
     assert builder.index("BuildCellar(") < builder.index("BuildWardenChamber(")
     assert builder.index("BuildWardenChamber(") < builder.index("BuildFinalApproach(")
 
-    # First combat lesson is spatially staged: A is close to the trigger while B waits
-    # near the cavern exit, reducing accidental 2v1 pressure before controls are learned.
     assert "new Vector3(-1.25f, -0.30f, -63.0f)" in builder
     assert "new Vector3(1.65f, -0.30f, -52.8f)" in builder
 
-    # Keep the legacy authored slice as a regression/reference fixture, but the current
-    # one-click shipping path now promotes the interconnected Null Ward.
     assert 'Primitive("WardenFloor", PrimitiveType.Cube, parent, new Vector3(0f, -0.55f, -13.6f), new Vector3(15f, 0.50f, 5.2f)' in builder
     assert '"BossApproachFloor"' not in builder
 
@@ -221,7 +218,11 @@ def test_journey_hud_and_combat_hud_reveal_information_at_the_right_scale():
     combat_hud = read("Presentation", "CombatStateHud.cs")
 
     assert "CurrentObjective" in journey_hud
-    assert "T lock · ←/→ or wheel cycle" in journey_hud
+    assert "GuardianControlProfileV1 controls" in journey_hud
+    assert "MOUSE WHEEL cycle" in journey_hud
+    assert "GuardianControlAction.Interact" in journey_hud
+    assert "←/→ or wheel cycle" not in journey_hud
+    assert "RMB/E shield" not in journey_hud
     assert "CONTROLLER-ONLY PREVIEW · neural authority disabled" in journey_hud
 
     assert "FirstJourneyDirector journey" in combat_hud
