@@ -122,6 +122,10 @@ namespace Mindforge.Editor
                 // V0.7 is presentation-only: it decorates solved cells and adds long-range
                 // silhouette anchors after topology, interaction and persistence are complete.
                 WorldV07Builder.ApplyOpenScene();
+
+                // Readability polish remains presentation-only: shared openings receive pointed
+                // crowns, and only V0.7 decorative lights are scaled down in calibrated BCI mode.
+                WorldV07ReadabilityPolishBuilder.ApplyOpenScene();
             }
             finally
             {
@@ -179,6 +183,9 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Neural-Gothic World V0.7 ready: solved procedural cells now receive deterministic local architectural detail with no new colliders; " +
                 "Cloister gate/spire/well, Memory Loom, Market Reliquary, Cathedral Relay and distant skyline anchors establish long/mid/near visual hierarchy. " +
                 "A small PBR palette and bounded point-light rhythm replace indiscriminate effect stacking; topology, E routing, persistence, combat and BCI remain untouched.");
+            Debug.Log(
+                "[Mindforge:Showcase] V0.7 readability polish ready: shared generated seams carry pointed arch crowns, while the six decorative world lights retain " +
+                "full authored intensity only in controller-only qualification and reduce their luminance contribution during calibrated/live BCI presentation.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
