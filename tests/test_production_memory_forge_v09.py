@@ -46,7 +46,10 @@ def test_old_memory_forge_visuals_are_hidden_but_physical_dais_remains_authorita
     assert "Collider daisCollider" in text
     assert "daisCollider == null || !daisCollider.enabled" in text
     assert "originalDaisCollider == null || !originalDaisCollider.enabled" in text
-    assert "renderer.enabled = false" in text
+    # Lock the actual renderer-array mutation rather than a variable-name spelling.
+    # The previous assertion expected `renderer.enabled = false` even though the
+    # implementation intentionally mutates the indexed renderer collection.
+    assert "renderers[r].enabled = false;" in text
     assert "DestroyImmediate(daisCollider" not in text
     assert "daisCollider.enabled = false" not in text
 
