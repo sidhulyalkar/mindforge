@@ -22,6 +22,7 @@ namespace Mindforge.Presentation
         private GUIStyle _small;
         private GUIStyle _chip;
         private double _started;
+        private double _nextLegacyHudCheck;
 
         public static bool Active { get; private set; }
 
@@ -30,6 +31,7 @@ namespace Mindforge.Presentation
             Active = true;
             _started = Time.realtimeSinceStartupAsDouble;
             Resolve();
+            SuppressLegacyCombatHud();
         }
 
         private void OnDisable()
@@ -41,6 +43,11 @@ namespace Mindforge.Presentation
         {
             if (playerVitals == null || endurance == null || flux == null || calibration == null)
                 Resolve();
+            if (Time.realtimeSinceStartupAsDouble >= _nextLegacyHudCheck)
+            {
+                _nextLegacyHudCheck = Time.realtimeSinceStartupAsDouble + 1.0;
+                SuppressLegacyCombatHud();
+            }
         }
 
         private void Resolve()
@@ -60,6 +67,12 @@ namespace Mindforge.Presentation
                     }
                 }
             }
+        }
+
+        private static void SuppressLegacyCombatHud()
+        {
+            CombatStateHud legacy = FindObjectOfType<CombatStateHud>(true);
+            if (legacy != null && legacy.enabled) legacy.enabled = false;
         }
 
         private void OnGUI()
