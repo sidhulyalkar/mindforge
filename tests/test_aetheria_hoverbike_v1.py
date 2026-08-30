@@ -63,11 +63,9 @@ def test_hoverbike_keeps_guardian_rigidbody_as_sole_player_body_and_excludes_bci
         "_body.velocity = horizontal + Vector3.up * vertical",
         "Physics.RaycastNonAlloc(",
         "TryStartBoost()",
-        "E",
     ):
         assert token in bike
 
-    # Boost is mobility, not a second dodge/invulnerability system.
     for forbidden in (
         "IsInvulnerable",
         "invulnerable",
@@ -196,9 +194,10 @@ def test_showcase_inserts_aetheria_after_truthful_enemy_identity_and_before_ambi
     visual = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
     assert ecosystem < menagerie < menagerie_collision < ordinary_collision < ordinary_silhouette < menagerie_silhouette < aetheria < v2 < dynamic_mount < visual
 
-    assert "E mounts/dismounts a nearby Prism hoverbike" in menu
+    assert "E interacts with the current world offer" in menu
     assert "Two optional Prism hoverbikes use the existing Guardian" in menu
     assert "Rigidbody as mounted authority" in menu
+    assert "UxInteractionSaveV05Builder.ApplyOpenScene();" in menu
 
 
 def test_aetheria_design_artifacts_exist_and_keep_scope_bounded():
