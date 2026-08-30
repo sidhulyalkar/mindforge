@@ -25,6 +25,7 @@ from mindforge_neuro.gaze_confound import (  # noqa: E402
     recommend_game_architecture,
     tune_policy,
 )
+from mindforge_neuro.public_validation import leave_one_subject_out_validation  # noqa: E402
 
 
 DATASETS = {
@@ -35,7 +36,7 @@ DATASETS = {
         "frequencies_hz": [10.0, 11.0, 12.0, 13.0],
         "modalities": ["64-channel EEG", "Tobii eye tracking", "high-speed eye video"],
         "mindforge_role": "Primary peripheral-flicker/gaze-confound benchmark; use the 10/12-Hz subset first.",
-        "important_note": "The original publication is authoritative for frequencies. A 2026 re-host metadata page currently lists a conflicting set.",
+        "important_note": "The original publication/MOABB annotations are authoritative for frequencies. Validate source labels rather than trusting re-host catalog prose.",
     },
     "iscan-2026-overt-covert": {
         "doi": "10.1371/journal.pone.0345793",
@@ -85,10 +86,15 @@ def load_jsonl(path: Path) -> list[EvidenceWindow]:
     return rows
 
 
-def report(rows: list[EvidenceWindow], policy: SelectionPolicy) -> dict[str, object]:
+def report(
+    rows: list[EvidenceWindow],
+    policy: SelectionPolicy,
+    *,
+    include_loso: bool,
+) -> dict[str, object]:
     metrics = evaluate_policy(rows, policy)
     recommendation = recommend_game_architecture(metrics)
-    return {
+    payload: dict[str, object] = {
         "schema": "mindforge.ssvep_game_design_report.v1",
         "policy": {
             "min_score": policy.min_score,
@@ -105,6 +111,16 @@ def report(rows: list[EvidenceWindow], policy: SelectionPolicy) -> dict[str, obj
             "the final Unity renderer, display timing, Unicorn hardware, or a specific player."
         ),
     }
+    if include_loso:
+        payload["leave_one_subject_out"] = leave_one_subject_out_validation(
+            rows,
+            require_gaze_geometry=policy.require_gaze_geometry,
+        ).to_dict()
+        payload["validation_note"] = (
+            "LOSO threshold selection is the minimum cohort-level evidence. Data-driven EEG models "
+            "such as TRCA must also be fitted strictly inside each training/calibration split."
+        )
+    return payload
 
 
 def main() -> int:
@@ -121,7 +137,16 @@ def main() -> int:
     evaluate.add_argument("--min-quality", type=float, default=0.55)
     evaluate.add_argument("--gaze-gate", action="store_true")
     evaluate.add_argument("--max-eccentricity-deg", type=float, default=6.0)
-    evaluate.add_argument("--tune", action="store_true", help="Tune score/margin/quality gates by gameplay risk")
+    evaluate.add_argument(
+        "--tune",
+        action="store_true",
+        help="Tune a descriptive pooled policy by gameplay risk; do not use this pooled score as promotion evidence.",
+    )
+    evaluate.add_argument(
+        "--loso",
+        action="store_true",
+        help="Also tune thresholds on N-1 subjects and evaluate once on each held-out subject.",
+    )
 
     args = parser.parse_args()
     if args.command == "catalog":
@@ -139,7 +164,7 @@ def main() -> int:
             require_gaze_geometry=bool(args.gaze_gate),
             max_attended_eccentricity_deg=float(args.max_eccentricity_deg),
         )
-    payload = report(rows, policy)
+    payload = report(rows, policy, include_loso=bool(args.loso))
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     print(rendered)
     if args.output:
