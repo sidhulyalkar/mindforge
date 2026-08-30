@@ -153,9 +153,12 @@ def test_story_beacons_are_collider_free_position_observers_and_restore_safe():
 
     for token in (
         "Vector3.ProjectOnPlane(guardian.position - transform.position",
-        'ledger.SetBool("story." + id + ".discovered"',
+        'string key = "story." + id + ".discovered"',
+        "ledger.TryGetBool(key, out bool already)",
+        "ledger.SetBool(key, true, \"world_story_discovery\")",
         "WorldSignalKind.StoryDiscovered",
         "ledger.SnapshotRestored += ResolveExistingState",
+        "ledger.StateChanged += OnWorldStateChanged",
     ):
         assert token in source
 
