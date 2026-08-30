@@ -25,7 +25,7 @@ def test_reference_fidelity_builder_preserves_real_world_spacing_and_clear_navig
     assert "ValidateOpeningEnemySpacing" in text
     assert '"ProcessionalSpine"' in text
     assert '"VistaProcessionalRoad"' in text
-    assert '"VistaWalkway_"' in text
+    assert "VistaWalkway_" in text
 
 
 def test_resonance_stations_are_side_chapels_not_center_lane_obstacles():
