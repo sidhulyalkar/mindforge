@@ -78,8 +78,6 @@ def test_showcase_runtime_composes_character_boss_camera_vfx_post_and_melee_tele
     ):
         assert token in installer
 
-    # The compositor may attach/configure conventional components but cannot issue
-    # gameplay actions or neural authority.
     for forbidden in (
         "ReceiveDamage(",
         "TryLightAttack(",
@@ -100,7 +98,6 @@ def test_close_range_boss_patterns_share_scheduler_and_have_truthful_geometry():
     assert "yield return melee.ExecuteCleave" in boss
     assert "yield return melee.ExecuteSlam" in boss
 
-    # Projectile and melee choices are selected by the same fixed-tick pattern loop.
     execute_start = boss.index("private IEnumerator ExecutePattern")
     fan_start = boss.index("private IEnumerator TelegraphAndFan")
     execute_body = boss[execute_start:fan_start]
@@ -156,18 +153,20 @@ def test_showcase_presentation_classes_remain_non_authoritative():
         assert all(token not in source for token in forbidden), (parts, [token for token in forbidden if token in source])
 
 
-def test_showcase_hotkeys_do_not_collide_with_judge_lens_or_controller_preview():
+def test_showcase_hotkeys_do_not_collide_with_judge_lens_controller_preview_or_target_lock():
     photodiode = read("Presentation", "PhotodiodePatch.cs")
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     camera = read("Presentation", "ShowcaseCameraRig.cs")
     target_lock = read("Combat", "GuardianTargetLock.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
     controller = read("Qualification", "ControllerOnlyQualificationBootstrap.cs")
 
     assert "toggleKey = KeyCode.F9" in photodiode
     assert "switchSourceKey = KeyCode.F11" in photodiode
-    assert "Input.GetKeyDown(KeyCode.F10)" in guide
-    assert "toggleKey = KeyCode.T" in target_lock
-    assert "Input.GetKeyDown(toggleKey)" in target_lock
+    assert "judgeLens = KeyCode.F10" in controls
+    assert "controls.Pressed(GuardianControlAction.JudgeLens)" in guide
+    assert "targetLock = KeyCode.T" in controls
+    assert "controls.Pressed(GuardianControlAction.TargetLock)" in target_lock
     assert "Input.GetKeyDown(KeyCode.T)" not in camera
     assert "EditorHotkey = KeyCode.F8" in controller
 
