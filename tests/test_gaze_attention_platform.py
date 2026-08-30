@@ -139,11 +139,16 @@ def test_hardware_bridge_has_simulation_replay_and_live_neon_surface_modes():
         "GazeMapper",
         "receive_matched_scene_video_frame_and_gaze",
         "mapper.process_frame(frame, gaze)",
+        "surface_gaze.is_on_aoi",
         "marker_generator.generate_marker",
-        'coordinate_origin="top_left"',
+        'coordinate_origin="bottom_left"',
     ):
         assert token in tool
 
+    assert "x=x_norm" in tool
+    assert "y=y_norm" in tool
+    assert "x=x_norm / width" not in tool
+    assert "y=y_norm / height" not in tool
     assert "raw eye" in tool.lower()
     assert "socket.SOCK_DGRAM" in tool
 
