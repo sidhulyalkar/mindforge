@@ -28,6 +28,11 @@ from .gaze_confound import (
     recommend_game_architecture,
     tune_policy,
 )
+from .public_validation import (
+    CrossValidatedCohort,
+    HeldOutSubjectResult,
+    leave_one_subject_out_validation,
+)
 from .markers import GameMarker, GameMarkerType, UdpGameMarkerSource
 from .dev_sources import DecisionSimulationConfig, DecisionSimulator, NeuralEventTape, TapeEntry
 
@@ -54,6 +59,9 @@ __all__ = [
     "gameplay_loss",
     "tune_policy",
     "recommend_game_architecture",
+    "HeldOutSubjectResult",
+    "CrossValidatedCohort",
+    "leave_one_subject_out_validation",
     "GameMarker",
     "GameMarkerType",
     "UdpGameMarkerSource",
