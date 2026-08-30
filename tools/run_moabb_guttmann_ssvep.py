@@ -67,10 +67,14 @@ def run(subjects: list[int], *, window_seconds: float) -> list[EvidenceWindow]:
 
     GuttmannFlury2025_SSVEP, SSVEP = _require_moabb()
     dataset = GuttmannFlury2025_SSVEP(subjects=subjects)
+    # MOABB 1.6.x requires n_classes when an explicit event subset is supplied.
+    # Pinning this to two also asserts that a future dataset adapter cannot silently
+    # re-introduce the 11/13-Hz classes into the Mindforge 10/12 comparison.
     paradigm = SSVEP(
         fmin=6.0,
         fmax=35.0,
         events=["10.0", "12.0"],
+        n_classes=2,
         tmin=0.0,
         tmax=float(window_seconds),
         channels=UNICORN8,
