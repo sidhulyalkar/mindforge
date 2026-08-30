@@ -7,6 +7,7 @@ ART = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtV09Builder.cs"
 MATERIALS = ROOT / "unity/Assets/Mindforge/Editor/ProductionMaterialAuthoringV09.cs"
 MESHES = ROOT / "unity/Assets/Mindforge/Editor/ProductionMeshLibraryV09.cs"
 EXTERNAL = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtDropV09.cs"
+REPLACEMENT = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtReplacementV09.cs"
 HOOK = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtAutoHookV09.cs"
 HUD = ROOT / "unity/Assets/Mindforge/Presentation/ProductionHudV09.cs"
 GUARDIAN = ROOT / "unity/Assets/Mindforge/Presentation/ProductionGuardianV09.cs"
@@ -101,8 +102,6 @@ def test_v09_production_art_does_not_create_gameplay_authority():
     )
     for token in forbidden:
         assert token not in text
-    # New production geometry is presentation-only; it deliberately destroys only the
-    # colliders that GameObject.CreatePrimitive gives its own fresh decorative pieces.
     assert "UnityEngine.Object.DestroyImmediate(collider)" in text
     assert "GetComponentsInChildren<Collider>" not in text
 
@@ -120,6 +119,18 @@ def test_local_asset_ingestion_is_gitignored_and_strips_external_authority():
     assert "FitToSize" in external
     for role in ("Column", "Arch", "Door", "Spire", "Tree", "Humanoid", "Robot"):
         assert role in external
+
+
+def test_local_asset_replacement_can_swap_environment_roles_without_touching_mindforge_collision():
+    text = read(REPLACEMENT)
+    assert "ExternalArtDropV09.TryInstantiateBest" in text
+    assert "Role.Tree" in text
+    assert "Role.Arch" in text
+    assert "Role.Spire" in text
+    assert "Role.Column" in text
+    assert "old[r].enabled = false" in text
+    for forbidden in ("JourneyEnemyController", "CombatantVitals", "Rigidbody", "Collider"):
+        assert forbidden not in text
 
 
 def test_third_party_manifest_records_magictools_material_maker_and_conservative_quaternius_policy():
@@ -163,21 +174,22 @@ def test_guardian_fallback_replaces_visible_primitives_without_replacing_pose_or
         "TakeDamage",
     ):
         assert forbidden not in text
-    # The new shell is deliberately parented under the old animated transforms instead of
-    # driving the Guardian root or starting a parallel animation authority.
     assert 'Transform torso = avatar.Find("Torso")' in text
     assert 'BuildArm(avatar.Find("LeftArm")' in text
     assert 'BuildLeg(avatar.Find("LeftLeg")' in text
 
 
-def test_compact_hud_replaces_debug_panel_without_claiming_neural_authority():
+def test_compact_hud_replaces_debug_panels_without_claiming_neural_authority():
     text = read(HUD)
-    assert "SuppressLegacyCombatHud" in text
-    assert "legacy.enabled = false" in text
+    assert "SuppressLegacyHuds" in text
+    assert "combatHud.enabled = false" in text
+    assert "worldHud.enabled = false" in text
+    assert "journeyHud.enabled = false" in text
+    assert "CurrentObjective()" in text
     assert '"SHOWCASE  ·  BCI OFF"' in text
     assert '"NEURAL LINK  ·  READY"' in text
     assert '"NEURAL LINK  ·  ATTUNE"' in text
-    assert "tutorialSeconds = 14f" in text
+    assert "tutorialSeconds = 12f" in text
     for forbidden in ("NeuralEvent", "UdpNeuralReceiver", "EnterControllerOnly", "CalibrationReady ="):
         assert forbidden not in text
 
@@ -186,6 +198,7 @@ def test_scene_save_hook_makes_v09_part_of_canonical_v08_rebuild_and_installs_pr
     text = read(HOOK)
     assert "EditorSceneManager.sceneSaved += _ => TryApply();" in text
     assert "ProductionArtV09Builder.ApplyOpenScene();" in text
+    assert "ExternalArtReplacementV09.ApplyOpenScene();" in text
     assert "arena.AddComponent<ProductionHudV09>()" in text
     assert "guardian.AddComponent<ProductionGuardianV09>()" in text
     assert "ConfigureRuntime(" in text
