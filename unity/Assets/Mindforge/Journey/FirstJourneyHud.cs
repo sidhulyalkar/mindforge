@@ -1,16 +1,19 @@
 using UnityEngine;
 using Mindforge.Calibration;
+using Mindforge.Combat;
 
 namespace Mindforge.Journey
 {
     /// <summary>
     /// Minimal non-authoritative journey HUD. It exposes objective/progression state
-    /// without issuing encounter, combat, target-lock or neural commands.
+    /// without issuing encounter, combat, target-lock or neural commands. V0.5 renders
+    /// the same canonical control vocabulary as the live input authorities.
     /// </summary>
     public sealed class FirstJourneyHud : MonoBehaviour
     {
         [SerializeField] private FirstJourneyDirector journey;
         [SerializeField] private AwakeningCalibrationDirector calibration;
+        [SerializeField] private GuardianControlProfileV1 controls;
         [SerializeField] private float stageBannerSeconds = 2.2f;
 
         private string _banner;
@@ -35,7 +38,7 @@ namespace Mindforge.Journey
 
         private void Update()
         {
-            if (journey == null)
+            if (journey == null || controls == null)
             {
                 Unsubscribe();
                 Resolve();
@@ -47,6 +50,7 @@ namespace Mindforge.Journey
         {
             if (journey == null) journey = FindObjectOfType<FirstJourneyDirector>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
         }
 
         private void Subscribe()
@@ -93,15 +97,19 @@ namespace Mindforge.Journey
 
             const float left = 18f;
             const float top = 18f;
-            float width = Mathf.Min(520f, Screen.width * 0.46f);
+            float width = Mathf.Min(560f, Screen.width * 0.48f);
             GUI.Box(new Rect(left, top, width, 66f), string.Empty);
             GUI.Label(new Rect(left + 14f, top + 8f, width - 28f, 24f),
                 string.IsNullOrWhiteSpace(journey.CurrentObjective) ? "FOLLOW THE SIGNAL" : journey.CurrentObjective,
                 _objectiveStyle);
 
             string inputHint = journey.BossActive
-                ? "T lock · WASD strafe · Space dodge · F sword · RMB/E shield"
-                : "T lock · ←/→ or wheel cycle · WASD move · Space dodge";
+                ? Label(GuardianControlAction.TargetLock, "T") + " lock · WASD strafe · " +
+                  Label(GuardianControlAction.EvadeBoost, "SHIFT / RMB") + " evade · " +
+                  Label(GuardianControlAction.Blade, "F / LMB") + " blade"
+                : Label(GuardianControlAction.TargetLock, "T") + " lock · MOUSE WHEEL cycle · WASD move · " +
+                  Label(GuardianControlAction.JumpHover, "SPACE") + " jump/hover · " +
+                  Label(GuardianControlAction.Interact, "E") + " interact";
             GUI.Label(new Rect(left + 14f, top + 36f, width - 28f, 20f), inputHint, _smallStyle);
 
             if (calibration != null && calibration.ControllerOnlyQualificationActive)
@@ -118,6 +126,9 @@ namespace Mindforge.Journey
                 GUI.Label(new Rect((Screen.width - bannerWidth) * 0.5f, 100f, bannerWidth, 48f), _banner, _bannerStyle);
             }
         }
+
+        private string Label(GuardianControlAction action, string fallback)
+            => controls != null ? controls.Label(action) : fallback;
 
         private void EnsureStyles()
         {
