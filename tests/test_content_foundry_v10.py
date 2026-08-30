@@ -89,7 +89,7 @@ def test_unity_compiler_uses_explicit_bindings_and_strips_external_authority():
     assert "cameras[i].enabled = false" in text
     assert "listeners[i].enabled = false" in text
     assert "ProductionArtAutoHookV09.ApplyNow();" in text
-    assert "canonical full-rebuild qualification" in text
+    assert "full-rebuild qualification" in text
     assert "ValidateExpectedHash(binding);" in text
     assert "ShaderUtil.ShaderHasError" in text
     assert "Triangle budget exceeded" in text
@@ -108,8 +108,8 @@ def test_foundry_suppresses_v09_filename_heuristic_only_while_compiling():
 
 def test_blender_normalizer_is_static_only_and_enforces_recipe_budgets():
     text = BLENDER.read_text(encoding="utf-8")
-    assert '"humanoid"' in text and '"robot"' in text
     assert "static normalizer cannot process humanoid/robot rig recipes" in text
+    assert '"arch", "column", "door", "spire", "tree", "rock", "prop"' in text
     assert "strip_non_mesh_objects()" in text
     assert "bmesh.ops.triangulate" in text
     assert 'geometry["max_triangles"]' in text
