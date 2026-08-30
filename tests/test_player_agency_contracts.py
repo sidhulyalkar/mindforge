@@ -28,21 +28,29 @@ def _marker(event: str, seq: int, *, boss_phase: int = 2) -> GameMarker:
 
 def test_guardian_third_person_heading_and_aerial_commands_are_replayable():
     source = (ROOT / "unity/Assets/Mindforge/Combat/GuardianCombatInput.cs").read_text(encoding="utf-8")
+    controls = (ROOT / "unity/Assets/Mindforge/Combat/GuardianControlProfileV1.cs").read_text(encoding="utf-8")
 
     assert "Third-person combat heading" in source
-    assert "SampleWasdMovement" in source
+    assert "controls.SampleMovement()" in source
     assert "SampleArrowAim" not in source
     assert "Input.GetAxisRaw" not in source
     for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
-        assert key in source
+        assert key in controls
 
-    assert "Mouse/trackpad or arrow keys: orbit camera" in source
-    assert "T: conventional target lock" in source
-    assert "Space: jump / double jump; hold while descending to hover / slow fall" in source
-    assert "Shift or RMB: grounded dodge roll / air dash" in source
-    assert "Ctrl / Alt: compatibility dodge aliases" in source
-    assert "F or LMB: energy-blade light chain / projectile parry" in source
-    assert "Shield hold and player Pulse fire are intentionally retired" in source
+    for token in (
+        "jumpHover = KeyCode.Space",
+        "evadeBoostPrimary = KeyCode.LeftShift",
+        "rightMouseEvades = true",
+        "blade = KeyCode.F",
+        "cleave = KeyCode.Q",
+        "counter = KeyCode.C",
+        "bloom = KeyCode.R",
+    ):
+        assert token in controls
+
+    assert "Canonical player vocabulary is supplied by GuardianControlProfileV1" in source
+    assert "Target lock and contextual E interaction are owned by their dedicated conventional" in source
+    assert "Shield hold and player Pulse fire remain retired" in source
     assert "GuardianTargetLock targetLock" in source
     assert "targetLock.Locked" in source
     assert "targetLock.DirectionFrom(transform.position)" in source
@@ -58,6 +66,7 @@ def test_guardian_third_person_heading_and_aerial_commands_are_replayable():
     assert "jump_held = _jumpHeld" in source
     assert "fire_held = false" in source
     assert "guard_held = false" in source
+    assert "context_down = false" in source
     assert "inputTape.Resolve(live, fixedHz)" in source
 
     resolve_index = source.index("GuardianCommandFrame command =")
@@ -68,22 +77,25 @@ def test_guardian_third_person_heading_and_aerial_commands_are_replayable():
 
 def test_player_agency_guide_is_presentation_only_and_judge_legible():
     guide = (ROOT / "unity/Assets/Mindforge/Presentation/PlayerAgencyGuide.cs").read_text(encoding="utf-8")
+    controls = (ROOT / "unity/Assets/Mindforge/Combat/GuardianControlProfileV1.cs").read_text(encoding="utf-8")
 
     for token in (
-        "HANDS: move · camera · target lock · jump/double-jump/hover · roll/air-dash · Aetherblade · skills",
+        "HANDS: move · camera · interact · target lock · jump/hover · evade · Aetherblade · skills",
         "accepted Sight can boundedly amplify blade length/energy/damage",
-        "EEG never moves, jumps, hovers, rolls, air-dashes, locks a target, rotates the camera, swings, or parries",
-        "KeyCode.F10",
+        "EEG never moves, jumps, hovers, evades, interacts, locks a target, rotates the camera, swings, or parries",
+        "controls.Pressed(GuardianControlAction.JudgeLens)",
         "JudgeLensFlag",
         "PrecisionAimActive",
         "CurrentAimPoint",
         "TargetFocusActive",
         "TARGET LOCK",
-        "SHIFT / RMB DODGE ROLL",
-        "VERTICAL WORLD",
-        "READ → SWING → ROLL → REPOSITION",
+        "GuardianControlAction.EvadeBoost",
+        "GuardianControlAction.Interact",
+        "READ → COMMIT → EVADE → REPOSITION",
+        "contextPromptVisible",
     ):
         assert token in guide
+    assert "judgeLens = KeyCode.F10" in controls
 
     for forbidden in (
         ".FirePulse(",
