@@ -9,9 +9,9 @@ namespace Mindforge.Editor
     /// <summary>
     /// Transitional integration hook while the V0.9 production-art tranche is developed.
     /// V0.8 builders save the scene during the canonical one-click showcase rebuild. V0.9
-    /// waits specifically for the reference-fidelity root, preventing the production layer
-    /// from running halfway through the V0.8 visual sequence. It then installs the compact
-    /// HUD and smooth Guardian shell and applies optional local licensed-art substitutions.
+    /// waits for the reference-fidelity root and, crucially, defers scene-save reactions to
+    /// the next editor update. That lets the synchronous V0.8 crisp-geometry/enemy-scope
+    /// calls finish before V0.9 replaces visible blockout presentation.
     /// </summary>
     [InitializeOnLoad]
     public static class ProductionArtAutoHookV09
@@ -21,7 +21,10 @@ namespace Mindforge.Editor
         static ProductionArtAutoHookV09()
         {
             EditorApplication.delayCall += TryApply;
-            EditorSceneManager.sceneSaved += _ => TryApply();
+            EditorSceneManager.sceneSaved += _ =>
+            {
+                if (!_applying) EditorApplication.delayCall += TryApply;
+            };
         }
 
         [MenuItem("Mindforge/Showcase/Apply Complete Production Presentation V0.9", priority = 43)]
@@ -80,6 +83,12 @@ namespace Mindforge.Editor
         private static void EnsurePresentationComponents()
         {
             ProductionMaterialAuthoringV09.EnsureAuthored();
+            Material pearl = ProductionMaterialAuthoringV09.Load(ProductionMaterialAuthoringV09.Pearl);
+            Material graphite = ProductionMaterialAuthoringV09.Load(ProductionMaterialAuthoringV09.Graphite);
+            Material gold = ProductionMaterialAuthoringV09.Load(ProductionMaterialAuthoringV09.Gold);
+            Material aether = CinematicMaterialAuthoring.Load("AetherCyan");
+            Material hostile = CinematicMaterialAuthoring.Load("FracturedCore");
+
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");
             GameObject guardian = EditorSceneLookup.FindIncludingInactive("Guardian");
             if (arena != null)
@@ -87,16 +96,17 @@ namespace Mindforge.Editor
                 ProductionHudV09 hud = arena.GetComponent<ProductionHudV09>();
                 if (hud == null) hud = arena.AddComponent<ProductionHudV09>();
                 EditorUtility.SetDirty(hud);
+
+                ProductionEchoVisualBootstrapV09 echoBootstrap = arena.GetComponent<ProductionEchoVisualBootstrapV09>();
+                if (echoBootstrap == null) echoBootstrap = arena.AddComponent<ProductionEchoVisualBootstrapV09>();
+                echoBootstrap.ConfigureRuntime(graphite, hostile, gold);
+                EditorUtility.SetDirty(echoBootstrap);
             }
             if (guardian != null)
             {
                 ProductionGuardianV09 production = guardian.GetComponent<ProductionGuardianV09>();
                 if (production == null) production = guardian.AddComponent<ProductionGuardianV09>();
-                production.ConfigureRuntime(
-                    ProductionMaterialAuthoringV09.Load(ProductionMaterialAuthoringV09.Pearl),
-                    ProductionMaterialAuthoringV09.Load(ProductionMaterialAuthoringV09.Graphite),
-                    ProductionMaterialAuthoringV09.Load(ProductionMaterialAuthoringV09.Gold),
-                    CinematicMaterialAuthoring.Load("AetherCyan"));
+                production.ConfigureRuntime(pearl, graphite, gold, aether);
                 EditorUtility.SetDirty(production);
             }
         }
