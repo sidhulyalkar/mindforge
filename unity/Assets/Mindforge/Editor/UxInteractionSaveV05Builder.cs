@@ -11,7 +11,7 @@ namespace Mindforge.Editor
 {
     /// <summary>
     /// Final player-facing authoring pass for V0.5. It installs one canonical control
-    /// profile, one context interaction router, the Memory Forge interaction adapter and
+    /// profile, one context interaction router, prioritized world interaction adapters and
     /// safe player-profile persistence after Game Foundation V1 has bound the final world.
     /// </summary>
     public static class UxInteractionSaveV05Builder
@@ -46,13 +46,27 @@ namespace Mindforge.Editor
             forgeInteraction.ConfigureRuntime(checkpoint);
             checkpoint.SetExternalInteractionOwned(true);
 
+            GuardianHoverbikeController bike = guardian.GetComponent<GuardianHoverbikeController>();
+            if (bike != null)
+            {
+                bike.SetContextInteractionOwned(true);
+                AetherHoverbikeMount[] mounts = UnityEngine.Object.FindObjectsOfType<AetherHoverbikeMount>(true);
+                for (int i = 0; i < mounts.Length; i++)
+                {
+                    AetherHoverbikeMount mount = mounts[i];
+                    if (mount == null) continue;
+                    HoverbikeInteractionV1 offer = mount.GetComponent<HoverbikeInteractionV1>();
+                    if (offer == null) offer = mount.gameObject.AddComponent<HoverbikeInteractionV1>();
+                    offer.ConfigureRuntime(mount, bike);
+                    EditorUtility.SetDirty(mount.gameObject);
+                    EditorUtility.SetDirty(offer);
+                }
+            }
+
             GameObject foundationRoot = bus.gameObject;
             PlayerProfileSaveV05 profile = foundationRoot.GetComponent<PlayerProfileSaveV05>();
             if (profile == null) profile = foundationRoot.AddComponent<PlayerProfileSaveV05>();
             profile.ConfigureRuntime(ledger, progression, checkpoint, bus);
-
-            GuardianHoverbikeController bike = guardian.GetComponent<GuardianHoverbikeController>();
-            bike?.SetContextInteractionOwned(true);
 
             EditorUtility.SetDirty(root);
             EditorUtility.SetDirty(controls);
@@ -69,9 +83,10 @@ namespace Mindforge.Editor
             AssetDatabase.Refresh();
 
             Debug.Log(
-                "[Mindforge:UXV05] Canonical controls + contextual E interaction + V5 context replay + safe player profile persistence ready. " +
-                "E now owns ride/dismount/reconstruct and future world interactions; physical action authority remains in each concrete system. " +
-                "Profile persistence stores progression/reward receipts and non-physical story/profile facts only; encounter/boss resume remains intentionally excluded.");
+                "[Mindforge:UXV05] Canonical controls + prioritized contextual E interaction + V5 context replay + safe player profile persistence ready. " +
+                "E now owns ride/dismount/reconstruct and future world interactions; Memory Forge priority outranks a nearby parked bike while each concrete system " +
+                "retains physical action authority. Profile persistence stores progression/reward receipts and non-physical story/profile facts only; " +
+                "encounter/boss resume remains intentionally excluded.");
         }
     }
 }
