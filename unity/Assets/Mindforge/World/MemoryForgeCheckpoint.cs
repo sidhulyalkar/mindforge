@@ -9,6 +9,10 @@ namespace Mindforge.World
     /// <summary>
     /// Null Ward checkpoint. It reconstructs physical encounter state only; BCI
     /// calibration remains an explicit scientific workflow outside this fantasy layer.
+    ///
+    /// V0.5 allows the contextual interaction router to own the visible prompt/input while
+    /// retaining the historical G-key path as a compatibility fallback when no router is
+    /// installed. The checkpoint remains the sole authority for reconstruction itself.
     /// </summary>
     public sealed class MemoryForgeCheckpoint : MonoBehaviour
     {
@@ -38,12 +42,19 @@ namespace Mindforge.World
         private bool _inputWasEnabled;
         private bool _motorWasEnabled;
         private bool _physicalWasEnabled;
+        private bool _externalInteractionOwned;
         private GUIStyle _promptStyle;
 
         public event Action Activated;
+        public event Action Rested;
         public event Action Respawned;
+
         public bool Active => _active;
         public bool RespawnPending => _respawnPending;
+        public Transform InteractionPoint => interactionPoint != null ? interactionPoint : transform;
+        public float InteractionRadius => Mathf.Max(0.5f, interactionRadius);
+        public bool ExternalInteractionOwned => _externalInteractionOwned;
+        public bool CanRestNow => _active && !_respawnPending && PlayerInRange() && CanInteract();
 
         private long FixedTick
         {
@@ -78,6 +89,11 @@ namespace Mindforge.World
             Subscribe();
         }
 
+        public void SetExternalInteractionOwned(bool owned)
+        {
+            _externalInteractionOwned = owned;
+        }
+
         private void OnEnable()
         {
             Resolve();
@@ -88,7 +104,8 @@ namespace Mindforge.World
 
         private void Update()
         {
-            if (!_active || _respawnPending || !PlayerInRange() || !CanInteract()) return;
+            if (_externalInteractionOwned) return;
+            if (!CanRestNow) return;
             if (Input.GetKeyDown(interactKey)) RestAndReconstruct();
         }
 
@@ -118,6 +135,7 @@ namespace Mindforge.World
             world?.ResetOrdinaryEncounters();
             RestoreGuardian(false);
             markers?.Emit("CHECKPOINT_REST", "world", target: "MEMORY_FORGE", reason: "CONVENTIONAL_INTERACTION");
+            Rested?.Invoke();
         }
 
         private void OnPlayerDied()
@@ -274,7 +292,8 @@ namespace Mindforge.World
 
         private void OnGUI()
         {
-            if (!_active || _respawnPending || !PlayerInRange() || !CanInteract()) return;
+            if (_externalInteractionOwned) return;
+            if (!CanRestNow) return;
             if (_promptStyle == null)
             {
                 _promptStyle = new GUIStyle(GUI.skin.box)
