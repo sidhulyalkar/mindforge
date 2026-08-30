@@ -73,9 +73,9 @@ namespace Mindforge.Editor
 
                 RepositionResonanceStations(sanctum.transform);
                 BuildArchitecturalDefinition(root.transform, ivory, pearl, gold, glass, edge, warm);
-                BuildNavigationLanguage(root.transform, ivory, pearl, gold, glass, edge);
+                BuildNavigationLanguage(root.transform, ivory, pearl, gold, edge, warm);
                 BuildLayeredWorldVista(root.transform, ivory, pearl, gold, glass, garden, edge, warm);
-                int enemies = BuildReferenceEnemySilhouettes(ward.transform, enemyCeramic, edge, threatAmber, threatWhite);
+                int enemyCount = BuildReferenceEnemySilhouettes(ward.transform, enemyCeramic, edge, threatAmber, threatWhite);
 
                 SanctumVisualClarityV08 clarity = sanctum.GetComponent<SanctumVisualClarityV08>();
                 if (clarity == null) clarity = sanctum.AddComponent<SanctumVisualClarityV08>();
@@ -93,8 +93,9 @@ namespace Mindforge.Editor
                 AssetDatabase.Refresh();
 
                 Debug.Log(
-                    $"[Mindforge:V08:Fidelity] Generated-reference pass applied: pointed ribs + shadow reveals + protected navigation spine + " +
-                    $"layered road/canal/cathedral vista + {enemies} collider-free enemy silhouettes. Central travel clearance remains authoritative and obstacle-free.");
+                    $"[Mindforge:V08:Fidelity] Generated-reference pass applied: pointed ribs, crisp shadow reveals, protected navigation spine, " +
+                    $"layered road/canal/cathedral vista and {enemyCount} collider-free enemy silhouettes. " +
+                    "Central travel clearance remains obstacle-free and cyan/green remain reserved for neural meaning.");
             }
             finally
             {
@@ -107,16 +108,14 @@ namespace Mindforge.Editor
             if (_applying || EditorApplication.isPlayingOrWillChangePlaymode) return;
             GameObject sanctum = EditorSceneLookup.FindIncludingInactive(SanctumOnboardingV08Builder.RootName);
             if (sanctum == null || sanctum.transform.Find(RootName) != null) return;
-            GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);
-            if (ward == null) return;
+            if (EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName) == null) return;
             ApplyOpenScene();
         }
 
         private static void RepositionResonanceStations(Transform sanctum)
         {
-            // The original center station technically sat inside the best movement line.
-            // V0.8 reference parity treats calibration as three side chapels, leaving the
-            // full processional axis open for running, camera orbit, rolls and aerial movement.
+            // Treat calibration as side chapels. The processional axis stays fully open for
+            // camera orbit, running, dodge rolls, double jump, hover and air-dash.
             MoveDeepChild(sanctum, "Resonance_Station_01_8Hz", new Vector3(-8.4f, 0f, -56.7f));
             MoveDeepChild(sanctum, "Resonance_Station_02_10Hz", new Vector3(8.4f, 0f, -52.0f));
             MoveDeepChild(sanctum, "Resonance_Station_03_12Hz", new Vector3(-8.4f, 0f, -47.2f));
@@ -133,8 +132,6 @@ namespace Mindforge.Editor
         {
             Transform root = Zone(parent, "Reference_Architecture");
 
-            // Thin dark reveals make large pale masses read as intentional stone/ceramic
-            // assemblies instead of soft white boxes. They are visual only and never collide.
             float[] hallSeams = { -61.4f, -58f, -54f, -50f, -46f, -42f, -39.4f };
             for (int i = 0; i < hallSeams.Length; i++)
             {
@@ -165,11 +162,13 @@ namespace Mindforge.Editor
                     BuildWindowLancet(root, $"Window_{i}_{side}", side * 14.82f, 5.8f, z + 2.25f, side, glass, gold, edge);
                 }
 
-                BuildPointedRib(root, $"PointedRib_{i:00}", new Vector3(0f, 7.0f, z - 0.72f), 10.6f, 5.35f, 28, ivory, 0.18f);
-                BuildPointedRib(root, $"PointedGoldRib_{i:00}", new Vector3(0f, 7.05f, z - 0.66f), 10.15f, 4.95f, 28, gold, 0.055f);
+                BuildPointedRib(root, $"PointedRib_{i:00}", new Vector3(0f, 7.0f, z - 0.72f),
+                    10.6f, 5.35f, 28, ivory, 0.18f);
+                BuildPointedRib(root, $"PointedGoldRib_{i:00}", new Vector3(0f, 7.05f, z - 0.66f),
+                    10.15f, 4.95f, 28, gold, 0.055f);
             }
 
-            // Threshold receives several depth planes. The center remains a full 12m portal.
+            // Layer the 12m threshold in depth while keeping the entire opening usable.
             for (int layer = 0; layer < 3; layer++)
             {
                 float inset = layer * 0.26f;
@@ -179,7 +178,6 @@ namespace Mindforge.Editor
                     layer == 1 ? gold : pearl, layer == 1 ? 0.075f : 0.22f);
             }
 
-            // Side-wall pilasters and inset glass strips add scale cues from human eye height.
             for (int side = -1; side <= 1; side += 2)
             {
                 for (int i = 0; i < 5; i++)
@@ -198,13 +196,12 @@ namespace Mindforge.Editor
             Material ivory,
             Material pearl,
             Material gold,
-            Material glass,
-            Material edge)
+            Material edge,
+            Material warm)
         {
             Transform root = Zone(parent, "Reference_Navigation");
 
-            // One continuous visual spine. It is intentionally thin enough not to become
-            // a glowing HUD stripe, but strong enough that a new player always knows forward.
+            // One quiet orientation axis is more useful than many floating arrows.
             Primitive("ProcessionalSpine", PrimitiveType.Cube, root,
                 new Vector3(0f, -0.105f, -38.5f), new Vector3(0.16f, 0.025f, 45f), gold, false);
             Primitive("SpineShadow", PrimitiveType.Cube, root,
@@ -214,20 +211,19 @@ namespace Mindforge.Editor
             for (int i = 0; i < nodeZ.Length; i++)
             {
                 Primitive($"RouteNode_{i:00}", PrimitiveType.Cylinder, root,
-                    new Vector3(0f, -0.09f, nodeZ[i]), new Vector3(0.62f, 0.025f, 0.62f), i % 2 == 0 ? pearl : ivory, false);
-                Ring($"RouteNodeRing_{i:00}", root, new Vector3(0f, -0.045f, nodeZ[i]), 0.72f, 32, 0.035f, gold,
-                    Quaternion.Euler(0f, 0f, 0f));
+                    new Vector3(0f, -0.09f, nodeZ[i]), new Vector3(0.62f, 0.025f, 0.62f),
+                    i % 2 == 0 ? pearl : ivory, false);
+                Ring($"RouteNodeRing_{i:00}", root, new Vector3(0f, -0.045f, nodeZ[i]),
+                    0.72f, 32, 0.035f, gold, Quaternion.identity);
             }
 
-            // Calibration chapel connectors point laterally without blocking the main road.
-            RouteBranch(root, new Vector3(-4.8f, -0.08f, -56.7f), new Vector3(-8.1f, -0.08f, -56.7f), gold);
-            RouteBranch(root, new Vector3(4.8f, -0.08f, -52.0f), new Vector3(8.1f, -0.08f, -52.0f), gold);
-            RouteBranch(root, new Vector3(-4.8f, -0.08f, -47.2f), new Vector3(-8.1f, -0.08f, -47.2f), gold);
+            RouteBranch(root, new Vector3(-4.8f, -0.08f, -56.7f), new Vector3(-8.1f, -0.08f, -56.7f), gold, "CalibrationBranch8");
+            RouteBranch(root, new Vector3(4.8f, -0.08f, -52.0f), new Vector3(8.1f, -0.08f, -52.0f), gold, "CalibrationBranch10");
+            RouteBranch(root, new Vector3(-4.8f, -0.08f, -47.2f), new Vector3(-8.1f, -0.08f, -47.2f), gold, "CalibrationBranch12");
 
-            // The first exterior road is shown at real-world scale. It remains presentation
-            // only until later districts become traversal-authoritative.
+            // A road, not a hallway: 9.5m carriage/processional width plus 2.4m walkways.
             Primitive("VistaProcessionalRoad", PrimitiveType.Cube, root,
-                new Vector3(0f, -0.42f, 20f), new Vector3(ProcessionalRoadWidth, 0.18f, 72f), warmForRoad: pearl, collider: false);
+                new Vector3(0f, -0.42f, 20f), new Vector3(ProcessionalRoadWidth, 0.18f, 72f), warm, false);
             Primitive("VistaRoadCenterJoint", PrimitiveType.Cube, root,
                 new Vector3(0f, -0.31f, 20f), new Vector3(0.10f, 0.02f, 71f), gold, false);
             for (int side = -1; side <= 1; side += 2)
@@ -251,8 +247,7 @@ namespace Mindforge.Editor
         {
             Transform root = Zone(parent, "Reference_World_Vista");
 
-            // Near layer: terraces make the city feel physically inhabitable rather than a
-            // collection of distant towers floating in empty space.
+            // Near layer: broad planted terraces make the city feel inhabitable.
             for (int side = -1; side <= 1; side += 2)
             {
                 Primitive($"NearGardenTerrace_{side}", PrimitiveType.Cube, root,
@@ -261,12 +256,13 @@ namespace Mindforge.Editor
                     new Vector3(side * 7.2f, 0.55f, 8f), new Vector3(0.24f, 1.25f, 18f), ivory, false);
                 for (int i = 0; i < 4; i++)
                 {
-                    float z = 2f + i * 4.0f;
-                    BuildSignalCypress(root, $"Cypress_{side}_{i}", new Vector3(side * (10.0f + (i % 2) * 2.6f), 0f, z), garden, gold);
+                    float z = 2f + i * 4f;
+                    BuildSignalCypress(root, $"Cypress_{side}_{i}",
+                        new Vector3(side * (10.0f + (i % 2) * 2.6f), 0f, z), garden, gold);
                 }
             }
 
-            // Mid layer: broad bridge frame and flanking sanctum blocks establish scale.
+            // Mid layer: wide bridge and sanctuary masses provide scale before the skyline.
             Primitive("CityBridgeDeck", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.35f, 14f), new Vector3(16f, 0.34f, 5.4f), ivory, false);
             for (int side = -1; side <= 1; side += 2)
@@ -283,13 +279,11 @@ namespace Mindforge.Editor
                 }
             }
 
-            // Far layer: neural infrastructure is architectural, not fog. Large phase rings
-            // sit between towers and immediately distinguish this world from generic fantasy.
+            // Far layer: structured phase geometry is infrastructure rather than generic fog.
             BuildSkyPhaseRing(root, "FarPhaseRing_A", new Vector3(-24f, 24f, 52f), 8.5f, gold, glass, 0f);
             BuildSkyPhaseRing(root, "FarPhaseRing_B", new Vector3(28f, 31f, 65f), 11.0f, gold, glass, 17f);
             BuildSkyPhaseRing(root, "FarPhaseRing_C", new Vector3(2f, 38f, 82f), 14.0f, pearl, glass, -9f);
 
-            // Distant road forks imply navigable districts beyond the current vertical slice.
             Primitive("FarRoadForkL", PrimitiveType.Cube, root,
                 new Vector3(-17f, -0.55f, 55f), new Vector3(8.5f, 0.16f, 42f), warm, false, new Vector3(0f, -28f, 0f));
             Primitive("FarRoadForkR", PrimitiveType.Cube, root,
@@ -319,8 +313,8 @@ namespace Mindforge.Editor
                 GameObject visualRoot = new GameObject(EnemyRootName);
                 visualRoot.transform.SetParent(visuals, false);
                 float s = EstimateScale(visuals.Find("Core"));
-
                 bool needle = enemy.name.IndexOf("AetherNeedle", StringComparison.OrdinalIgnoreCase) >= 0;
+
                 switch (enemy.Archetype)
                 {
                     case JourneyEnemyArchetype.NullSentry:
@@ -359,8 +353,8 @@ namespace Mindforge.Editor
                 Vector3.one * 0.20f * s, Vector3.zero, threat);
             Part("ReliquaryLensSlit", PrimitiveType.Cube, parent, new Vector3(0f, 0.92f, 0.44f) * s,
                 new Vector3(0.30f, 0.055f, 0.025f) * s, Vector3.zero, white);
-            Ring("ReliquaryHalo", parent, new Vector3(0f, 1.05f, -0.12f) * s, 0.70f * s, 36, 0.035f * s, edge,
-                Quaternion.Euler(82f, 0f, 0f));
+            Ring("ReliquaryHalo", parent, new Vector3(0f, 1.05f, -0.12f) * s,
+                0.70f * s, 36, 0.035f * s, edge, Quaternion.Euler(82f, 0f, 0f));
         }
 
         private static void BuildChromePenitentLancer(Transform parent, float s, Material body, Material edge, Material threat, Material white)
@@ -399,8 +393,8 @@ namespace Mindforge.Editor
                 Part($"CantorShard_{i}", PrimitiveType.Cube, parent, p,
                     new Vector3(0.13f, 0.92f, 0.18f) * s, new Vector3(0f, angle, 42f - i * 19f), i == 0 ? white : body);
             }
-            Ring("CantorChoirRing", parent, new Vector3(0f, 1.02f, 0f) * s, 0.72f * s, 34, 0.03f * s, edge,
-                Quaternion.Euler(76f, 18f, 0f));
+            Ring("CantorChoirRing", parent, new Vector3(0f, 1.02f, 0f) * s,
+                0.72f * s, 34, 0.03f * s, edge, Quaternion.Euler(76f, 18f, 0f));
         }
 
         private static void BuildNeedleSeraph(Transform parent, float s, Material body, Material edge, Material threat, Material white)
@@ -439,8 +433,8 @@ namespace Mindforge.Editor
 
         private static void BuildRiftStalker(Transform parent, float s, Material body, Material edge, Material threat)
         {
-            // Hollows are gone from the opening, but if one appears deeper in the district it
-            // reads as a deliberate blade-stalker instead of an indistinct floor crawler.
+            // Hollows are absent from the opening. Deeper examples now read as intentional
+            // blade-stalkers rather than indistinct objects crawling under projectile lanes.
             Part("StalkerChest", PrimitiveType.Cube, parent, new Vector3(0f, 0.75f, 0f) * s,
                 new Vector3(0.50f, 0.64f, 0.44f) * s, new Vector3(8f, 0f, 0f), body);
             Part("StalkerForelegL", PrimitiveType.Cube, parent, new Vector3(-0.28f, 0.34f, 0.20f) * s,
@@ -472,7 +466,7 @@ namespace Mindforge.Editor
                 if (collider == null || collider.isTrigger || !collider.enabled) continue;
                 Bounds b = collider.bounds;
                 Vector3 center = zone.parent != null ? zone.parent.InverseTransformPoint(b.center) : b.center;
-                if (b.max.y < 0.55f) continue; // floor/curb support is expected.
+                if (b.max.y < 0.55f) continue;
                 if (center.z + b.extents.z < minZ || center.z - b.extents.z > maxZ) continue;
                 if (Mathf.Abs(center.x) - b.extents.x >= halfWidth) continue;
                 throw new InvalidOperationException(
@@ -498,7 +492,8 @@ namespace Mindforge.Editor
             b.y = 0f;
             float spacing = Vector3.Distance(a, b);
             if (spacing < MinimumOpeningSentrySpacing)
-                throw new InvalidOperationException($"Opening Sentries are only {spacing:0.0}m apart; reference fidelity requires >= {MinimumOpeningSentrySpacing:0.0}m.");
+                throw new InvalidOperationException(
+                    $"Opening Sentries are only {spacing:0.0}m apart; reference fidelity requires >= {MinimumOpeningSentrySpacing:0.0}m.");
         }
 
         private static void BuildWindowLancet(Transform parent, string name, float x, float y, float z, int side, Material glass, Material gold, Material edge)
@@ -521,14 +516,15 @@ namespace Mindforge.Editor
         private static void BuildSkyPhaseRing(Transform parent, string name, Vector3 p, float radius, Material rim, Material glass, float yaw)
         {
             Ring(name + "_Outer", parent, p, radius, 72, 0.11f, rim, Quaternion.Euler(90f, yaw, 0f));
-            Ring(name + "_Inner", parent, p + new Vector3(0f, 0f, 0.18f), radius * 0.78f, 64, 0.055f, glass, Quaternion.Euler(90f, yaw + 11f, 0f));
+            Ring(name + "_Inner", parent, p + new Vector3(0f, 0f, 0.18f), radius * 0.78f, 64, 0.055f, glass,
+                Quaternion.Euler(90f, yaw + 11f, 0f));
         }
 
-        private static void RouteBranch(Transform parent, Vector3 a, Vector3 b, Material material)
+        private static void RouteBranch(Transform parent, Vector3 a, Vector3 b, Material material, string name)
         {
             Vector3 center = (a + b) * 0.5f;
             float length = Vector3.Distance(a, b);
-            Primitive("CalibrationBranch", PrimitiveType.Cube, parent, center, new Vector3(length, 0.025f, 0.08f), material, false);
+            Primitive(name, PrimitiveType.Cube, parent, center, new Vector3(length, 0.025f, 0.08f), material, false);
         }
 
         private static void MoveDeepChild(Transform root, string name, Vector3 localPosition)
@@ -589,7 +585,8 @@ namespace Mindforge.Editor
             line.sharedMaterial = material;
             line.useWorldSpace = false;
             line.alignment = LineAlignment.TransformZ;
-            line.positionCount = Mathf.Max(8, halfSegments) * 2 + 1;
+            int half = Mathf.Max(8, halfSegments);
+            line.positionCount = half * 2 + 1;
             line.startWidth = width;
             line.endWidth = width;
             line.numCornerVertices = 2;
@@ -597,7 +594,6 @@ namespace Mindforge.Editor
             line.shadowCastingMode = ShadowCastingMode.On;
             line.receiveShadows = true;
 
-            int half = (line.positionCount - 1) / 2;
             Vector3 left = new Vector3(-span * 0.5f, 0f, 0f);
             Vector3 apex = new Vector3(0f, rise, 0f);
             Vector3 right = new Vector3(span * 0.5f, 0f, 0f);
@@ -669,19 +665,6 @@ namespace Mindforge.Editor
             bool collider,
             Vector3? localEuler = null)
         {
-            return Primitive(name, type, parent, localPosition, localScale, warmForRoad: material, collider: collider, localEuler: localEuler);
-        }
-
-        private static GameObject Primitive(
-            string name,
-            PrimitiveType type,
-            Transform parent,
-            Vector3 localPosition,
-            Vector3 localScale,
-            Material warmForRoad,
-            bool collider,
-            Vector3? localEuler = null)
-        {
             GameObject go = GameObject.CreatePrimitive(type);
             go.name = name;
             go.transform.SetParent(parent, false);
@@ -691,7 +674,7 @@ namespace Mindforge.Editor
             Renderer renderer = go.GetComponent<Renderer>();
             if (renderer != null)
             {
-                renderer.sharedMaterial = warmForRoad;
+                renderer.sharedMaterial = material;
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
                 GameObjectUtility.SetStaticEditorFlags(go, VisualStatic);
