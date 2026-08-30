@@ -281,8 +281,8 @@ namespace Mindforge.Presentation
 
             if (gameplayCamera != null)
             {
-                // FOV remains deliberately fixed across foot, jump, hover and mounted speed so
-                // coded stimulus angular size is not modulated by locomotion. Near/far clipping
+                // Deliberately fixed across foot, jump, hover and mounted speed.
+                // Coded stimulus angular size is not modulated by locomotion. Near/far clipping
                 // only controls visibility depth; the 420m minimum preserves the cathedral-city
                 // skyline requested by the Sanctum visual-clarity policy.
                 gameplayCamera.fieldOfView = Mathf.Clamp(gameplayFieldOfView, 45f, 75f);
