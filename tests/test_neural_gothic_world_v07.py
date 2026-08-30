@@ -42,7 +42,10 @@ def test_generated_cells_expose_topology_metadata_without_moving_authority():
     assert "MindforgeConstraintCollapse" in assembler
     assert "BuildFallbackTile(instance.transform, tile)" in assembler
     assert "BuildVerticalConnectors" in assembler
-    assert "Collider" not in art.split("public sealed class GeneratedWorldCellV07", 1)[1].split("public sealed class NeuralGothicWorldDetailerV07", 1)[0]
+    metadata_source = art.split("public sealed class GeneratedWorldCellV07", 1)[1].split(
+        "public sealed class NeuralGothicWorldDetailerV07", 1
+    )[0]
+    assert "Collider" not in metadata_source
 
 
 def test_local_detailer_is_deterministic_bounded_and_presentation_only():
@@ -51,8 +54,8 @@ def test_local_detailer_is_deterministic_bounded_and_presentation_only():
     for token in (
         "public sealed class NeuralGothicWorldDetailerV07 : MonoBehaviour",
         "private int detailSeed = 70731",
-        "public const string DetailRootName = \"NeuralGothicDetail_V07\"",
-        "StableHash(cell.TileId + \"\:\" + cell.Grid.x + \"\:\" + cell.Grid.y + \"\:\" + detailSeed)",
+        'public const string DetailRootName = "NeuralGothicDetail_V07"',
+        'StableHash(cell.TileId + ":" + cell.Grid.x + ":" + cell.Grid.y + ":" + detailSeed)',
         "System.Random random = new System.Random(hash)",
         "maxDecorativePrimitivesPerCell = 34",
         "if (_createdThisCell >= cap) return null",
@@ -129,10 +132,12 @@ def test_v07_builds_three_scale_visual_hierarchy_without_colliders():
 
     # All authored V0.7 primitives deliberately pass collider=false.
     assert "All V0.7 geometry is collider-free presentation" in builder
-    assert "Primitive(" in builder
-    assert ", true" not in "\n".join(
-        line for line in builder.splitlines() if "Primitive(" in line and "private static GameObject Primitive" not in line
+    primitive_calls = "\n".join(
+        line
+        for line in builder.splitlines()
+        if "Primitive(" in line and "private static GameObject Primitive" not in line
     )
+    assert ", true" not in primitive_calls
 
 
 def test_v07_light_rhythm_is_small_and_shadow_free():
@@ -150,12 +155,9 @@ def test_v07_light_rhythm_is_small_and_shadow_free():
         "counts.renderers <=",
         "counts.lights <=",
         "counts.lines <=",
-        "it never changes".lower(),
     ):
-        if token == "it never changes":
-            assert "it never changes" in audit.lower()
-        else:
-            assert token in audit
+        assert token in audit
+    assert "it never changes" in audit.lower()
 
     for forbidden in (
         "QualitySettings",
