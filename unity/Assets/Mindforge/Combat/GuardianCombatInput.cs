@@ -3,26 +3,15 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Samples conventional third-person PC input in Update, latches one-shot actions,
-    /// then applies one complete command frame on the authoritative fixed simulation tick.
+    /// Samples conventional third-person input in Update, latches one-shot actions, then
+    /// applies one complete command frame on the authoritative fixed simulation tick.
     ///
-    /// Grounded-world map:
-    /// - WASD: camera-relative movement
-    /// - Mouse/trackpad or arrow keys: orbit camera (handled by ShowcaseCameraRig)
-    /// - T: conventional target lock (handled by GuardianTargetLock)
-    /// - Space: jump / double jump; hold while descending to hover / slow fall
-    /// - Shift or RMB: grounded dodge roll / air dash
-    /// - Ctrl / Alt: compatibility dodge aliases
-    /// - F or LMB: energy-blade light chain / projectile parry
-    /// - E: mount/dismount edge is captured into the shared tape but consumed by the mount authority
-    /// - Q: Rift Cleave
-    /// - C: Counter Pulse
-    /// - R: Gravity Bloom / Twin Eclipse
-    ///
-    /// Shield hold and player Pulse fire are intentionally retired from the normal map in
-    /// this tranche. The corresponding tape fields remain for backward-compatible replay,
-    /// but this input authority never issues them. Neural evidence never originates
-    /// movement, target lock, attack, camera orbit, aim, jump, hover, dodge or mount commands.
+    /// Canonical player vocabulary is supplied by GuardianControlProfileV1:
+    /// WASD move · Space jump/hover · Shift/RMB evade · F/LMB blade · Q/C/R skills.
+    /// Target lock and contextual E interaction are owned by their dedicated conventional
+    /// input authorities. Shield hold and player Pulse fire remain retired from the normal map.
+    /// Neural evidence never originates movement, target lock, interaction, attack, camera
+    /// orbit, aim, jump, hover or dodge commands.
     /// </summary>
     public sealed class GuardianCombatInput : MonoBehaviour
     {
@@ -34,6 +23,7 @@ namespace Mindforge.Combat
         [SerializeField] private GuardianTargetLock targetLock;
         [SerializeField] private Transform aimTarget;
         [SerializeField] private GuardianInputTape inputTape;
+        [SerializeField] private GuardianControlProfileV1 controls;
 
         [Header("Third-person combat heading")]
         [SerializeField] private Camera aimCamera;
@@ -50,7 +40,6 @@ namespace Mindforge.Combat
         private bool _jumpHeld;
         private bool _bloomLatched;
         private bool _swordAttackLatched;
-        private bool _mountLatched;
         private long _fixedInputTick;
 
         private bool _dodgeCommandQueued;
@@ -93,7 +82,6 @@ namespace Mindforge.Combat
             _jumpHeld = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
-            _mountLatched = false;
             ClearDodgeCommand();
             motor?.SetMoveInput(Vector2.zero);
             motor?.SetJumpHeld(false);
@@ -102,40 +90,25 @@ namespace Mindforge.Combat
 
         private void Update()
         {
-            // WASD is sampled directly so movement never depends on Unity Input Manager
-            // axis configuration. Arrow keys orbit the diorama camera instead.
-            _move = SampleWasdMovement();
+            ResolveDependencies();
+            if (controls == null) return;
 
-            _jumpLatched |= Input.GetKeyDown(KeyCode.Space);
-            _jumpHeld = Input.GetKey(KeyCode.Space);
-            _mountLatched |= Input.GetKeyDown(KeyCode.E);
+            _move = controls.SampleMovement();
+            _jumpLatched |= controls.Pressed(GuardianControlAction.JumpHover);
+            _jumpHeld = controls.Held(GuardianControlAction.JumpHover);
 
-            // Dodge roll owns the highest-frequency defensive input. RMB becomes a roll
-            // rather than an invisible/low-value guard stance; Shift remains the keyboard
-            // primary and Ctrl/Alt stay as compatibility aliases.
-            _dashLatched |= Input.GetKeyDown(KeyCode.LeftShift) ||
-                            Input.GetKeyDown(KeyCode.RightShift) ||
-                            Input.GetMouseButtonDown(1) ||
+            // The advertised defensive vocabulary is Shift/RMB. Ctrl/Alt remain silent
+            // compatibility aliases so older habits/tests do not lose control authority.
+            _dashLatched |= controls.Pressed(GuardianControlAction.EvadeBoost) ||
                             Input.GetKeyDown(KeyCode.LeftControl) ||
                             Input.GetKeyDown(KeyCode.RightControl) ||
                             Input.GetKeyDown(KeyCode.LeftAlt) ||
                             Input.GetKeyDown(KeyCode.RightAlt);
 
-            _swordAttackLatched |= Input.GetKeyDown(KeyCode.F) || Input.GetMouseButtonDown(0);
-            _cleaveLatched |= Input.GetKeyDown(KeyCode.Q);
-            _counterLatched |= Input.GetKeyDown(KeyCode.C);
-            _bloomLatched |= Input.GetKeyDown(KeyCode.R);
-        }
-
-        private static Vector2 SampleWasdMovement()
-        {
-            float x = 0f;
-            float y = 0f;
-            if (Input.GetKey(KeyCode.A)) x -= 1f;
-            if (Input.GetKey(KeyCode.D)) x += 1f;
-            if (Input.GetKey(KeyCode.S)) y -= 1f;
-            if (Input.GetKey(KeyCode.W)) y += 1f;
-            return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
+            _swordAttackLatched |= controls.Pressed(GuardianControlAction.Blade);
+            _cleaveLatched |= controls.Pressed(GuardianControlAction.Cleave);
+            _counterLatched |= controls.Pressed(GuardianControlAction.Counter);
+            _bloomLatched |= controls.Pressed(GuardianControlAction.Bloom);
         }
 
         private void FixedUpdate()
@@ -163,9 +136,10 @@ namespace Mindforge.Combat
                 sword_attack_down = _swordAttackLatched,
                 guard_held = false,
                 guard_down = false,
-                mount_toggle_down = _mountLatched,
+                mount_toggle_down = false,
                 mounted_attack_down = false,
                 mounted_boost_down = false,
+                context_down = false,
             };
 
             _cleaveLatched = false;
@@ -174,7 +148,6 @@ namespace Mindforge.Combat
             _jumpLatched = false;
             _bloomLatched = false;
             _swordAttackLatched = false;
-            _mountLatched = false;
 
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
@@ -395,6 +368,7 @@ namespace Mindforge.Combat
             if (endurance == null) endurance = GetComponent<GuardianStamina>();
             if (targetLock == null) targetLock = GetComponent<GuardianTargetLock>();
             if (inputTape == null) inputTape = UnityEngine.Object.FindObjectOfType<GuardianInputTape>(true);
+            if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
         }
     }
 }
