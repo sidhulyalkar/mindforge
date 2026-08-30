@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,8 +90,9 @@ def test_tuning_prefers_safe_thresholds_when_idle_is_ambiguous():
         w("sight", 0.58, 0.20),
         w("guard", 0.20, 0.64),
         w("guard", 0.22, 0.59),
-        w("none", 0.25, 0.23, condition="idle", seconds=1.0),
-        w("none", 0.24, 0.22, condition="idle", seconds=1.0),
+        # Idle evidence is strong enough to cross a permissive 0.02 margin, but not 0.05.
+        w("none", 0.27, 0.23, condition="idle", seconds=1.0),
+        w("none", 0.26, 0.22, condition="idle", seconds=1.0),
     ]
     policy, metrics = tune_policy(
         rows,
@@ -105,7 +107,7 @@ def test_tuning_prefers_safe_thresholds_when_idle_is_ambiguous():
 
 def test_recommendation_prefers_triggered_not_always_listening_control():
     rows = []
-    for i in range(12):
+    for _ in range(12):
         rows.append(w("sight", 0.60, 0.15, se=1.0, ge=9.0))
         rows.append(w("guard", 0.15, 0.60, se=9.0, ge=1.0))
     rows.extend(w("none", 0.08, 0.07, condition="idle", seconds=1.0) for _ in range(120))
@@ -114,3 +116,12 @@ def test_recommendation_prefers_triggered_not_always_listening_control():
     assert recommendation.promote_bci_authority
     assert recommendation.architecture == "TRIGGERED_OVERT_SSVEP"
     assert any("player-armed" in reason for reason in recommendation.rationale)
+
+
+def test_evidence_contract_excludes_raw_biometric_payloads():
+    schema = json.loads((ROOT / "contracts" / "ssvep_evidence_window.v1.schema.json").read_text())
+    props = set(schema["properties"])
+    assert schema["additionalProperties"] is False
+    assert {"sight_score", "guard_score", "sight_eccentricity_deg", "guard_eccentricity_deg"} <= props
+    forbidden = {"eeg", "samples", "channels", "raw_gaze", "eye_image", "pupil_video"}
+    assert not (forbidden & props)
