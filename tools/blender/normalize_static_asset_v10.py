@@ -6,6 +6,10 @@ Run inside Blender, for example:
     --input source.glb --recipe content/recipes/architecture/cathedral_arch_v10.json \
     --output normalized.fbx --report normalized.report.json
 
+Recipes use Unity coordinates (X right, Y up, Z forward). Blender operates Z-up, so
+recipe bounds are explicitly mapped Unity [X,Y,Z] -> Blender [X,Z,Y] before fitting.
+The FBX export then declares Y-up / -Z-forward for Unity ingestion.
+
 This script only handles static presentation meshes. Character rigs/animations require a
 separate pipeline so the static normalizer never destroys skeletal information by accident.
 """
@@ -107,12 +111,22 @@ def world_bounds(obj):
     return low, high
 
 
-def fit_uniform(obj, target_size) -> float:
+def unity_size_to_blender(target_size_unity) -> tuple[float, float, float]:
+    """Unity X/Y/Z (Y-up) -> Blender X/Y/Z (Z-up)."""
+    return float(target_size_unity[0]), float(target_size_unity[2]), float(target_size_unity[1])
+
+
+def blender_size_to_unity(size_blender) -> list[float]:
+    return [float(size_blender.x), float(size_blender.z), float(size_blender.y)]
+
+
+def fit_uniform(obj, target_size_unity) -> float:
     low, high = world_bounds(obj)
     size = high - low
     if min(size.x, size.y, size.z) <= 1e-6:
         raise ValueError(f"source bounds are degenerate: {tuple(size)}")
-    scales = [target_size[i] / size[i] for i in range(3)]
+    target_blender = unity_size_to_blender(target_size_unity)
+    scales = [target_blender[i] / size[i] for i in range(3)]
     scale = min(scales)
     obj.scale = Vector((scale, scale, scale))
     bpy.context.view_layer.objects.active = obj
@@ -121,10 +135,11 @@ def fit_uniform(obj, target_size) -> float:
 
 
 def place_bottom_center_at_origin(obj) -> None:
+    """Blender is Z-up: center X/Y footprint and put the lowest Z at zero."""
     low, high = world_bounds(obj)
     center_x = (low.x + high.x) * 0.5
-    center_z = (low.z + high.z) * 0.5
-    obj.location -= Vector((center_x, low.y, center_z))
+    center_y = (low.y + high.y) * 0.5
+    obj.location -= Vector((center_x, center_y, low.z))
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
 
@@ -155,7 +170,7 @@ def validate_mesh(obj, recipe: dict) -> dict:
         "vertices": vertices,
         "triangles": triangles,
         "materials": materials,
-        "bounds_m": [float(size.x), float(size.y), float(size.z)],
+        "bounds_m_unity_xyz": blender_size_to_unity(size),
     }
 
 
@@ -202,6 +217,7 @@ def main() -> None:
         "asset_id": recipe["asset_id"],
         "source": str(input_path),
         "output": str(output_path),
+        "coordinate_contract": "recipe Unity X/Y/Z Y-up -> Blender X/Y/Z Z-up -> FBX Y-up -Z-forward",
         "uniform_scale_applied": scale,
         "authority": {"gameplay": False, "collision": False, "bci": False},
         "stats": stats,
