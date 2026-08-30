@@ -40,7 +40,7 @@ namespace Mindforge.Editor
 
             NeuralGothicArchPolishV07 arches = annex.GetComponent<NeuralGothicArchPolishV07>();
             if (arches == null) arches = annex.AddComponent<NeuralGothicArchPolishV07>();
-            arches.ConfigureRuntime(architecture, signal, archBudget: 24);
+            arches.ConfigureRuntime(architecture, signal, archBudget: 12);
             int archCount = arches.Rebuild();
 
             BciSafeDecorativeLightingV07 lighting = v07Root.GetComponent<BciSafeDecorativeLightingV07>();
