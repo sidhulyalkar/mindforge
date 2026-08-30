@@ -116,6 +116,8 @@ namespace Mindforge.Editor
             if (sky.HasProperty("_SkyTint")) sky.SetColor("_SkyTint", new Color(0.22f, 0.53f, 0.86f, 1f));
             if (sky.HasProperty("_GroundColor")) sky.SetColor("_GroundColor", new Color(0.32f, 0.40f, 0.47f, 1f));
             EditorUtility.SetDirty(sky);
+            RenderSettings.skybox = sky;
+            DynamicGI.UpdateEnvironment();
         }
 
         private static void SetIfPresent(Material material, string property, float value)
