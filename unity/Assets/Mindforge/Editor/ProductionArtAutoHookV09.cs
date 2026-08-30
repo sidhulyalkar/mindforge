@@ -51,6 +51,7 @@ namespace Mindforge.Editor
                 ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
                 EnsureHorizon(production);
                 EnsureStorytelling(production);
+                EnsureMemoryForge(production);
                 EnsureNeuralSanctum(production);
                 EnsureLighting(production);
                 EnsurePostFx(production);
@@ -73,6 +74,7 @@ namespace Mindforge.Editor
             if (production == null) return false;
             if (production.transform.Find(ProductionHorizonV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) == null) return false;
+            if (EditorSceneLookup.FindIncludingInactive("Memory_Forge_Sanctum_Altar_V08")?.transform.Find(ProductionMemoryForgeV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionNeuralSanctumV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionLightingV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionPostFxV09Builder.RootName) == null) return false;
@@ -100,6 +102,7 @@ namespace Mindforge.Editor
                 int quarantined = ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
                 EnsureHorizon(production);
                 EnsureStorytelling(production);
+                EnsureMemoryForge(production);
                 EnsureNeuralSanctum(production);
                 EnsureLighting(production);
                 EnsurePostFx(production);
@@ -111,7 +114,7 @@ namespace Mindforge.Editor
                 Debug.Log(
                     $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
                     $"legacy renderers quarantined={quarantined}; local external replacements={external}; " +
-                    "natural horizon + neural megastructures + district storytelling + production neural sanctum + consolidated light hierarchy + restrained URP finish enabled.");
+                    "natural horizon + neural megastructures + district storytelling + production Memory Forge + production neural sanctum + consolidated light hierarchy + restrained URP finish enabled.");
             }
             finally
             {
@@ -131,6 +134,15 @@ namespace Mindforge.Editor
             if (production == null) return;
             if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) != null) return;
             ProductionWorldStorytellingV09Builder.ApplyOpenScene();
+        }
+
+        private static void EnsureMemoryForge(GameObject production)
+        {
+            if (production == null) return;
+            GameObject altar = EditorSceneLookup.FindIncludingInactive("Memory_Forge_Sanctum_Altar_V08");
+            if (altar == null) return;
+            if (altar.transform.Find(ProductionMemoryForgeV09Builder.RootName) != null) return;
+            ProductionMemoryForgeV09Builder.ApplyOpenScene();
         }
 
         private static void EnsureNeuralSanctum(GameObject production)
