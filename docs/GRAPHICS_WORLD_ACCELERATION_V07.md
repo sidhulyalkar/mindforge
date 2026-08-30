@@ -164,6 +164,42 @@ All have dynamic shadows disabled. Existing world lighting remains primary.
 
 The audit **reports** visual pressure. It never changes fixed timestep, quality level, render scale, BCI stimulus, gameplay or world state.
 
+### 7. Editable prefab starter kit
+
+`NeuralGothicPrefabBakerV07` materializes twelve of the strongest motifs into normal collider-free Unity prefabs under:
+
+`Assets/Mindforge/Generated/WorldV07/Prefabs`
+
+Current pieces:
+
+- floor plinth;
+- corner pier;
+- arch jamb;
+- arch lintel;
+- wall rib;
+- signal fin;
+- terminal;
+- relic plinth;
+- broken shard cluster;
+- crossbeam;
+- signal spire;
+- gate crown.
+
+The bake never rewrites a scene. Its purpose is to turn procedural motifs into editable art assets that can receive manual polish and later be fed back into `WorldTileDefinitionV06` catalogs without changing the generator interface.
+
+### 8. Third-party provenance gate
+
+`third_party/manifest.json` is the centralized provenance contract for borrowed techniques and future assets.
+
+Policy:
+
+- vendored code requires a license notice;
+- reference-only projects have no copied paths;
+- binary art requires asset-level provenance;
+- unknown or ambiguous art assets are not allowed.
+
+Static tests compare binary media under `Assets/Mindforge/ThirdParty` against the declared binary-art manifest, so a future public FBX/texture/audio import cannot quietly enter the repository without provenance.
+
 ## Why we are not copying entire public Unity scenes
 
 Whole-scene imports are fast for a screenshot and expensive for a game. They tend to bring:
@@ -187,12 +223,12 @@ The faster long-term strategy is narrower:
 
 After Unity runtime validation of V0.7:
 
-1. **Prefab materialization**: convert the strongest procedural local structures into a reusable 20–40 piece prefab kit so artists can hand-edit hero variants.
+1. **Expand the prefab kit**: grow the current 12-piece starter kit toward 20–40 pieces with hand-polished hero variants, while keeping all collision in V0.6 gameplay geometry.
 2. **World-space/triplanar surface study**: eliminate obvious stretched primitive UVs, preferably through one URP-compatible shared solution rather than many materials.
 3. **Vertex/mesh damage grammar**: generate chipped corners, missing wall segments, tilted slabs and structural asymmetry without introducing traversal holes.
 4. **District art profiles**: Forge, Causeway, Market, Cloister and Cathedral should share the same base kit with different weights/palettes/hero motifs.
 5. **Distance-aware density**: reduce tertiary detail in cells that are purely skyline background while protecting silhouette.
-6. **CC0/clean-room asset ingestion**: where binary modular assets materially outperform procedural primitives, ingest only assets with individually verified permissive/CC0 provenance and record them in a central manifest.
+6. **CC0/clean-room asset ingestion**: where binary modular assets materially outperform procedural primitives, ingest only assets with individually verified permissive/CC0 provenance and record them in `third_party/manifest.json`.
 7. **GPU vegetation/ambient field layer**: only after measuring the current frame, consider instanced low-cost growth/cable/shard fields inspired by permissive URP examples.
 
 The production philosophy is simple:
