@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MESHES = ROOT / "unity/Assets/Mindforge/Editor/ProductionStoryMeshLibraryV09.cs"
 STORY = ROOT / "unity/Assets/Mindforge/Editor/ProductionWorldStorytellingV09Builder.cs"
 HOOK = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtAutoHookV09.cs"
+SHOWCASE = ROOT / "unity/Assets/Mindforge/Editor/ShowcaseEditorMenu.cs"
 
 
 def read(path: Path) -> str:
@@ -136,6 +137,20 @@ def test_complete_v09_hook_runs_storytelling_before_finish_and_external_replacem
     post = apply_section.index("EnsurePostFx(production);")
     external = apply_section.index("ExternalArtReplacementV09.ApplyOpenScene()")
     assert story < post < external
+
+
+def test_canonical_showcase_build_applies_v09_synchronously_before_audit_and_play():
+    text = read(SHOWCASE)
+    v08 = text.index("SanctumCrispGeometryV08Builder.ApplyOpenScene();")
+    v09 = text.index("ProductionArtAutoHookV09.ApplyNow();")
+    gate = text.index("CompetitionGateValidator.ValidateAndWrite(false);")
+    audit = text.index("PresentationBudgetAudit.Run();")
+    assert v08 < v09 < gate < audit
+
+    build_and_play = text.split("public static void BuildAndPlay()", 1)[1].split(
+        "private static void FocusGameViewWhenPlayStarts", 1
+    )[0]
+    assert build_and_play.index("BuildScene();") < build_and_play.index("EditorApplication.delayCall")
 
 
 def test_storytelling_script_meta_guids_are_unique():
