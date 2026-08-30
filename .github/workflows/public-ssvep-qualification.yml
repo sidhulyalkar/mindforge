@@ -16,6 +16,11 @@ on:
       - feat/v11-gaze-attention-platform
     paths:
       - '.github/workflows/public-ssvep-qualification.yml'
+      - 'tools/run_moabb_guttmann_ssvep.py'
+      - 'tools/evaluate_ssvep_game_design.py'
+      - 'neuro/mindforge_neuro/gaze_confound.py'
+      - 'neuro/mindforge_neuro/public_validation.py'
+      - 'pyproject.toml'
 
 jobs:
   guttmann-smoke:
