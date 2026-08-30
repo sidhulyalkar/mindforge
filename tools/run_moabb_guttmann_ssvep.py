@@ -35,7 +35,9 @@ from mindforge_neuro.gaze_confound import EvidenceWindow  # noqa: E402
 from mindforge_neuro.ssvep import SsvepDecoder  # noqa: E402
 
 
-UNICORN8 = ["FZ", "C3", "CZ", "C4", "PZ", "PO7", "OZ", "PO8"]
+# MNE channel matching is case-sensitive. These names use the canonical 10-20 casing exposed
+# by the Guttmann-Flury recordings while preserving the same physical Mindforge/Unicorn montage.
+UNICORN8 = ["Fz", "C3", "Cz", "C4", "Pz", "PO7", "Oz", "PO8"]
 POSTERIOR_INDICES = (4, 5, 6, 7)
 LABEL_TO_TARGET = {"10.0": AuraTarget.SIGHT, "12.0": AuraTarget.GUARD}
 
