@@ -25,11 +25,16 @@ def test_crisp_pass_swaps_mesh_filters_without_changing_collision_or_gameplay():
     text = CRISP.read_text(encoding="utf-8")
     assert "filter.sharedMesh = chamfered" in text
     for forbidden in (
-        "DestroyImmediate(shape)",
-        "BoxCollider",
-        "MeshCollider",
+        "GetComponent<BoxCollider>",
+        "GetComponentsInChildren<BoxCollider>",
+        "GetComponent<MeshCollider>",
+        "GetComponentsInChildren<MeshCollider>",
         "AddComponent<Collider",
+        "AddComponent<BoxCollider",
+        "AddComponent<MeshCollider",
         "AddComponent<Rigidbody",
+        "DestroyImmediate(collider",
+        "collider.enabled =",
         "JourneyEnemyController.ConfigureRuntime",
         "EnemyAttackDefinition",
         "TakeDamage",
