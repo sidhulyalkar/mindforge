@@ -53,7 +53,8 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
                 "Shift/RMB evades on foot and boosts while mounted; T locks and mouse wheel cycles targets; F/LMB swings/parries; " +
-                "E is the single contextual world action for ride/dismount/reconstruct; Q/C/R are advanced skills; Tab opens kit + controls + objective.");
+                "E is the single contextual world action for ride/dismount/reconstruct/open/take/talk/commune; Q/C/R are advanced skills; " +
+                "Tab opens kit + controls + objective + persistent world state.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -111,9 +112,12 @@ namespace Mindforge.Editor
                 // Semantic systems bind only after the final authored gameplay/world graph exists.
                 GameFoundationV1Builder.ApplyOpenScene();
 
-                // Player-facing control, interaction and safe persistence bind last so they
-                // reference the final Guardian, mount, checkpoint and semantic foundation.
+                // Player-facing control and one contextual E router bind against the final scene.
                 UxInteractionSaveV05Builder.ApplyOpenScene();
+
+                // V0.6 replaces the active V0.5 disk writer with profile-v2, then adds only
+                // restorable persistent physical truth plus bounded procedural world expansion.
+                WorldV06Builder.ApplyOpenScene();
             }
             finally
             {
@@ -161,9 +165,12 @@ namespace Mindforge.Editor
                 "idempotent Resonance/Mastery/unlock rewards, six durable story discoveries, encounter contracts and passive run splits sit downstream " +
                 "of gameplay authority. Competitive candidates remain explicitly NOT ranked-qualified until Unity/runtime/BCI evidence says otherwise.");
             Debug.Log(
-                "[Mindforge:Showcase] UX + Interaction + Save V0.5 ready: one canonical control profile drives gameplay labels; E is one contextual action; " +
-                "arrows remain camera-only while mouse wheel cycles locked targets; V5 input tapes record context separately from legacy mount edges; " +
-                "safe profile persistence stores progression/reward receipts plus non-physical story/profile facts only. Full encounter/boss resume remains gated on physical restore adapters.");
+                "[Mindforge:Showcase] UX + Interaction + Save V0.5 contracts retained: one canonical control profile drives gameplay labels; E is one contextual action; " +
+                "arrows remain camera-only while mouse wheel cycles locked targets; V5 input tapes record context separately from legacy mount edges.");
+            Debug.Log(
+                "[Mindforge:Showcase] Persistent World V0.6 ready: profile-v2 is the sole active disk writer; progression, inventory/equipment, reward receipts, " +
+                "regions and explicit physical restore adapters share one save. Memory Conduit, loot, shrine and Archivist all reuse contextual E and stable world IDs. " +
+                "The Neural Cloister is deterministically generated from a small socket/height grammar inside the existing collision basin; authored route landmarks remain fixed.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]

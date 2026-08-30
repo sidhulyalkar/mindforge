@@ -1,3 +1,4 @@
+using System.Text;
 using UnityEngine;
 using Mindforge.Combat;
 using Mindforge.World;
@@ -5,9 +6,9 @@ using Mindforge.World;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// One reliable player-reference screen for build, controls and current objective.
-    /// It is descriptive rather than an inventory editor in V0.5; gameplay and neural
-    /// authority remain in their existing systems.
+    /// Player-reference screen for build, controls, current objective and V0.6 persistent
+    /// inventory. Tab stays descriptive and read-only; gameplay authority remains in the
+    /// concrete combat/world systems.
     /// </summary>
     public sealed class GuardianEquipmentMenu : MonoBehaviour
     {
@@ -15,6 +16,7 @@ namespace Mindforge.Presentation
         [SerializeField] private GuardianStamina endurance;
         [SerializeField] private GuardianControlProfileV1 controls;
         [SerializeField] private WorldQuestRuntime quests;
+        [SerializeField] private PlayerInventoryV06 inventory;
 
         private bool _visible;
         private GUIStyle _title;
@@ -53,6 +55,7 @@ namespace Mindforge.Presentation
             if (endurance == null) endurance = FindObjectOfType<GuardianStamina>(true);
             if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
             if (quests == null) quests = FindObjectOfType<WorldQuestRuntime>(true);
+            if (inventory == null) inventory = FindObjectOfType<PlayerInventoryV06>(true);
         }
 
         private void Update()
@@ -74,7 +77,7 @@ namespace Mindforge.Presentation
             GUI.color = before;
 
             float width = Mathf.Min(980f, Screen.width - 72f);
-            float height = Mathf.Min(680f, Screen.height - 60f);
+            float height = Mathf.Min(720f, Screen.height - 60f);
             Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
             Fill(panel, Panel);
             Stroke(panel, new Color(0.28f, 0.40f, 0.62f, 0.75f), 2f);
@@ -93,22 +96,28 @@ namespace Mindforge.Presentation
             float leftX = x;
             float rightX = x + leftWidth + gap;
 
-            DrawLoadoutCard(new Rect(leftX, y, leftWidth, 118f), "MAIN HAND", loadout.MainHand?.displayName ?? "Unequipped", Blue,
+            DrawLoadoutCard(new Rect(leftX, y, leftWidth, 108f), "MAIN HAND", loadout.MainHand?.displayName ?? "Unequipped", Blue,
                 loadout.MainHand != null
                     ? $"{loadout.MainHand.archetype.ToString().ToUpperInvariant()}   DAMAGE {loadout.MainHand.baseDamage:F0}   BASE REACH {loadout.MainHand.reachMeters:F2}m\n{Label(GuardianControlAction.Blade, "F / LMB")} chains committed swings. An active blade can physically parry hostile projectiles."
                     : "No weapon equipped");
-            DrawLoadoutCard(new Rect(leftX, y + 132f, leftWidth, 118f), "DEFENSE", "Endurance Evade", Green,
+            DrawLoadoutCard(new Rect(leftX, y + 120f, leftWidth, 108f), "DEFENSE", "Endurance Evade", Green,
                 $"{Label(GuardianControlAction.EvadeBoost, "SHIFT / RMB")} rolls through ground pressure. Airborne input becomes one air dash per airtime.\nOn a hoverbike the same control becomes boost: same physical vocabulary, context-specific verb.");
-            DrawLoadoutCard(new Rect(leftX, y + 264f, leftWidth, 104f), "ARMOR", loadout.Armor?.displayName ?? "Unequipped", Gold,
+            DrawLoadoutCard(new Rect(leftX, y + 240f, leftWidth, 94f), "ARMOR", loadout.Armor?.displayName ?? "Unequipped", Gold,
                 loadout.Armor != null
                     ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor contributes physical load while the retired shield contributes no active mass."
                     : "No armor equipped");
 
-            Rect objective = new Rect(leftX, y + 382f, leftWidth, 108f);
+            Rect objective = new Rect(leftX, y + 346f, leftWidth, 104f);
             Fill(objective, Card);
             Stroke(objective, new Color(0.20f, 0.78f, 1f, 0.42f), 1f);
             GUI.Label(new Rect(objective.x + 16f, objective.y + 10f, objective.width - 32f, 22f), "CURRENT OBJECTIVE", _section);
-            GUI.Label(new Rect(objective.x + 16f, objective.y + 36f, objective.width - 32f, 64f), CurrentObjective(), _body);
+            GUI.Label(new Rect(objective.x + 16f, objective.y + 36f, objective.width - 32f, 62f), CurrentObjective(), _body);
+
+            Rect persistent = new Rect(leftX, y + 462f, leftWidth, 116f);
+            Fill(persistent, Card);
+            Stroke(persistent, new Color(0.24f, 1f, 0.58f, 0.34f), 1f);
+            GUI.Label(new Rect(persistent.x + 16f, persistent.y + 9f, persistent.width - 32f, 22f), "PERSISTENT WORLD", _section);
+            GUI.Label(new Rect(persistent.x + 16f, persistent.y + 34f, persistent.width - 32f, 76f), InventorySummary(), _muted);
 
             Rect rules = new Rect(rightX, y, rightWidth, 354f);
             Fill(rules, Card);
@@ -133,14 +142,21 @@ namespace Mindforge.Presentation
             GUI.Label(new Rect(neural.x + 16f, neural.y + 34f, neural.width - 32f, 82f),
                 "BLUE / Sight → bounded blade length, energy and damage\nGREEN / Guard → retained neural channel; no shield action in this build\nEEG never moves, interacts, jumps, evades, locks, swings or parries.", _body);
 
-            float summaryY = y + 506f;
-            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 82f);
+            Rect truth = new Rect(rightX, y + 502f, rightWidth, 76f);
+            Fill(truth, Card);
+            Stroke(truth, new Color(0.92f, 0.76f, 0.38f, 0.35f), 1f);
+            GUI.Label(new Rect(truth.x + 16f, truth.y + 9f, truth.width - 32f, 20f), "WORLD TRUTH", _section);
+            GUI.Label(new Rect(truth.x + 16f, truth.y + 31f, truth.width - 32f, 40f),
+                "E resolves exactly one offer. Stable IDs preserve opened shortcuts, claimed loot, shrine discovery and equipment across Forge saves.", _muted);
+
+            float summaryY = y + 592f;
+            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 58f);
             Fill(summary, new Color(0.050f, 0.060f, 0.080f, 0.98f));
             Stroke(summary, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             string stamina = endurance != null ? $"{endurance.Value:F0} / {endurance.Max:F0}" : "-";
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 10f, summary.width - 32f, 22f),
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 8f, summary.width - 32f, 20f),
                 $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   ENDURANCE {stamina}", _item);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 38f, summary.width - 32f, 36f),
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 31f, summary.width - 32f, 22f),
                 "Core rhythm: READ → COMMIT → EVADE → REPOSITION. Keep the control vocabulary small; let encounters create depth.", _muted);
         }
 
@@ -153,6 +169,37 @@ namespace Mindforge.Presentation
             if (step == null) return quest.title ?? "Objective complete";
             string description = string.IsNullOrWhiteSpace(step.description) ? string.Empty : "\n" + step.description;
             return (quest.title ?? "JOURNEY") + "\n→ " + (step.title ?? step.id) + description;
+        }
+
+        private string InventorySummary()
+        {
+            if (inventory == null) return "V0.6 inventory not installed in this scene.";
+            StringBuilder text = new StringBuilder();
+            text.Append("LOOT  ");
+            if (inventory.Stacks.Count == 0) text.Append("none yet");
+            else
+            {
+                for (int i = 0; i < inventory.Stacks.Count && i < 3; i++)
+                {
+                    InventoryStackV06 stack = inventory.Stacks[i];
+                    if (i > 0) text.Append("  ·  ");
+                    text.Append(stack.item_id.ToUpperInvariant()).Append(" ×").Append(stack.count);
+                }
+            }
+
+            text.Append("\nEQUIPPED  ");
+            if (inventory.Equipped.Count == 0) text.Append("none");
+            else
+            {
+                for (int i = 0; i < inventory.Equipped.Count && i < 3; i++)
+                {
+                    EquipmentBindingV06 binding = inventory.Equipped[i];
+                    if (i > 0) text.Append("  ·  ");
+                    text.Append(binding.slot.ToUpperInvariant()).Append(": ").Append(binding.item_id.ToUpperInvariant());
+                }
+            }
+            text.Append("\nREGIONS  ").Append(inventory.DiscoveredRegions.Count);
+            return text.ToString();
         }
 
         private string Label(GuardianControlAction action, string fallback)
