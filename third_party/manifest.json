@@ -1,0 +1,60 @@
+{
+  "schema": "mindforge.third_party_manifest.v1",
+  "policy": {
+    "allow_reference_only_without_vendored_files": true,
+    "require_license_notice_for_vendored_code": true,
+    "require_asset_level_provenance_for_binary_art": true,
+    "unknown_or_ambiguous_assets_allowed": false
+  },
+  "entries": [
+    {
+      "id": "mxgmn.wave_function_collapse",
+      "name": "WaveFunctionCollapse",
+      "upstream": "https://github.com/mxgmn/WaveFunctionCollapse",
+      "license": "MIT",
+      "usage": "adapted_code",
+      "vendored_paths": [
+        "unity/Assets/Mindforge/ThirdParty/Wfc/MindforgeConstraintCollapse.cs",
+        "unity/Assets/Mindforge/ThirdParty/Wfc/LICENSE.txt"
+      ],
+      "asset_policy": "No upstream sample images or tile artwork are copied."
+    },
+    {
+      "id": "chichord.unity_modular_procedural_generation",
+      "name": "Unity-Modular-Procedural-Generation",
+      "upstream": "https://github.com/ChichoRD/Unity-Modular-Procedural-Generation",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Architectural pattern reference only; no source or binary assets copied."
+    },
+    {
+      "id": "keijiro.shader_graph_examples",
+      "name": "ShaderGraphExamples",
+      "upstream": "https://github.com/keijiro/ShaderGraphExamples",
+      "license": "CC0-1.0 for the example ShaderGraph directory",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "No ShaderGraph or binary art imported in V0.7."
+    },
+    {
+      "id": "delt06.urp_toon_shader_cyberpunk_demo",
+      "name": "urp-toon-shader-cyberpunk-demo",
+      "upstream": "https://github.com/Delt06/urp-toon-shader-cyberpunk-demo",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Presentation-composition reference only; no scene, shader package or art copied."
+    },
+    {
+      "id": "vkev.unity_urp_shaders_code",
+      "name": "Unity-URP-Shaders-Code",
+      "upstream": "https://github.com/VKev/Unity-URP-Shaders-Code",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "URP technique reference only; no shader or binary assets copied in V0.7."
+    }
+  ],
+  "binary_art_assets": []
+}
