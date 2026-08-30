@@ -28,7 +28,7 @@ def test_checkpoint_normalizes_mount_before_snapshotting_and_suspending_foot_aut
 
 def test_checkpoint_rest_also_exits_mount_before_reconstruction():
     checkpoint = read("World", "MemoryForgeCheckpoint.cs")
-    rest = checkpoint[checkpoint.index("public void RestAndReconstruct()"):checkpoint.index("private void OnPlayerDied()")]
+    rest = checkpoint[checkpoint.index("public void RestAndReconstruct() ") if "public void RestAndReconstruct() " in checkpoint else checkpoint.index("public void RestAndReconstruct()") : checkpoint.index("private void OnPlayerDied()")]
     assert rest.index("NormalizeMountedAuthority();") < rest.index("RestoreGuardian(false);")
 
 
@@ -36,7 +36,9 @@ def test_authority_normalization_cannot_create_new_bci_or_combat_authority():
     checkpoint = read("World", "MemoryForgeCheckpoint.cs")
     bike = read("Traversal", "GuardianHoverbikeController.cs")
 
-    method = bike[bike.index("public void PrepareForAuthoritySuspension()"):bike.index("private void TryMountNearest()")]
+    start = bike.index("public void PrepareForAuthoritySuspension()")
+    end = bike.index("private void Dismount(bool emergency)", start)
+    method = bike[start:end]
     for forbidden in (
         "Input.Get",
         "ReceiveDamage(",
@@ -48,5 +50,8 @@ def test_authority_normalization_cannot_create_new_bci_or_combat_authority():
     ):
         assert forbidden not in method
 
+    assert "SetContextInteractionOwned(bool owned)" in bike
+    assert "public bool TryMount(AetherHoverbikeMount bike)" in bike
+    assert "public void RequestDismount(bool emergency = false)" in bike
     assert "NeuralEvent" not in checkpoint
     assert "VepAuraStimulus" not in checkpoint
