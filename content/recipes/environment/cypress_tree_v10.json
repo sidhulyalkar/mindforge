@@ -1,0 +1,46 @@
+{
+  "schema": "mindforge.content_asset_recipe.v1",
+  "asset_id": "mf_cypress_tree_v10",
+  "semantic_role": "tree",
+  "districts": ["sanctum", "promenade", "market"],
+  "source": {
+    "kind": "generated_fallback",
+    "tool": "mindforge_production_mesh_library",
+    "tool_version": "v0.9",
+    "prompt_hash": null,
+    "reference_hashes": [],
+    "license": "project_authored",
+    "redistribution_policy": "repository_safe"
+  },
+  "geometry": {
+    "target_size_m": [2.4, 7.5, 2.4],
+    "forward_axis": "+z",
+    "up_axis": "+y",
+    "pivot_policy": "bottom_center",
+    "max_triangles": 16000,
+    "max_submeshes": 4
+  },
+  "render": {
+    "material_family": "sanctum_growth",
+    "max_materials": 3,
+    "texture_max_px": 2048,
+    "lod_ratios": [1.0, 0.45, 0.15],
+    "cast_shadows": true,
+    "receive_shadows": true
+  },
+  "unity": {
+    "target_tokens": ["Tree", "Cypress", "GardenCanopy"],
+    "fallback_symbol": "ProductionMeshLibraryV09.GardenCanopy"
+  },
+  "authority": {
+    "gameplay": false,
+    "collision": false,
+    "bci": false
+  },
+  "quality": {
+    "minimum_score": 0.68,
+    "require_finite_normals": true,
+    "require_nonzero_bounds": true,
+    "reject_magenta_material": true
+  }
+}

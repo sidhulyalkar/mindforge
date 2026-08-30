@@ -16,11 +16,19 @@ namespace Mindforge.Editor
     /// </summary>
     public static class ExternalArtReplacementV09
     {
-        private const string ReplacementMarker = "__ExternalV09";
+        public const string ReplacementMarker = "__ExternalV09";
+
+        // V0.10 uses explicit recipe -> asset bindings. It may temporarily suppress this V0.9
+        // filename heuristic while invoking the inherited production hook, so two replacement
+        // authorities can never race in the same Foundry compile. Standalone V0.9 behavior is
+        // unchanged because this flag defaults false.
+        public static bool SuppressAutomaticReplacement { get; set; }
 
         [MenuItem("Mindforge/Art/Apply Local Production Art Replacements", priority = 21)]
         public static int ApplyOpenScene()
         {
+            if (SuppressAutomaticReplacement) return 0;
+
             GameObject root = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
             if (root == null) return 0;
 

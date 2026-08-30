@@ -1,0 +1,46 @@
+{
+  "schema": "mindforge.content_asset_recipe.v1",
+  "asset_id": "mf_fluted_column_v10",
+  "semantic_role": "column",
+  "districts": ["sanctum", "market", "cathedral"],
+  "source": {
+    "kind": "generated_fallback",
+    "tool": "mindforge_production_mesh_library",
+    "tool_version": "v0.9",
+    "prompt_hash": null,
+    "reference_hashes": [],
+    "license": "project_authored",
+    "redistribution_policy": "repository_safe"
+  },
+  "geometry": {
+    "target_size_m": [1.15, 5.8, 1.15],
+    "forward_axis": "+z",
+    "up_axis": "+y",
+    "pivot_policy": "bottom_center",
+    "max_triangles": 18000,
+    "max_submeshes": 3
+  },
+  "render": {
+    "material_family": "sanctum_ivory_stone",
+    "max_materials": 2,
+    "texture_max_px": 2048,
+    "lod_ratios": [1.0, 0.5, 0.2],
+    "cast_shadows": true,
+    "receive_shadows": true
+  },
+  "unity": {
+    "target_tokens": ["Column", "Pier", "Pillar"],
+    "fallback_symbol": "ProductionMeshLibraryV09.FlutedColumn"
+  },
+  "authority": {
+    "gameplay": false,
+    "collision": false,
+    "bci": false
+  },
+  "quality": {
+    "minimum_score": 0.70,
+    "require_finite_normals": true,
+    "require_nonzero_bounds": true,
+    "reject_magenta_material": true
+  }
+}
