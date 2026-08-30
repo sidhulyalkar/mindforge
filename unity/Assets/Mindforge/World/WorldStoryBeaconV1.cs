@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Mindforge.World
@@ -72,15 +73,22 @@ namespace Mindforge.World
 
         private void Discover()
         {
-            if (_discovered) return;
-            _discovered = true;
+            if (_discovered || ledger == null || signals == null) return;
             string id = Normalize(storyId);
-            ledger.SetBool("story." + id + ".discovered", true, "world_story_discovery");
+            string key = "story." + id + ".discovered";
+            if (ledger.TryGetBool(key, out bool already) && already)
+            {
+                _discovered = true;
+                return;
+            }
+
+            _discovered = true;
+            if (!ledger.SetBool(key, true, "world_story_discovery")) return;
             signals.Publish(
                 WorldSignalKind.StoryDiscovered,
                 "story.discovered",
                 subject: id,
-                stateKey: "story." + id + ".discovered",
+                stateKey: key,
                 stringValue: line ?? string.Empty,
                 intValue: 1,
                 floatValue: 1f,
@@ -94,16 +102,27 @@ namespace Mindforge.World
             _discovered = ledger.TryGetBool("story." + id + ".discovered", out bool value) && value;
         }
 
+        private void OnWorldStateChanged(string key, WorldStateEntry before, WorldStateEntry after)
+        {
+            string expected = "story." + Normalize(storyId) + ".discovered";
+            if (!string.Equals(key, expected, StringComparison.Ordinal)) return;
+            _discovered = after != null && after.type == WorldStateValueType.Bool && after.bool_value;
+        }
+
         private void Subscribe()
         {
             if (ledger == null) return;
             ledger.SnapshotRestored -= ResolveExistingState;
             ledger.SnapshotRestored += ResolveExistingState;
+            ledger.StateChanged -= OnWorldStateChanged;
+            ledger.StateChanged += OnWorldStateChanged;
         }
 
         private void Unsubscribe()
         {
-            if (ledger != null) ledger.SnapshotRestored -= ResolveExistingState;
+            if (ledger == null) return;
+            ledger.SnapshotRestored -= ResolveExistingState;
+            ledger.StateChanged -= OnWorldStateChanged;
         }
 
         private void Resolve()
