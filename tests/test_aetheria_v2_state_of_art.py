@@ -10,13 +10,16 @@ def read(*parts: str) -> str:
     return UNITY.joinpath(*parts).read_text(encoding="utf-8")
 
 
-def test_mounted_v2_uses_same_fixed_tick_tape_without_parallel_vehicle_replay():
+def test_mounted_v2_uses_same_fixed_tick_tape_and_context_router_without_parallel_vehicle_replay():
     tape = read("Combat", "GuardianInputTape.cs")
     foot = read("Combat", "GuardianCombatInput.cs")
+    router = read("Combat", "GuardianInteractionRouterV1.cs")
     bike = read("Traversal", "GuardianHoverbikeController.cs")
 
     assert 'SchemaV4 = "mindforge.guardian_input_tape.v4"' in tape
+    assert 'SchemaV5 = "mindforge.guardian_input_tape.v5"' in tape
     assert "mount_toggle_down" in tape
+    assert "context_down" in tape
     assert "mounted_attack_down" in tape
     assert "mounted_boost_down" in tape
     assert "mounted_move_x" in tape and "mounted_move_y" in tape and "mounted_move_z" in tape
@@ -25,11 +28,11 @@ def test_mounted_v2_uses_same_fixed_tick_tape_without_parallel_vehicle_replay():
     assert "_lastResolvedFrame.MergeFrom(live)" in tape
 
     assert "_fixedInputTick = GuardianInputTape.FixedTickNow" in foot
-    assert "mount_toggle_down = _mountLatched" in foot
+    assert "mount_toggle_down = false" in foot
+    assert "context_down = false" in foot
     assert "private long FixedTick => GuardianInputTape.FixedTickNow" in bike
     assert "GuardianCommandFrame live = new GuardianCommandFrame" in bike
     assert "inputTape.Resolve(live, fixedHz)" in bike
-    assert "command.mount_toggle_down" in bike
     assert "command.mounted_attack_down" in bike
     assert "command.mounted_boost_down" in bike
     assert "liveMountedMove = _mounted ? CameraRelativeDirection(_moveInput) : Vector3.zero" in bike
@@ -38,7 +41,16 @@ def test_mounted_v2_uses_same_fixed_tick_tape_without_parallel_vehicle_replay():
     assert "mounted_move_z = liveMountedMove.z" in bike
     assert "ApplyMountedMovement(aim, command.MountedMove)" in bike
     assert "bladeCombat != null && bladeCombat.TryLightAttack(aim)" in bike
-    assert "Replay mount edge could not resolve the authored bike in range" in bike
+    assert "public bool TryMount(AetherHoverbikeMount bike)" in bike
+    assert "public void RequestDismount(bool emergency = false)" in bike
+    assert "SetContextInteractionOwned(bool owned)" in bike
+
+    # V5 owns the generic context edge. Pre-V5 tapes can use the historical mount edge only
+    # while a bike interaction is focused, so old replay meaning cannot spread to new shrines.
+    assert "context_down = _interactLatched" in router
+    assert "inputTape.IsLegacyPreContextReplay" in router
+    assert "IsFocusedBikeInteraction()" in router
+    assert "contextEdge = command.mount_toggle_down" in router
 
     # Camera-relative steering is a record-time transform only. Replayed movement consumes
     # the stored world vector directly and is therefore independent of live camera yaw.
@@ -147,16 +159,12 @@ def test_procedural_audio_is_cached_event_driven_and_does_not_double_fire_air_da
     ):
         assert token in source
 
-    # GuardianMotor emits the generic dash edge for every dash and additionally emits the
-    # air-specific edge. Audio listens only to the generic event and branches on resolved
-    # motor state, preventing an air dash from stacking two one-shots.
     assert "DashStarted?.Invoke();" in motor
     assert "if (airDash) AirDashStarted?.Invoke();" in motor
     assert "motor.AirDashStarted +=" not in source
     assert "motor.AirDashStarted -=" not in source
     assert "OnAirDash" not in source
 
-    # Synthesis happens once in BuildClips; Update only changes a cached loop source.
     update = source[source.index("private void Update()"):source.index("private void Resolve()")]
     assert "AudioClip.Create" not in update
     assert "SetData(" not in update
@@ -235,7 +243,7 @@ def test_v2_builder_is_an_isolated_presentation_layer_in_deterministic_build_ord
     safety = menu.index("AetheriaDynamicMountSafetyBuilder.ApplyOpenScene();")
     visual = menu.index("NullWardVisualInfrastructureBuilder.ApplyOpenScene();")
     assert horde < world < v2 < safety < visual
-    assert "one v4 fixed-tick conventional-input tape" in menu
+    assert "fixed-tick conventional-input tape crosses foot/mount mode" in menu
     assert "keeping FOV fixed" in menu
 
 
