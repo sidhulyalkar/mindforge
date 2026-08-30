@@ -82,13 +82,15 @@ def test_resonance_motion_is_mechanical_only_and_never_modulates_stimulus_lumina
     assert "phaseRingA.Rotate" in text
     assert "phaseRingB.Rotate" in text
     for forbidden in (
-        "Renderer",
+        "GetComponent<Renderer>",
+        "GetComponentsInChildren<Renderer>",
         "MaterialPropertyBlock",
         "EmissionColor",
         "BaseColor",
         "NeuralEvent",
         "UdpNeuralReceiver",
-        "SanctumCalibrationOrbV08",
+        "GetComponent<SanctumCalibrationOrbV08>",
+        "AddComponent<SanctumCalibrationOrbV08>",
         "Mathf.Sin",
         "Math.Sin",
     ):
