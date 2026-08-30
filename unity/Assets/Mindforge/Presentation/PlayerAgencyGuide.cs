@@ -152,6 +152,16 @@ namespace Mindforge.Presentation
             DrawAimReticle();
             DrawTargetFocusIndicator();
 
+            // V0.9 gives ordinary production play one UI voice. Reticles stay here because
+            // they are spatially coupled to aim/lock state, and the judge lens remains an
+            // explicit opt-in authority explainer. The large progressive lesson, lock footer
+            // and Tab footer yield to the compact ProductionHudV09 while it is active.
+            if (ProductionHudV09.Active)
+            {
+                if (_judgeLens) DrawJudgeLens();
+                return;
+            }
+
             float width = Mathf.Min(Screen.width - 32f, 860f);
             float left = (Screen.width - width) * 0.5f;
 
