@@ -45,6 +45,7 @@ jobs:
           python -m py_compile tools/phantom_control.py
           python -m py_compile tools/plot_session_report.py
           python -m py_compile tools/content_foundry.py
+          python -m py_compile tools/mindforge_gaze.py
           python -m py_compile tools/blender/normalize_static_asset_v10.py
 
       - name: Validate Content Foundry contracts
