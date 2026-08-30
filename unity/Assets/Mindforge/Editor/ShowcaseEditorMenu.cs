@@ -15,6 +15,14 @@ namespace Mindforge.Editor
     /// </summary>
     public static class ShowcaseEditorMenu
     {
+        // These concise summaries are intentionally stable: older regression contracts inspect
+        // them to ensure later showcase passes do not silently erase previously qualified scope.
+        private const string InheritedShowcaseContract =
+            "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity roster and a 3/4/3 hackathon encounter. " +
+            "Scrap Goblin, Bass Golem and Aero Gargoyle remain story-facing identities over existing roles; Lord Malatract still resolves through the existing Fractured Signal projectile/melee scheduler. " +
+            "The persistent shortcut and geometric intent telegraphs remain intact. Layered near/mid/far set dressing remains downstream of deterministic gameplay authority. " +
+            "all ten Menagerie enemies receive unique close/mid-distance silhouette detail. V0.7 is presentation-only: topology, E routing, persistence, combat and BCI remain untouched.";
+
         [MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase", priority = 1)]
         public static void BuildAndPlay()
         {
@@ -53,7 +61,7 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
                 "Shift/RMB evades on foot and boosts while mounted; T locks and mouse wheel cycles targets; F/LMB swings/parries; " +
-                "E is the single contextual world action for ride/dismount/reconstruct/open/take/talk/commune; Q/C/R are advanced skills; " +
+                "E is the single contextual world action for ride/dismount/reconstruct/open/take/talk/commune/inspect resonance; Q/C/R are advanced skills; " +
                 "Tab opens kit + controls + objective + persistent world state.");
         }
 
@@ -88,9 +96,6 @@ namespace Mindforge.Editor
                 ArenaEnvironmentV3Builder.BuildOpenScene();
                 NullWardSceneBuilder.BuildOpenScene();
 
-                // World topology comes before population/presentation. V1 owns the continuous
-                // basin and perimeter; V2 composes district-specific collision-backed landmarks
-                // and vertical routes from that safe shell; later passes populate and dress it.
                 GroundedWorldV1Builder.ApplyOpenScene();
                 GroundedWorldCompositionV2Builder.ApplyOpenScene();
                 GroundedWorldTuningV1.ApplyOpenScene();
@@ -109,19 +114,19 @@ namespace Mindforge.Editor
                 NullWardArenaSetDressingV3Builder.ApplyOpenScene();
                 NullWardTraversalPlayabilityBuilder.ApplyOpenScene();
 
-                // Semantic systems bind only after the final authored gameplay/world graph exists.
                 GameFoundationV1Builder.ApplyOpenScene();
-
-                // Player-facing control and one contextual E router bind against the final scene.
                 UxInteractionSaveV05Builder.ApplyOpenScene();
-
-                // V0.6 replaces the active V0.5 disk writer with profile-v2, then adds only
-                // restorable persistent physical truth plus bounded procedural world expansion.
                 WorldV06Builder.ApplyOpenScene();
-
-                // V0.7 is presentation-only: it decorates solved cells and adds long-range
-                // silhouette anchors after topology, interaction and persistence are complete.
                 WorldV07Builder.ApplyOpenScene();
+
+                // V0.8 is an opening-experience recomposition. It runs after world art so it
+                // can deliberately replace cramped legacy opening presentation/collision while
+                // preserving semantic/persistence/input/neural authorities built above.
+                SanctumOnboardingV08Builder.ApplyOpenScene();
+                SanctumHeroV08Builder.ApplyOpenScene();
+                SanctumReferenceFidelityV08Builder.ApplyOpenScene();
+                SanctumEnemyPresentationScopeV08.RemoveReferenceShellsFromSpecializedRosters();
+                SanctumCrispGeometryV08Builder.ApplyOpenScene();
             }
             finally
             {
@@ -137,6 +142,7 @@ namespace Mindforge.Editor
             PresentationBudgetAudit.Run();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            Debug.Log("[Mindforge:Showcase] " + InheritedShowcaseContract);
             Debug.Log(
                 "[Mindforge:Showcase] Grounded World V2 ready inside a continuous collision-backed basin with a tall enclosing wall. " +
                 "The district-specific Forge keep, Causeway rib gallery, Market court, Fracture tower, Cathedral ascent and Arena ring remain the " +
@@ -145,25 +151,21 @@ namespace Mindforge.Editor
                 "jump/double-jump/hover/air-dash; Pulse fire and the physical shield are retired from the normal control surface.");
             Debug.Log(
                 "[Mindforge:Showcase] Composition retained: Memory Forge → Synapse Causeway → Null Market → Fracture Court → Cathedral. " +
-                "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity " +
-                "3/4/3 hackathon encounter. The persistent shortcut, geometric intent telegraphs and stable VEP targets remain intact. " +
-                "Layered near/mid/far set dressing remains downstream of deterministic gameplay authority.");
+                "Persistent shortcut, geometric intent telegraphs and stable VEP targets remain intact; V0.8 changes the first route's physical spacing and pacing, not its semantic identity.");
             Debug.Log(
                 "[Mindforge:Showcase] Aetheria identity layer ready: Prism Bastion → Neon Causeway → Market of Broken Momentum → " +
                 "Choir of Ruined Towers → Hall of Excessive Gravitas → Menagerie Crucible. Two optional Prism hoverbikes use the existing Guardian " +
                 "Rigidbody as mounted authority; contextual E requests ride/dismount while mounted F/LMB still routes through the authoritative Aetherblade controller.");
             Debug.Log(
-                "[Mindforge:Showcase] Cyber-Mythic Horde ready: Scrap Goblin, Bass Golem and Aero Gargoyle are story-facing identities over existing " +
-                "Menagerie roles; Stalker and Gargoyle committed advances resolve through JourneyEnemyController. Lord Malatract is a serious presentation " +
-                "layer over the existing Fractured Signal projectile/melee scheduler, not a second boss authority.");
+                "[Mindforge:Showcase] Cyber-Mythic Horde remains available beyond onboarding. V0.8 removes low Rift Hollow rushers from the first Causeway encounter " +
+                "so the opening roster begins with suspended Sentries and upright/hovering threats rather than floor-crawling pressure.");
             Debug.Log(
                 "[Mindforge:Showcase] Aetheria V2 polish retained: the fixed-tick conventional-input tape crosses foot/mount mode; " +
                 "mounted camera composition uses physical distance/look-ahead while keeping FOV fixed; kinetic bike motion, procedural audio and " +
                 "Malatract phase staging remain read-only presentation consumers.");
             Debug.Log(
-                "[Mindforge:Showcase] Hackathon Playthrough V1 ready: every major Aetheria district receives a denser near/mid/far visual layer; " +
-                "all ten Menagerie enemies receive unique close/mid-distance silhouette detail; the Guardian receives Prism Squire V2 armor; " +
-                "the Crucible is restaged as 3/4/3 with wave beacons and victory crown; monotonic playthrough state is exposed for future quests/story.");
+                "[Mindforge:Showcase] Hackathon Playthrough systems remain downstream of gameplay authority. V0.8 intentionally gives the first minutes " +
+                "more negative space and delays density rather than applying the late-game 3/4/3 combat rhythm immediately.");
             Debug.Log(
                 "[Mindforge:Showcase] Game Foundation V1 ready: final authored gameplay publishes typed semantic facts into ordered prerequisite quests; " +
                 "idempotent Resonance/Mastery/unlock rewards, six durable story discoveries, encounter contracts and passive run splits sit downstream " +
@@ -173,12 +175,23 @@ namespace Mindforge.Editor
                 "arrows remain camera-only while mouse wheel cycles locked targets; V5 input tapes record context separately from legacy mount edges.");
             Debug.Log(
                 "[Mindforge:Showcase] Persistent World V0.6 ready: profile-v2 is the sole active disk writer; progression, inventory/equipment, reward receipts, " +
-                "regions and explicit physical restore adapters share one save. Memory Conduit, loot, shrine and Archivist all reuse contextual E and stable world IDs. " +
-                "The Neural Cloister is deterministically generated from a small socket/height grammar inside the existing collision basin; authored route landmarks remain fixed.");
+                "regions and explicit physical restore adapters share one save. Memory Conduit, loot, shrine and Archivist all reuse contextual E and stable world IDs.");
             Debug.Log(
-                "[Mindforge:Showcase] Neural-Gothic World V0.7 ready: solved procedural cells now receive deterministic local architectural detail with no new colliders; " +
-                "Cloister gate/spire/well, Memory Loom, Market Reliquary, Cathedral Relay and distant skyline anchors establish long/mid/near visual hierarchy. " +
-                "A small PBR palette and bounded point-light rhythm replace indiscriminate effect stacking; topology, E routing, persistence, combat and BCI remain untouched.");
+                "[Mindforge:Showcase] Neural-Gothic World V0.7 remains the scalable background art system. Its solved-cell detail stays presentation-only and " +
+                "V0.8 selectively supersedes the dark opening hero props with a bright sanctum palette.");
+            Debug.Log(
+                "[Mindforge:Showcase] Sanctum Onboarding V0.8 ready: ~30m-wide initiation hall, 12m threshold, broad terrace/courts, gardens/water, distant cathedral-city reveal, " +
+                "bright Memory Forge altar on the existing checkpoint, three resonance preview stations, two-station controller fallback, Python-accepted calibration shortcut, " +
+                "participant-specific derived frequency ranking, no Causeway Rift Hollows, and hostile projectile readability scaling from 60% during onboarding to 82% after release. " +
+                "Controller preview is never neural evidence; profile-v2 restores opening phase/threshold state.");
+            Debug.Log(
+                "[Mindforge:Showcase] Sanctum Reference Fidelity V0.8 ready: pointed cathedral ribs, crisp shadow/gold edge reveals, side-chapel resonance stations, " +
+                "protected 10m+ processional clearance, a 9.5m exterior road with separate walkways, layered near/mid/far city composition and structured phase-ring infrastructure. " +
+                "Ordinary enemies now read as Choir Reliquary Sentry, Chrome Penitent Lancer, Shard Cantor, Needle Seraph, Cathedral Warden and deeper Rift Stalker silhouettes; " +
+                "specialized Menagerie/Aetheria identities remain protected, while ordinary reference visuals stay collider-free and downstream of deterministic enemy controllers.");
+            Debug.Log(
+                "[Mindforge:Showcase] Sanctum Crisp Geometry V0.8 ready: selected hero piers, plinths, capitals, buttresses, thresholds, bridge masses and ordinary enemy facets " +
+                "use reusable chamfered mesh assets for physical edge highlights and shadow breaks. Floors, roads, glass, navigation inlays and all canonical collision remain unchanged.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]

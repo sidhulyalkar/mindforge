@@ -23,6 +23,7 @@ class EventType(str, Enum):
     PARTICIPANT_STOP = "PARTICIPANT_STOP"
     CALIBRATION_SERVICE_READY = "CALIBRATION_SERVICE_READY"
     CALIBRATION_HEARTBEAT = "CALIBRATION_HEARTBEAT"
+    CALIBRATION_CANDIDATE_SCORE = "CALIBRATION_CANDIDATE_SCORE"
     CALIBRATION_READY = "CALIBRATION_READY"
     CALIBRATION_FAILED = "CALIBRATION_FAILED"
 
@@ -77,6 +78,13 @@ class NeuralEvent:
     decoder_time_ns: int = 0
     authority_ttl_ms: int = 900
 
+    # V0.8 participant-calibration metadata. These are derived scalar outputs only.
+    # EEG samples, channel traces, spectra and other raw arrays never enter NeuralEvent.
+    stimulus_hz: float = 0.0
+    candidate_rank: int = 0
+    selected_sight_hz: float = 0.0
+    selected_guard_hz: float = 0.0
+
     @classmethod
     def create(
         cls,
@@ -101,6 +109,10 @@ class NeuralEvent:
         source_sample_end: int = -1,
         decoder_time_ns: int | None = None,
         authority_ttl_ms: int = 900,
+        stimulus_hz: float = 0.0,
+        candidate_rank: int = 0,
+        selected_sight_hz: float = 0.0,
+        selected_guard_hz: float = 0.0,
         schema: str = NEURAL_EVENT_V2,
     ) -> "NeuralEvent":
         if schema not in SUPPORTED_NEURAL_EVENT_SCHEMAS:
@@ -142,6 +154,10 @@ class NeuralEvent:
             source_sample_end=sample_end,
             decoder_time_ns=decoder_ns,
             authority_ttl_ms=max(0, int(authority_ttl_ms)),
+            stimulus_hz=float(max(0.0, stimulus_hz)),
+            candidate_rank=max(0, int(candidate_rank)),
+            selected_sight_hz=float(max(0.0, selected_sight_hz)),
+            selected_guard_hz=float(max(0.0, selected_guard_hz)),
         )
 
     @classmethod
@@ -174,6 +190,10 @@ class NeuralEvent:
             source_sample_end=int(payload.get("source_sample_end", -1)),
             decoder_time_ns=int(payload.get("decoder_time_ns", payload.get("monotonic_ns", 0))),
             authority_ttl_ms=int(payload.get("authority_ttl_ms", 0 if schema == NEURAL_EVENT_V1 else 900)),
+            stimulus_hz=float(payload.get("stimulus_hz", 0.0)),
+            candidate_rank=int(payload.get("candidate_rank", 0)),
+            selected_sight_hz=float(payload.get("selected_sight_hz", 0.0)),
+            selected_guard_hz=float(payload.get("selected_guard_hz", 0.0)),
         )
 
     @classmethod

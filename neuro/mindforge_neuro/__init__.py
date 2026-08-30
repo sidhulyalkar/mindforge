@@ -9,7 +9,14 @@ simulated, replayed, synthetic-EEG and live sessions cannot be confused.
 from .config import AuraTarget, SsvepConfig
 from .events import EventType, NeuralEvent, SourceMode
 from .ssvep import SsvepDecision, SsvepDecoder
-from .calibration import CalibrationProfile, calibrate_decoder
+from .calibration import (
+    CalibrationProfile,
+    FrequencyPairEvaluation,
+    ParticipantFrequencyProfile,
+    calibrate_decoder,
+    personalized_ssvep_config,
+    rank_participant_frequency_pairs,
+)
 from .markers import GameMarker, GameMarkerType, UdpGameMarkerSource
 from .dev_sources import DecisionSimulationConfig, DecisionSimulator, NeuralEventTape, TapeEntry
 
@@ -22,7 +29,11 @@ __all__ = [
     "SsvepDecision",
     "SsvepDecoder",
     "CalibrationProfile",
+    "FrequencyPairEvaluation",
+    "ParticipantFrequencyProfile",
     "calibrate_decoder",
+    "rank_participant_frequency_pairs",
+    "personalized_ssvep_config",
     "GameMarker",
     "GameMarkerType",
     "UdpGameMarkerSource",
