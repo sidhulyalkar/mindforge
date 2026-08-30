@@ -127,6 +127,14 @@ namespace Mindforge.Editor
                 SanctumReferenceFidelityV08Builder.ApplyOpenScene();
                 SanctumEnemyPresentationScopeV08.RemoveReferenceShellsFromSpecializedRosters();
                 SanctumCrispGeometryV08Builder.ApplyOpenScene();
+
+                // V0.9 is now an explicit synchronous final presentation stage. This removes the
+                // old delayed-hook race: production art, quarantine, district storytelling,
+                // post-processing, Guardian/Echo/HUD shells and optional local-art replacement
+                // all exist before presentation auditing returns and before BuildAndPlay can
+                // schedule Play Mode. The InitializeOnLoad hook remains only as a manual-workflow
+                // fallback when users rebuild lower layers directly in the editor.
+                ProductionArtAutoHookV09.ApplyNow();
             }
             finally
             {
@@ -192,6 +200,10 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Sanctum Crisp Geometry V0.8 ready: selected hero piers, plinths, capitals, buttresses, thresholds, bridge masses and ordinary enemy facets " +
                 "use reusable chamfered mesh assets for physical edge highlights and shadow breaks. Floors, roads, glass, navigation inlays and all canonical collision remain unchanged.");
+            Debug.Log(
+                "[Mindforge:Showcase] Production Art V0.9 is now synchronous in the canonical build: legacy visual quarantine, world-space PBR surfaces, " +
+                "district repair/fracture storytelling, bounded far-field rendering cost, Guardian/Echo replacement, compact HUD and restrained URP finishing " +
+                "are present before presentation auditing and before Play Mode starts. Gameplay, persistence and neural authority remain inherited.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
