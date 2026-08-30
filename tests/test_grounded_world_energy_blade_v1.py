@@ -105,11 +105,15 @@ def test_world_safety_is_last_resort_recovery_not_a_second_movement_authority():
         assert forbidden not in safety
 
 
-def test_grounded_input_retires_shield_and_player_pulse_and_makes_roll_primary_defense():
+def test_grounded_input_retires_shield_and_player_pulse_and_makes_evade_primary_defense():
     input_cs = read("Combat", "GuardianCombatInput.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
+
+    assert "rightMouseEvades = true" in controls
+    assert "Input.GetMouseButtonDown(1)" in controls
+    assert "controls.Pressed(GuardianControlAction.EvadeBoost)" in input_cs
 
     for token in (
-        "Input.GetMouseButtonDown(1)",
         "endurance.DodgeBaseCost",
         "endurance.CanSpend(cost)",
         "QueueDodgeCommand(aim)",
@@ -230,24 +234,30 @@ def test_health_hud_has_clear_survival_hierarchy_and_suppresses_legacy_instrumen
         assert forbidden not in hud
 
 
-def test_onboarding_and_loadout_teach_one_consistent_blade_roll_game():
+def test_onboarding_and_loadout_teach_one_consistent_small_control_vocabulary():
     guide = read("Presentation", "PlayerAgencyGuide.cs")
     menu = read("Presentation", "GuardianEquipmentMenu.cs")
 
     for token in (
-        '"SHIFT / RMB DODGE ROLL',
-        '"READ → SWING → ROLL → REPOSITION',
-        '"VERTICAL WORLD',
+        "GuardianControlAction.EvadeBoost",
+        "GuardianControlAction.Interact",
+        "READ → COMMIT → EVADE → REPOSITION",
         "motor.DashStarted += OnDashStarted",
+        "interactionRouter.InteractionPerformed += OnInteraction",
     ):
         assert token in guide
 
     for token in (
-        '"Endurance Dodge Roll"',
-        '"SHIFT / RMB"',
-        '"Dodge roll · air dash aloft"',
+        '"GUARDIAN KIT + CONTROLS"',
+        '"Endurance Evade"',
+        "GuardianControlAction.EvadeBoost",
+        '"Evade · air dash · mounted boost"',
+        "GuardianControlAction.Interact",
+        '"Context: ride · dismount · reconstruct · use world"',
         "ENDURANCE {stamina}",
         '"BLUE / Sight → bounded blade length, energy and damage',
+        "GetPrimaryActiveQuest()",
+        "GetCurrentStep(quest.id)",
     ):
         assert token in menu
 
@@ -273,6 +283,8 @@ def test_one_click_showcase_builds_world_and_tuning_before_population_and_visual
         "NullWardVisualInfrastructureBuilder.ApplyOpenScene();",
         "NullWardArenaSetDressingV3Builder.ApplyOpenScene();",
         "NullWardTraversalPlayabilityBuilder.ApplyOpenScene();",
+        "GameFoundationV1Builder.ApplyOpenScene();",
+        "UxInteractionSaveV05Builder.ApplyOpenScene();",
         "CompetitionGateValidator.ValidateAndWrite(false);",
         "PresentationBudgetAudit.Run();",
     )
