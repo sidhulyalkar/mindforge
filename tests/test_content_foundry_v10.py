@@ -9,7 +9,9 @@ RECIPES = ROOT / "content" / "recipes"
 BINDINGS = ROOT / "content" / "local_asset_bindings.v1.json"
 SCHEMA = ROOT / "contracts" / "content_asset_recipe.v1.schema.json"
 TOOL = ROOT / "tools" / "content_foundry.py"
+BLENDER = ROOT / "tools/blender/normalize_static_asset_v10.py"
 UNITY = ROOT / "unity/Assets/Mindforge/Editor/ContentFoundryV10.cs"
+LEGACY_REPLACER = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtReplacementV09.cs"
 CAPTURE = ROOT / "unity/Assets/Mindforge/Editor/ContentFoundryVisualCaptureV10.cs"
 WORKFLOW = ROOT / ".github/workflows/test-neuro.yml"
 
@@ -87,13 +89,42 @@ def test_unity_compiler_uses_explicit_bindings_and_strips_external_authority():
     assert "cameras[i].enabled = false" in text
     assert "listeners[i].enabled = false" in text
     assert "ProductionArtAutoHookV09.ApplyNow();" in text
-    assert "canonical Unity promotion evidence" in text
+    assert "canonical full-rebuild qualification" in text
+    assert "ValidateExpectedHash(binding);" in text
+    assert "ShaderUtil.ShaderHasError" in text
+    assert "Triangle budget exceeded" in text
+    assert "Material budget exceeded" in text
+
+
+def test_foundry_suppresses_v09_filename_heuristic_only_while_compiling():
+    foundry = UNITY.read_text(encoding="utf-8")
+    legacy = LEGACY_REPLACER.read_text(encoding="utf-8")
+    assert "public static bool SuppressAutomaticReplacement" in legacy
+    assert "if (SuppressAutomaticReplacement) return 0;" in legacy
+    assert "ExternalArtReplacementV09.SuppressAutomaticReplacement = true;" in foundry
+    assert "ExternalArtReplacementV09.SuppressAutomaticReplacement = legacySuppression;" in foundry
+    assert "finally" in foundry
+
+
+def test_blender_normalizer_is_static_only_and_enforces_recipe_budgets():
+    text = BLENDER.read_text(encoding="utf-8")
+    assert '"humanoid"' in text and '"robot"' in text
+    assert "static normalizer cannot process humanoid/robot rig recipes" in text
+    assert "strip_non_mesh_objects()" in text
+    assert "bmesh.ops.triangulate" in text
+    assert 'geometry["max_triangles"]' in text
+    assert 'render["max_materials"]' in text
+    assert "bottom-center" in text or "bottom_center" in text
+    assert "use_triangles=True" in text
+    assert '"gameplay": False' in text
+    assert '"collision": False' in text
+    assert '"bci": False' in text
 
 
 def test_incremental_cache_is_local_and_full_showcase_gate_is_not_replaced():
     text = UNITY.read_text(encoding="utf-8")
     assert '"Library", "MindforgeContentFoundry"' in text
-    assert "ShowcaseEditorMenu" in text
+    assert "canonical ShowcaseEditorMenu full rebuild" in text
     showcase = (ROOT / "unity/Assets/Mindforge/Editor/ShowcaseEditorMenu.cs").read_text(encoding="utf-8")
     assert "CompetitionSceneAssembler.BuildCompetitionScene();" in showcase
     assert "CompetitionGateValidator.ValidateAndWrite(false);" in showcase
@@ -121,5 +152,6 @@ def test_visual_capture_has_named_stable_review_views_and_is_non_authoritative()
 def test_ci_executes_foundry_contract_validation():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "python -m py_compile tools/content_foundry.py" in text
+    assert "python -m py_compile tools/blender/normalize_static_asset_v10.py" in text
     assert "python tools/content_foundry.py validate" in text
     assert "python tools/content_foundry.py plan" in text
