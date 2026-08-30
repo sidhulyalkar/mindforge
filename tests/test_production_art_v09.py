@@ -11,6 +11,9 @@ REPLACEMENT = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtReplacementV09.cs
 HOOK = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtAutoHookV09.cs"
 HUD = ROOT / "unity/Assets/Mindforge/Presentation/ProductionHudV09.cs"
 GUARDIAN = ROOT / "unity/Assets/Mindforge/Presentation/ProductionGuardianV09.cs"
+ECHO = ROOT / "unity/Assets/Mindforge/Presentation/ProductionEchoVisualV09.cs"
+ECHO_BOOTSTRAP = ROOT / "unity/Assets/Mindforge/Presentation/ProductionEchoVisualBootstrapV09.cs"
+PHYSICAL_ARSENAL = ROOT / "unity/Assets/Mindforge/Combat/PhysicalArsenalBootstrap.cs"
 GITIGNORE = ROOT / ".gitignore"
 MANIFEST = ROOT / "third_party/manifest.json"
 
@@ -22,7 +25,6 @@ def read(path: Path) -> str:
 
 def test_v09_is_a_visual_replacement_pass_not_another_primitive_clutter_layer():
     text = read(ART)
-    normalized = " ".join(text.split())
     assert 'RootName = "Mindforge_Production_Art_V09"' in text
     assert "HideSanctumBlockoutRenderers" in text
     assert "RethemeGroundedWorld" in text
@@ -37,8 +39,13 @@ def test_v09_is_a_visual_replacement_pass_not_another_primitive_clutter_layer():
         "Production_Skyline",
     ):
         assert token in text
-    assert "treats the old geometry as collision proxies" in normalized
-    assert "leaves colliders/interactions untouched" in normalized
+
+    # Lock behavior, not prose: selected V0.8 renderers become invisible while their
+    # collider components are never enumerated or disabled by the production pass.
+    assert "renderer.enabled = false;" in text
+    assert "referenceRenderers[i].enabled = false;" in text
+    assert "renderer.sharedMaterial = replacement;" in text
+    assert "GetComponentsInChildren<Collider>" not in text
 
 
 def test_production_materials_generate_real_albedo_and_normal_texture_detail():
@@ -149,6 +156,7 @@ def test_third_party_manifest_records_magictools_material_maker_and_conservative
 def test_guardian_fallback_replaces_visible_primitives_without_replacing_pose_or_physics_authority():
     text = read(GUARDIAN)
     assert 'transform.Find("GuardianShowcaseAvatar")' in text
+    assert "Renderer[] legacy = avatar.GetComponentsInChildren<Renderer>(true);" in text
     assert "legacy[i].enabled = false" in text
     assert 'Node("ProductionGuardianV09"' in text
     for token in (
@@ -180,6 +188,65 @@ def test_guardian_fallback_replaces_visible_primitives_without_replacing_pose_or
     assert 'BuildLeg(avatar.Find("LeftLeg")' in text
 
 
+def test_guardian_renderer_replacement_cannot_hide_the_aetherblade_sibling_rig():
+    guardian = read(GUARDIAN)
+    arsenal = read(PHYSICAL_ARSENAL)
+    assert 'transform.Find("GuardianShowcaseAvatar")' in guardian
+    assert "avatar.GetComponentsInChildren<Renderer>(true)" in guardian
+    assert 'new GameObject("PhysicalArsenalRig")' in arsenal
+    assert "arsenalRoot.transform.SetParent(guardian.transform, false);" in arsenal
+    assert 'NewChild("SwordRoot", arsenalRoot.transform' in arsenal
+    # ProductionGuardian only suppresses renderers below GuardianShowcaseAvatar. The blade
+    # remains a sibling under the Guardian root and therefore stays outside that renderer set.
+    assert "transform.GetComponentsInChildren<Renderer>" not in guardian
+
+
+def test_fractured_echo_gets_a_lifecycle_safe_production_reliquary_shell():
+    text = read(ECHO)
+    assert "FracturedEchoNode echo" in text
+    assert "echo.Shattered += OnShattered" in text
+    assert "echo.Reconstructed += OnReconstructed" in text
+    assert "BuildFacetedGem" in text
+    assert "BuildTorus" in text
+    assert '"EchoCoreSignal"' in text
+    assert '"EchoOuterRing"' in text
+    assert '"EchoShard_' in text
+    assert "CaptureAndHideLegacyRenderers" in text
+    assert "HideLegacyRenderers();" in text
+    assert "_visualRoot.gameObject.SetActive(false)" in text
+    assert "_visualRoot.gameObject.SetActive(true)" in text
+    assert "Destroy(_ownedMeshes[i])" in text
+    for forbidden in (
+        "Rigidbody",
+        "Collider",
+        "TakeDamage",
+        "SetExternalPause",
+        "projectilePrefab",
+        "Input.Get",
+        "UdpNeuralReceiver",
+    ):
+        assert forbidden not in text
+
+
+def test_spawned_boss_echoes_are_skinned_by_a_bounded_presentation_only_scanner():
+    text = read(ECHO_BOOTSTRAP)
+    assert "scanIntervalSeconds = 0.35f" in text
+    assert "Time.unscaledTime < _nextScan" in text
+    assert "FindObjectsOfType<FracturedEchoNode>(true)" in text
+    assert "echo.gameObject.AddComponent<ProductionEchoVisualV09>()" in text
+    assert "visual.ConfigureRuntime(shell, hostile, trim)" in text
+    for forbidden in (
+        "Rigidbody",
+        "Collider",
+        "TakeDamage",
+        "SetExternalPause",
+        "ConfigureWorldEcho",
+        "Input.Get",
+        "NeuralEvent",
+    ):
+        assert forbidden not in text
+
+
 def test_compact_hud_replaces_debug_panels_without_claiming_neural_authority():
     text = read(HUD)
     assert "SuppressLegacyHuds" in text
@@ -195,11 +262,31 @@ def test_compact_hud_replaces_debug_panels_without_claiming_neural_authority():
         assert forbidden not in text
 
 
-def test_scene_save_hook_makes_v09_part_of_canonical_v08_rebuild_and_installs_presentation():
+def test_deferred_scene_save_hook_runs_v09_after_the_synchronous_v08_visual_stack():
     text = read(HOOK)
-    assert "EditorSceneManager.sceneSaved += _ => TryApply();" in text
+    assert "EditorSceneManager.sceneSaved += _ =>" in text
+    assert "if (!_applying) EditorApplication.delayCall += TryApply;" in text
+    assert "EditorSceneManager.sceneSaved += _ => TryApply();" not in text
+    assert "ReferenceFidelityReady()" in text
     assert "ProductionArtV09Builder.ApplyOpenScene();" in text
     assert "ExternalArtReplacementV09.ApplyOpenScene();" in text
     assert "arena.AddComponent<ProductionHudV09>()" in text
+    assert "arena.AddComponent<ProductionEchoVisualBootstrapV09>()" in text
+    assert "echoBootstrap.ConfigureRuntime(graphite, hostile, gold);" in text
     assert "guardian.AddComponent<ProductionGuardianV09>()" in text
-    assert "ConfigureRuntime(" in text
+    assert "production.ConfigureRuntime(pearl, graphite, gold, aether);" in text
+
+
+def test_v09_new_runtime_scripts_have_unique_unity_meta_guids():
+    assets = ROOT / "unity/Assets"
+    metas = [Path(str(ECHO) + ".meta"), Path(str(ECHO_BOOTSTRAP) + ".meta")]
+    for meta in metas:
+        assert meta.exists(), meta
+        guid_line = next(line for line in meta.read_text(encoding="utf-8").splitlines() if line.startswith("guid: "))
+        guid = guid_line.split(":", 1)[1].strip()
+        assert len(guid) == 32
+        matches = []
+        for candidate in assets.rglob("*.meta"):
+            if f"guid: {guid}" in candidate.read_text(encoding="utf-8", errors="ignore"):
+                matches.append(candidate)
+        assert matches == [meta]
