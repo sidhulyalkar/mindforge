@@ -13,6 +13,7 @@ BLENDER = ROOT / "tools/blender/normalize_static_asset_v10.py"
 UNITY = ROOT / "unity/Assets/Mindforge/Editor/ContentFoundryV10.cs"
 LEGACY_REPLACER = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtReplacementV09.cs"
 CAPTURE = ROOT / "unity/Assets/Mindforge/Editor/ContentFoundryVisualCaptureV10.cs"
+MESH_LIBRARY = ROOT / "unity/Assets/Mindforge/Editor/ProductionMeshLibraryV09.cs"
 WORKFLOW = ROOT / ".github/workflows/test-neuro.yml"
 
 
@@ -38,6 +39,18 @@ def test_recipe_contract_is_typed_and_content_authority_is_always_false():
         assert value["quality"]["reject_magenta_material"] is True
         assert value["unity"]["target_tokens"]
         assert value["unity"]["fallback_symbol"]
+
+
+def test_generated_fallback_symbols_exist_in_the_v09_mesh_library():
+    text = MESH_LIBRARY.read_text(encoding="utf-8")
+    for value in recipes():
+        if value["source"]["kind"] != "generated_fallback":
+            continue
+        symbol = value["unity"]["fallback_symbol"]
+        prefix = "ProductionMeshLibraryV09."
+        assert symbol.startswith(prefix)
+        method = symbol[len(prefix):]
+        assert f" {method}()" in text, f"missing generated fallback method for {value['asset_id']}: {symbol}"
 
 
 def test_local_bindings_are_explicit_and_start_empty_in_public_source():
@@ -114,7 +127,11 @@ def test_blender_normalizer_is_static_only_and_enforces_recipe_budgets():
     assert "bmesh.ops.triangulate" in text
     assert 'geometry["max_triangles"]' in text
     assert 'render["max_materials"]' in text
-    assert "bottom-center" in text or "bottom_center" in text
+    assert "unity_size_to_blender" in text
+    assert "center_y" in text
+    assert "low.z" in text
+    assert "axis_forward=\"-Z\"" in text
+    assert "axis_up=\"Y\"" in text
     assert "use_triangles=True" in text
     assert '"gameplay": False' in text
     assert '"collision": False' in text
