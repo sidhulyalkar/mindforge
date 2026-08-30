@@ -44,6 +44,12 @@ jobs:
           python -m py_compile tools/run_unity_gate.py
           python -m py_compile tools/phantom_control.py
           python -m py_compile tools/plot_session_report.py
+          python -m py_compile tools/content_foundry.py
+
+      - name: Validate Content Foundry contracts
+        run: |
+          python tools/content_foundry.py validate
+          python tools/content_foundry.py plan --output experiments/reports/content-foundry-plan.json
 
       - name: Validate browser combat modules
         run: |
@@ -60,5 +66,6 @@ jobs:
           path: |
             experiments/reports/pytest.xml
             experiments/reports/software-gate.json
+            experiments/reports/content-foundry-plan.json
           if-no-files-found: warn
           retention-days: 30
