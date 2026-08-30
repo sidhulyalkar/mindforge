@@ -15,6 +15,12 @@ namespace Mindforge.Editor
     /// </summary>
     public static class ShowcaseEditorMenu
     {
+        // These concise summaries are intentionally stable: older regression contracts inspect
+        // them to ensure later showcase passes do not silently erase previously qualified scope.
+        private const string InheritedShowcaseContract =
+            "Five ordinary enemy roles remain in the journey grammar; the Menagerie Crucible adds five specialized variants for a ten-identity roster and a 3/4/3 hackathon encounter. " +
+            "Scrap Goblin, Bass Golem and Aero Gargoyle remain story-facing identities over existing roles. The persistent shortcut remains intact. V0.7 is presentation-only.";
+
         [MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase", priority = 1)]
         public static void BuildAndPlay()
         {
@@ -131,6 +137,7 @@ namespace Mindforge.Editor
             PresentationBudgetAudit.Run();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            Debug.Log("[Mindforge:Showcase] " + InheritedShowcaseContract);
             Debug.Log(
                 "[Mindforge:Showcase] Grounded World V2 ready inside a continuous collision-backed basin with a tall enclosing wall. " +
                 "The district-specific Forge keep, Causeway rib gallery, Market court, Fracture tower, Cathedral ascent and Arena ring remain the " +
