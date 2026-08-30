@@ -7,14 +7,15 @@ namespace Mindforge.Combat
     /// <summary>
     /// Conventional player-owned target lock for third-person combat.
     ///
-    /// T acquires/releases a useful enemy near the camera center. While locked,
-    /// left/right arrow keys or the mouse wheel cycle conventional targets. EEG never
-    /// creates, changes, confirms, cycles, or releases target lock.
+    /// The canonical target-lock key comes from GuardianControlProfileV1. While locked,
+    /// the mouse wheel cycles conventional targets. Arrow keys remain camera controls so
+    /// one physical key never simultaneously means camera orbit and target switching.
+    /// EEG never creates, changes, confirms, cycles, or releases target lock.
     /// </summary>
     public sealed class GuardianTargetLock : MonoBehaviour
     {
         [SerializeField] private Transform fallbackTarget;
-        [SerializeField] private KeyCode toggleKey = KeyCode.T;
+        [SerializeField] private GuardianControlProfileV1 controls;
         [SerializeField] private float lockRange = 28f;
         [SerializeField] private float breakRange = 34f;
         [SerializeField] private float targetAimHeight = 0.9f;
@@ -22,7 +23,6 @@ namespace Mindforge.Combat
         [SerializeField] private float distanceScoreWeight = 0.42f;
         [SerializeField] private float angleScoreWeight = 0.58f;
         [SerializeField] private bool requireLineOfSight = true;
-        [SerializeField] private bool cycleWithArrowKeys = true;
         [SerializeField] private bool cycleWithMouseWheel = true;
 
         private bool _locked;
@@ -34,7 +34,7 @@ namespace Mindforge.Combat
         public bool Locked => _locked && TargetAvailable(_lockedTarget);
         public Transform Target => Locked ? _lockedTarget : null;
         public Transform FallbackTarget => fallbackTarget;
-        public KeyCode ToggleKey => toggleKey;
+        public KeyCode ToggleKey => controls != null ? controls.TargetLockKey : KeyCode.T;
 
         public void Configure(Transform combatTarget)
         {
@@ -146,26 +146,18 @@ namespace Mindforge.Combat
 
         private void Update()
         {
-            if (Input.GetKeyDown(toggleKey))
+            if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
+            if (controls != null && controls.Pressed(GuardianControlAction.TargetLock))
             {
                 if (Locked) SetLocked(false);
                 else AcquireBest();
             }
 
-            if (Locked)
+            if (Locked && cycleWithMouseWheel)
             {
-                if (cycleWithArrowKeys)
-                {
-                    if (Input.GetKeyDown(KeyCode.LeftArrow)) Cycle(-1);
-                    if (Input.GetKeyDown(KeyCode.RightArrow)) Cycle(1);
-                }
-
-                if (cycleWithMouseWheel)
-                {
-                    float wheel = Input.mouseScrollDelta.y;
-                    if (wheel > 0.25f) Cycle(1);
-                    else if (wheel < -0.25f) Cycle(-1);
-                }
+                float wheel = Input.mouseScrollDelta.y;
+                if (wheel > 0.25f) Cycle(1);
+                else if (wheel < -0.25f) Cycle(-1);
             }
 
             if (_locked && (!TargetAvailable(_lockedTarget) ||
