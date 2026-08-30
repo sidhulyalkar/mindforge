@@ -1,0 +1,185 @@
+from pathlib import Path
+import json
+
+
+ROOT = Path(__file__).resolve().parents[1]
+ART = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtV09Builder.cs"
+MATERIALS = ROOT / "unity/Assets/Mindforge/Editor/ProductionMaterialAuthoringV09.cs"
+MESHES = ROOT / "unity/Assets/Mindforge/Editor/ProductionMeshLibraryV09.cs"
+EXTERNAL = ROOT / "unity/Assets/Mindforge/Editor/ExternalArtDropV09.cs"
+HOOK = ROOT / "unity/Assets/Mindforge/Editor/ProductionArtAutoHookV09.cs"
+HUD = ROOT / "unity/Assets/Mindforge/Presentation/ProductionHudV09.cs"
+GUARDIAN = ROOT / "unity/Assets/Mindforge/Presentation/ProductionGuardianV09.cs"
+GITIGNORE = ROOT / ".gitignore"
+MANIFEST = ROOT / "third_party/manifest.json"
+
+
+def read(path: Path) -> str:
+    assert path.exists(), f"missing V0.9 source: {path}"
+    return path.read_text(encoding="utf-8")
+
+
+def test_v09_is_a_visual_replacement_pass_not_another_primitive_clutter_layer():
+    text = read(ART)
+    assert 'RootName = "Mindforge_Production_Art_V09"' in text
+    assert "HideSanctumBlockoutRenderers" in text
+    assert "RethemeGroundedWorld" in text
+    assert "v07.SetActive(false)" in text
+    for token in (
+        "Production_Sanctum_Nave",
+        "Production_Threshold_Facade",
+        "Production_Processional_Promenade",
+        "Production_Market_Arcade",
+        "Production_Fracture_Landmark",
+        "Production_Cathedral_Approach",
+        "Production_Skyline",
+    ):
+        assert token in text
+    assert "the old geometry as collision proxies" in text
+    assert "leaves colliders/interactions untouched" in text
+
+
+def test_production_materials_generate_real_albedo_and_normal_texture_detail():
+    text = read(MATERIALS)
+    assert "TextureSize = 256" in text
+    assert "EnsureSurfaceTexture" in text
+    assert "EnsureNormalTexture" in text
+    assert "Fractal(" in text
+    assert "Mathf.PerlinNoise" in text
+    assert 'material.SetTexture("_BaseMap", albedo)' in text
+    assert 'material.SetTexture("_BumpMap", normal)' in text
+    assert 'material.EnableKeyword("_NORMALMAP")' in text
+    assert "anisoLevel = 8" in text
+    for name in (
+        "ProdIvoryStoneV09",
+        "ProdPearlCeramicV09",
+        "ProdWarmStoneV09",
+        "ProdGraphiteV09",
+        "ProdGoldV09",
+        "ProdGardenV09",
+    ):
+        assert name in text
+
+
+def test_production_mesh_library_uses_real_curved_meshes_not_line_renderers():
+    text = read(MESHES)
+    assert "BuildFlutedColumn" in text
+    assert "BuildPointedArch" in text
+    assert "BuildSpire" in text
+    assert "BuildCanopy" in text
+    assert "RecalculateNormals" in text
+    assert "RecalculateTangents" in text
+    assert "LineRenderer" not in text
+    assert "GameObject.CreatePrimitive" not in text
+
+
+def test_v09_city_spacing_and_depth_are_explicit():
+    text = read(ART)
+    assert 'new Vector3(9.8f, 0.22f, 40f)' in text
+    assert 'new Vector3(2.6f, 0.17f, 40f)' in text
+    assert 'new Vector3(side * 9.2f, -0.16f, 2f)' in text
+    assert 'float z = -15f + i * 6.0f' in text
+    assert "BuildSkyline" in text
+    assert "fogStartDistance = 92f" in text
+    assert "fogEndDistance = 320f" in text
+    assert "BuildReflectionCoverage" in text
+    assert text.count("CreateProbe(root") >= 4
+
+
+def test_v09_production_art_does_not_create_gameplay_authority():
+    text = read(ART)
+    forbidden = (
+        "AddComponent<JourneyEnemyController>",
+        "AddComponent<CombatantVitals>",
+        "AddComponent<GuardianMotor>",
+        "AddComponent<Rigidbody>",
+        "AddComponent<JourneyGate>",
+        "AddComponent<WorldInteraction",
+        "NeuralEvent",
+        "UdpNeuralReceiver",
+        "TakeDamage",
+    )
+    for token in forbidden:
+        assert token not in text
+    # New production geometry is presentation-only; it deliberately destroys only the
+    # colliders that GameObject.CreatePrimitive gives its own fresh decorative pieces.
+    assert "UnityEngine.Object.DestroyImmediate(collider)" in text
+    assert "GetComponentsInChildren<Collider>" not in text
+
+
+def test_local_asset_ingestion_is_gitignored_and_strips_external_authority():
+    external = read(EXTERNAL)
+    gitignore = read(GITIGNORE)
+    assert 'LocalRoot = "Assets/Mindforge/LocalArt"' in external
+    assert "unity/Assets/Mindforge/LocalArt/" in gitignore
+    assert "PrefabUtility.InstantiatePrefab" in external
+    assert "StripGameplayAuthority" in external
+    assert "colliders[i].enabled = false" in external
+    assert "DestroyImmediate(bodies[i])" in external
+    assert "behaviours[i].enabled = false" in external
+    assert "FitToSize" in external
+    for role in ("Column", "Arch", "Door", "Spire", "Tree", "Humanoid", "Robot"):
+        assert role in external
+
+
+def test_third_party_manifest_records_magictools_material_maker_and_conservative_quaternius_policy():
+    manifest = json.loads(read(MANIFEST))
+    entries = {entry["id"]: entry for entry in manifest["entries"]}
+    assert entries["ellisonleao.magictools"]["usage"] == "reference_only"
+    assert entries["rodzill4.material_maker"]["license"] == "MIT"
+    quaternius = entries["quaternius.production_art_source"]
+    assert quaternius["usage"] == "local_asset_source"
+    assert quaternius["vendored_paths"] == []
+    assert "never committed" in quaternius["asset_policy"]
+    assert manifest["policy"]["local_only_restricted_source_art_must_be_gitignored"] is True
+
+
+def test_guardian_fallback_replaces_visible_primitives_without_replacing_pose_or_physics_authority():
+    text = read(GUARDIAN)
+    assert 'transform.Find("GuardianShowcaseAvatar")' in text
+    assert "legacy[i].enabled = false" in text
+    assert 'Node("ProductionGuardianV09"' in text
+    for token in (
+        "BuildSuperEllipsoid",
+        "BuildTaperedCylinder",
+        "BuildTaperedPrism",
+        "BuildTorus",
+        "BuildCurvedMantle",
+        "Helmet",
+        "ChestShell",
+        "Pauldron",
+        "Thigh",
+        "Shin",
+    ):
+        assert token in text
+    for forbidden in (
+        "Rigidbody",
+        "Collider",
+        "GuardianMotor",
+        "GuardianCombatInput",
+        "TakeDamage",
+        "transform.position =",
+        "transform.localPosition =",
+    ):
+        assert forbidden not in text
+
+
+def test_compact_hud_replaces_debug_panel_without_claiming_neural_authority():
+    text = read(HUD)
+    assert "SuppressLegacyCombatHud" in text
+    assert "legacy.enabled = false" in text
+    assert '"SHOWCASE  ·  BCI OFF"' in text
+    assert '"NEURAL LINK  ·  READY"' in text
+    assert '"NEURAL LINK  ·  ATTUNE"' in text
+    assert "tutorialSeconds = 14f" in text
+    for forbidden in ("NeuralEvent", "UdpNeuralReceiver", "EnterControllerOnly", "CalibrationReady ="):
+        assert forbidden not in text
+
+
+def test_scene_save_hook_makes_v09_part_of_canonical_v08_rebuild_and_installs_presentation():
+    text = read(HOOK)
+    assert "EditorSceneManager.sceneSaved += _ => TryApply();" in text
+    assert "ProductionArtV09Builder.ApplyOpenScene();" in text
+    assert "arena.AddComponent<ProductionHudV09>()" in text
+    assert "guardian.AddComponent<ProductionGuardianV09>()" in text
+    assert "ConfigureRuntime(" in text
