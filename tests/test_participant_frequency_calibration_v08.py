@@ -46,6 +46,12 @@ def test_frequency_pair_ranking_prefers_repeatable_participant_response():
     assert profile.best.balanced_accuracy >= 0.9
     assert profile.best.usable_trials == 10
     assert profile.candidate_frequencies_hz == (8.0, 10.0, 12.0)
+    # Three-harmonic FBCCA must never rank 8/12: 3*8 == 2*12 == 24 Hz inside
+    # the decoder evidence band. Fundamental separation alone is not enough.
+    assert all(
+        not (evaluation.sight_hz == 8.0 and evaluation.guard_hz == 12.0)
+        for evaluation in profile.evaluations
+    )
     assert all(
         profile.evaluations[i].objective >= profile.evaluations[i + 1].objective
         for i in range(len(profile.evaluations) - 1)
@@ -64,6 +70,19 @@ def test_frequency_ranking_requires_clean_repeated_evidence_for_each_candidate()
         assert "enough clean trials" in str(exc)
     else:
         raise AssertionError("one trial per candidate must not qualify participant frequency selection")
+
+
+def test_harmonic_collision_is_rejected_even_with_clean_trials():
+    trials = []
+    for i in range(4):
+        trials.append((8.0, _window(8.0, seed=100 + i)))
+        trials.append((12.0, _window(12.0, seed=200 + i)))
+    try:
+        rank_participant_frequency_pairs(trials, minimum_trials_per_frequency=3)
+    except ValueError as exc:
+        assert "harmonic separation" in str(exc)
+    else:
+        raise AssertionError("8/12 must not qualify with three decoder-visible harmonics")
 
 
 def test_calibration_frequency_metadata_round_trips_as_derived_scalars_only():
