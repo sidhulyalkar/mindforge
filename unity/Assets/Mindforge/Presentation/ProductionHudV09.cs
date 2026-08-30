@@ -1,6 +1,8 @@
 using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.Combat;
+using Mindforge.Journey;
+using Mindforge.World;
 
 namespace Mindforge.Presentation
 {
@@ -16,11 +18,14 @@ namespace Mindforge.Presentation
         [SerializeField] private GuardianStamina endurance;
         [SerializeField] private FluxMeter flux;
         [SerializeField] private AwakeningCalibrationDirector calibration;
-        [SerializeField] private float tutorialSeconds = 14f;
+        [SerializeField] private NullWardEncounterDirector world;
+        [SerializeField] private FirstJourneyDirector firstJourney;
+        [SerializeField] private float tutorialSeconds = 12f;
 
         private GUIStyle _title;
         private GUIStyle _small;
         private GUIStyle _chip;
+        private GUIStyle _objective;
         private double _started;
         private double _nextLegacyHudCheck;
 
@@ -31,22 +36,19 @@ namespace Mindforge.Presentation
             Active = true;
             _started = Time.realtimeSinceStartupAsDouble;
             Resolve();
-            SuppressLegacyCombatHud();
+            SuppressLegacyHuds();
         }
 
-        private void OnDisable()
-        {
-            Active = false;
-        }
+        private void OnDisable() => Active = false;
 
         private void Update()
         {
-            if (playerVitals == null || endurance == null || flux == null || calibration == null)
+            if (playerVitals == null || endurance == null || flux == null || calibration == null || world == null)
                 Resolve();
             if (Time.realtimeSinceStartupAsDouble >= _nextLegacyHudCheck)
             {
                 _nextLegacyHudCheck = Time.realtimeSinceStartupAsDouble + 1.0;
-                SuppressLegacyCombatHud();
+                SuppressLegacyHuds();
             }
         }
 
@@ -55,6 +57,8 @@ namespace Mindforge.Presentation
             if (endurance == null) endurance = FindObjectOfType<GuardianStamina>(true);
             if (flux == null) flux = FindObjectOfType<FluxMeter>(true);
             if (calibration == null) calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (world == null) world = FindObjectOfType<NullWardEncounterDirector>(true);
+            if (firstJourney == null) firstJourney = FindObjectOfType<FirstJourneyDirector>(true);
             if (playerVitals == null)
             {
                 CombatantVitals[] vitals = FindObjectsOfType<CombatantVitals>(true);
@@ -69,10 +73,14 @@ namespace Mindforge.Presentation
             }
         }
 
-        private static void SuppressLegacyCombatHud()
+        private static void SuppressLegacyHuds()
         {
-            CombatStateHud legacy = FindObjectOfType<CombatStateHud>(true);
-            if (legacy != null && legacy.enabled) legacy.enabled = false;
+            CombatStateHud combatHud = FindObjectOfType<CombatStateHud>(true);
+            if (combatHud != null && combatHud.enabled) combatHud.enabled = false;
+            NullWardHud worldHud = FindObjectOfType<NullWardHud>(true);
+            if (worldHud != null && worldHud.enabled) worldHud.enabled = false;
+            FirstJourneyHud journeyHud = FindObjectOfType<FirstJourneyHud>(true);
+            if (journeyHud != null && journeyHud.enabled) journeyHud.enabled = false;
         }
 
         private void OnGUI()
@@ -83,20 +91,20 @@ namespace Mindforge.Presentation
             float scale = Mathf.Clamp(Screen.height / 1080f, 0.78f, 1.18f);
             float x = 24f * scale;
             float y = 22f * scale;
-            float width = 278f * scale;
-            float height = 82f * scale;
+            float width = 258f * scale;
+            float height = 72f * scale;
             Rect panel = new Rect(x, y, width, height);
-            Fill(panel, new Color(0.018f, 0.025f, 0.036f, 0.74f));
-            Stroke(panel, new Color(0.75f, 0.84f, 0.91f, 0.24f), 1f);
+            Fill(panel, new Color(0.018f, 0.025f, 0.036f, 0.70f));
+            Stroke(panel, new Color(0.75f, 0.84f, 0.91f, 0.22f), 1f);
 
-            GUI.Label(new Rect(x + 12f * scale, y + 7f * scale, width - 24f * scale, 18f * scale), "GUARDIAN", _title);
-            DrawBar(new Rect(x + 12f * scale, y + 31f * scale, width - 24f * scale, 8f * scale),
+            GUI.Label(new Rect(x + 11f * scale, y + 5f * scale, width - 22f * scale, 17f * scale), "GUARDIAN", _title);
+            DrawBar(new Rect(x + 11f * scale, y + 28f * scale, width - 22f * scale, 7f * scale),
                 Ratio(playerVitals.Health, playerVitals.MaxHealth), new Color(0.88f, 0.34f, 0.42f, 0.95f));
-            DrawBar(new Rect(x + 12f * scale, y + 47f * scale, width - 24f * scale, 6f * scale),
+            DrawBar(new Rect(x + 11f * scale, y + 43f * scale, width - 22f * scale, 5f * scale),
                 endurance != null ? endurance.Ratio : 0f, new Color(0.58f, 0.88f, 0.72f, 0.95f));
-            DrawBar(new Rect(x + 12f * scale, y + 61f * scale, width - 24f * scale, 5f * scale),
+            DrawBar(new Rect(x + 11f * scale, y + 56f * scale, width - 22f * scale, 4f * scale),
                 flux != null ? Ratio(flux.Value, flux.Max) : 0f, new Color(0.48f, 0.77f, 0.96f, 0.88f));
-            GUI.Label(new Rect(x + 12f * scale, y + 66f * scale, width - 24f * scale, 14f * scale),
+            GUI.Label(new Rect(x + 11f * scale, y + 58f * scale, width - 22f * scale, 12f * scale),
                 $"{playerVitals.Health:0}/{playerVitals.MaxHealth:0}   ·   ENDURANCE   ·   FLUX", _small);
 
             string neural;
@@ -118,21 +126,39 @@ namespace Mindforge.Presentation
             }
 
             Vector2 chipSize = _chip.CalcSize(new GUIContent(neural));
-            Rect chip = new Rect(Screen.width - chipSize.x - 40f * scale, 24f * scale, chipSize.x + 18f * scale, 25f * scale);
-            Fill(chip, new Color(0.018f, 0.025f, 0.036f, 0.62f));
+            Rect chip = new Rect(Screen.width - chipSize.x - 38f * scale, 22f * scale, chipSize.x + 16f * scale, 23f * scale);
+            Fill(chip, new Color(0.018f, 0.025f, 0.036f, 0.58f));
             Color before = GUI.color;
             GUI.color = neuralColor;
-            GUI.Label(new Rect(chip.x + 9f * scale, chip.y + 2f * scale, chip.width - 18f * scale, chip.height - 4f * scale), neural, _chip);
+            GUI.Label(new Rect(chip.x + 8f * scale, chip.y + 1f * scale, chip.width - 16f * scale, chip.height - 2f * scale), neural, _chip);
             GUI.color = before;
+
+            string objective = CurrentObjective();
+            if (!string.IsNullOrWhiteSpace(objective))
+            {
+                float objectiveWidth = Mathf.Min(520f * scale, Screen.width * 0.42f);
+                Rect objectiveRect = new Rect(24f * scale, Screen.height - 41f * scale, objectiveWidth, 24f * scale);
+                Fill(objectiveRect, new Color(0.018f, 0.025f, 0.036f, 0.55f));
+                GUI.Label(new Rect(objectiveRect.x + 10f * scale, objectiveRect.y, objectiveRect.width - 20f * scale, objectiveRect.height), objective, _objective);
+            }
 
             if (Time.realtimeSinceStartupAsDouble - _started < tutorialSeconds)
             {
-                const string lesson = "WASD MOVE   ·   SPACE JUMP / HOVER   ·   SHIFT EVADE   ·   F BLADE   ·   E INTERACT";
+                const string lesson = "WASD   ·   SPACE JUMP/HOVER   ·   SHIFT EVADE   ·   F BLADE   ·   E INTERACT";
                 Vector2 size = _small.CalcSize(new GUIContent(lesson));
-                Rect r = new Rect((Screen.width - size.x - 30f * scale) * 0.5f, Screen.height - 54f * scale, size.x + 30f * scale, 28f * scale);
-                Fill(r, new Color(0.018f, 0.025f, 0.036f, 0.66f));
+                Rect r = new Rect((Screen.width - size.x - 26f * scale) * 0.5f, Screen.height - 39f * scale, size.x + 26f * scale, 23f * scale);
+                Fill(r, new Color(0.018f, 0.025f, 0.036f, 0.58f));
                 GUI.Label(r, lesson, _small);
             }
+        }
+
+        private string CurrentObjective()
+        {
+            if (world != null && !string.IsNullOrWhiteSpace(world.CurrentObjective))
+                return world.CurrentObjective;
+            if (firstJourney != null && !string.IsNullOrWhiteSpace(firstJourney.CurrentObjective))
+                return firstJourney.CurrentObjective;
+            return string.Empty;
         }
 
         private void EnsureStyles()
@@ -140,22 +166,30 @@ namespace Mindforge.Presentation
             if (_title != null) return;
             _title = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 12,
+                fontSize = 11,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = new Color(0.94f, 0.96f, 0.98f, 0.96f) },
                 alignment = TextAnchor.MiddleLeft,
             };
             _small = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 10,
+                fontSize = 9,
                 normal = { textColor = new Color(0.78f, 0.83f, 0.88f, 0.90f) },
                 alignment = TextAnchor.MiddleCenter,
             };
             _chip = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 10,
+                fontSize = 9,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
+            };
+            _objective = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.88f, 0.91f, 0.94f, 0.92f) },
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip,
             };
         }
 
@@ -163,7 +197,7 @@ namespace Mindforge.Presentation
 
         private static void DrawBar(Rect rect, float ratio, Color color)
         {
-            Fill(rect, new Color(0.08f, 0.10f, 0.13f, 0.86f));
+            Fill(rect, new Color(0.08f, 0.10f, 0.13f, 0.82f));
             Rect fill = rect;
             fill.width *= Mathf.Clamp01(ratio);
             Fill(fill, color);
