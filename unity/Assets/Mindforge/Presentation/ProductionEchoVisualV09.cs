@@ -17,6 +17,8 @@ namespace Mindforge.Presentation
         [SerializeField] private Material hostile;
         [SerializeField] private Material trim;
 
+        private readonly List<Mesh> _ownedMeshes = new List<Mesh>();
+        private Renderer[] _legacyRenderers = System.Array.Empty<Renderer>();
         private Transform _visualRoot;
         private bool _built;
 
@@ -45,7 +47,7 @@ namespace Mindforge.Presentation
         private void Update()
         {
             if (!_built) TryBuild();
-            if (_visualRoot != null)
+            if (_visualRoot != null && _visualRoot.gameObject.activeSelf)
             {
                 // Presentation-only counter-rotation gives the reliquary a layered mechanical
                 // read while the authoritative Echo transform continues its existing spin.
@@ -62,6 +64,13 @@ namespace Mindforge.Presentation
             }
         }
 
+        private void OnDestroy()
+        {
+            for (int i = 0; i < _ownedMeshes.Count; i++)
+                if (_ownedMeshes[i] != null) Destroy(_ownedMeshes[i]);
+            _ownedMeshes.Clear();
+        }
+
         private void TryBuild()
         {
             if (_built || echo == null || shell == null || hostile == null || trim == null) return;
@@ -70,19 +79,18 @@ namespace Mindforge.Presentation
             {
                 _visualRoot = existing;
                 _built = true;
+                CaptureAndHideLegacyRenderers();
                 return;
             }
 
-            Renderer[] legacy = GetComponentsInChildren<Renderer>(true);
-            for (int i = 0; i < legacy.Length; i++)
-                if (legacy[i] != null) legacy[i].enabled = false;
+            CaptureAndHideLegacyRenderers();
 
             _visualRoot = new GameObject("ProductionEchoVisualV09").transform;
             _visualRoot.SetParent(transform, false);
 
-            Mesh coreMesh = BuildFacetedGem(8, 0.34f, 0.55f);
-            Mesh shardMesh = BuildFacetedGem(6, 0.12f, 0.62f);
-            Mesh ringMesh = BuildTorus(30, 8, 0.53f, 0.025f);
+            Mesh coreMesh = Own(BuildFacetedGem(8, 0.34f, 0.55f));
+            Mesh shardMesh = Own(BuildFacetedGem(6, 0.12f, 0.62f));
+            Mesh ringMesh = Own(BuildTorus(30, 8, 0.53f, 0.025f));
 
             MeshObject("EchoCoreShell", _visualRoot, coreMesh, Vector3.zero, new Vector3(1f, 1f, 0.78f), shell);
             MeshObject("EchoCoreSignal", _visualRoot, coreMesh, new Vector3(0f, 0f, 0.04f), Vector3.one * 0.54f, hostile);
@@ -101,6 +109,33 @@ namespace Mindforge.Presentation
             _built = true;
         }
 
+        private Mesh Own(Mesh mesh)
+        {
+            if (mesh != null) _ownedMeshes.Add(mesh);
+            return mesh;
+        }
+
+        private void CaptureAndHideLegacyRenderers()
+        {
+            Renderer[] all = GetComponentsInChildren<Renderer>(true);
+            List<Renderer> legacy = new List<Renderer>(all.Length);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer renderer = all[i];
+                if (renderer == null) continue;
+                if (_visualRoot != null && renderer.transform.IsChildOf(_visualRoot)) continue;
+                legacy.Add(renderer);
+                renderer.enabled = false;
+            }
+            _legacyRenderers = legacy.ToArray();
+        }
+
+        private void HideLegacyRenderers()
+        {
+            for (int i = 0; i < _legacyRenderers.Length; i++)
+                if (_legacyRenderers[i] != null) _legacyRenderers[i].enabled = false;
+        }
+
         private void OnShattered()
         {
             if (_visualRoot != null) _visualRoot.gameObject.SetActive(false);
@@ -108,6 +143,10 @@ namespace Mindforge.Presentation
 
         private void OnReconstructed()
         {
+            // FracturedEchoNode correctly restores its captured presentation defaults before
+            // raising Reconstructed. Re-hide the prototype renderers here so checkpoint reset
+            // cannot resurrect the original glowing sphere underneath the production shell.
+            HideLegacyRenderers();
             if (_visualRoot != null) _visualRoot.gameObject.SetActive(true);
         }
 
