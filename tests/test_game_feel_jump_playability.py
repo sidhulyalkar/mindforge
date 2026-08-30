@@ -68,16 +68,15 @@ def test_jump_has_modern_forgiveness_variable_height_air_control_and_one_air_jum
         assert forbidden not in motor
 
 
-def test_space_is_aerial_traversal_shift_is_primary_roll_and_tape_records_edges():
+def test_space_and_evade_are_canonical_profile_actions_and_tape_records_jump_edges():
     input_source = read("Combat", "GuardianCombatInput.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
     for token in (
-        "Input.GetKeyDown(KeyCode.Space)",
-        "Input.GetKey(KeyCode.Space)",
-        "Input.GetKeyDown(KeyCode.LeftShift)",
-        "Input.GetKeyDown(KeyCode.RightShift)",
-        "Input.GetMouseButtonDown(1)",
+        "controls.Pressed(GuardianControlAction.JumpHover)",
+        "controls.Held(GuardianControlAction.JumpHover)",
+        "controls.Pressed(GuardianControlAction.EvadeBoost)",
         "Input.GetKeyDown(KeyCode.LeftControl)",
         "Input.GetKeyDown(KeyCode.LeftAlt)",
         "jump_down = _jumpLatched",
@@ -87,16 +86,23 @@ def test_space_is_aerial_traversal_shift_is_primary_roll_and_tape_records_edges(
     ):
         assert token in input_source
 
-    # V3 remains loadable for old aerial tapes; V4 is now the recording schema because it
-    # adds mounted commands without changing the existing jump fields.
+    assert "jumpHover = KeyCode.Space" in controls
+    assert "evadeBoostPrimary = KeyCode.LeftShift" in controls
+    assert "rightMouseEvades = true" in controls
+
+    # V1-V4 remain loadable; V5 is the recording schema because context interaction now
+    # has its own edge instead of acquiring the historical mount bit's meaning.
     for token in (
         'SchemaV3 = "mindforge.guardian_input_tape.v3"',
         'SchemaV4 = "mindforge.guardian_input_tape.v4"',
-        "schema = GuardianInputTape.SchemaV4",
+        'SchemaV5 = "mindforge.guardian_input_tape.v5"',
+        "schema = GuardianInputTape.SchemaV5",
         "public bool jump_down",
         "public bool jump_held",
+        "public bool context_down",
         "jump_down = jump_down",
         "jump_held = jump_held",
+        "context_down = context_down",
     ):
         assert token in tape
 
@@ -120,8 +126,6 @@ def test_input_suspension_clears_all_active_edge_triggered_actions_and_neutraliz
     ):
         assert token in disable
 
-    # Retired controls must not linger as held runtime state that can fire when the input
-    # authority is re-enabled after checkpoint/calibration suspension.
     for retired in ("_fireHeld", "_guardHeld", "_guardDownLatched"):
         assert retired not in input_source
 
