@@ -203,26 +203,38 @@ def test_continuous_neural_resonance_cannot_issue_conventional_player_commands()
 
 def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_supported():
     combat_input = read("Combat", "GuardianCombatInput.cs")
+    controls = read("Combat", "GuardianControlProfileV1.cs")
     tape = read("Combat", "GuardianInputTape.cs")
 
     assert "Input.GetAxisRaw" not in combat_input
-    assert "SampleWasdMovement" in combat_input
+    assert "controls.SampleMovement()" in combat_input
     assert "GuardianTargetLock targetLock" in combat_input
     assert "targetLock.DirectionFrom(transform.position)" in combat_input
     assert "Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up)" in combat_input
-    assert "Input.GetKeyDown(KeyCode.Space)" in combat_input
-    assert "Input.GetKeyDown(KeyCode.LeftShift)" in combat_input
-    assert "Input.GetMouseButtonDown(1)" in combat_input
+    assert "controls.Pressed(GuardianControlAction.JumpHover)" in combat_input
+    assert "controls.Pressed(GuardianControlAction.EvadeBoost)" in combat_input
+    assert "controls.Pressed(GuardianControlAction.Blade)" in combat_input
+    assert "controls.Pressed(GuardianControlAction.Cleave)" in combat_input
+    assert "controls.Pressed(GuardianControlAction.Counter)" in combat_input
+    assert "controls.Pressed(GuardianControlAction.Bloom)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftControl)" in combat_input
     assert "Input.GetKeyDown(KeyCode.LeftAlt)" in combat_input
-    assert "Input.GetKeyDown(KeyCode.F)" in combat_input
-    assert "Input.GetKeyDown(KeyCode.Q)" in combat_input
+    for token in (
+        "jumpHover = KeyCode.Space",
+        "evadeBoostPrimary = KeyCode.LeftShift",
+        "rightMouseEvades = true",
+        "blade = KeyCode.F",
+        "cleave = KeyCode.Q",
+    ):
+        assert token in controls
+
     assert "sword_attack_down = _swordAttackLatched" in combat_input
     assert "jump_down = _jumpLatched" in combat_input
     assert "jump_held = _jumpHeld" in combat_input
     assert "fire_held = false" in combat_input
     assert "guard_held = false" in combat_input
     assert "guard_down = false" in combat_input
+    assert "context_down = false" in combat_input
     assert "physicalCombat.TryLightAttack(aim)" in combat_input
     assert "physicalCombat.ActionState != GuardianActionState.Locomotion" in combat_input
     assert "if (command.counter_down && combat.BeginCounter()) return;" in combat_input
@@ -230,10 +242,10 @@ def test_third_person_commands_are_fixed_tick_recordable_and_old_tapes_remain_su
     assert "if (command.bloom_down && bloom != null && bloom.TryActivate()) return;" in combat_input
     assert "combat.FirePulse(aim)" not in combat_input
 
-    assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
-    assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
-    assert 'SchemaV3 = "mindforge.guardian_input_tape.v3"' in tape
-    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3" in tape
+    for version in range(1, 6):
+        assert f'SchemaV{version} = "mindforge.guardian_input_tape.v{version}"' in tape
+    assert "schema = GuardianInputTape.SchemaV5" in tape
+    assert "context_down" in tape
     assert "sword_attack_down = sword_attack_down" in tape
     assert "jump_down = jump_down" in tape
     assert "jump_held = jump_held" in tape
@@ -271,15 +283,17 @@ def test_procedural_rig_hud_and_menu_present_the_grounded_energy_blade_language(
     assert '"F / LMB BLADE   ·   SHIFT / RMB ROLL' in hud
     assert "SuppressLegacyHud()" in hud
 
-    assert '"GUARDIAN KIT"' in menu
-    assert '"THIRD-PERSON CONTROLS"' in menu
-    assert '"Endurance Dodge Roll"' in menu
-    assert '"SHIFT / RMB"' in menu
-    assert '"F / LMB"' in menu
+    assert '"GUARDIAN KIT + CONTROLS"' in menu
+    assert '"PLAYER VOCABULARY"' in menu
+    assert '"Endurance Evade"' in menu
+    assert "GuardianControlAction.EvadeBoost" in menu
+    assert "GuardianControlAction.Interact" in menu
+    assert "GuardianControlAction.Blade" in menu
     assert "ENDURANCE {stamina}" in menu
-    assert '"X / MMB", "Pulse Shot"' not in menu
+    assert '"Pulse Shot"' not in menu
     assert '"RMB / E", "Shield"' not in menu
     assert "FindObjectOfType<GuardianEquipmentLoadout>(true)" in menu
+    assert "GetPrimaryActiveQuest()" in menu
 
     assert '"SWORD_PARRY"' in bridge
     assert "combat.SwordProjectileParried += OnSwordParry" in bridge
