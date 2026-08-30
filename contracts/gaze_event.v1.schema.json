@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindforge.dev/contracts/gaze_event.v1.schema.json",
+  "title": "Mindforge GazeEvent v1",
+  "description": "A bounded, screen-mapped gaze sample. Raw eye images and device-internal biometric payloads do not cross the gameplay boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "seq",
+    "source_mode",
+    "timestamp_ns",
+    "x",
+    "y",
+    "confidence",
+    "fixation",
+    "worn",
+    "coordinate_origin",
+    "surface"
+  ],
+  "properties": {
+    "schema": { "const": "mindforge.gaze_event.v1" },
+    "seq": { "type": "integer", "minimum": 0 },
+    "source_mode": {
+      "type": "string",
+      "enum": [
+        "simulated_pointer",
+        "simulated_script",
+        "gaze_replay",
+        "live_pupil_neon_surface",
+        "live_pupil_neon_xr",
+        "live_other"
+      ]
+    },
+    "timestamp_ns": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Source-side monotonic or device-associated timestamp for provenance only. Unity does not subtract it from its own clock."
+    },
+    "x": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "y": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "fixation": { "type": "boolean" },
+    "worn": { "type": "boolean" },
+    "coordinate_origin": {
+      "type": "string",
+      "enum": ["top_left", "bottom_left"]
+    },
+    "surface": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  }
+}
