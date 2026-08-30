@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CRISP = ROOT / "unity/Assets/Mindforge/Editor/SanctumCrispGeometryV08Builder.cs"
+MENU = ROOT / "unity/Assets/Mindforge/Editor/ShowcaseEditorMenu.cs"
 
 
 def test_crisp_pass_builds_reusable_real_chamfer_meshes_not_outline_fx():
@@ -62,3 +63,13 @@ def test_crisp_enemy_pass_only_operates_inside_reference_silhouette_child():
     assert "SanctumReferenceFidelityV08Builder.EnemyRootName" in text
     assert 'controller.transform.Find("Visuals")' in text
     assert "reference.GetComponentsInChildren<MeshFilter>(true)" in text
+
+
+def test_one_click_pipeline_scopes_specialized_rosters_before_chamfering_reference_shells():
+    menu = MENU.read_text(encoding="utf-8")
+    fidelity = menu.find("SanctumReferenceFidelityV08Builder.ApplyOpenScene();")
+    scope = menu.find("SanctumEnemyPresentationScopeV08.RemoveReferenceShellsFromSpecializedRosters();")
+    crisp = menu.find("SanctumCrispGeometryV08Builder.ApplyOpenScene();")
+    assert fidelity >= 0
+    assert scope > fidelity
+    assert crisp > scope
