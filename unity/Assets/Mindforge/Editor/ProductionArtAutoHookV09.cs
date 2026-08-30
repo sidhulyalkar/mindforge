@@ -84,7 +84,8 @@ namespace Mindforge.Editor
 
             return arena.GetComponent<ProductionHudV09>() != null &&
                    arena.GetComponent<ProductionEchoVisualBootstrapV09>() != null &&
-                   guardian.GetComponent<ProductionGuardianV09>() != null;
+                   guardian.GetComponent<ProductionGuardianV09>() != null &&
+                   guardian.GetComponent<ProductionAetherbladeHiltV09>() != null;
         }
 
         private static void ApplyInternal(bool forceRebuild)
@@ -115,7 +116,7 @@ namespace Mindforge.Editor
                     $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
                     $"legacy renderers quarantined={quarantined}; local external replacements={external}; " +
                     "stock structural meshes refined + natural horizon + neural megastructures + district storytelling + production Memory Forge + " +
-                    "production neural sanctum + consolidated light hierarchy + restrained URP finish enabled.");
+                    "production neural sanctum + consolidated light hierarchy + production Guardian/Aetherblade/Echo + restrained URP finish enabled.");
             }
             finally
             {
@@ -202,6 +203,10 @@ namespace Mindforge.Editor
                 if (production == null) production = guardian.AddComponent<ProductionGuardianV09>();
                 production.ConfigureRuntime(pearl, graphite, gold, aether);
                 EditorUtility.SetDirty(production);
+
+                ProductionAetherbladeHiltV09 bladeHilt = guardian.GetComponent<ProductionAetherbladeHiltV09>();
+                if (bladeHilt == null) bladeHilt = guardian.AddComponent<ProductionAetherbladeHiltV09>();
+                EditorUtility.SetDirty(bladeHilt);
             }
         }
     }
