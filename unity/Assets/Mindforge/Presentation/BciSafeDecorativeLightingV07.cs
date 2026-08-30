@@ -40,7 +40,12 @@ namespace Mindforge.Presentation
             controllerOnlyScale = Mathf.Clamp01(showcaseScale);
             calibratedBciScale = Mathf.Clamp01(bciScale);
             CacheLights(force: true);
-            ApplyImmediate(ResolveTargetScale());
+
+            // Editor builders serialize the authored point-light values. Applying a runtime
+            // safety scale here would bake an already-dimmed baseline into the scene and make
+            // a later controller-only run unable to recover the intended lighting.
+            if (Application.isPlaying) ApplyImmediate(ResolveTargetScale());
+            else _currentScale = 1f;
         }
 
         private void Awake()
