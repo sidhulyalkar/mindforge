@@ -15,6 +15,11 @@ class EvidenceWindow:
     compute decoder scores and gaze geometry locally, then emit this bounded record.
     ``truth`` is ``sight``, ``guard`` or ``none``. ``condition`` is a free but stable
     experimental label such as ``overt``, ``covert``, ``dissociation`` or ``idle``.
+
+    ``window_seconds`` is also the exposure represented by the row when computing idle
+    false-activation rate. Adapters must therefore use non-overlapping idle windows or
+    otherwise emit the actual non-duplicated exposure duration rather than sliding-window
+    duration summed repeatedly.
     """
 
     subject_id: str
@@ -270,15 +275,18 @@ def recommend_game_architecture(metrics: PolicyMetrics) -> GameDesignRecommendat
 
     These are engineering promotion gates, not universal neurophysiology constants. They are
     deliberately strict because an erroneous neural action is more damaging to action-game feel
-    than a graceful abstention.
+    than a graceful abstention. A dataset without idle/no-attention windows cannot establish the
+    asynchronous safety gate and therefore cannot promote production BCI authority by itself.
     """
     reasons: list[str] = []
     reliable = metrics.accepted_accuracy >= 0.90 and metrics.command_coverage >= 0.55
-    quiet = metrics.idle_false_activations_per_minute <= 0.25
+    quiet = metrics.idle_windows > 0 and metrics.idle_false_activations_per_minute <= 0.25
     if not reliable:
         reasons.append("accepted command accuracy/coverage does not yet support gameplay authority")
-    if not quiet:
-        reasons.append("idle false-activation rate is too high for an always-listening action game")
+    if metrics.idle_windows <= 0:
+        reasons.append("no idle/no-attention exposure was measured, so false-activation safety is unqualified")
+    elif not quiet:
+        reasons.append("idle false-activation rate is too high for gameplay authority")
 
     covert = metrics.covert_accuracy
     dissociation = metrics.dissociation_accuracy
@@ -290,7 +298,7 @@ def recommend_game_architecture(metrics: PolicyMetrics) -> GameDesignRecommendat
         reasons.append("covert/dissociated attention remains sufficiently decodable")
         return GameDesignRecommendation("TRIGGERED_COVERT_SSVEP", True, tuple(reasons))
 
-    if reliable:
+    if reliable and quiet:
         if gaze_increment is not None and metrics.gaze_disagreement_windows >= 10 and gaze_increment >= 0.70:
             reasons.append("EEG retains useful information on trials where gaze points toward the wrong target")
         reasons.append("use a player-armed short resonance window; the arm action never chooses Sight or Guard")
