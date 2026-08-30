@@ -1,18 +1,20 @@
 using UnityEngine;
 using Mindforge.Combat;
+using Mindforge.World;
 
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Readable grounded-world loadout screen. The current build is intentionally
-    /// descriptive rather than an inventory editor: one coherent blade/roll kit and a
-    /// clear conventional-vs-neural authority split.
+    /// One reliable player-reference screen for build, controls and current objective.
+    /// It is descriptive rather than an inventory editor in V0.5; gameplay and neural
+    /// authority remain in their existing systems.
     /// </summary>
     public sealed class GuardianEquipmentMenu : MonoBehaviour
     {
         [SerializeField] private GuardianEquipmentLoadout loadout;
         [SerializeField] private GuardianStamina endurance;
-        [SerializeField] private KeyCode toggleKey = KeyCode.Tab;
+        [SerializeField] private GuardianControlProfileV1 controls;
+        [SerializeField] private WorldQuestRuntime quests;
 
         private bool _visible;
         private GUIStyle _title;
@@ -49,12 +51,15 @@ namespace Mindforge.Presentation
             if (loadout == null) loadout = FindObjectOfType<GuardianEquipmentLoadout>(true);
             if (endurance == null && loadout != null) endurance = loadout.GetComponent<GuardianStamina>();
             if (endurance == null) endurance = FindObjectOfType<GuardianStamina>(true);
+            if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
+            if (quests == null) quests = FindObjectOfType<WorldQuestRuntime>(true);
         }
 
         private void Update()
         {
             Resolve();
-            if (Input.GetKeyDown(toggleKey)) _visible = !_visible;
+            if (controls != null && controls.Pressed(GuardianControlAction.Menu))
+                _visible = !_visible;
         }
 
         private void OnGUI()
@@ -68,69 +73,90 @@ namespace Mindforge.Presentation
             GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = before;
 
-            float width = Mathf.Min(940f, Screen.width - 72f);
-            float height = Mathf.Min(650f, Screen.height - 60f);
+            float width = Mathf.Min(980f, Screen.width - 72f);
+            float height = Mathf.Min(680f, Screen.height - 60f);
             Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
             Fill(panel, Panel);
             Stroke(panel, new Color(0.28f, 0.40f, 0.62f, 0.75f), 2f);
 
             float x = panel.x + 28f;
             float y = panel.y + 22f;
-            GUI.Label(new Rect(x, y, panel.width - 56f, 38f), "GUARDIAN KIT", _title);
+            GUI.Label(new Rect(x, y, panel.width - 56f, 38f), "GUARDIAN KIT + CONTROLS", _title);
             GUI.Label(new Rect(x, y + 36f, panel.width - 56f, 24f),
-                "Energy-blade combat · dodge-roll defense · double-jump aerial traversal · neural focus amplifies, never chooses, an action", _subtitle);
-            GUI.Label(new Rect(panel.xMax - 150f, y + 4f, 122f, 24f), "TAB  CLOSE", _key);
+                "Hands own precision · neural focus transforms bounded game state · one contextual interaction button operates the world", _subtitle);
+            GUI.Label(new Rect(panel.xMax - 180f, y + 4f, 152f, 24f), Label(GuardianControlAction.Menu, "TAB") + "  CLOSE", _key);
             y += 78f;
 
             float gap = 18f;
-            float leftWidth = (panel.width - 56f - gap) * 0.58f;
+            float leftWidth = (panel.width - 56f - gap) * 0.56f;
             float rightWidth = panel.width - 56f - gap - leftWidth;
             float leftX = x;
             float rightX = x + leftWidth + gap;
 
             DrawLoadoutCard(new Rect(leftX, y, leftWidth, 118f), "MAIN HAND", loadout.MainHand?.displayName ?? "Unequipped", Blue,
                 loadout.MainHand != null
-                    ? $"{loadout.MainHand.archetype.ToString().ToUpperInvariant()}   DAMAGE {loadout.MainHand.baseDamage:F0}   BASE REACH {loadout.MainHand.reachMeters:F2}m\nF/LMB chains three committed swings. An active blade can physically parry hostile projectiles."
+                    ? $"{loadout.MainHand.archetype.ToString().ToUpperInvariant()}   DAMAGE {loadout.MainHand.baseDamage:F0}   BASE REACH {loadout.MainHand.reachMeters:F2}m\n{Label(GuardianControlAction.Blade, "F / LMB")} chains committed swings. An active blade can physically parry hostile projectiles."
                     : "No weapon equipped");
-            DrawLoadoutCard(new Rect(leftX, y + 132f, leftWidth, 118f), "DEFENSE", "Endurance Dodge Roll", Green,
-                "SHIFT or RMB rolls through ground pressure. Airborne input becomes one air dash per airtime.\nRolls spend endurance; positioning and timing replace passive shield holding.");
+            DrawLoadoutCard(new Rect(leftX, y + 132f, leftWidth, 118f), "DEFENSE", "Endurance Evade", Green,
+                $"{Label(GuardianControlAction.EvadeBoost, "SHIFT / RMB")} rolls through ground pressure. Airborne input becomes one air dash per airtime.\nOn a hoverbike the same control becomes boost: same physical vocabulary, context-specific verb.");
             DrawLoadoutCard(new Rect(leftX, y + 264f, leftWidth, 104f), "ARMOR", loadout.Armor?.displayName ?? "Unequipped", Gold,
                 loadout.Armor != null
                     ? $"{loadout.Armor.weightClass.ToString().ToUpperInvariant()}   {loadout.Armor.massKg:F1} kg\nArmor contributes physical load while the retired shield contributes no active mass."
                     : "No armor equipped");
 
-            Rect rules = new Rect(rightX, y, rightWidth, 318f);
+            Rect objective = new Rect(leftX, y + 382f, leftWidth, 108f);
+            Fill(objective, Card);
+            Stroke(objective, new Color(0.20f, 0.78f, 1f, 0.42f), 1f);
+            GUI.Label(new Rect(objective.x + 16f, objective.y + 10f, objective.width - 32f, 22f), "CURRENT OBJECTIVE", _section);
+            GUI.Label(new Rect(objective.x + 16f, objective.y + 36f, objective.width - 32f, 64f), CurrentObjective(), _body);
+
+            Rect rules = new Rect(rightX, y, rightWidth, 354f);
             Fill(rules, Card);
             Stroke(rules, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
-            GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "THIRD-PERSON CONTROLS", _section);
+            GUI.Label(new Rect(rules.x + 16f, rules.y + 14f, rules.width - 32f, 24f), "PLAYER VOCABULARY", _section);
             float ky = rules.y + 48f;
             DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "WASD", "Move relative to camera");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "MOUSE / ARROWS", "Orbit diorama camera");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SPACE", "Jump ×2 · hold descending to hover");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "SHIFT / RMB", "Dodge roll · air dash aloft");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "CTRL / ALT", "Compatibility roll aliases");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "T", "Lock / unlock enemy");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "F / LMB", "Aetherblade combo / projectile parry");
-            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "Q · C · R", "Cleave · Counter · Bloom");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, "MOUSE / ARROWS", "Orbit camera");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, Label(GuardianControlAction.JumpHover, "SPACE"), "Jump ×2 · hold descending to hover");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, Label(GuardianControlAction.EvadeBoost, "SHIFT / RMB"), "Evade · air dash · mounted boost");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, Label(GuardianControlAction.Interact, "E"), "Context: ride · dismount · reconstruct · use world");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, Label(GuardianControlAction.TargetLock, "T"), "Lock / unlock enemy · wheel cycles target");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f, Label(GuardianControlAction.Blade, "F / LMB"), "Aetherblade combo / projectile parry");
+            DrawControl(ref ky, rules.x + 16f, rules.width - 32f,
+                Label(GuardianControlAction.Cleave, "Q") + " · " + Label(GuardianControlAction.Counter, "C") + " · " + Label(GuardianControlAction.Bloom, "R"),
+                "Cleave · Counter · Bloom / Eclipse");
 
-            Rect neural = new Rect(rightX, y + 332f, rightWidth, 106f);
+            Rect neural = new Rect(rightX, y + 368f, rightWidth, 122f);
             Fill(neural, Card);
             Stroke(neural, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
             GUI.Label(new Rect(neural.x + 16f, neural.y + 10f, neural.width - 32f, 22f), "NEURAL RESONANCE", _section);
-            GUI.Label(new Rect(neural.x + 16f, neural.y + 34f, neural.width - 32f, 68f),
-                "BLUE / Sight → bounded blade length, energy and damage\nGREEN / Guard → retained neural channel; no shield action in this build\nEEG never moves, jumps, rolls, locks, swings or parries.", _body);
+            GUI.Label(new Rect(neural.x + 16f, neural.y + 34f, neural.width - 32f, 82f),
+                "BLUE / Sight → bounded blade length, energy and damage\nGREEN / Guard → retained neural channel; no shield action in this build\nEEG never moves, interacts, jumps, evades, locks, swings or parries.", _body);
 
-            float summaryY = y + 452f;
-            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 100f);
+            float summaryY = y + 506f;
+            Rect summary = new Rect(leftX, summaryY, panel.width - 56f, 82f);
             Fill(summary, new Color(0.050f, 0.060f, 0.080f, 0.98f));
             Stroke(summary, new Color(0.18f, 0.24f, 0.34f, 1f), 1f);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 8f, summary.width - 32f, 22f), "CURRENT PHYSICAL PROFILE", _section);
             string stamina = endurance != null ? $"{endurance.Value:F0} / {endurance.Max:F0}" : "-";
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 34f, summary.width - 32f, 20f),
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 10f, summary.width - 32f, 22f),
                 $"{loadout.TotalMassKg:F1} / {loadout.EquipCapacityKg:F1} kg   ·   {loadout.LoadClass.ToString().ToUpperInvariant()} LOAD   ·   ENDURANCE {stamina}", _item);
-            GUI.Label(new Rect(summary.x + 16f, summary.y + 60f, summary.width - 32f, 34f),
-                "The core rhythm is read → swing → roll → reposition. Vertical terrain adds jump, double-jump, hover and air-dash choices without turning neural evidence into a movement command.", _muted);
+            GUI.Label(new Rect(summary.x + 16f, summary.y + 38f, summary.width - 32f, 36f),
+                "Core rhythm: READ → COMMIT → EVADE → REPOSITION. Keep the control vocabulary small; let encounters create depth.", _muted);
         }
+
+        private string CurrentObjective()
+        {
+            if (quests == null) return "Explore Aetheria and follow the combat route.";
+            WorldQuestDefinition quest = quests.GetPrimaryActiveQuest();
+            if (quest == null) return "No active objective. Explore Aetheria.";
+            WorldQuestStepDefinition step = quests.GetCurrentStep(quest.id);
+            if (step == null) return quest.title ?? "Objective complete";
+            string description = string.IsNullOrWhiteSpace(step.description) ? string.Empty : "\n" + step.description;
+            return (quest.title ?? "JOURNEY") + "\n→ " + (step.title ?? step.id) + description;
+        }
+
+        private string Label(GuardianControlAction action, string fallback)
+            => controls != null ? controls.Label(action) : fallback;
 
         private void DrawLoadoutCard(Rect rect, string slot, string item, Color accent, string details)
         {
@@ -144,9 +170,9 @@ namespace Mindforge.Presentation
 
         private void DrawControl(ref float y, float x, float width, string key, string action)
         {
-            GUI.Label(new Rect(x, y, 128f, 20f), key, _key);
-            GUI.Label(new Rect(x + 136f, y, width - 136f, 20f), action, _body);
-            y += 24f;
+            GUI.Label(new Rect(x, y, 138f, 20f), key, _key);
+            GUI.Label(new Rect(x + 146f, y, width - 146f, 20f), action, _body);
+            y += 27f;
         }
 
         private static void Fill(Rect rect, Color color)
@@ -170,12 +196,12 @@ namespace Mindforge.Presentation
             if (_title == null) _title = NewStyle(30, FontStyle.Bold, Text);
             if (_subtitle == null) _subtitle = NewStyle(13, FontStyle.Bold, Muted);
             if (_section == null) _section = NewStyle(15, FontStyle.Bold, Text);
-            if (_item == null) _item = NewStyle(19, FontStyle.Bold, Text);
-            if (_body == null) _body = NewStyle(14, FontStyle.Normal, Text);
-            if (_muted == null) _muted = NewStyle(13, FontStyle.Normal, Muted);
+            if (_item == null) _item = NewStyle(18, FontStyle.Bold, Text);
+            if (_body == null) _body = NewStyle(13, FontStyle.Normal, Text);
+            if (_muted == null) _muted = NewStyle(12, FontStyle.Normal, Muted);
             if (_key == null)
             {
-                _key = NewStyle(13, FontStyle.Bold, new Color(0.74f, 0.84f, 1f, 1f));
+                _key = NewStyle(12, FontStyle.Bold, new Color(0.74f, 0.84f, 1f, 1f));
                 _key.alignment = TextAnchor.MiddleLeft;
             }
         }
