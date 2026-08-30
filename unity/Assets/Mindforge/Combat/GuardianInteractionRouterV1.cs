@@ -102,15 +102,12 @@ namespace Mindforge.Combat
             string nextPrompt = string.Empty;
             WorldInteractionSourceV1 nextSource = null;
 
+            // Dismount is the unambiguous context while riding. Parked bikes participate in
+            // the same priority/distance/view-angle registry as every other world offer.
             if (hoverbike != null && hoverbike.Mounted)
             {
                 nextId = "vehicle.prism_hoverbike.dismount";
                 nextPrompt = "Dismount Prism Hoverbike";
-            }
-            else if (hoverbike != null && hoverbike.CanMountNearby && hoverbike.NearbyBike != null)
-            {
-                nextId = "vehicle.prism_hoverbike.mount";
-                nextPrompt = "Ride Prism Hoverbike";
             }
             else
             {
@@ -150,11 +147,6 @@ namespace Mindforge.Combat
                 hoverbike.RequestDismount(false);
                 accepted = true;
                 id = "vehicle.prism_hoverbike.dismount";
-            }
-            else if (hoverbike != null && hoverbike.CanMountNearby && hoverbike.NearbyBike != null)
-            {
-                accepted = hoverbike.TryMount(hoverbike.NearbyBike);
-                id = "vehicle.prism_hoverbike.mount";
             }
             else if (_focusedSource != null)
             {
