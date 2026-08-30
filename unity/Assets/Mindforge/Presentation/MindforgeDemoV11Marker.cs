@@ -9,8 +9,8 @@ namespace Mindforge.Presentation
     public sealed class MindforgeDemoV11Marker : MonoBehaviour
     {
         [SerializeField] private bool controllerOnlyByDefault = true;
-        [SerializeField] private Vector3 guardianSpawn = new Vector3(0f, 0.7f, -18f);
-        [SerializeField] private Vector3 bossSpawn = new Vector3(0f, 5.0f, 94f);
+        [SerializeField] private Vector3 guardianSpawn = new Vector3(0f, 1.05f, -18f);
+        [SerializeField] private Vector3 bossSpawn = new Vector3(0f, 5.9f, 94f);
 
         public bool ControllerOnlyByDefault => controllerOnlyByDefault;
         public Vector3 GuardianSpawn => guardianSpawn;
