@@ -47,3 +47,4 @@ experiments/reports/*.json
 experiments/reports/*.xml
 experiments/reports/*.log
 experiments/reports/display-timing-*.csv
+experiments/reports/visual-captures/
