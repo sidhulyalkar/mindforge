@@ -145,9 +145,9 @@ namespace Mindforge.Editor
                 new Vector3(1.62f, 0.42f, 0.18f), new Vector3(0.44f, 2.12f, 0.44f), gold, new Vector3(0f, 0f, 5f), true);
 
             Transform ringA = MeshPart("PhaseRingA", apparatus.transform, ring,
-                new Vector3(0f, 2.15f, 0f), Vector3.one * 2.42f, gold, new Vector3(68f, 0f, 12f), false).transform;
+                new Vector3(0f, 2.15f, 0f), Vector3.one * 2.42f, gold, new Vector3(68f, 0f, 12f), false, false).transform;
             Transform ringB = MeshPart("PhaseRingB", apparatus.transform, ring,
-                new Vector3(0f, 2.15f, 0f), Vector3.one * 2.82f, pearl, new Vector3(18f, 53f, 0f), false).transform;
+                new Vector3(0f, 2.15f, 0f), Vector3.one * 2.82f, pearl, new Vector3(18f, 53f, 0f), false, false).transform;
 
             ProductionCalibrationPresentationV09 motion = station.GetComponent<ProductionCalibrationPresentationV09>();
             if (motion == null) motion = station.gameObject.AddComponent<ProductionCalibrationPresentationV09>();
@@ -174,9 +174,11 @@ namespace Mindforge.Editor
             MeshPart("MembraneLeft", root.transform, membrane,
                 new Vector3(-0.325f, 0f, -0.20f), new Vector3(0.305f, 0.88f, 0.52f), glass, Vector3.zero, false, false);
             MeshPart("MembraneCenter", root.transform, membrane,
-                new Vector3(0f, 0f, -0.25f), new Vector3(0.305f, 0.92f, 0.58f), pearl, Vector3.zero, false, false);
+                new Vector3(0f, 0f, -0.25f), new Vector3(0.305f, 0.92f, 0.58f), glass, Vector3.zero, false, false);
             MeshPart("MembraneRight", root.transform, membrane,
                 new Vector3(0.325f, 0f, -0.20f), new Vector3(0.305f, 0.88f, 0.52f), glass, Vector3.zero, false, false);
+            MeshPart("PearlSpine", root.transform, membrane,
+                new Vector3(0f, 0f, -0.30f), new Vector3(0.024f, 0.91f, 0.63f), pearl, Vector3.zero, false, false);
             MeshPart("GoldSeamLeft", root.transform, membrane,
                 new Vector3(-0.163f, 0f, -0.32f), new Vector3(0.018f, 0.90f, 0.64f), gold, Vector3.zero, false, false);
             MeshPart("GoldSeamRight", root.transform, membrane,
@@ -237,11 +239,11 @@ namespace Mindforge.Editor
         private static void ValidatePresentationOnly(GameObject markerRoot, Transform sanctum)
         {
             if (markerRoot.GetComponentsInChildren<Collider>(true).Length != 0)
-                throw new InvalidOperationException("Neural Sanctum V0.9 added collision authority.");
+                throw new InvalidOperationException("Neural Sanctum V0.9 marker root added collision authority.");
             if (markerRoot.GetComponentsInChildren<Rigidbody>(true).Length != 0)
-                throw new InvalidOperationException("Neural Sanctum V0.9 added Rigidbody authority.");
+                throw new InvalidOperationException("Neural Sanctum V0.9 marker root added Rigidbody authority.");
             if (markerRoot.GetComponentsInChildren<Light>(true).Length != 0)
-                throw new InvalidOperationException("Neural Sanctum V0.9 added unbudgeted lights.");
+                throw new InvalidOperationException("Neural Sanctum V0.9 marker root added unbudgeted lights.");
 
             int added = 0;
             Transform[] stations = sanctum.GetComponentsInChildren<Transform>(true);
@@ -249,16 +251,32 @@ namespace Mindforge.Editor
             {
                 if (stations[i] == null || !stations[i].name.StartsWith("Resonance_Station_", StringComparison.Ordinal)) continue;
                 Transform apparatus = stations[i].Find(StationVisualRoot);
-                if (apparatus != null) added += apparatus.GetComponentsInChildren<Renderer>(true).Length;
+                if (apparatus == null) continue;
+                AssertVisualOnly(apparatus.gameObject, stations[i].name);
+                added += apparatus.GetComponentsInChildren<Renderer>(true).Length;
             }
             Transform seal = FindNamed(sanctum, "ThresholdSeal");
             if (seal != null)
             {
                 Transform membrane = seal.Find(ThresholdVisualRoot);
-                if (membrane != null) added += membrane.GetComponentsInChildren<Renderer>(true).Length;
+                if (membrane != null)
+                {
+                    AssertVisualOnly(membrane.gameObject, "threshold membrane");
+                    added += membrane.GetComponentsInChildren<Renderer>(true).Length;
+                }
             }
             if (added > MaxAddedRenderers)
                 throw new InvalidOperationException($"Neural Sanctum V0.9 renderer budget exceeded: {added}/{MaxAddedRenderers}.");
+        }
+
+        private static void AssertVisualOnly(GameObject root, string label)
+        {
+            if (root.GetComponentsInChildren<Collider>(true).Length != 0)
+                throw new InvalidOperationException("Neural Sanctum V0.9 visual root acquired collision: " + label);
+            if (root.GetComponentsInChildren<Rigidbody>(true).Length != 0)
+                throw new InvalidOperationException("Neural Sanctum V0.9 visual root acquired Rigidbody: " + label);
+            if (root.GetComponentsInChildren<Light>(true).Length != 0)
+                throw new InvalidOperationException("Neural Sanctum V0.9 visual root acquired light: " + label);
         }
 
         private static Material Require(string name)
