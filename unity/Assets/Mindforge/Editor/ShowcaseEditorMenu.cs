@@ -118,6 +118,10 @@ namespace Mindforge.Editor
                 // V0.6 replaces the active V0.5 disk writer with profile-v2, then adds only
                 // restorable persistent physical truth plus bounded procedural world expansion.
                 WorldV06Builder.ApplyOpenScene();
+
+                // V0.7 is presentation-only: it decorates solved cells and adds long-range
+                // silhouette anchors after topology, interaction and persistence are complete.
+                WorldV07Builder.ApplyOpenScene();
             }
             finally
             {
@@ -171,6 +175,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Persistent World V0.6 ready: profile-v2 is the sole active disk writer; progression, inventory/equipment, reward receipts, " +
                 "regions and explicit physical restore adapters share one save. Memory Conduit, loot, shrine and Archivist all reuse contextual E and stable world IDs. " +
                 "The Neural Cloister is deterministically generated from a small socket/height grammar inside the existing collision basin; authored route landmarks remain fixed.");
+            Debug.Log(
+                "[Mindforge:Showcase] Neural-Gothic World V0.7 ready: solved procedural cells now receive deterministic local architectural detail with no new colliders; " +
+                "Cloister gate/spire/well, Memory Loom, Market Reliquary, Cathedral Relay and distant skyline anchors establish long/mid/near visual hierarchy. " +
+                "A small PBR palette and bounded point-light rhythm replace indiscriminate effect stacking; topology, E routing, persistence, combat and BCI remain untouched.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
