@@ -128,7 +128,7 @@ def test_lock_mode_is_discoverable_and_creates_stable_bci_gaze_anchors():
     assert "cameraRig.TargetFocusActive" in guide
     assert "cameraRig.FocusTarget" in guide
     assert "GuardianControlAction.TargetLock" in menu
-    assert '"Lock / unlock enemy"' in menu
+    assert '"Lock / unlock enemy · wheel cycles target"' in menu
     assert "EEG never moves, jumps, hovers, evades, interacts, locks" in guide
 
     assert "StableLockAnchorsActive" in wisp
