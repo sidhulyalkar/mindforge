@@ -44,6 +44,7 @@ namespace Mindforge.Editor
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
             if (production != null)
             {
+                ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
                 EnsurePresentationComponents();
                 ExternalArtReplacementV09.ApplyOpenScene();
                 return;
@@ -67,12 +68,15 @@ namespace Mindforge.Editor
                 GameObject existing = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
                 if (forceRebuild || existing == null)
                     ProductionArtV09Builder.ApplyOpenScene();
+                int quarantined = ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
                 EnsurePresentationComponents();
                 int external = ExternalArtReplacementV09.ApplyOpenScene();
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 EditorSceneManager.SaveOpenScenes();
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; local external replacements={external}.");
+                Debug.Log(
+                    $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
+                    $"legacy renderers quarantined={quarantined}; local external replacements={external}.");
             }
             finally
             {
