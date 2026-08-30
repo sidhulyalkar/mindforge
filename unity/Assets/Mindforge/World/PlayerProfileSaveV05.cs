@@ -25,6 +25,9 @@ namespace Mindforge.World
     [DefaultExecutionOrder(-730)]
     public sealed class PlayerProfileSaveV05 : MonoBehaviour
     {
+        public const string ProfileSchema = "mindforge.player_profile.v1";
+        public const string ProgressionSchema = "mindforge.player_progression.v1";
+
         [SerializeField] private WorldStateLedger world;
         [SerializeField] private PlayerProgressionLedger progression;
         [SerializeField] private MemoryForgeCheckpoint checkpoint;
@@ -100,6 +103,7 @@ namespace Mindforge.World
             {
                 PlayerProfileSaveEnvelopeV1 envelope = new PlayerProfileSaveEnvelopeV1
                 {
+                    schema = ProfileSchema,
                     generated_utc = DateTime.UtcNow.ToString("O"),
                     progression = progression.CaptureSnapshot(),
                 };
@@ -118,8 +122,7 @@ namespace Mindforge.World
                 if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
                 string temp = path + ".tmp";
                 File.WriteAllText(temp, JsonUtility.ToJson(envelope, true));
-                if (File.Exists(path)) File.Delete(path);
-                File.Move(temp, path);
+                CommitTempFile(temp, path);
 
                 LastSavedPath = path;
                 LastStatus = "PROFILE_SAVED";
@@ -156,8 +159,10 @@ namespace Mindforge.World
             try
             {
                 PlayerProfileSaveEnvelopeV1 envelope = JsonUtility.FromJson<PlayerProfileSaveEnvelopeV1>(File.ReadAllText(path));
-                if (envelope == null || envelope.schema != "mindforge.player_profile.v1")
+                if (envelope == null || envelope.schema != ProfileSchema)
                     return Fail("PROFILE_LOAD_SCHEMA_MISMATCH");
+                if (envelope.progression != null && envelope.progression.schema != ProgressionSchema)
+                    return Fail("PROFILE_LOAD_PROGRESSION_SCHEMA_MISMATCH");
 
                 progression.RestoreSnapshot(envelope.progression ?? new PlayerProgressionSnapshot());
                 if (envelope.durable_world_facts != null)
@@ -202,6 +207,32 @@ namespace Mindforge.World
             string normalized = key.Trim().ToLowerInvariant();
             return normalized.StartsWith("story.", StringComparison.Ordinal) ||
                    normalized.StartsWith("profile.", StringComparison.Ordinal);
+        }
+
+        private static void CommitTempFile(string temp, string path)
+        {
+            if (!File.Exists(path))
+            {
+                File.Move(temp, path);
+                return;
+            }
+
+            string backup = path + ".bak";
+            try
+            {
+                File.Replace(temp, path, backup, true);
+                if (File.Exists(backup)) File.Delete(backup);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                File.Copy(temp, path, true);
+                File.Delete(temp);
+            }
+            catch (IOException)
+            {
+                File.Copy(temp, path, true);
+                File.Delete(temp);
+            }
         }
 
         private bool Fail(string status)
