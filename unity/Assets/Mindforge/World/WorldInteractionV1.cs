@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Mindforge.Traversal;
 
 namespace Mindforge.World
 {
@@ -125,6 +126,48 @@ namespace Mindforge.World
             if (!CanInteract(actor)) return false;
             checkpoint.RestAndReconstruct();
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Context adapter for a parked Prism hoverbike. The adapter never moves the Guardian;
+    /// it forwards the explicit context request to GuardianHoverbikeController, which remains
+    /// the sole mounted locomotion and mount/dismount physics authority.
+    /// </summary>
+    public sealed class HoverbikeInteractionV1 : WorldInteractionSourceV1
+    {
+        [SerializeField] private AetherHoverbikeMount mount;
+        [SerializeField] private GuardianHoverbikeController controller;
+
+        public override string InteractionId => "vehicle.prism_hoverbike.mount";
+        public override string Prompt => "Ride Prism Hoverbike";
+        public override Transform Anchor => mount != null ? mount.transform : transform;
+        public override float Radius => 3.2f;
+        public override int Priority => 10;
+
+        public void ConfigureRuntime(AetherHoverbikeMount bike, GuardianHoverbikeController guardianController)
+        {
+            mount = bike;
+            controller = guardianController;
+        }
+
+        public override bool CanInteract(Transform actor)
+        {
+            Resolve(actor);
+            return mount != null && controller != null && controller.CanMount(mount);
+        }
+
+        public override bool TryInteract(Transform actor)
+        {
+            Resolve(actor);
+            return mount != null && controller != null && controller.TryMount(mount);
+        }
+
+        private void Resolve(Transform actor)
+        {
+            if (mount == null) mount = GetComponent<AetherHoverbikeMount>();
+            if (controller == null && actor != null)
+                controller = actor.GetComponent<GuardianHoverbikeController>();
         }
     }
 }
