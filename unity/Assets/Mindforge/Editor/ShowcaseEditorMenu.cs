@@ -52,8 +52,8 @@ namespace Mindforge.Editor
             gameView?.Focus();
             Debug.Log(
                 "[Mindforge:Showcase] Game view focused. WASD moves; mouse/arrows orbit; Space jumps twice and holds hover; " +
-                "Shift/RMB dodge-rolls on ground and air-dashes aloft; T locks; F/LMB swings/parries with the Aetherblade; " +
-                "E mounts/dismounts a nearby Prism hoverbike, where Shift/RMB becomes boost.");
+                "Shift/RMB evades on foot and boosts while mounted; T locks and mouse wheel cycles targets; F/LMB swings/parries; " +
+                "E is the single contextual world action for ride/dismount/reconstruct; Q/C/R are advanced skills; Tab opens kit + controls + objective.");
         }
 
         [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
@@ -110,6 +110,10 @@ namespace Mindforge.Editor
 
                 // Semantic systems bind only after the final authored gameplay/world graph exists.
                 GameFoundationV1Builder.ApplyOpenScene();
+
+                // Player-facing control, interaction and safe persistence bind last so they
+                // reference the final Guardian, mount, checkpoint and semantic foundation.
+                UxInteractionSaveV05Builder.ApplyOpenScene();
             }
             finally
             {
@@ -139,13 +143,13 @@ namespace Mindforge.Editor
             Debug.Log(
                 "[Mindforge:Showcase] Aetheria identity layer ready: Prism Bastion → Neon Causeway → Market of Broken Momentum → " +
                 "Choir of Ruined Towers → Hall of Excessive Gravitas → Menagerie Crucible. Two optional Prism hoverbikes use the existing Guardian " +
-                "Rigidbody as mounted authority; E mounts/dismounts and mounted F/LMB still routes through the authoritative Aetherblade controller.");
+                "Rigidbody as mounted authority; contextual E requests ride/dismount while mounted F/LMB still routes through the authoritative Aetherblade controller.");
             Debug.Log(
                 "[Mindforge:Showcase] Cyber-Mythic Horde ready: Scrap Goblin, Bass Golem and Aero Gargoyle are story-facing identities over existing " +
                 "Menagerie roles; Stalker and Gargoyle committed advances resolve through JourneyEnemyController. Lord Malatract is a serious presentation " +
                 "layer over the existing Fractured Signal projectile/melee scheduler, not a second boss authority.");
             Debug.Log(
-                "[Mindforge:Showcase] Aetheria V2 polish ready: one v4 fixed-tick conventional-input tape now crosses foot/mount mode; " +
+                "[Mindforge:Showcase] Aetheria V2 polish retained: the fixed-tick conventional-input tape crosses foot/mount mode; " +
                 "mounted camera composition uses physical distance/look-ahead while keeping FOV fixed; kinetic bike motion, procedural audio and " +
                 "Malatract phase staging remain read-only presentation consumers.");
             Debug.Log(
@@ -156,6 +160,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Game Foundation V1 ready: final authored gameplay publishes typed semantic facts into ordered prerequisite quests; " +
                 "idempotent Resonance/Mastery/unlock rewards, six durable story discoveries, encounter contracts and passive run splits sit downstream " +
                 "of gameplay authority. Competitive candidates remain explicitly NOT ranked-qualified until Unity/runtime/BCI evidence says otherwise.");
+            Debug.Log(
+                "[Mindforge:Showcase] UX + Interaction + Save V0.5 ready: one canonical control profile drives gameplay labels; E is one contextual action; " +
+                "arrows remain camera-only while mouse wheel cycles locked targets; V5 input tapes record context separately from legacy mount edges; " +
+                "safe profile persistence stores progression/reward receipts plus non-physical story/profile facts only. Full encounter/boss resume remains gated on physical restore adapters.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
