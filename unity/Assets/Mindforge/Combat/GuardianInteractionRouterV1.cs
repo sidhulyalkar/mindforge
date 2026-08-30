@@ -12,9 +12,9 @@ namespace Mindforge.Combat
     /// Hoverbike mounting remains in GuardianHoverbikeController; checkpoint reconstruction
     /// remains in MemoryForgeCheckpoint; future doors/NPCs/loot remain in their own sources.
     ///
-    /// For V0.5 the existing v4 mount_toggle_down tape bit is retained as the compatibility
-    /// context edge. That keeps old mounted replays valid while making new non-mount context
-    /// interactions replay-observable without introducing a second input tape.
+    /// V0.5 records context_down in tape V5. Pre-V5 replay tapes retain their historical
+    /// mount_toggle_down semantics only when a bike mount/dismount offer is actually focused,
+    /// preventing old E presses from acquiring newly-authored world interaction meanings.
     /// </summary>
     [DefaultExecutionOrder(-120)]
     public sealed class GuardianInteractionRouterV1 : MonoBehaviour
@@ -76,17 +76,25 @@ namespace Mindforge.Combat
             GuardianCommandFrame live = new GuardianCommandFrame
             {
                 tick = FixedTick,
-                // Compatibility note: v4 named this edge for mounting. V0.5 treats it as
-                // the contextual interaction edge while retaining old replay semantics.
-                mount_toggle_down = _interactLatched,
+                context_down = _interactLatched,
             };
             _interactLatched = false;
 
             int fixedHz = Mathf.Max(1, Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.fixedDeltaTime)));
             GuardianCommandFrame command = inputTape != null ? inputTape.Resolve(live, fixedHz) : live;
-            if (command != null && command.mount_toggle_down)
-                ExecuteFocusedInteraction();
+            if (command == null) return;
+
+            bool contextEdge = command.context_down;
+            if (!contextEdge && inputTape != null && inputTape.IsLegacyPreContextReplay &&
+                IsFocusedBikeInteraction())
+                contextEdge = command.mount_toggle_down;
+
+            if (contextEdge) ExecuteFocusedInteraction();
         }
+
+        private bool IsFocusedBikeInteraction()
+            => string.Equals(_focusedId, "vehicle.prism_hoverbike.mount", StringComparison.Ordinal) ||
+               string.Equals(_focusedId, "vehicle.prism_hoverbike.dismount", StringComparison.Ordinal);
 
         private void ResolveOffer()
         {
