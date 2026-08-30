@@ -46,8 +46,6 @@ def test_legacy_combat_state_hud_remains_non_authoritative_for_old_scenes():
     ):
         assert token in hud
 
-    # GroundedCombatHud suppresses this compatibility HUD at runtime. It must still never
-    # own gameplay if an old scene instantiates it directly.
     for forbidden in (
         ".FirePulse(",
         ".RiftCleave(",
@@ -80,28 +78,46 @@ def test_radial_telegraph_previews_the_same_angular_lattice_as_spawn():
     assert "AttackFired?.Invoke(\"RADIAL\", count, heavy)" in director
 
 
-def test_onboarding_is_staged_around_blade_roll_then_vertical_and_arcane_options():
+def test_onboarding_is_progressive_and_uses_the_canonical_control_vocabulary():
     guide = _read("Presentation", "PlayerAgencyGuide.cs")
+    controls = _read("Combat", "GuardianControlProfileV1.cs")
 
     assert "CurrentLesson()" in guide
     assert "WASD MOVE" in guide
     assert "MOUSE / ARROWS CAMERA" in guide
-    assert "T LOCK" in guide
-    assert "F / LMB AETHERBLADE" in guide
-    assert "SPACE JUMP ×2" in guide
-    assert "SHIFT / RMB DODGE ROLL" in guide
-    assert "VERTICAL WORLD" in guide
-    assert "double-jump / hover / air-dash create shortcuts" in guide
-    assert "Q CLEAVE" in guide
-    assert "C COUNTER" in guide
-    assert "TAB shows the full kit" in guide
-    assert "FLUX FULL  |  R GRAVITY BLOOM" in guide
-    assert "CONCORD ACTIVE  |  R TWIN ECLIPSE" in guide
-    assert "READ → SWING → ROLL → REPOSITION" in guide
+    assert "GuardianControlAction.JumpHover" in guide
+    assert "GuardianControlAction.Blade" in guide
+    assert "GuardianControlAction.EvadeBoost" in guide
+    assert "GuardianControlAction.TargetLock" in guide
+    assert "MOUSE WHEEL CYCLES LOCKED TARGETS" in guide
+    assert "GuardianControlAction.Interact" in guide
+    assert "INTERACT" in guide
+    assert "GuardianControlAction.Cleave" in guide
+    assert "GuardianControlAction.Counter" in guide
+    assert "GuardianControlAction.Bloom" in guide
+    assert "GuardianControlAction.Menu" in guide
+    assert "READ → COMMIT → EVADE → REPOSITION" in guide
+    assert "FLUX FULL" in guide
+    assert "CONCORD ACTIVE" in guide
+    assert "contextPromptVisible" in guide
+
+    for token in (
+        "jumpHover = KeyCode.Space",
+        "evadeBoostPrimary = KeyCode.LeftShift",
+        "targetLock = KeyCode.T",
+        "interact = KeyCode.E",
+        "blade = KeyCode.F",
+        "cleave = KeyCode.Q",
+        "counter = KeyCode.C",
+        "bloom = KeyCode.R",
+        "menu = KeyCode.Tab",
+    ):
+        assert token in controls
 
     assert "combat.ActionAccepted += OnCombatAction" in guide
     assert "physicalCombat.SwordAttackStarted += OnSwordAttack" in guide
     assert "motor.DashStarted += OnDashStarted" in guide
+    assert "interactionRouter.InteractionPerformed += OnInteraction" in guide
     assert "GuardChanged" not in guide
     assert "ShieldBlocked" not in guide
     assert "PULSE_SHOT" not in guide
