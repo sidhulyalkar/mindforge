@@ -53,11 +53,12 @@ def test_gaze_gate_never_creates_a_selection():
     assert decide(w("sight", 0.20, 0.18, se=1.0, ge=8.0), policy) is None
 
 
-def test_metrics_measure_peripheral_leakage_and_gaze_disagreement():
+def test_metrics_separate_protocol_leakage_from_gaze_verified_leakage():
     rows = [
         w("sight", 0.60, 0.18, se=1.0, ge=9.0),
         w("guard", 0.20, 0.65, se=9.0, ge=1.0),
-        # Deliberate dissociation: gaze is nearer Sight, EEG correctly indicates Guard.
+        # Deliberate dissociation: this row contributes to protocol leakage, but must not be
+        # called gaze-verified peripheral leakage because gaze is nearer the wrong target.
         w("guard", 0.22, 0.58, condition="dissociation", se=1.0, ge=9.0),
         w("none", 0.10, 0.08, condition="idle", se=5.0, ge=5.0, seconds=2.0),
     ]
@@ -68,8 +69,21 @@ def test_metrics_measure_peripheral_leakage_and_gaze_disagreement():
     assert metrics.gaze_disagreement_windows == 1
     assert metrics.eeg_accuracy_when_gaze_disagrees == 1.0
     assert metrics.dissociation_accuracy == 1.0
+    assert 0.0 < metrics.median_non_target_score_ratio < 1.0
     assert 0.0 < metrics.median_peripheral_leakage_ratio < 1.0
     assert metrics.idle_false_activations_per_minute == 0.0
+
+
+def test_protocol_leakage_does_not_require_eye_tracking():
+    metrics = evaluate_policy(
+        [
+            w("sight", 0.60, 0.18),
+            w("guard", 0.20, 0.65),
+        ],
+        SelectionPolicy(min_score=0.15, min_margin=0.05, min_quality=0.5),
+    )
+    assert metrics.median_non_target_score_ratio is not None
+    assert metrics.median_peripheral_leakage_ratio is None
 
 
 def test_gameplay_loss_penalizes_wrong_commands_more_than_abstention():
