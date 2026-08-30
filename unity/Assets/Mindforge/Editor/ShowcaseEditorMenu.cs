@@ -125,6 +125,8 @@ namespace Mindforge.Editor
                 SanctumOnboardingV08Builder.ApplyOpenScene();
                 SanctumHeroV08Builder.ApplyOpenScene();
                 SanctumReferenceFidelityV08Builder.ApplyOpenScene();
+                SanctumEnemyPresentationScopeV08.RemoveReferenceShellsFromSpecializedRosters();
+                SanctumCrispGeometryV08Builder.ApplyOpenScene();
             }
             finally
             {
@@ -186,7 +188,10 @@ namespace Mindforge.Editor
                 "[Mindforge:Showcase] Sanctum Reference Fidelity V0.8 ready: pointed cathedral ribs, crisp shadow/gold edge reveals, side-chapel resonance stations, " +
                 "protected 10m+ processional clearance, a 9.5m exterior road with separate walkways, layered near/mid/far city composition and structured phase-ring infrastructure. " +
                 "Ordinary enemies now read as Choir Reliquary Sentry, Chrome Penitent Lancer, Shard Cantor, Needle Seraph, Cathedral Warden and deeper Rift Stalker silhouettes; " +
-                "these visuals are collider-free, amber/white threat-coded and remain downstream of the existing deterministic enemy controllers.");
+                "specialized Menagerie/Aetheria identities remain protected, while ordinary reference visuals stay collider-free and downstream of deterministic enemy controllers.");
+            Debug.Log(
+                "[Mindforge:Showcase] Sanctum Crisp Geometry V0.8 ready: selected hero piers, plinths, capitals, buttresses, thresholds, bridge masses and ordinary enemy facets " +
+                "use reusable chamfered mesh assets for physical edge highlights and shadow breaks. Floors, roads, glass, navigation inlays and all canonical collision remain unchanged.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
