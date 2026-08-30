@@ -45,6 +45,7 @@ namespace Mindforge.Editor
             if (production != null)
             {
                 ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
+                EnsurePostFx(production);
                 EnsurePresentationComponents();
                 ExternalArtReplacementV09.ApplyOpenScene();
                 return;
@@ -68,7 +69,10 @@ namespace Mindforge.Editor
                 GameObject existing = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
                 if (forceRebuild || existing == null)
                     ProductionArtV09Builder.ApplyOpenScene();
+
+                GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
                 int quarantined = ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
+                EnsurePostFx(production);
                 EnsurePresentationComponents();
                 int external = ExternalArtReplacementV09.ApplyOpenScene();
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -76,12 +80,19 @@ namespace Mindforge.Editor
                 AssetDatabase.SaveAssets();
                 Debug.Log(
                     $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
-                    $"legacy renderers quarantined={quarantined}; local external replacements={external}.");
+                    $"legacy renderers quarantined={quarantined}; local external replacements={external}; restrained URP finish enabled.");
             }
             finally
             {
                 _applying = false;
             }
+        }
+
+        private static void EnsurePostFx(GameObject production)
+        {
+            if (production == null) return;
+            if (production.transform.Find(ProductionPostFxV09Builder.RootName) != null) return;
+            ProductionPostFxV09Builder.ApplyOpenScene();
         }
 
         private static void EnsurePresentationComponents()
