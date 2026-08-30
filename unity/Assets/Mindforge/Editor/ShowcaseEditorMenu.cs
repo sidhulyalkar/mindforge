@@ -115,6 +115,7 @@ namespace Mindforge.Editor
                 // can deliberately replace cramped legacy opening presentation/collision while
                 // preserving semantic/persistence/input/neural authorities built above.
                 SanctumOnboardingV08Builder.ApplyOpenScene();
+                SanctumHeroV08Builder.ApplyOpenScene();
             }
             finally
             {
@@ -168,8 +169,9 @@ namespace Mindforge.Editor
                 "V0.8 selectively supersedes the dark opening hero props with a bright sanctum palette.");
             Debug.Log(
                 "[Mindforge:Showcase] Sanctum Onboarding V0.8 ready: ~30m-wide initiation hall, 12m threshold, broad terrace/courts, gardens/water, distant cathedral-city reveal, " +
-                "three resonance preview stations, two-station controller fallback, Python-accepted calibration shortcut, participant-specific derived frequency profile seam, " +
-                "no Causeway Rift Hollows, and hostile projectile readability scaling from 60% during onboarding to 82% after release. Controller preview is never neural evidence.");
+                "bright Memory Forge altar on the existing checkpoint, three resonance preview stations, two-station controller fallback, Python-accepted calibration shortcut, " +
+                "participant-specific derived frequency ranking, no Causeway Rift Hollows, and hostile projectile readability scaling from 60% during onboarding to 82% after release. " +
+                "Controller preview is never neural evidence; profile-v2 restores opening phase/threshold state.");
         }
 
         [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
