@@ -88,7 +88,7 @@ def test_shift_and_rmb_are_canonical_evade_air_dash_inputs_while_player_pulse_is
         "controls.Pressed(GuardianControlAction.EvadeBoost)",
         "controls.Pressed(GuardianControlAction.JumpHover)",
         "controls.Held(GuardianControlAction.JumpHover)",
-        "Shield hold and player Pulse fire are intentionally retired",
+        "Shield hold and player Pulse fire remain retired",
         "endurance.DodgeBaseCost",
         "dodgeCommandBufferSeconds = 0.15f",
     ):
@@ -169,6 +169,6 @@ def test_grounded_hud_teaches_aerial_escape_without_restoring_shield_or_pulse_cl
     assert "MOUSE WHEEL CYCLES LOCKED TARGETS" in guide
     assert "EEG never moves, jumps, hovers, evades" in guide
     assert "GuardianControlAction.EvadeBoost" in menu
-    assert '"Dodge roll · air dash · mounted boost"' in menu
+    assert '"Evade · air dash · mounted boost"' in menu
     assert '"Pulse Shot"' not in menu
     assert '"Shield"' not in menu
