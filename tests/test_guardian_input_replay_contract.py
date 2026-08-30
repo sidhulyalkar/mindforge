@@ -14,14 +14,13 @@ def read_presentation(name: str) -> str:
     return (PRESENTATION / name).read_text(encoding="utf-8")
 
 
-def test_guardian_input_tape_is_fixed_tick_versioned_and_fail_neutral():
+def test_guardian_input_tape_is_fixed_tick_versioned_contextual_and_fail_neutral():
     tape = read("GuardianInputTape.cs")
-    assert 'SchemaV1 = "mindforge.guardian_input_tape.v1"' in tape
-    assert 'SchemaV2 = "mindforge.guardian_input_tape.v2"' in tape
-    assert 'SchemaV3 = "mindforge.guardian_input_tape.v3"' in tape
-    assert 'SchemaV4 = "mindforge.guardian_input_tape.v4"' in tape
-    assert "schema = GuardianInputTape.SchemaV4" in tape
-    assert "_tape.schema != SchemaV1 && _tape.schema != SchemaV2 && _tape.schema != SchemaV3 && _tape.schema != SchemaV4" in tape
+    for version in range(1, 6):
+        assert f'SchemaV{version} = "mindforge.guardian_input_tape.v{version}"' in tape
+    assert "schema = GuardianInputTape.SchemaV5" in tape
+    assert "SupportedSchema(_tape.schema)" in tape
+    assert "schema == SchemaV1 || schema == SchemaV2 || schema == SchemaV3 || schema == SchemaV4 || schema == SchemaV5" in tape
     assert "GuardianInputTapeMode.Live" in tape
     assert "GuardianInputTapeMode.Record" in tape
     assert "GuardianInputTapeMode.Replay" in tape
@@ -37,9 +36,13 @@ def test_guardian_input_tape_is_fixed_tick_versioned_and_fail_neutral():
     assert "mount_toggle_down" in tape
     assert "mounted_attack_down" in tape
     assert "mounted_boost_down" in tape
+    assert "public bool context_down" in tape
+    assert "context_down = context_down" in tape
+    assert "context_down |= other.context_down" in tape
+    assert "public bool IsLegacyPreContextReplay" in tape
 
 
-def test_v4_tape_is_idempotent_for_multiple_consumers_on_one_absolute_tick():
+def test_v5_tape_is_idempotent_for_multiple_consumers_on_one_absolute_tick():
     tape = read("GuardianInputTape.cs")
     assert "public static long FixedTickNow" in tape
     assert "private long _lastResolvedTick = long.MinValue" in tape
@@ -52,11 +55,10 @@ def test_v4_tape_is_idempotent_for_multiple_consumers_on_one_absolute_tick():
         "mount_toggle_down |= other.mount_toggle_down",
         "mounted_attack_down |= other.mounted_attack_down",
         "mounted_boost_down |= other.mounted_boost_down",
+        "context_down |= other.context_down",
     ):
         assert token in tape
 
-    # The replay cursor only advances in the new-tick path. A second consumer on the same
-    # fixed tick must return the cached frame before reaching this increment.
     same_tick = tape.index("_lastResolvedTick == live.tick")
     replay_advance = tape.index("_tape.frames[_replayIndex++]")
     assert same_tick < replay_advance
@@ -72,8 +74,9 @@ def test_guardian_input_recording_does_not_write_per_tick():
     assert "File.WriteAllText" in tape[tape.index("public string SaveRecording"):]
 
 
-def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_tick():
+def test_guardian_combat_input_uses_canonical_profile_then_executes_on_fixed_tick():
     source = read("GuardianCombatInput.cs")
+    controls = read("GuardianControlProfileV1.cs")
     camera = read_presentation("ShowcaseCameraRig.cs")
     lock = read("GuardianTargetLock.cs")
     update_start = source.index("private void Update()")
@@ -84,22 +87,56 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     fixed_body = source[fixed_start:apply_start]
     apply_body = source[apply_start:]
 
-    assert "Input.GetAxisRaw" not in update_body
-    for key in ("KeyCode.W", "KeyCode.A", "KeyCode.S", "KeyCode.D"):
-        assert key in update_body
+    assert "GuardianControlProfileV1 controls" in source
+    assert "_move = controls.SampleMovement()" in update_body
+    for action in (
+        "JumpHover",
+        "EvadeBoost",
+        "Blade",
+        "Cleave",
+        "Counter",
+        "Bloom",
+    ):
+        assert f"GuardianControlAction.{action}" in update_body
+
+    # Defaults live in one profile, not in each gameplay component.
+    for token in (
+        "interact = KeyCode.E",
+        "targetLock = KeyCode.T",
+        "jumpHover = KeyCode.Space",
+        "evadeBoostPrimary = KeyCode.LeftShift",
+        "blade = KeyCode.F",
+        "cleave = KeyCode.Q",
+        "counter = KeyCode.C",
+        "bloom = KeyCode.R",
+        "menu = KeyCode.Tab",
+    ):
+        assert token in controls
+
+    for literal in (
+        "Input.GetKeyDown(KeyCode.Space)",
+        "Input.GetKeyDown(KeyCode.E)",
+        "Input.GetKeyDown(KeyCode.LeftShift)",
+        "Input.GetKeyDown(KeyCode.F)",
+        "Input.GetKeyDown(KeyCode.Q)",
+        "Input.GetKeyDown(KeyCode.C)",
+        "Input.GetKeyDown(KeyCode.R)",
+    ):
+        assert literal not in update_body
+
+    # Hidden legacy dodge aliases stay available without being part of the advertised profile.
+    assert "Input.GetKeyDown(KeyCode.LeftControl)" in update_body
+    assert "Input.GetKeyDown(KeyCode.LeftAlt)" in update_body
+
     for key in ("KeyCode.UpArrow", "KeyCode.DownArrow", "KeyCode.LeftArrow", "KeyCode.RightArrow"):
         assert key not in update_body
         assert key in camera
-    assert "toggleKey = KeyCode.T" in lock
-    assert "Input.GetKeyDown(toggleKey)" in lock
-    assert "Input.GetKeyDown(KeyCode.T)" not in update_body
-    assert "Input.GetKeyDown(KeyCode.Space)" in update_body
-    assert "Input.GetKey(KeyCode.Space)" in update_body
-    assert "Input.GetKeyDown(KeyCode.E)" in update_body
-    assert "Input.GetKeyDown(KeyCode.LeftShift)" in update_body
-    assert "Input.GetMouseButtonDown(1)" in update_body
-    assert "Input.GetKeyDown(KeyCode.LeftControl)" in update_body
-    assert "Input.GetKeyDown(KeyCode.LeftAlt)" in update_body
+    assert "GuardianControlProfileV1 controls" in lock
+    assert "GuardianControlAction.TargetLock" in lock
+    assert "Input.mouseScrollDelta.y" in lock
+    assert "KeyCode.LeftArrow" not in lock
+    assert "KeyCode.RightArrow" not in lock
+
     assert "combat.FirePulse" not in update_body
     assert "combat.RiftCleave" not in update_body
     assert "motor.RequestDash" not in update_body
@@ -110,7 +147,8 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "_fixedInputTick = GuardianInputTape.FixedTickNow" in fixed_body
     assert "jump_down = _jumpLatched" in fixed_body
     assert "jump_held = _jumpHeld" in fixed_body
-    assert "mount_toggle_down = _mountLatched" in fixed_body
+    assert "mount_toggle_down = false" in fixed_body
+    assert "context_down = false" in fixed_body
     assert "fire_held = false" in fixed_body
     assert "guard_held = false" in fixed_body
     assert "guard_down = false" in fixed_body
@@ -120,14 +158,12 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "_jumpLatched = false" in fixed_body
     assert "_bloomLatched = false" in fixed_body
     assert "_swordAttackLatched = false" in fixed_body
-    assert "_mountLatched = false" in fixed_body
     assert "inputTape.Resolve" in fixed_body
 
-    # The replay schema remains backward compatible, but the grounded-world live command
-    # source has no held runtime state for retired Pulse/Guard actions.
     assert "_guardDownLatched" not in source
     assert "_guardHeld" not in source
     assert "_fireHeld" not in source
+    assert "_mountLatched" not in source
 
     assert "motor.SetMoveInput(command.Move)" in apply_body
     assert "motor.SetJumpHeld(command.jump_held)" in apply_body
@@ -145,8 +181,6 @@ def test_guardian_combat_input_samples_actions_in_update_and_executes_on_fixed_t
     assert "motor.RequestDash(_dodgeCommandAim)" in apply_body
     assert "motor.RequestJump()" in apply_body
 
-    # Dodge buffering is downstream of inputTape.Resolve, so live/record/replay all feed
-    # the same fixed-tick queue instead of replay receiving a special permissive path.
     resolve_index = fixed_body.index("inputTape.Resolve")
     apply_call_index = fixed_body.index("Apply(command)")
     assert resolve_index < apply_call_index
