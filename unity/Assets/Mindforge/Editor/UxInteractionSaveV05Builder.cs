@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using Mindforge.Combat;
+using Mindforge.Traversal;
 using Mindforge.World;
 
 namespace Mindforge.Editor
