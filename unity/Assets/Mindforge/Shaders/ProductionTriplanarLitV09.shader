@@ -4,7 +4,7 @@ Shader "Mindforge/ProductionTriplanarLitV09"
     {
         [MainTexture] _BaseMap("Albedo", 2D) = "white" {}
         [MainColor] _BaseColor("Tint", Color) = (1,1,1,1)
-        [Normal] _BumpMap("Normal", 2D) = "bump" {}
+        _BumpMap("Generated RGB Normal", 2D) = "bump" {}
         _BumpScale("Normal Strength", Range(0,2)) = 1
         _Metallic("Metallic", Range(0,1)) = 0
         _Smoothness("Smoothness", Range(0,1)) = 0.5
@@ -121,14 +121,24 @@ Shader "Mindforge/ProductionTriplanarLitV09"
                 return x * weights.x + y * weights.y + z * weights.z;
             }
 
+            half3 DecodeGeneratedNormal(half4 packed)
+            {
+                // ProductionMaterialAuthoringV09 writes linear RGB tangent normals directly
+                // into RGBA32 Texture2D assets. Decode that known representation ourselves
+                // rather than relying on platform-dependent imported-normal packing rules.
+                half3 normalTS = packed.xyz * 2.0h - 1.0h;
+                normalTS.xy *= _BumpScale;
+                return normalize(normalTS);
+            }
+
             half3 SampleTriplanarNormal(float3 positionWS, half3 geometricNormalWS, float3 weights)
             {
                 float2 uvX, uvY, uvZ;
                 BuildWorldUvs(positionWS, geometricNormalWS, uvX, uvY, uvZ);
 
-                half3 tx = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvX), _BumpScale);
-                half3 ty = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvY), _BumpScale);
-                half3 tz = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvZ), _BumpScale);
+                half3 tx = DecodeGeneratedNormal(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvX));
+                half3 ty = DecodeGeneratedNormal(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvY));
+                half3 tz = DecodeGeneratedNormal(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvZ));
 
                 half sx = geometricNormalWS.x < 0.0h ? -1.0h : 1.0h;
                 half sy = geometricNormalWS.y < 0.0h ? -1.0h : 1.0h;
