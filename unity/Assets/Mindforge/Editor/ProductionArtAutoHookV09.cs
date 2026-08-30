@@ -50,6 +50,7 @@ namespace Mindforge.Editor
             {
                 ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
                 EnsureStorytelling(production);
+                EnsureNeuralSanctum(production);
                 EnsurePostFx(production);
                 EnsurePresentationComponents();
                 ExternalArtReplacementV09.ApplyOpenScene();
@@ -69,6 +70,7 @@ namespace Mindforge.Editor
         {
             if (production == null) return false;
             if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) == null) return false;
+            if (production.transform.Find(ProductionNeuralSanctumV09Builder.RootName) == null) return false;
             if (production.transform.Find(ProductionPostFxV09Builder.RootName) == null) return false;
 
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");
@@ -93,6 +95,7 @@ namespace Mindforge.Editor
                 GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
                 int quarantined = ProductionLegacyVisualQuarantineV09.ApplyOpenScene();
                 EnsureStorytelling(production);
+                EnsureNeuralSanctum(production);
                 EnsurePostFx(production);
                 EnsurePresentationComponents();
                 int external = ExternalArtReplacementV09.ApplyOpenScene();
@@ -102,7 +105,7 @@ namespace Mindforge.Editor
                 Debug.Log(
                     $"[Mindforge:V09:Art] Complete production presentation applied after V0.8 reference fidelity; " +
                     $"legacy renderers quarantined={quarantined}; local external replacements={external}; " +
-                    "district storytelling + skyline shadow budget + restrained URP finish enabled.");
+                    "district storytelling + production neural sanctum + skyline shadow budget + restrained URP finish enabled.");
             }
             finally
             {
@@ -115,6 +118,13 @@ namespace Mindforge.Editor
             if (production == null) return;
             if (production.transform.Find(ProductionWorldStorytellingV09Builder.RootName) != null) return;
             ProductionWorldStorytellingV09Builder.ApplyOpenScene();
+        }
+
+        private static void EnsureNeuralSanctum(GameObject production)
+        {
+            if (production == null) return;
+            if (production.transform.Find(ProductionNeuralSanctumV09Builder.RootName) != null) return;
+            ProductionNeuralSanctumV09Builder.ApplyOpenScene();
         }
 
         private static void EnsurePostFx(GameObject production)
