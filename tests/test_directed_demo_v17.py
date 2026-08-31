@@ -55,6 +55,17 @@ def test_v17_camera_is_closer_fixed_fov_and_hands_off_only_after_combat_returns(
         assert forbidden not in camera
 
 
+def test_v17_camera_collision_clearance_always_beats_preferred_framing_distance():
+    camera = section(source(), "public sealed class MindforgeGameplayCameraV17", "public sealed class MindforgeTargetPresenceV17")
+    resolver = section(camera, "private Vector3 ResolveCollision", "private bool IsGuardian")
+    assert "Physics.SphereCastNonAlloc" in resolver
+    assert "nearest - CollisionSafetyEpsilon" in resolver
+    assert "nearest - CollisionPadding" in resolver
+    assert "resolved = Mathf.Min(resolved, clearance)" in resolver
+    assert "Mathf.Max(MinDistance, nearest" not in resolver
+    assert "MinDistance = 2.65f" not in camera
+
+
 def test_target_presence_is_non_authoritative_and_disappears_for_neural_visual_field():
     ring = section(source(), "public sealed class MindforgeTargetPresenceV17", "public sealed class MindforgeDemoHudV17")
     assert "LineRenderer" in ring
