@@ -17,34 +17,53 @@ class ResonanceCheckpoint:
     normalized_margin: float
 
 
+# One cumulative trial, not overlapping dwell trials. Early checkpoints use deliberately
+# stricter raw FBCCA evidence. Participant-specific leakage normalization is only allowed at
+# the 1.25 s calibration-matched checkpoint until we collect duration-specific calibration.
 DEFAULT_RESONANCE_CHECKPOINTS = (
     ResonanceCheckpoint(0.55, 1.25, 1.80, 1.80),
     ResonanceCheckpoint(0.75, 1.15, 1.50, 1.45),
     ResonanceCheckpoint(1.00, 1.05, 1.20, 1.10),
     ResonanceCheckpoint(1.25, 1.00, 1.00, 0.85),
-    ResonanceCheckpoint(1.45, 1.00, 1.00, 0.75),
 )
 
 
 class ResonanceEpochBuffer:
-    """Fixed-capacity buffer containing only samples acquired after coded onset."""
+    """Fixed-capacity buffer containing only conservative post-onset EEG.
 
-    def __init__(self, channels: int, sample_rate_hz: float, maximum_seconds: float):
+    The Unity marker is emitted in the coded-onset frame, but the first physical photon may
+    arrive at the following VSync. A short onset guard therefore discards the first samples
+    received after the marker/LSL flush. This costs a few milliseconds of latency in exchange
+    for making it much harder for pre-photon EEG to leak into an authoritative decision.
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        sample_rate_hz: float,
+        maximum_seconds: float,
+        *,
+        onset_guard_seconds: float = 0.025,
+    ):
         self.channels = int(channels)
         self.sample_rate_hz = float(sample_rate_hz)
+        self.onset_guard_samples = max(0, int(np.ceil(float(onset_guard_seconds) * sample_rate_hz)))
         self.capacity = int(np.ceil(maximum_seconds * sample_rate_hz)) + 8
         self._data = np.empty((self.channels, self.capacity), dtype=float)
         self._timestamps = np.empty(self.capacity, dtype=float)
         self.epoch = -1
         self.count = 0
+        self._guard_remaining = 0
 
     def begin(self, epoch: int) -> None:
         self.epoch = int(epoch)
         self.count = 0
+        self._guard_remaining = self.onset_guard_samples
 
     def clear(self) -> None:
         self.epoch = -1
         self.count = 0
+        self._guard_remaining = 0
 
     def push(self, samples_uv: np.ndarray, timestamps_s: np.ndarray) -> None:
         if self.epoch < 0:
@@ -57,6 +76,15 @@ class ResonanceEpochBuffer:
             raise ValueError("timestamps must match sample count")
         if ts.size > 1 and np.any(np.diff(ts) < 0):
             raise ValueError("timestamps moved backwards")
+
+        if self._guard_remaining > 0 and x.shape[1] > 0:
+            discard = min(self._guard_remaining, x.shape[1])
+            self._guard_remaining -= discard
+            x = x[:, discard:]
+            ts = ts[discard:]
+        if x.shape[1] == 0:
+            return
+
         remaining = self.capacity - self.count
         take = min(remaining, x.shape[1])
         if take <= 0:
@@ -97,6 +125,7 @@ class ResonanceEpochRuntime:
         calibration_id: str | None = None,
         checkpoints: tuple[ResonanceCheckpoint, ...] = DEFAULT_RESONANCE_CHECKPOINTS,
         authority_ttl_ms: int = 300,
+        onset_guard_seconds: float = 0.025,
     ):
         if not checkpoints:
             raise ValueError("at least one resonance checkpoint is required")
@@ -109,7 +138,12 @@ class ResonanceEpochRuntime:
         self.calibration_id = calibration_id
         self.checkpoints = tuple(checkpoints)
         self.authority_ttl_ms = max(50, int(authority_ttl_ms))
-        self.buffer = ResonanceEpochBuffer(8, decoder.config.sample_rate_hz, checkpoints[-1].seconds)
+        self.buffer = ResonanceEpochBuffer(
+            8,
+            decoder.config.sample_rate_hz,
+            checkpoints[-1].seconds,
+            onset_guard_seconds=onset_guard_seconds,
+        )
         self.seq = int(initial_seq)
         self.active_epoch = -1
         self._next_checkpoint = 0
@@ -174,36 +208,56 @@ class ResonanceEpochRuntime:
         if not decision.scores:
             return decision, False, "NO_EVIDENCE"
 
-        normalized = normalize_calibrated_scores(self.profile, decision.scores)
-        ranked_norm = sorted(normalized.items(), key=lambda kv: kv[1], reverse=True)
-        norm_winner, norm_top = ranked_norm[0]
-        norm_margin = float(norm_top - ranked_norm[1][1])
-        raw_winner = max(decision.scores.items(), key=lambda kv: kv[1])[0]
+        raw_ranked = sorted(decision.scores.items(), key=lambda kv: kv[1], reverse=True)
+        raw_winner, raw_top = raw_ranked[0]
+        raw_margin = float(raw_top - raw_ranked[1][1])
 
-        # When calibration has enough opposite-target trials, normalized evidence owns target
-        # identity. Without it, fall back to the historical raw FBCCA winner/margin contract.
-        if self.profile.normalization_ready:
-            winner = norm_winner
+        # Calibration leakage statistics were learned from the configured 1.25 s trial windows.
+        # Applying those z-scores to a 0.55 s CCA distribution would be a duration mismatch, so
+        # early stopping stays raw and intentionally strict. At the calibration-matched final
+        # checkpoint, normalized evidence may correct a participant-specific frequency bias.
+        calibration_matched = abs(checkpoint.seconds - self.decoder.config.window_seconds) <= 1.0 / self.decoder.config.sample_rate_hz
+        if self.profile.normalization_ready and calibration_matched:
+            normalized = normalize_calibrated_scores(self.profile, decision.scores)
+            ranked_norm = sorted(normalized.items(), key=lambda kv: kv[1], reverse=True)
+            winner, norm_top = ranked_norm[0]
+            norm_second = ranked_norm[1][1]
+            norm_margin = float(norm_top - norm_second)
             if decision.scores[winner] < raw_gate:
                 return decision, False, "LOW_SCORE"
             if norm_margin < checkpoint.normalized_margin:
                 return decision, False, "LOW_NORMALIZED_MARGIN"
-            accepted = True
-        else:
-            winner = raw_winner
-            accepted = decision.scores[winner] >= raw_gate and decision.margin >= margin_gate
-            if not accepted:
-                return decision, False, decision.reason or "LOW_MARGIN"
-
-        # Rebuild the decision with the normalized winner if calibration corrected a frequency bias.
-        if winner != decision.target:
-            other = AuraTarget.GUARD if winner == AuraTarget.SIGHT else AuraTarget.SIGHT
-            corrected_margin = max(0.0, decision.scores[winner] - decision.scores[other])
+            confidence = float(np.clip(0.5 + 0.5 * np.tanh(max(0.0, norm_margin) / 2.0), 0.0, 1.0))
+            # Event.margin remains a non-negative diagnostic scalar. Authority has already been
+            # granted by the duration-matched normalized margin above.
+            diagnostic_margin = max(0.0, decision.scores[winner] - decision.scores[
+                AuraTarget.GUARD if winner == AuraTarget.SIGHT else AuraTarget.SIGHT
+            ])
             decision = SsvepDecision(
-                winner, decision.scores, decision.confidence, corrected_margin,
-                decision.quality, True, None,
+                winner,
+                decision.scores,
+                confidence,
+                diagnostic_margin,
+                decision.quality,
+                True,
+                None,
             )
-        return decision, accepted, None
+            return decision, True, None
+
+        accepted = decision.scores[raw_winner] >= raw_gate and raw_margin >= margin_gate
+        if not accepted:
+            return decision, False, decision.reason or "LOW_MARGIN"
+        if raw_winner != decision.target:
+            decision = SsvepDecision(
+                raw_winner,
+                decision.scores,
+                decision.confidence,
+                raw_margin,
+                decision.quality,
+                True,
+                None,
+            )
+        return decision, True, None
 
     def push(self, samples_uv: np.ndarray, timestamps_s: np.ndarray) -> NeuralEvent | None:
         if not self.active:
@@ -222,8 +276,13 @@ class ResonanceEpochRuntime:
                 self.cancel_epoch()
                 return event
             if final:
-                event = self._event(decision, checkpoint, target=None, accepted=False,
-                                    reason=reason or "DYNAMIC_TIMEOUT")
+                event = self._event(
+                    decision,
+                    checkpoint,
+                    target=None,
+                    accepted=False,
+                    reason=reason or "DYNAMIC_TIMEOUT",
+                )
                 self.cancel_epoch()
                 return event
         return None
