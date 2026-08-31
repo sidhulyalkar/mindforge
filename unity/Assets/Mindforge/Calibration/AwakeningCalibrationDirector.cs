@@ -14,6 +14,10 @@ namespace Mindforge.Calibration
     /// periodic visual stimulation so endogenous alpha is characterized without
     /// recent SSVEP carry-over. Combat actions stay locked until Python accepts the
     /// participant-specific calibration.
+    ///
+    /// V0.15 adds a presentation gate: the cinematic introduction may move the camera
+    /// and decorative environment, but calibration cannot begin until the intro has
+    /// explicitly parked the camera and released a visually quiet neural scene.
     /// </summary>
     public sealed class AwakeningCalibrationDirector : MonoBehaviour
     {
@@ -39,6 +43,10 @@ namespace Mindforge.Calibration
         [SerializeField] private bool autoStartWhenServiceReady = true;
         [SerializeField] private KeyCode retryKey = KeyCode.Return;
 
+        [Header("Presentation gate")]
+        [Tooltip("When enabled, calibration cannot begin until the intro explicitly parks the camera and releases the neural scene.")]
+        [SerializeField] private bool requireIntroReady = true;
+
         [Header("Scene events")]
         [SerializeField] private UnityEvent calibrationReady;
         [SerializeField] private UnityEvent calibrationFailed;
@@ -47,16 +55,21 @@ namespace Mindforge.Calibration
         private bool _serviceReady;
         private bool _running;
         private bool _failed;
+        private bool _introReady;
 
         public string SessionId => _sessionId;
         public bool CalibrationReady { get; private set; }
         public bool ControllerOnlyQualificationActive { get; private set; }
+        public bool CalibrationInProgress => _running;
+        public bool IntroReady => !requireIntroReady || _introReady;
+        public bool NeuralServiceReady => _serviceReady;
         public event Action<string> CalibrationStageChanged;
         private bool DisplayTimingReady => displayTiming != null && displayTiming.HasMeasurement && displayTiming.TimingHealthy;
 
         private void OnEnable()
         {
             ControllerOnlyQualificationActive = false;
+            _introReady = !requireIntroReady;
             if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
             if (receiver != null) receiver.EventReceived += OnNeuralEvent;
             guardianInput?.SetCombatActionsEnabled(false);
@@ -64,7 +77,7 @@ namespace Mindforge.Calibration
             SetDisplay(false, false);
             if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(true);
             if (arenaRoot != null) arenaRoot.SetActive(false);
-            SetStatus("WAITING FOR NEURAL CALIBRATION SERVICE");
+            SetWaitingStatus();
         }
 
         private void OnDisable()
@@ -76,9 +89,19 @@ namespace Mindforge.Calibration
         private void Update()
         {
             if (ControllerOnlyQualificationActive) return;
-            if (_serviceReady && autoStartWhenServiceReady && !_running && !_failed && !CalibrationReady && DisplayTimingReady)
+            if (_serviceReady && IntroReady && autoStartWhenServiceReady && !_running && !_failed && !CalibrationReady && DisplayTimingReady)
                 BeginCalibration();
-            if (_failed && _serviceReady && DisplayTimingReady && Input.GetKeyDown(retryKey)) BeginCalibration();
+            if (_failed && _serviceReady && IntroReady && DisplayTimingReady && Input.GetKeyDown(retryKey)) BeginCalibration();
+        }
+
+        /// <summary>
+        /// Presentation-only readiness handshake. Calling this never invents neural
+        /// calibration success; it only permits the real Unity/Python protocol to begin.
+        /// </summary>
+        public void SetIntroReady(bool ready)
+        {
+            _introReady = ready || !requireIntroReady;
+            if (!_running && !CalibrationReady) SetWaitingStatus();
         }
 
         private void OnNeuralEvent(NeuralEvent evt)
@@ -87,10 +110,8 @@ namespace Mindforge.Calibration
             if (evt.IsCalibrationServiceReady)
             {
                 _serviceReady = true;
-                SetStatus(DisplayTimingReady
-                    ? "NEURAL SERVICE READY"
-                    : "NEURAL READY · WAITING FOR STABLE 120 HZ");
-                if (autoStartWhenServiceReady && !_running && !CalibrationReady && DisplayTimingReady) BeginCalibration();
+                SetWaitingStatus();
+                if (IntroReady && autoStartWhenServiceReady && !_running && !CalibrationReady && DisplayTimingReady) BeginCalibration();
             }
             else if (evt.IsCalibrationReady)
             {
@@ -125,7 +146,7 @@ namespace Mindforge.Calibration
 
         public void BeginCalibration()
         {
-            if (ControllerOnlyQualificationActive || !_serviceReady || _running) return;
+            if (ControllerOnlyQualificationActive || !_serviceReady || _running || !IntroReady) return;
             if (!DisplayTimingReady)
             {
                 SetStatus("WAITING FOR STABLE 120 HZ DISPLAY TIMING");
@@ -238,9 +259,6 @@ namespace Mindforge.Calibration
 
             SetStatus(label);
             CalibrationStageChanged?.Invoke(stage);
-            // Submit the coded frame, then allow geometry/display latency to settle before
-            // opening the labelled EEG epoch. Excluding early response is conservative;
-            // accidentally labelling pre-photon EEG as SSVEP evidence is not.
             yield return new WaitForEndOfFrame();
             yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, codedSettleSeconds));
             if (!DisplayTimingReady)
@@ -284,6 +302,21 @@ namespace Mindforge.Calibration
             SetStatus(reason + " · PRESS ENTER TO RETRY");
             CalibrationStageChanged?.Invoke("failed");
             calibrationFailed?.Invoke();
+        }
+
+        private void SetWaitingStatus()
+        {
+            if (!IntroReady)
+            {
+                SetStatus(_serviceReady ? "NEURAL READY · INTRO SEQUENCE" : "INITIALIZING NEURAL LINK");
+                return;
+            }
+            if (!_serviceReady)
+            {
+                SetStatus("WAITING FOR EEG HEADSET");
+                return;
+            }
+            SetStatus(DisplayTimingReady ? "NEURAL SERVICE READY" : "NEURAL READY · WAITING FOR STABLE 120 HZ");
         }
 
         private void SetDisplay(bool sight, bool guard)
