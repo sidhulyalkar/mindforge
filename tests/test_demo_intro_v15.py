@@ -13,12 +13,16 @@ def read(path: Path) -> str:
 
 def test_intro_is_a_real_gate_not_neural_success():
     cal = read(CAL)
-    assert "requireIntroReady" in cal
+    intro = read(INTRO)
+    assert "requireIntroReady = false" in cal
+    assert "public void ConfigureIntroGate(bool required)" in cal
     assert "public bool IntroReady" in cal
     assert "public void SetIntroReady(bool ready)" in cal
     assert "_serviceReady && IntroReady" in cal
     assert "!_serviceReady || _running || !IntroReady" in cal
     assert "Presentation-only readiness handshake" in cal
+    assert "_calibration?.ConfigureIntroGate(true);" in intro
+    assert "_calibration?.SetIntroReady(false);" in intro
     assert "CalibrationReady = true" not in cal.split("public void SetIntroReady(bool ready)", 1)[1].split("private void OnNeuralEvent", 1)[0]
 
 
