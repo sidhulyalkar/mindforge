@@ -1,4 +1,4 @@
-using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Mindforge.Calibration;
@@ -11,6 +11,7 @@ namespace Mindforge.Presentation
     /// The recording exposed an empty grey horizon that made every arena edge feel like
     /// a level boundary. These forms sit well outside the playable shell and are intentionally
     /// low-frequency, non-emissive silhouettes. They never animate or participate in physics.
+    /// One-time construction is deferred while any neural evidence epoch owns the visual field.
     /// </summary>
     public sealed class WorldDepthBackdropV16 : MonoBehaviour
     {
@@ -39,10 +40,19 @@ namespace Mindforge.Presentation
             _wisp = wisp;
         }
 
-        private void Start()
+        private IEnumerator Start()
         {
-            if (VisualIdentityV16Installer.FindSceneObject(RootName) != null) return;
+            if (VisualIdentityV16Installer.FindSceneObject(RootName) != null) yield break;
+            while (NeuralEvidenceOwnsVisualField()) yield return null;
             BuildBackdrop();
+        }
+
+        private bool NeuralEvidenceOwnsVisualField()
+        {
+            if (_calibration == null) _calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (_wisp == null) _wisp = FindObjectOfType<SoulWispController>(true);
+            return (_calibration != null && _calibration.CalibrationInProgress) ||
+                   (_wisp != null && (_wisp.CalibrationStimuliActive || _wisp.ResonanceWindowActive));
         }
 
         private void BuildBackdrop()
@@ -69,7 +79,6 @@ namespace Mindforge.Presentation
             float outerX = halfX + 28f;
             float outerZ = halfZ + 34f;
 
-            // Broad low horizon shelves remove the hard "platform against nothing" read.
             AddPart("HorizonShelfNorth", PrimitiveType.Cube, root.transform,
                 new Vector3(centerWorld.x, world.min.y - 1.0f, centerWorld.z + outerZ),
                 new Vector3(outerX * 2.7f, 2.0f, 24f), hazeBand, Vector3.zero);
@@ -83,8 +92,6 @@ namespace Mindforge.Presentation
                 new Vector3(centerWorld.x + outerX, world.min.y - 1.1f, centerWorld.z),
                 new Vector3(18f, 2.1f, outerZ * 2.15f), farDark, Vector3.zero);
 
-            // Three depth planes of skyline. Deterministic spacing avoids procedural noise
-            // that changes between test runs while still breaking the repeated-cube look.
             for (int layer = 0; layer < 3; layer++)
             {
                 float z = centerWorld.z + outerZ + 10f + layer * 18f;
@@ -97,24 +104,23 @@ namespace Mindforge.Presentation
                     float height = (12f + ((i * i + layer * 5) % 7) * 2.35f) * layerScale;
                     float width = (3.6f + ((Mathf.Abs(i) + layer) % 3) * 1.2f) * layerScale;
                     float depth = 3.8f + layer * 1.7f;
-                    Vector3 p = new Vector3(x, world.min.y + height * 0.5f - 0.25f, z + normalized * 4f);
-                    GameObject tower = AddPart($"Skyline_L{layer}_T{i + 7:00}", PrimitiveType.Cube, root.transform,
+                    float towerZ = z + normalized * 4f;
+                    Vector3 p = new Vector3(x, world.min.y + height * 0.5f - 0.25f, towerZ);
+                    AddPart($"Skyline_L{layer}_T{i + 7:00}", PrimitiveType.Cube, root.transform,
                         p, new Vector3(width, height, depth), layerMaterial,
                         new Vector3(0f, i * 2.8f + layer * 7f, (i % 3 - 1) * 1.2f));
 
                     if ((i + layer) % 3 == 0)
                     {
                         float crownHeight = 4.5f + layer * 1.4f;
-                        AddPart($"SkylineCrown_L{layer}_T{i + 7:00}", PrimitiveType.Cube, tower.transform,
-                            new Vector3(0f, height * 0.54f, 0f),
+                        AddPart($"SkylineCrown_L{layer}_T{i + 7:00}", PrimitiveType.Cube, root.transform,
+                            new Vector3(x, world.min.y + height + crownHeight * 0.38f - 0.25f, towerZ),
                             new Vector3(width * 0.38f, crownHeight, depth * 0.42f), farLight,
-                            new Vector3(0f, 0f, i % 2 == 0 ? -13f : 13f), true);
+                            new Vector3(0f, i * 2.8f + layer * 7f, i % 2 == 0 ? -13f : 13f));
                     }
                 }
             }
 
-            // Side silhouettes create parallax when the player turns and stop the camera from
-            // revealing a single empty horizon outside the authored forward vista.
             for (int side = -1; side <= 1; side += 2)
             {
                 float x = centerWorld.x + side * (outerX + 15f);
@@ -180,15 +186,13 @@ namespace Mindforge.Presentation
             Vector3 position,
             Vector3 scale,
             Material material,
-            Vector3 euler,
-            bool localPosition = false)
+            Vector3 euler)
         {
             GameObject part = GameObject.CreatePrimitive(type);
             part.name = objectName;
             part.transform.SetParent(parent, false);
-            if (localPosition) part.transform.localPosition = position;
-            else part.transform.position = position;
-            part.transform.localRotation = Quaternion.Euler(euler);
+            part.transform.position = position;
+            part.transform.rotation = Quaternion.Euler(euler);
             part.transform.localScale = scale;
 
             Collider collider = part.GetComponent<Collider>();
