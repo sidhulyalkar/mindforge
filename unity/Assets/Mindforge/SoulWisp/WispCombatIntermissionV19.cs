@@ -27,6 +27,7 @@ namespace Mindforge.SoulWisp
         private bool _active;
         private bool _pausedBossByUs;
         private bool _pausedGuardianByUs;
+        private bool _reassertAfterLinkRecovery;
 
         public bool Active => _active;
 
@@ -67,7 +68,19 @@ namespace Mindforge.SoulWisp
             // Checkpoint/death/scene lifecycle can disable the Wisp component without emitting
             // WindowEnded. Never leave combat stranded in a V19-owned pause in that case.
             if (_window == null || !_window.isActiveAndEnabled || _window.State == WispResonanceState.Idle)
+            {
                 ReleaseIntermission();
+                return;
+            }
+
+            // Recovery callbacks are intentionally turned into a next-frame action. That makes
+            // this composition independent of callback/execution ordering with NeuralLinkContingency
+            // while still performing zero continuous projectile discovery during neural evidence.
+            if (_reassertAfterLinkRecovery)
+            {
+                _reassertAfterLinkRecovery = false;
+                ReassertIntermission();
+            }
         }
 
         private void OnDisable()
@@ -121,6 +134,7 @@ namespace Mindforge.SoulWisp
             Resolve();
             SubscribeLink();
             _active = true;
+            _reassertAfterLinkRecovery = false;
 
             _pausedBossByUs = _boss != null && !_boss.ExternalPaused;
             if (_pausedBossByUs) _boss.SetExternalPause(true);
@@ -141,9 +155,7 @@ namespace Mindforge.SoulWisp
         private void OnLinkDegradationChanged(bool degraded)
         {
             if (!_active || degraded) return;
-            // The contingency recovery path has just released the low-level pause booleans.
-            // Re-acquire them once for the still-active Wisp window, without per-frame scans.
-            ReassertIntermission();
+            _reassertAfterLinkRecovery = true;
         }
 
         private void ReassertIntermission()
@@ -186,6 +198,7 @@ namespace Mindforge.SoulWisp
         {
             if (!_active) return;
             _active = false;
+            _reassertAfterLinkRecovery = false;
 
             Resolve();
             bool safetyStopActive = _linkContingency != null &&
