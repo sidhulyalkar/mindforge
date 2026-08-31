@@ -11,12 +11,13 @@ namespace Mindforge.Editor
     ///
     /// Product version and scene-asset version are deliberately decoupled. The clean
     /// V0.11 scene builder remains the authoritative systems/traversal assembler. V0.20
-    /// World Soul then authors one deterministic presentation landscape onto that kernel
-    /// before current runtime combat, presentation and BCI systems compose after scene load.
+    /// World Soul authors the continuous landscape, then V0.21 Arena + Patina performs the
+    /// recording-driven arena/collision and environmental-cohesion pass before runtime systems
+    /// compose after scene load.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.20 World Soul";
+        public const string ProductVersion = "V0.21 Arena + Patina";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -24,7 +25,7 @@ namespace Mindforge.Editor
             if (!PrepareForSceneReplacement()) return;
             BuildCanonical(controllerOnlyByDefault: true);
             OpenCanonicalScene();
-            EnsureWorldSoulOpenScene();
+            EnsureWorldLayersOpenScene();
             Debug.Log($"[Mindforge:Latest] Starting {ProductVersion} in controller-only BCI simulation mode.");
             EditorApplication.delayCall += () =>
             {
@@ -39,7 +40,7 @@ namespace Mindforge.Editor
             if (!PrepareForSceneReplacement()) return;
             BuildCanonical(controllerOnlyByDefault: true);
             OpenCanonicalScene();
-            EnsureWorldSoulOpenScene();
+            EnsureWorldLayersOpenScene();
             Debug.Log($"[Mindforge:Latest] Rebuilt {ProductVersion} at {MindforgeDemoV11Builder.DemoScenePath}.");
         }
 
@@ -54,7 +55,7 @@ namespace Mindforge.Editor
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             EnsureCanonicalSceneExists(controllerOnlyByDefault: true);
             OpenCanonicalScene();
-            EnsureWorldSoulOpenScene();
+            EnsureWorldLayersOpenScene();
         }
 
         [MenuItem("Mindforge/Latest/Validate Latest Readiness", priority = 20)]
@@ -69,7 +70,7 @@ namespace Mindforge.Editor
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             EnsureCanonicalSceneExists(controllerOnlyByDefault: true);
             OpenCanonicalScene();
-            EnsureWorldSoulOpenScene();
+            EnsureWorldLayersOpenScene();
             MindforgeLatestReadinessAuditV17.AuditActiveDemo();
         }
 
@@ -79,7 +80,7 @@ namespace Mindforge.Editor
             if (!PrepareForSceneReplacement()) return;
             BuildCanonical(controllerOnlyByDefault: false);
             OpenCanonicalScene();
-            EnsureWorldSoulOpenScene();
+            EnsureWorldLayersOpenScene();
             Debug.Log(
                 $"[Mindforge:Latest] Built {ProductVersion} neural-hardware variant. " +
                 "Use this only with the live neural service and a physically qualified display; " +
@@ -91,6 +92,7 @@ namespace Mindforge.Editor
         {
             MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);
             WorldSoulV20Builder.ApplyOpenScene();
+            WorldCohesionV21Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -119,10 +121,12 @@ namespace Mindforge.Editor
             EditorSceneManager.OpenScene(MindforgeDemoV11Builder.DemoScenePath, OpenSceneMode.Single);
         }
 
-        private static void EnsureWorldSoulOpenScene()
+        private static void EnsureWorldLayersOpenScene()
         {
-            if (WorldSoulV20Builder.PresentInOpenScene()) return;
-            WorldSoulV20Builder.ApplyOpenScene();
+            if (!WorldSoulV20Builder.PresentInOpenScene())
+                WorldSoulV20Builder.ApplyOpenScene();
+            if (!WorldCohesionV21Builder.PresentInOpenScene())
+                WorldCohesionV21Builder.ApplyOpenScene();
         }
     }
 }
