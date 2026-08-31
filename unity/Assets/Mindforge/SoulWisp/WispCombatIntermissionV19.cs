@@ -59,6 +59,17 @@ namespace Mindforge.SoulWisp
             Subscribe();
         }
 
+        private void Update()
+        {
+            if (!_active) return;
+            Resolve();
+
+            // Checkpoint/death/scene lifecycle can disable the Wisp component without emitting
+            // WindowEnded. Never leave combat stranded in a V19-owned pause in that case.
+            if (_window == null || !_window.isActiveAndEnabled || _window.State == WispResonanceState.Idle)
+                ReleaseIntermission();
+        }
+
         private void OnDisable()
         {
             Unsubscribe();
