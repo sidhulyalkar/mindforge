@@ -14,6 +14,7 @@ test = ["pytest>=8.0"]
 lsl = ["pylsl>=1.16"]
 report = ["matplotlib>=3.8"]
 demo = ["pylsl>=1.16", "matplotlib>=3.8"]
+public-data = ["moabb==1.6.1; python_version >= '3.11'"]
 
 [tool.setuptools]
 package-dir = {"" = "neuro"}

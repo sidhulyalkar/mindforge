@@ -1,0 +1,68 @@
+name: inspect-public-covert-dataset
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/v11-gaze-attention-platform
+    paths:
+      - '.github/workflows/inspect-public-covert-dataset.yml'
+
+jobs:
+  inspect-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download public İşcan overt/covert SSVEP archive
+        shell: bash
+        run: |
+          mkdir -p /tmp/iscan
+          curl -fL --retry 4 --retry-delay 3 \
+            'https://zenodo.org/records/19081765/files/DATA_SSVEP_Repository.zip?download=1' \
+            -o /tmp/iscan/dataset.zip
+          echo "md5=$(md5sum /tmp/iscan/dataset.zip | awk '{print $1}')"
+          test "$(md5sum /tmp/iscan/dataset.zip | awk '{print $1}')" = "98d61e6b20517ba60b71dc278ea59ae7"
+      - name: Inspect archive without redistributing data
+        shell: bash
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import PurePosixPath
+          import zipfile
+
+          archive = '/tmp/iscan/dataset.zip'
+          with zipfile.ZipFile(archive) as z:
+              infos = [i for i in z.infolist() if not i.is_dir()]
+              print(f'files={len(infos)}')
+              print(f'uncompressed_bytes={sum(i.file_size for i in infos)}')
+              print('extensions=')
+              for suffix, count in Counter(PurePosixPath(i.filename).suffix.lower() for i in infos).most_common():
+                  print(f'  {suffix or "<none>"}: {count}')
+              print('first_paths=')
+              for info in infos[:160]:
+                  print(f'  {info.file_size:>10}  {info.filename}')
+
+              readmes = [i for i in infos if 'readme' in i.filename.lower()]
+              print('readmes=')
+              for info in readmes:
+                  print(f'  {info.filename}')
+                  data = z.read(info)
+                  if info.filename.lower().endswith('.txt'):
+                      print(data.decode('utf-8', errors='replace')[:12000])
+                  elif info.filename.lower().endswith('.docx'):
+                      import io
+                      import re
+                      import xml.etree.ElementTree as ET
+                      with zipfile.ZipFile(io.BytesIO(data)) as docx:
+                          xml = docx.read('word/document.xml')
+                      root = ET.fromstring(xml)
+                      text = ' '.join(t.text or '' for t in root.iter() if t.tag.endswith('}t'))
+                      text = re.sub(r'\s+', ' ', text)
+                      print(text[:12000])
+          PY
+      - name: Confirm raw public data are not persisted
+        shell: bash
+        run: |
+          rm -rf /tmp/iscan
+          test ! -e /tmp/iscan/dataset.zip

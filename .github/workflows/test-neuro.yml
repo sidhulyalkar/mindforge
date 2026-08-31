@@ -7,8 +7,12 @@ on:
 jobs:
   python-and-browser:
     runs-on: ubuntu-latest
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -17,6 +21,14 @@ jobs:
           node-version: '22'
       - run: python -m pip install -U pip
       - run: pip install -e '.[test]'
+
+      - name: Verify literal source revision
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "requested=$SOURCE_SHA"
+          echo "actual=$actual"
+          test "$actual" = "$SOURCE_SHA"
 
       - name: Run pytest and capture promotion evidence
         shell: bash
@@ -29,7 +41,7 @@ jobs:
           if [ -f experiments/reports/pytest.xml ]; then
             python tools/mindforge_qualify.py software \
               --junit experiments/reports/pytest.xml \
-              --commit "$GITHUB_SHA" \
+              --commit "$(git rev-parse HEAD)" \
               --output experiments/reports/software-gate.json
           fi
           exit "$pytest_status"
@@ -45,6 +57,9 @@ jobs:
           python -m py_compile tools/phantom_control.py
           python -m py_compile tools/plot_session_report.py
           python -m py_compile tools/content_foundry.py
+          python -m py_compile tools/mindforge_gaze.py
+          python -m py_compile tools/evaluate_ssvep_game_design.py
+          python -m py_compile tools/run_moabb_guttmann_ssvep.py
           python -m py_compile tools/blender/normalize_static_asset_v10.py
 
       - name: Validate Content Foundry contracts
@@ -63,7 +78,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mindforge-software-evidence-${{ github.sha }}
+          name: mindforge-software-evidence-${{ env.SOURCE_SHA }}
           path: |
             experiments/reports/pytest.xml
             experiments/reports/software-gate.json

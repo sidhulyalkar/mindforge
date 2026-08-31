@@ -15,6 +15,7 @@ namespace Mindforge.Combat
         Bloom = 7,
         Menu = 8,
         JudgeLens = 9,
+        ChannelWisp = 10,
     }
 
     /// <summary>
@@ -22,8 +23,8 @@ namespace Mindforge.Combat
     /// this profile, while tutorials/HUDs use the same profile for labels. Neural evidence is
     /// intentionally absent: this component describes only explicit player-owned controls.
     ///
-    /// V0.5 keeps the established keyboard/mouse defaults but centralizes them so later input
-    /// rebinding can replace one profile rather than editing combat, mounts and UI separately.
+    /// Channel Wisp is a neutral WHEN input. It opens/cancels a short decision window but
+    /// never says WHICH neural aura the player wants. Sight/Guard selection remains EEG-owned.
     /// </summary>
     [DefaultExecutionOrder(-950)]
     public sealed class GuardianControlProfileV1 : MonoBehaviour
@@ -44,6 +45,7 @@ namespace Mindforge.Combat
         [SerializeField] private KeyCode cleave = KeyCode.Q;
         [SerializeField] private KeyCode counter = KeyCode.C;
         [SerializeField] private KeyCode bloom = KeyCode.R;
+        [SerializeField] private KeyCode channelWisp = KeyCode.V;
 
         [Header("Information")]
         [SerializeField] private KeyCode menu = KeyCode.Tab;
@@ -54,6 +56,7 @@ namespace Mindforge.Combat
         public KeyCode InteractKey => interact;
         public KeyCode TargetLockKey => targetLock;
         public KeyCode JumpHoverKey => jumpHover;
+        public KeyCode ChannelWispKey => channelWisp;
         public KeyCode MenuKey => menu;
         public KeyCode JudgeLensKey => judgeLens;
 
@@ -99,6 +102,7 @@ namespace Mindforge.Combat
                 case GuardianControlAction.Cleave: return Input.GetKeyDown(cleave);
                 case GuardianControlAction.Counter: return Input.GetKeyDown(counter);
                 case GuardianControlAction.Bloom: return Input.GetKeyDown(bloom);
+                case GuardianControlAction.ChannelWisp: return Input.GetKeyDown(channelWisp);
                 case GuardianControlAction.Menu: return Input.GetKeyDown(menu);
                 case GuardianControlAction.JudgeLens: return Input.GetKeyDown(judgeLens);
                 default: return false;
@@ -115,6 +119,7 @@ namespace Mindforge.Combat
                            (rightMouseEvades && Input.GetMouseButton(1));
                 case GuardianControlAction.Blade:
                     return Input.GetKey(blade) || (leftMouseBlade && Input.GetMouseButton(0));
+                case GuardianControlAction.ChannelWisp: return Input.GetKey(channelWisp);
                 default: return false;
             }
         }
@@ -133,6 +138,7 @@ namespace Mindforge.Combat
                 case GuardianControlAction.Cleave: return KeyLabel(cleave);
                 case GuardianControlAction.Counter: return KeyLabel(counter);
                 case GuardianControlAction.Bloom: return KeyLabel(bloom);
+                case GuardianControlAction.ChannelWisp: return KeyLabel(channelWisp);
                 case GuardianControlAction.Menu: return KeyLabel(menu);
                 case GuardianControlAction.JudgeLens: return KeyLabel(judgeLens);
                 default: return string.Empty;

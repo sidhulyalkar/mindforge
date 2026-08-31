@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mindforge.ssvep_evidence_window.v1",
+  "title": "Mindforge derived SSVEP evidence window v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "subject_id",
+    "truth",
+    "condition",
+    "sight_score",
+    "guard_score",
+    "quality",
+    "window_seconds"
+  ],
+  "properties": {
+    "subject_id": {"type": "string", "minLength": 1},
+    "truth": {"enum": ["sight", "guard", "none"]},
+    "condition": {"type": "string", "minLength": 1},
+    "sight_score": {"type": "number"},
+    "guard_score": {"type": "number"},
+    "quality": {"type": "number", "minimum": 0, "maximum": 1},
+    "window_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "sight_eccentricity_deg": {"type": ["number", "null"], "minimum": 0},
+    "guard_eccentricity_deg": {"type": ["number", "null"], "minimum": 0}
+  },
+  "description": "Derived decoder and retinal-geometry evidence only. Raw EEG samples, channel arrays, raw gaze frames, eye images and vendor biometric payloads must not be serialized into this contract."
+}
