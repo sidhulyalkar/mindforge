@@ -10,11 +10,13 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_canonical_intro_installs_on_v11_and_closes_calibration_gate_before_update():
+def test_canonical_intro_installs_on_v11_and_closes_all_presentation_authority_before_update():
     text = read(INTRO)
     assert "RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)" in text
     assert "FindObjectOfType<MindforgeDemoV11Marker>(true) == null" in text
     install = text.split("private static void Install()", 1)[1].split("private IEnumerator Start()", 1)[0]
+    assert "input?.SetCombatActionsEnabled(false)" in install
+    assert "boss?.SetExternalPause(true)" in install
     assert "calibration.ConfigureIntroGate(true)" in install
     assert "calibration.SetIntroReady(false)" in install
     assert "new GameObject(RootName).AddComponent<MindforgeCanonicalIntroV17>()" in install
