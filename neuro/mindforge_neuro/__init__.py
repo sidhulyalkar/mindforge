@@ -35,6 +35,11 @@ from .public_validation import (
     leave_one_subject_out_validation,
 )
 from .markers import GameMarker, GameMarkerType, UdpGameMarkerSource
+from .ssvep_observations import (
+    SSVEP_OBSERVATION_V1,
+    SsvepObservation,
+    UdpSsvepObservationSource,
+)
 from .resonance import DEFAULT_RESONANCE_CHECKPOINTS, ResonanceCheckpoint, ResonanceEpochBuffer, ResonanceEpochRuntime
 from .dev_sources import DecisionSimulationConfig, DecisionSimulator, NeuralEventTape, TapeEntry
 
@@ -68,6 +73,9 @@ __all__ = [
     "GameMarker",
     "GameMarkerType",
     "UdpGameMarkerSource",
+    "SSVEP_OBSERVATION_V1",
+    "SsvepObservation",
+    "UdpSsvepObservationSource",
     "ResonanceCheckpoint",
     "DEFAULT_RESONANCE_CHECKPOINTS",
     "ResonanceEpochBuffer",

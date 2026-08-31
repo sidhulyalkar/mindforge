@@ -5,12 +5,15 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Conventional player-owned target lock for third-person combat.
+    /// Conventional target lock for third-person combat. Manual lock remains conventional player input.
     ///
     /// The canonical target-lock key comes from GuardianControlProfileV1. While locked,
     /// the mouse wheel cycles conventional targets. Arrow keys remain camera controls so
     /// one physical key never simultaneously means camera orbit and target switching.
-    /// EEG never creates, changes, confirms, cycles, or releases target lock.
+    ///
+    /// Encounter presentation may request an exact target through TryLockTarget, but that
+    /// remains conventional game/camera assistance. EEG never creates, changes, confirms,
+    /// cycles, or releases target lock.
     /// </summary>
     public sealed class GuardianTargetLock : MonoBehaviour
     {
@@ -27,14 +30,17 @@ namespace Mindforge.Combat
 
         private bool _locked;
         private Transform _lockedTarget;
+        private string _lastChangeReason = "initial";
 
         public event Action<bool> LockChanged;
         public event Action<Transform> TargetChanged;
+        public event Action<Transform, string> TargetChangedWithReason;
 
         public bool Locked => _locked && TargetAvailable(_lockedTarget);
         public Transform Target => Locked ? _lockedTarget : null;
         public Transform FallbackTarget => fallbackTarget;
         public KeyCode ToggleKey => controls != null ? controls.TargetLockKey : KeyCode.T;
+        public string LastChangeReason => _lastChangeReason;
 
         public void Configure(Transform combatTarget)
         {
@@ -47,25 +53,39 @@ namespace Mindforge.Combat
         {
             if (!locked)
             {
-                SetState(false, null);
+                SetState(false, null, "conventional_player_input");
                 return;
             }
 
             Transform candidate = TargetAvailable(_lockedTarget) ? _lockedTarget : AcquireBestTarget();
             if (candidate == null)
             {
-                SetState(false, null);
+                SetState(false, null, "conventional_player_input");
                 return;
             }
 
-            SetState(true, candidate);
+            SetState(true, candidate, "conventional_player_input");
+        }
+
+        /// <summary>
+        /// Exact conventional assist used by encounter framing. It bypasses the current camera
+        /// acquire cone so a boss can re-establish orientation when the player has turned away,
+        /// but it never bypasses enemy/alive/range/visibility validation. Neural code must not call this.
+        /// </summary>
+        public bool TryLockTarget(Transform candidate, string reason = "encounter_assist")
+        {
+            if (!TargetAvailable(candidate)) return false;
+            if (HorizontalDistanceTo(candidate) > Mathf.Max(lockRange, breakRange)) return false;
+            if (requireLineOfSight && !HasLineOfSight(candidate)) return false;
+            SetState(true, candidate, string.IsNullOrWhiteSpace(reason) ? "encounter_assist" : reason);
+            return Locked && Target == candidate;
         }
 
         public bool AcquireBest()
         {
             Transform candidate = AcquireBestTarget();
             if (candidate == null) return false;
-            SetState(true, candidate);
+            SetState(true, candidate, "conventional_player_input");
             return true;
         }
 
@@ -121,7 +141,7 @@ namespace Mindforge.Combat
 
             if (selected == null) selected = wrapped;
             if (selected == null || selected == _lockedTarget) return false;
-            SetState(true, selected);
+            SetState(true, selected, "conventional_player_cycle");
             return true;
         }
 
@@ -168,8 +188,8 @@ namespace Mindforge.Combat
         private void ReacquireOrUnlock()
         {
             Transform next = AcquireBestTarget(_lockedTarget);
-            if (next != null) SetState(true, next);
-            else SetState(false, null);
+            if (next != null) SetState(true, next, "conventional_reacquire");
+            else SetState(false, null, "target_unavailable");
         }
 
         private Transform AcquireBestTarget(Transform excluded = null)
@@ -267,25 +287,27 @@ namespace Mindforge.Combat
             return true;
         }
 
-        private void SetState(bool locked, Transform candidate)
+        private void SetState(bool locked, Transform candidate, string reason)
         {
             bool beforeLocked = Locked;
             Transform beforeTarget = _lockedTarget;
 
             _locked = locked && TargetAvailable(candidate);
             _lockedTarget = _locked ? candidate : null;
+            _lastChangeReason = string.IsNullOrWhiteSpace(reason) ? "unspecified" : reason;
 
             if (beforeTarget != _lockedTarget)
             {
                 TargetChanged?.Invoke(_lockedTarget);
-                Debug.Log($"[Mindforge:TargetLock] Target -> {(_lockedTarget != null ? _lockedTarget.name : "NONE")} by conventional player input.");
+                TargetChangedWithReason?.Invoke(_lockedTarget, _lastChangeReason);
+                Debug.Log($"[Mindforge:TargetLock] Target -> {(_lockedTarget != null ? _lockedTarget.name : "NONE")} ({_lastChangeReason}).");
             }
 
             bool afterLocked = Locked;
             if (beforeLocked != afterLocked)
             {
                 LockChanged?.Invoke(afterLocked);
-                Debug.Log($"[Mindforge:TargetLock] {(afterLocked ? "LOCKED" : "UNLOCKED")} by conventional player input.");
+                Debug.Log($"[Mindforge:TargetLock] {(afterLocked ? "LOCKED" : "UNLOCKED")} ({_lastChangeReason}).");
             }
         }
 
