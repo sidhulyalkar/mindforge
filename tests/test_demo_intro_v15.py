@@ -77,17 +77,14 @@ def test_environment_is_presentation_only_and_competition_scoped():
     assert "Renderer placeholder" in env
 
 
-def test_decorative_motion_freezes_for_all_neural_evidence_intervals():
+def test_legacy_ambient_light_breathing_is_disabled_for_eeg_demo():
     env = read(ENV)
-    cal = read(CAL)
-    assert "public bool CalibrationInProgress => _running;" in cal
-    assert "_calibration.CalibrationInProgress" in env
-    assert "_wisp.CalibrationStimuliActive" in env
-    assert "_wisp.ResonanceWindowActive" in env
-    quiet = env.index("if (neuralQuiet)")
-    rotate = env.index("rotator.Rotate", quiet)
-    assert quiet < rotate
-    assert "_lights[i].intensity = _baseLightIntensities[i]" in env
+    quiet = read(QUIET)
+    assert "decorativePulseHz" in env and "decorativePulseDepth" in env
+    assert "FindObjectOfType<NeuralQuietAmbientMotionV15>" in quiet
+    assert "ambient.enabled = false" in quiet
+    assert "DecorativeRotationDegreesPerSecond" in quiet
+    assert "rotator.Rotate" in quiet
 
 
 def test_decorative_emission_is_hidden_while_eeg_has_authority():
@@ -106,6 +103,18 @@ def test_decorative_emission_is_hidden_while_eeg_has_authority():
         "FracturedSignalHalo",
     ):
         assert token in quiet
+
+
+def test_baseline_quiets_visual_field_before_label_marker():
+    cal = read(CAL)
+    quiet = read(QUIET)
+    baseline = cal[cal.index("private IEnumerator RunBaseline"):cal.index("private IEnumerator RunCounterbalancedTarget")]
+    event_at = baseline.index('CalibrationStageChanged?.Invoke("baseline")')
+    marker_at = baseline.index('markerSender?.Send(_sessionId, "baseline", "begin"')
+    assert event_at < marker_at
+    assert "CalibrationStageChanged += OnCalibrationStageChanged" in quiet
+    assert 'stage == "baseline"' in quiet
+    assert "Apply(true)" in quiet
 
 
 def test_opaque_boss_placeholder_cage_is_permanently_suppressed():
