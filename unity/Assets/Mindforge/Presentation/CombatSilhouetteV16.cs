@@ -1,4 +1,4 @@
-using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Mindforge.Calibration;
@@ -11,7 +11,8 @@ namespace Mindforge.Presentation
     /// Small collider-free shape accents that keep the Guardian and current enemy target
     /// readable against the world at normal camera distance. This is not a replacement for
     /// production character art; it is a deterministic fallback layer for the demo build.
-    /// No periodic luminance animation is used.
+    /// No periodic luminance animation is used, and one-time construction waits until no
+    /// neural evidence epoch owns the visual field.
     /// </summary>
     public sealed class CombatSilhouetteV16 : MonoBehaviour
     {
@@ -28,6 +29,7 @@ namespace Mindforge.Presentation
         private Material _guardianDark;
         private Material _enemyShell;
         private Material _enemyTrim;
+        private bool _ready;
 
         public void Configure(
             Transform guardian,
@@ -41,16 +43,27 @@ namespace Mindforge.Presentation
             _wisp = wisp;
         }
 
-        private void Start()
+        private IEnumerator Start()
         {
+            while (NeuralEvidenceOwnsVisualField()) yield return null;
             CreateMaterials();
             BuildGuardianAccents();
             RefreshEnemyAccents(true);
+            _ready = true;
         }
 
         private void Update()
         {
+            if (!_ready || NeuralEvidenceOwnsVisualField()) return;
             RefreshEnemyAccents(false);
+        }
+
+        private bool NeuralEvidenceOwnsVisualField()
+        {
+            if (_calibration == null) _calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (_wisp == null) _wisp = FindObjectOfType<SoulWispController>(true);
+            return (_calibration != null && _calibration.CalibrationInProgress) ||
+                   (_wisp != null && (_wisp.CalibrationStimuliActive || _wisp.ResonanceWindowActive));
         }
 
         private void CreateMaterials()
@@ -98,8 +111,6 @@ namespace Mindforge.Presentation
             _enemyRoot = new GameObject("EnemyReadabilityV16");
             _enemyRoot.transform.SetParent(enemy, false);
 
-            // A broken asymmetric crown reads as hostile even when the central body is
-            // visually abstract. Sizes remain small enough not to alter apparent hit volume.
             AddPart("EnemyReadabilityShardL", PrimitiveType.Cube, _enemyRoot.transform,
                 new Vector3(-0.78f, 1.08f, 0.02f), new Vector3(0.24f, 1.36f, 0.28f), _enemyShell, new Vector3(0f, 0f, -24f));
             AddPart("EnemyReadabilityShardR", PrimitiveType.Cube, _enemyRoot.transform,
