@@ -162,7 +162,12 @@ namespace Mindforge.SoulWisp
                     Abstain("TARGET_LOST");
                     return;
                 }
-                if (motionQualification == null || motionQualification.TryGetEvidenceInstability(out string motionReason))
+                if (motionQualification == null)
+                {
+                    Abstain("MOTION_STATE_UNAVAILABLE");
+                    return;
+                }
+                if (motionQualification.TryGetEvidenceInstability(out string motionReason))
                 {
                     Abstain(string.IsNullOrEmpty(motionReason) ? "MOTION_STATE_UNAVAILABLE" : motionReason);
                     return;
