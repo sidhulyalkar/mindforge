@@ -1,0 +1,44 @@
+name: patch-v014-final-hardening-once
+
+on:
+  push:
+    branches:
+      - feat/v014-ssvep-low-latency-architecture
+    paths:
+      - tools/patch_v014_final_hardening.py
+      - .github/workflows/patch-v014-final-hardening-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/v014-ssvep-low-latency-architecture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply final hardening
+        run: python tools/patch_v014_final_hardening.py
+      - name: Syntax check Python changes
+        run: |
+          python -m py_compile tools/run_unity_calibrated_decoder.py
+          python -m py_compile tests/test_v014_display_and_calibration_hardening.py
+      - name: Commit hardening
+        run: |
+          git config user.name 'mindforge-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add unity/Assets/Mindforge/SoulWisp/DisplayTimingMonitor.cs \
+                  unity/Assets/Mindforge/SoulWisp/VepAuraStimulus.cs \
+                  unity/Assets/Mindforge/SoulWisp/SoulWispController.cs \
+                  unity/Assets/Mindforge/SoulWisp/WispResonanceWindow.cs \
+                  unity/Assets/Mindforge/Calibration/AwakeningCalibrationDirector.cs \
+                  unity/Assets/Mindforge/Editor/CompetitionSceneAssembler.cs \
+                  tools/run_unity_calibrated_decoder.py \
+                  tests/test_v014_display_and_calibration_hardening.py
+          git commit -m 'fix(v014): fail closed on display timing and calibration provenance'
+          git push origin HEAD:feat/v014-ssvep-low-latency-architecture
