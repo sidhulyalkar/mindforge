@@ -46,6 +46,17 @@ jobs:
           fi
           exit "$pytest_status"
 
+      - name: Assemble exact-commit promotion manifest
+        if: always()
+        shell: bash
+        run: |
+          test -f experiments/reports/software-gate.json
+          python tools/mindforge_qualify.py manifest \
+            --commit "$(git rev-parse HEAD)" \
+            --software experiments/reports/software-gate.json \
+            --require-through P0 \
+            --output experiments/reports/promotion-manifest.json
+
       - name: Validate Python demo and qualification tools
         run: |
           python -m py_compile tools/run_unity_calibrated_decoder.py
@@ -82,6 +93,7 @@ jobs:
           path: |
             experiments/reports/pytest.xml
             experiments/reports/software-gate.json
+            experiments/reports/promotion-manifest.json
             experiments/reports/content-foundry-plan.json
           if-no-files-found: warn
           retention-days: 30
