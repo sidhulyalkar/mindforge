@@ -12,8 +12,9 @@ namespace Mindforge.Presentation
     /// collapsing into one silhouette. This pass uses MaterialPropertyBlock so the change is
     /// local, reversible, allocation-light, and cannot create gameplay authority.
     ///
-    /// Periodic/emissive neural targets are explicit exclusions. V0.16 never writes their
-    /// material properties or touches their stimulus components. The one-time restyle also
+    /// The authored V0.9 production-art root is deliberately excluded. Its PBR base colors
+    /// are material truth, not legacy blockout values, and V0.16 must never recolor them.
+    /// Periodic/emissive neural targets are explicit exclusions as well. The one-time restyle
     /// waits until no baseline/calibration/resonance epoch owns the retinal field.
     /// </summary>
     public sealed class LegacyMaterialHierarchyV16 : MonoBehaviour
@@ -22,7 +23,6 @@ namespace Mindforge.Presentation
         {
             "Mindforge_AetheriaWorld_V1",
             "Mindforge_GroundedWorld_V1",
-            "Mindforge_Production_Art_V09",
             "Mindforge_Demo_Environment_V15",
         };
 
@@ -100,7 +100,7 @@ namespace Mindforge.Presentation
                 }
             }
 
-            Debug.Log($"[Mindforge:V16] Material hierarchy restyled {_restyled} legacy renderers; coded/emissive signal renderers preserved.");
+            Debug.Log($"[Mindforge:V16] Material hierarchy restyled {_restyled} legacy renderers; authored production PBR and coded/emissive signals preserved.");
         }
 
         private static bool ShouldPreserve(string objectName)
