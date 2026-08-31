@@ -95,7 +95,7 @@ def test_visual_v2_provides_independent_production_art_anchors_for_every_zone():
     ):
         assert f"public ZoneBinding {binding}" in profile
 
-    assert 'MenuItem("Mindforge/Showcase/Open Null Ward Art Binding Profile"' in authoring
+    assert 'MenuItem("Mindforge/Legacy/Showcase/Open Null Ward Art Binding Profile"' in authoring
     assert '"Assets/Mindforge/Resources/Cinematic/NullWardArtProfile.asset"' in authoring
 
 

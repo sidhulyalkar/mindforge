@@ -57,7 +57,8 @@ def test_historical_build_menus_are_archived_behind_legacy_root():
 def test_current_wisp_runtime_auto_installs_on_the_canonical_scene():
     source = WISP.read_text(encoding="utf-8")
     assert "RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)" in source
-    assert "InstallRuntime" in source
+    assert "private static void Install()" in source
+    assert "WispResonanceBootstrap" in source
     assert "WispResonanceHud" in source
     assert "UNITY_EDITOR" in source
 
