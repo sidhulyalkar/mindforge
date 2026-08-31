@@ -7,6 +7,7 @@ SOUL = ROOT / "unity/Assets/Mindforge/SoulWisp/SoulWispController.cs"
 EVENT = ROOT / "unity/Assets/Mindforge/NeuralBridge/NeuralEvent.cs"
 RUNNER = ROOT / "tools/run_unity_calibrated_decoder.py"
 SCHEMA = ROOT / "contracts/neural_event.v2.schema.json"
+RESONANCE = ROOT / "neuro/mindforge_neuro/resonance.py"
 
 
 def test_unity_requires_current_epoch_and_post_onset_evidence():
@@ -20,7 +21,7 @@ def test_unity_requires_current_epoch_and_post_onset_evidence():
     assert "private float listeningSeconds = 1.50f" in wisp
 
 
-def test_stimulus_phase_is_frame_indexed_and_both_targets_share_start_frame():
+def test_stimulus_phase_is_frame_indexed_localized_and_both_targets_share_start_frame():
     stim = STIM.read_text(encoding="utf-8")
     soul = SOUL.read_text(encoding="utf-8")
     assert "private float qualifiedRefreshHz = 120f" in stim
@@ -29,15 +30,20 @@ def test_stimulus_phase_is_frame_indexed_and_both_targets_share_start_frame():
     assert "int sharedFrame = Time.frameCount;" in soul
     assert "BeginWindow(sharedStart, sharedFrame)" in soul
     assert "Time.realtimeSinceStartupAsDouble - _sessionStart" not in stim
+    assert "private bool modulateTargetLight;" in stim
+    assert "if (modulateTargetLight && targetLight != null)" in stim
 
 
 def test_production_runner_flushes_pre_epoch_lsl_and_uses_dynamic_runtime():
     runner = RUNNER.read_text(encoding="utf-8")
+    resonance = RESONANCE.read_text(encoding="utf-8")
     assert "source.flush()" in runner
     assert "ResonanceEpochRuntime" in runner
     assert "NEURAL_WINDOW_LISTENING" in runner
     assert "SlidingWindowBuffer" not in runner
     assert "AuraSelectionRuntime" not in runner
+    assert "onset_guard_seconds: float = 0.025" in resonance
+    assert "calibration_matched" in resonance
 
 
 def test_v2_schema_allows_epoch_provenance():
