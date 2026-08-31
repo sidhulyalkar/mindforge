@@ -57,7 +57,10 @@ def test_environment_is_presentation_only_and_competition_scoped():
     assert 'CompetitionSceneName = "Mindforge_Competition"' in env
     assert "RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)" in env
     assert "presentation-only" in env.lower()
-    assert "VepAuraStimulus" not in env
+    assert "GetComponent<VepAuraStimulus>" not in env
+    assert ".BeginWindow(" not in env
+    assert ".EndWindow(" not in env
+    assert "frequencyHz" not in env
     assert "collider.enabled = false" in env
     assert "Destroy(collider)" in env
     assert "Renderer placeholder" in env
