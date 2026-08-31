@@ -22,8 +22,10 @@ namespace Mindforge.SoulWisp
     ///
     /// V answers WHEN the player wants a neural decision. It never says WHICH decision.
     /// During Listening, only a fresh derived NeuralEvent may resolve Sight or Guard.
-    /// Ordinary movement, camera, attack, evade, target lock and interaction remain live.
-    /// Ambiguous/late evidence fails closed into abstention and spends no aura.
+    /// Ordinary movement remains player-owned; the Wisp never zeroes movement input. Instead,
+    /// the neural window may only arm from a low-motion grounded opening and fails closed if
+    /// strong locomotion contaminates the evidence interval. Camera, attack, evade, target
+    /// lock and interaction remain conventional authorities.
     /// </summary>
     [DefaultExecutionOrder(-120)]
     [RequireComponent(typeof(SoulWispController))]
@@ -34,6 +36,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private UdpNeuralReceiver neuralReceiver;
         [SerializeField] private UdpGameMarkerSender markerSender;
         [SerializeField] private DisplayTimingMonitor displayTiming;
+        [SerializeField] private GuardianMotor guardianMotor;
 
         [Header("Decision timing")]
         [Tooltip("Neutral cores settle before modulation starts. This is presentation time, not decoder evidence.")]
@@ -42,6 +45,16 @@ namespace Mindforge.SoulWisp
         [SerializeField] private float listeningSeconds = 1.50f;
         [SerializeField] private float outcomeHoldSeconds = 0.34f;
         [SerializeField] private float cooldownSeconds = 0.72f;
+
+        [Header("Motion qualification")]
+        [Tooltip("The Wisp never stops movement. It simply refuses to open a neural trial while locomotion is too strong for the initial EEG contract.")]
+        [SerializeField] private bool requireLowMotionToArm = true;
+        [SerializeField] private bool requireGroundedToArm = true;
+        [SerializeField] private bool abortOnMotionDuringEvidence = true;
+        [SerializeField] private float maximumArmPlanarSpeed = 0.90f;
+        [SerializeField] private float maximumArmVerticalSpeed = 0.55f;
+        [SerializeField] private float maximumEvidencePlanarSpeed = 1.40f;
+        [SerializeField] private float maximumEvidenceVerticalSpeed = 0.85f;
 
         [Header("Authority")]
         [SerializeField] private bool requireCombatTarget = true;
@@ -69,10 +82,13 @@ namespace Mindforge.SoulWisp
         public long MinimumSelectionSequence => _minimumSelectionSeq;
         public string LastOutcome => _lastOutcome;
         public AuraTarget LastResolvedTarget => _lastResolvedTarget;
+        public bool MotionQualifiedForArm => MotionQualified(arming: true);
+        public string MotionBlockReason => MotionReason(arming: true);
         public bool CanArm => State == WispResonanceState.Idle &&
                               wisp != null &&
                               (!requireCombatTarget || wisp.InCombat) &&
-                              !wisp.StimuliResting;
+                              !wisp.StimuliResting &&
+                              MotionQualifiedForArm;
 
         public float StateProgress
         {
@@ -124,6 +140,7 @@ namespace Mindforge.SoulWisp
             if (neuralReceiver == null) neuralReceiver = FindObjectOfType<UdpNeuralReceiver>(true);
             if (markerSender == null) markerSender = FindObjectOfType<UdpGameMarkerSender>(true);
             if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
+            if (guardianMotor == null) guardianMotor = FindObjectOfType<GuardianMotor>(true);
 #if UNITY_EDITOR
             if (editorBuffs == null) editorBuffs = FindObjectOfType<AuraBuffController>(true);
 #endif
@@ -131,7 +148,7 @@ namespace Mindforge.SoulWisp
 
         private void Update()
         {
-            if (wisp == null || controls == null) ResolveReferences();
+            if (wisp == null || controls == null || guardianMotor == null) ResolveReferences();
 
             if (State == WispResonanceState.Idle)
             {
@@ -150,6 +167,11 @@ namespace Mindforge.SoulWisp
                 if (requireCombatTarget && (wisp == null || !wisp.InCombat))
                 {
                     Abstain("TARGET_LOST");
+                    return;
+                }
+                if (abortOnMotionDuringEvidence && !MotionQualified(arming: false))
+                {
+                    Abstain(MotionReason(arming: false));
                     return;
                 }
             }
@@ -233,6 +255,7 @@ namespace Mindforge.SoulWisp
             if (evt.seq <= _minimumSelectionSeq) return false;
             if (evt.stimulus_epoch != _windowId) return false;
             if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
+            if (abortOnMotionDuringEvidence && !MotionQualified(arming: false)) return false;
 #if UNITY_EDITOR
             bool editorSimulation = string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
 #else
@@ -272,6 +295,39 @@ namespace Mindforge.SoulWisp
         {
             if (State == WispResonanceState.Priming || State == WispResonanceState.Listening)
                 Abstain(string.IsNullOrEmpty(reason) ? "BCI_LINK_LOST" : reason);
+        }
+
+        private bool MotionQualified(bool arming)
+        {
+            if (!requireLowMotionToArm && arming) return true;
+            if (!abortOnMotionDuringEvidence && !arming) return true;
+            if (guardianMotor == null) return false;
+            if (guardianMotor.IsDashing || guardianMotor.IsAirDashing || guardianMotor.IsHovering) return false;
+            if (requireGroundedToArm && !guardianMotor.IsGrounded) return false;
+
+            Vector3 velocity = guardianMotor.Velocity;
+            float planar = new Vector2(velocity.x, velocity.z).magnitude;
+            float vertical = Mathf.Abs(velocity.y);
+            float maxPlanar = arming ? maximumArmPlanarSpeed : maximumEvidencePlanarSpeed;
+            float maxVertical = arming ? maximumArmVerticalSpeed : maximumEvidenceVerticalSpeed;
+            return planar <= Mathf.Max(0f, maxPlanar) && vertical <= Mathf.Max(0f, maxVertical);
+        }
+
+        private string MotionReason(bool arming)
+        {
+            if (guardianMotor == null) return "MOTION_STATE_UNAVAILABLE";
+            if (guardianMotor.IsDashing || guardianMotor.IsAirDashing) return "PLAYER_DASHING";
+            if (guardianMotor.IsHovering) return "PLAYER_HOVERING";
+            if (requireGroundedToArm && !guardianMotor.IsGrounded) return "PLAYER_AIRBORNE";
+
+            Vector3 velocity = guardianMotor.Velocity;
+            float planar = new Vector2(velocity.x, velocity.z).magnitude;
+            float vertical = Mathf.Abs(velocity.y);
+            float maxPlanar = arming ? maximumArmPlanarSpeed : maximumEvidencePlanarSpeed;
+            float maxVertical = arming ? maximumArmVerticalSpeed : maximumEvidenceVerticalSpeed;
+            if (vertical > Mathf.Max(0f, maxVertical)) return "PLAYER_VERTICAL_MOTION";
+            if (planar > Mathf.Max(0f, maxPlanar)) return "PLAYER_MOVING";
+            return string.Empty;
         }
 
         private void Abstain(string reason)
