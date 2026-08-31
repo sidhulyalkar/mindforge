@@ -14,6 +14,11 @@ namespace Mindforge.Calibration
     /// periodic visual stimulation so endogenous alpha is characterized without
     /// recent SSVEP carry-over. Combat actions stay locked until Python accepts the
     /// participant-specific calibration.
+    ///
+    /// V0.15 adds an optional presentation gate: a demo scene may move the camera and
+    /// decorative environment first, then explicitly park the camera and release a
+    /// visually quiet neural scene. The gate defaults off so non-demo scenes preserve
+    /// the original calibration lifecycle.
     /// </summary>
     public sealed class AwakeningCalibrationDirector : MonoBehaviour
     {
@@ -22,6 +27,7 @@ namespace Mindforge.Calibration
         [SerializeField] private NeuralLinkContingency linkContingency;
         [SerializeField] private GuardianCombatInput guardianInput;
         [SerializeField] private SoulWispController soulWisp;
+        [SerializeField] private DisplayTimingMonitor displayTiming;
         [SerializeField] private Transform combatTarget;
         [SerializeField] private GameObject wispCoreRoot;
         [SerializeField] private GameObject sightAuraRoot;
@@ -34,8 +40,13 @@ namespace Mindforge.Calibration
         [SerializeField] private float baselineSeconds = 5f;
         [SerializeField] private float sightSeconds = 5f;
         [SerializeField] private float guardSeconds = 5f;
+        [SerializeField] private float codedSettleSeconds = 0.12f;
         [SerializeField] private bool autoStartWhenServiceReady = true;
         [SerializeField] private KeyCode retryKey = KeyCode.Return;
+
+        [Header("Presentation gate")]
+        [Tooltip("Optional demo-only gate. Shared/non-demo scenes leave this disabled.")]
+        [SerializeField] private bool requireIntroReady = false;
 
         [Header("Scene events")]
         [SerializeField] private UnityEvent calibrationReady;
@@ -45,33 +56,64 @@ namespace Mindforge.Calibration
         private bool _serviceReady;
         private bool _running;
         private bool _failed;
+        private bool _introReady;
 
         public string SessionId => _sessionId;
         public bool CalibrationReady { get; private set; }
         public bool ControllerOnlyQualificationActive { get; private set; }
+        public bool CalibrationInProgress => _running;
+        public bool IntroReady => !requireIntroReady || _introReady;
+        public bool NeuralServiceReady => _serviceReady;
         public event Action<string> CalibrationStageChanged;
+        private bool DisplayTimingReady => displayTiming != null && displayTiming.HasMeasurement && displayTiming.TimingHealthy;
 
         private void OnEnable()
         {
             ControllerOnlyQualificationActive = false;
+            _introReady = !requireIntroReady;
+            if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
             if (receiver != null) receiver.EventReceived += OnNeuralEvent;
             guardianInput?.SetCombatActionsEnabled(false);
             soulWisp?.SetTarget(null);
             SetDisplay(false, false);
             if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(true);
             if (arenaRoot != null) arenaRoot.SetActive(false);
-            SetStatus("WAITING FOR NEURAL CALIBRATION SERVICE");
+            SetWaitingStatus();
         }
 
         private void OnDisable()
         {
             if (receiver != null) receiver.EventReceived -= OnNeuralEvent;
+            soulWisp?.EndCalibrationStimuli();
         }
 
         private void Update()
         {
             if (ControllerOnlyQualificationActive) return;
-            if (_failed && _serviceReady && Input.GetKeyDown(retryKey)) BeginCalibration();
+            if (_serviceReady && IntroReady && autoStartWhenServiceReady && !_running && !_failed && !CalibrationReady && DisplayTimingReady)
+                BeginCalibration();
+            if (_failed && _serviceReady && IntroReady && DisplayTimingReady && Input.GetKeyDown(retryKey)) BeginCalibration();
+        }
+
+        /// <summary>
+        /// Enables/disables the optional presentation gate. Demo installers call this
+        /// before Start/Update authority is possible; shared scenes never need to.
+        /// </summary>
+        public void ConfigureIntroGate(bool required)
+        {
+            requireIntroReady = required;
+            _introReady = !required;
+            if (!_running && !CalibrationReady) SetWaitingStatus();
+        }
+
+        /// <summary>
+        /// Presentation-only readiness handshake. Calling this never invents neural
+        /// calibration success; it only permits the real Unity/Python protocol to begin.
+        /// </summary>
+        public void SetIntroReady(bool ready)
+        {
+            _introReady = ready || !requireIntroReady;
+            if (!_running && !CalibrationReady) SetWaitingStatus();
         }
 
         private void OnNeuralEvent(NeuralEvent evt)
@@ -80,8 +122,8 @@ namespace Mindforge.Calibration
             if (evt.IsCalibrationServiceReady)
             {
                 _serviceReady = true;
-                SetStatus("NEURAL SERVICE READY");
-                if (autoStartWhenServiceReady && !_running && !CalibrationReady) BeginCalibration();
+                SetWaitingStatus();
+                if (IntroReady && autoStartWhenServiceReady && !_running && !CalibrationReady && DisplayTimingReady) BeginCalibration();
             }
             else if (evt.IsCalibrationReady)
             {
@@ -89,6 +131,7 @@ namespace Mindforge.Calibration
                 _failed = false;
                 CalibrationReady = true;
                 SetStatus("WISP LINK CALIBRATED");
+                soulWisp?.EndCalibrationStimuli();
                 SetDisplay(false, false);
                 if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(false);
                 if (arenaRoot != null) arenaRoot.SetActive(true);
@@ -105,6 +148,7 @@ namespace Mindforge.Calibration
                 CalibrationReady = false;
                 guardianInput?.SetCombatActionsEnabled(false);
                 soulWisp?.SetTarget(null);
+                soulWisp?.EndCalibrationStimuli();
                 SetDisplay(false, false);
                 SetStatus("WISP LINK UNCLEAR · PRESS ENTER TO RETRY");
                 CalibrationStageChanged?.Invoke("failed");
@@ -114,9 +158,20 @@ namespace Mindforge.Calibration
 
         public void BeginCalibration()
         {
-            if (ControllerOnlyQualificationActive || !_serviceReady || _running) return;
+            if (ControllerOnlyQualificationActive || !_serviceReady || _running || !IntroReady) return;
+            if (!DisplayTimingReady)
+            {
+                SetStatus("WAITING FOR STABLE 120 HZ DISPLAY TIMING");
+                return;
+            }
+            if (soulWisp == null || !soulWisp.StimulusPairAvailable)
+            {
+                FailCalibration("WISP STIMULUS PAIR MISSING");
+                return;
+            }
             guardianInput?.SetCombatActionsEnabled(false);
             soulWisp?.SetTarget(null);
+            soulWisp?.EndCalibrationStimuli();
             if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(true);
             if (arenaRoot != null) arenaRoot.SetActive(false);
             _sessionId = Guid.NewGuid().ToString("N");
@@ -144,6 +199,7 @@ namespace Mindforge.Calibration
             CalibrationReady = false;
             ControllerOnlyQualificationActive = true;
 
+            soulWisp?.EndCalibrationStimuli();
             SetDisplay(false, false);
             if (awakeningRoomRoot != null) awakeningRoomRoot.SetActive(false);
             if (arenaRoot != null) arenaRoot.SetActive(true);
@@ -158,22 +214,121 @@ namespace Mindforge.Calibration
 
         private IEnumerator RunProtocol()
         {
-            yield return RunStage("baseline", baselineSeconds, false, false, "BE STILL · LET THE WISP LISTEN");
-            yield return RunStage("sight", sightSeconds, true, false, "ATTUNE TO SIGHT · BLUE");
-            yield return RunStage("guard", guardSeconds, false, true, "ATTUNE TO GUARD · GREEN");
+            yield return RunBaseline();
+            if (_failed) yield break;
+            yield return RunCounterbalancedTarget("sight", sightSeconds, "SIGHT · BLUE");
+            if (_failed) yield break;
+            yield return RunCounterbalancedTarget("guard", guardSeconds, "GUARD · GREEN");
+            if (_failed) yield break;
+            soulWisp?.EndCalibrationStimuli();
             SetDisplay(false, false);
             SetStatus("CALCULATING YOUR WISP LINK…");
             CalibrationStageChanged?.Invoke("finalizing");
         }
 
-        private IEnumerator RunStage(string stage, float duration, bool sight, bool guard, string label)
+        private IEnumerator RunBaseline()
         {
-            SetDisplay(sight, guard);
+            soulWisp?.EndCalibrationStimuli();
+            SetDisplay(false, false);
+            SetStatus("BE STILL · LET THE WISP LISTEN");
+            CalibrationStageChanged?.Invoke("baseline");
+            markerSender?.Send(_sessionId, "baseline", "begin", baselineSeconds);
+            double endAt = Time.realtimeSinceStartupAsDouble + Mathf.Max(0.5f, baselineSeconds);
+            while (Time.realtimeSinceStartupAsDouble < endAt)
+            {
+                if (!DisplayTimingReady)
+                {
+                    markerSender?.Send(_sessionId, "baseline", "end", baselineSeconds);
+                    FailCalibration("DISPLAY TIMING LOST DURING BASELINE");
+                    yield break;
+                }
+                yield return null;
+            }
+            markerSender?.Send(_sessionId, "baseline", "end", baselineSeconds);
+        }
+
+        private IEnumerator RunCounterbalancedTarget(string stage, float totalDuration, string cue)
+        {
+            float trialSeconds = Mathf.Max(0.75f, totalDuration * 0.5f);
+            bool firstSwap = string.Equals(stage, "guard", StringComparison.OrdinalIgnoreCase);
+            yield return RunDualTaggedTrial(stage, trialSeconds, firstSwap, cue);
+            if (_failed) yield break;
+            yield return RunNeutralSettle();
+            if (_failed) yield break;
+            yield return RunDualTaggedTrial(stage, trialSeconds, !firstSwap, cue);
+            if (_failed) yield break;
+            yield return RunNeutralSettle();
+        }
+
+        private IEnumerator RunDualTaggedTrial(string stage, float duration, bool swapSides, string label)
+        {
+            SetDisplay(true, true);
+            if (!DisplayTimingReady || soulWisp == null || !soulWisp.BeginCalibrationStimuli(swapSides))
+            {
+                FailCalibration(!DisplayTimingReady ? "DISPLAY TIMING UNHEALTHY" : "WISP STIMULUS UNAVAILABLE");
+                yield break;
+            }
+
             SetStatus(label);
             CalibrationStageChanged?.Invoke(stage);
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, codedSettleSeconds));
+            if (!DisplayTimingReady)
+            {
+                FailCalibration("DISPLAY TIMING LOST BEFORE CODED TRIAL");
+                yield break;
+            }
             markerSender?.Send(_sessionId, stage, "begin", duration);
-            yield return new WaitForSecondsRealtime(Mathf.Max(0.25f, duration));
+            double endAt = Time.realtimeSinceStartupAsDouble + Mathf.Max(0.75f, duration);
+            while (Time.realtimeSinceStartupAsDouble < endAt)
+            {
+                if (!DisplayTimingReady)
+                {
+                    markerSender?.Send(_sessionId, stage, "end", duration);
+                    FailCalibration("DISPLAY TIMING LOST DURING CODED TRIAL");
+                    yield break;
+                }
+                yield return null;
+            }
             markerSender?.Send(_sessionId, stage, "end", duration);
+            soulWisp.EndCalibrationStimuli();
+            SetDisplay(false, false);
+        }
+
+        private IEnumerator RunNeutralSettle()
+        {
+            soulWisp?.EndCalibrationStimuli();
+            SetDisplay(false, false);
+            SetStatus("SHIFT YOUR GAZE · WISP RESETTING");
+            yield return new WaitForSecondsRealtime(0.30f);
+        }
+
+        private void FailCalibration(string reason)
+        {
+            StopAllCoroutines();
+            _running = false;
+            _failed = true;
+            CalibrationReady = false;
+            soulWisp?.EndCalibrationStimuli();
+            SetDisplay(false, false);
+            SetStatus(reason + " · PRESS ENTER TO RETRY");
+            CalibrationStageChanged?.Invoke("failed");
+            calibrationFailed?.Invoke();
+        }
+
+        private void SetWaitingStatus()
+        {
+            if (!IntroReady)
+            {
+                SetStatus(_serviceReady ? "NEURAL READY · INTRO SEQUENCE" : "INITIALIZING NEURAL LINK");
+                return;
+            }
+            if (!_serviceReady)
+            {
+                SetStatus("WAITING FOR EEG HEADSET");
+                return;
+            }
+            SetStatus(DisplayTimingReady ? "NEURAL SERVICE READY" : "NEURAL READY · WAITING FOR STABLE 120 HZ");
         }
 
         private void SetDisplay(bool sight, bool guard)

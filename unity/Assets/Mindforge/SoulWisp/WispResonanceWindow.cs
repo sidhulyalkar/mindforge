@@ -33,18 +33,22 @@ namespace Mindforge.SoulWisp
         [SerializeField] private GuardianControlProfileV1 controls;
         [SerializeField] private UdpNeuralReceiver neuralReceiver;
         [SerializeField] private UdpGameMarkerSender markerSender;
+        [SerializeField] private DisplayTimingMonitor displayTiming;
 
         [Header("Decision timing")]
         [Tooltip("Neutral cores settle before modulation starts. This is presentation time, not decoder evidence.")]
-        [SerializeField] private float settleSeconds = 0.18f;
+        [SerializeField] private float settleSeconds = 0.09f;
         [Tooltip("Maximum coded decision duration. Dynamic stopping may resolve earlier.")]
-        [SerializeField] private float listeningSeconds = 1.25f;
+        [SerializeField] private float listeningSeconds = 1.50f;
         [SerializeField] private float outcomeHoldSeconds = 0.34f;
         [SerializeField] private float cooldownSeconds = 0.72f;
 
         [Header("Authority")]
         [SerializeField] private bool requireCombatTarget = true;
         [SerializeField] private bool requireHoldThroughDecision = true;
+        [Tooltip("Selections with less post-onset EEG than this never gain gameplay authority.")]
+        [SerializeField] private int minimumEvidenceMs = 450;
+        [SerializeField] private bool requireHealthyDisplayTimingForNeuralAuthority = true;
 
 #if UNITY_EDITOR
         [Header("Editor-only gameplay simulation")]
@@ -119,6 +123,7 @@ namespace Mindforge.SoulWisp
             if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
             if (neuralReceiver == null) neuralReceiver = FindObjectOfType<UdpNeuralReceiver>(true);
             if (markerSender == null) markerSender = FindObjectOfType<UdpGameMarkerSender>(true);
+            if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
 #if UNITY_EDITOR
             if (editorBuffs == null) editorBuffs = FindObjectOfType<AuraBuffController>(true);
 #endif
@@ -224,8 +229,18 @@ namespace Mindforge.SoulWisp
         public bool CanAcceptSelection(NeuralEvent evt)
         {
             if (State != WispResonanceState.Listening || evt == null || !evt.IsSelection) return false;
-            if (evt.Target == AuraTarget.None || evt.artifact) return false;
+            if (evt.Target == AuraTarget.None || evt.artifact || !evt.IsV2) return false;
             if (evt.seq <= _minimumSelectionSeq) return false;
+            if (evt.stimulus_epoch != _windowId) return false;
+            if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
+#if UNITY_EDITOR
+            bool editorSimulation = string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
+#else
+            bool editorSimulation = false;
+#endif
+            if (!editorSimulation && requireHealthyDisplayTimingForNeuralAuthority &&
+                (displayTiming == null || !displayTiming.HasMeasurement || !displayTiming.TimingHealthy))
+                return false;
             return true;
         }
 
@@ -248,7 +263,8 @@ namespace Mindforge.SoulWisp
         public void ObserveAbstain(NeuralEvent evt)
         {
             if (State != WispResonanceState.Listening || evt == null || !evt.IsAbstain) return;
-            if (evt.seq <= _minimumSelectionSeq) return;
+            if (evt.seq <= _minimumSelectionSeq || !evt.IsV2) return;
+            if (evt.stimulus_epoch != _windowId) return;
             Abstain(string.IsNullOrEmpty(evt.reason) ? "DECODER_ABSTAIN" : evt.reason);
         }
 
@@ -323,6 +339,8 @@ namespace Mindforge.SoulWisp
                 margin = 1f,
                 source_mode = "unity_editor_resonance_sim",
                 authority_ttl_ms = 250,
+                stimulus_epoch = _windowId,
+                evidence_ms = 750,
             };
 
             if (CanAcceptSelection(simulated) && editorBuffs.TryApply(simulated))

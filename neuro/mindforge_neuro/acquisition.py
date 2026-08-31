@@ -160,6 +160,13 @@ class UnicornLslSource:
             raise RuntimeError("LSL timestamps moved backwards")
         return EegChunk(x, ts, time.monotonic())
 
+    def flush(self) -> int:
+        """Discard queued LSL samples before a new Unity stimulus epoch begins."""
+        if self._inlet is None:
+            raise RuntimeError("source is not connected")
+        flush = getattr(self._inlet, "flush", None)
+        return int(flush()) if callable(flush) else 0
+
     def close(self) -> None:
         if self._inlet is not None:
             try:

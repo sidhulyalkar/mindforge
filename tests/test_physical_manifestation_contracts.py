@@ -41,9 +41,14 @@ def test_awakening_is_a_hard_combat_gate():
     assert "evt.IsCalibrationReady" in src
     assert "guardianInput?.SetCombatActionsEnabled(true)" in src
     assert "soulWisp?.SetTarget(combatTarget)" in src
-    assert 'RunStage("baseline"' in src
-    assert 'RunStage("sight"' in src
-    assert 'RunStage("guard"' in src
+    assert "DisplayTimingReady" in src
+    assert "StimulusPairAvailable" in src
+    assert "RunBaseline()" in src
+    assert 'RunCounterbalancedTarget("sight"' in src
+    assert 'RunCounterbalancedTarget("guard"' in src
+    assert "BeginCalibrationStimuli(swapSides)" in src
+    assert "SetDisplay(true, true)" in src
+    assert "FailCalibration" in src
 
 
 def test_gate2_instrument_can_measure_both_neural_codes_without_player_hotkey_collision():

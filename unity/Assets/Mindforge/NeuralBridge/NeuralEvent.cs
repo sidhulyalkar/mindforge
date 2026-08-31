@@ -35,6 +35,11 @@ namespace Mindforge.Neural
         public long decoder_time_ns;
         public int authority_ttl_ms;
 
+        // V0.14 causal provenance. Only events from the currently listening Unity epoch
+        // may gain Wisp authority, and evidence_ms excludes pre-stimulus EEG.
+        public long stimulus_epoch = -1;
+        public int evidence_ms;
+
         // Optional V0.8 derived calibration metadata. These are scalar decoder outputs,
         // never raw EEG. Older v1/v2 producers may omit them without changing behavior.
         public float stimulus_hz;

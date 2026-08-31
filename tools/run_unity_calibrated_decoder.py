@@ -21,11 +21,12 @@ from pathlib import Path
 import numpy as np
 
 from mindforge_neuro import AuraTarget, SsvepConfig, SsvepDecoder
-from mindforge_neuro.acquisition import SlidingWindowBuffer, UnicornLslSource
+from mindforge_neuro.acquisition import UnicornLslSource
 from mindforge_neuro.calibration import calibrate_decoder
 from mindforge_neuro.events import EventType, NeuralEvent
 from mindforge_neuro.markers import GameMarker
-from mindforge_neuro.runtime import AuraSelectionRuntime, UdpEventSink
+from mindforge_neuro.resonance import ResonanceEpochRuntime
+from mindforge_neuro.runtime import UdpEventSink
 
 STAGES = ("baseline", "sight", "guard")
 POSTERIOR = (4, 5, 6, 7)
@@ -111,7 +112,6 @@ def main() -> None:
     parser.add_argument("--udp-host", default="127.0.0.1")
     parser.add_argument("--udp-port", type=int, default=19742)
     parser.add_argument("--source-mode", choices=("simulation", "live", "replay", "synthetic_eeg", "eeg_replay"), default="simulation")
-    parser.add_argument("--hop-seconds", type=float, default=0.25)
     parser.add_argument("--calibration-hop-seconds", type=float, default=0.50)
     parser.add_argument("--report-dir", default="experiments/reports")
     parser.add_argument("--phantom-control-host", default="127.0.0.1")
@@ -157,7 +157,7 @@ def main() -> None:
     active_game_session: str | None = None
     active_calibration: str | None = None
     active_chunks: list[np.ndarray] = []
-    epochs: dict[str, np.ndarray] = {}
+    epochs: dict[str, list[np.ndarray]] = {}
 
     try:
         while True:
@@ -184,15 +184,19 @@ def main() -> None:
                     active_calibration = calibration_session
                     active_stage = stage
                     active_chunks = []
+                    source.flush()
                     if phantom_enabled:
                         phantom.send(PHANTOM_STAGE_COMMAND[stage])
                     print(
                         f"Calibration BEGIN {stage} game={active_game_session or '-'} "
                         f"calibration={(active_calibration or '-')[:12]}")
                 elif action == "end" and active_stage == stage and active_calibration == calibration_session:
-                    epochs[stage] = (np.concatenate(active_chunks, axis=1)
-                                     if active_chunks else np.empty((8, 0), dtype=float))
-                    print(f"Calibration END {stage}: {epochs[stage].shape[1]} samples")
+                    segment = (np.concatenate(active_chunks, axis=1)
+                               if active_chunks else np.empty((8, 0), dtype=float))
+                    epochs.setdefault(stage, []).append(segment)
+                    print(
+                        f"Calibration END {stage}: segment={len(epochs[stage])} "
+                        f"samples={segment.shape[1]}")
                     active_stage = None
                     active_chunks = []
                     if phantom_enabled and stage == "guard":
@@ -216,15 +220,17 @@ def main() -> None:
                 ))
                 heartbeat_at = now + 0.5
 
-            if all(stage in epochs for stage in STAGES):
+            if all(stage in epochs and epochs[stage] for stage in STAGES):
                 try:
                     hop = max(1, int(round(args.calibration_hop_seconds * cfg.sample_rate_hz)))
                     trials: list[tuple[AuraTarget, np.ndarray]] = []
                     for target, stage in ((AuraTarget.SIGHT, "sight"), (AuraTarget.GUARD, "guard")):
-                        trials.extend((target, window) for window in split_windows(
-                            epochs[stage], cfg.window_samples, hop))
+                        for segment in epochs[stage]:
+                            trials.extend((target, window) for window in split_windows(
+                                segment, cfg.window_samples, hop))
                     profile = calibrate_decoder(decoder, trials, model_id=model_id)
-                    baseline = resting_alpha_diagnostics(epochs["baseline"], cfg.sample_rate_hz)
+                    baseline_epoch = np.concatenate(epochs["baseline"], axis=1)
+                    baseline = resting_alpha_diagnostics(baseline_epoch, cfg.sample_rate_hz)
                     if profile.training_accuracy < 0.70 or profile.accepted_fraction < 0.50:
                         raise ValueError(
                             f"separability below promotion gate: accuracy={profile.training_accuracy:.3f}, "
@@ -240,6 +246,11 @@ def main() -> None:
                         "accepted_fraction": profile.accepted_fraction,
                         "min_score": profile.min_score,
                         "min_margin": profile.min_margin,
+                        "sight_off_center": profile.sight_off_center,
+                        "sight_off_scale": profile.sight_off_scale,
+                        "guard_off_center": profile.guard_off_center,
+                        "guard_off_scale": profile.guard_off_scale,
+                        "normalization_ready": profile.normalization_ready,
                         **baseline,
                     }
                     report_dir = Path(args.report_dir)
@@ -278,7 +289,7 @@ def main() -> None:
                     print(f"Calibration rejected: {exc}. Waiting for Unity retry.")
                     epochs = {}
 
-        runtime = AuraSelectionRuntime(
+        runtime = ResonanceEpochRuntime(
             decoder,
             profile,
             source_mode=args.source_mode,
@@ -286,22 +297,44 @@ def main() -> None:
             session_id=active_game_session,
             calibration_id=active_calibration,
         )
-        buffer = SlidingWindowBuffer(8, cfg.window_samples,
-                                     max(1, int(round(args.hop_seconds * cfg.sample_rate_hz))))
-        print("Streaming calibrated derived events to Unity. Ctrl-C to stop.")
+        print("Calibrated. Waiting for Unity NEURAL_WINDOW_LISTENING epochs. Ctrl-C to stop.")
         if phantom_enabled:
             print("For simulated combat, drive attention/faults with tools/phantom_control.py.")
+
+        terminal_markers = {"NEURAL_WINDOW_ENDED", "NEURAL_WINDOW_ABSTAINED", "NEURAL_WINDOW_RESOLVED"}
         while True:
-            chunk = source.pull_chunk(max_samples=128, timeout_s=0.35)
-            if chunk is None:
+            # Markers are polled before EEG. When LISTENING arrives, flush any queued LSL
+            # backlog and reset the cumulative buffer so every future sample is post-onset.
+            while True:
+                try:
+                    raw, _ = markers.recvfrom(65535)
+                except BlockingIOError:
+                    break
+                try:
+                    marker = GameMarker.from_json(raw)
+                except Exception:
+                    continue
+                if marker.category != "neural_window" or marker.stimulus_epoch < 0:
+                    continue
+                if marker.event == "NEURAL_WINDOW_LISTENING":
+                    source.flush()
+                    runtime.begin_epoch(marker.stimulus_epoch, session_id=marker.session_id or active_game_session)
+                    print(f"Epoch {marker.stimulus_epoch}: coded onset; EEG queue flushed")
+                elif marker.event in terminal_markers:
+                    runtime.cancel_epoch(marker.stimulus_epoch)
+
+            chunk = source.pull_chunk(max_samples=32, timeout_s=0.02)
+            if chunk is None or not runtime.active:
                 continue
-            for window, _timestamps in buffer.push(chunk.samples_uv, chunk.timestamps_s):
-                event = runtime.process(window)
-                sink.send(event)
-                print(
-                    f"{event.event.value:13s} target={(event.target.value if event.target else '-'):5s} "
-                    f"S={event.sight_score:.3f} G={event.guard_score:.3f} "
-                    f"margin={event.margin:.3f} q={event.quality:.2f} reason={event.reason or '-'}")
+            event = runtime.push(chunk.samples_uv, chunk.timestamps_s)
+            if event is None:
+                continue
+            sink.send(event)
+            print(
+                f"epoch={event.stimulus_epoch} {event.event.value:13s} "
+                f"target={(event.target.value if event.target else '-'):5s} "
+                f"evidence={event.evidence_ms:4d}ms S={event.sight_score:.3f} G={event.guard_score:.3f} "
+                f"margin={event.margin:.3f} q={event.quality:.2f} reason={event.reason or '-'}")
     except KeyboardInterrupt:
         print("\nStopping calibrated decoder.")
     finally:

@@ -17,6 +17,11 @@ class CalibrationProfile:
     training_accuracy: float
     accepted_fraction: float
     trials_per_target: dict[AuraTarget, int]
+    sight_off_center: float = 0.0
+    sight_off_scale: float = 1.0
+    guard_off_center: float = 0.0
+    guard_off_scale: float = 1.0
+    normalization_ready: bool = False
 
 
 @dataclass(frozen=True)
@@ -91,8 +96,50 @@ def calibrate_decoder(decoder: SsvepDecoder, trials: Iterable[tuple[AuraTarget, 
 
     accepted = sum(int(decoder.decide(eeg).accepted and decoder.decide(eeg).target == truth)
                    for truth, eeg in trials)
-    return CalibrationProfile(model_id, min_score, min_margin, accuracy,
-                              accepted / max(1, sum(counts.values())), counts)
+
+    # Learn each frequency's unattended leakage floor from the opposite-target trials.
+    # This prevents a participant's intrinsically strong 10 Hz response from receiving a
+    # permanent advantage over 12 Hz simply because raw CCA scores have different baselines.
+    off_scores = {AuraTarget.SIGHT: [], AuraTarget.GUARD: []}
+    for truth, eeg in trials:
+        decision = decoder.decide(eeg)
+        if decision.quality.artifact:
+            continue
+        scores = decoder.score(eeg)
+        for target in (AuraTarget.SIGHT, AuraTarget.GUARD):
+            if target != truth:
+                off_scores[target].append(float(scores[target]))
+
+    def robust_center_scale(values: list[float]) -> tuple[float, float]:
+        if len(values) < 3:
+            return 0.0, 1.0
+        x = np.asarray(values, dtype=float)
+        center = float(np.median(x))
+        mad = float(np.median(np.abs(x - center))) * 1.4826
+        return center, max(0.02, mad)
+
+    sight_center, sight_scale = robust_center_scale(off_scores[AuraTarget.SIGHT])
+    guard_center, guard_scale = robust_center_scale(off_scores[AuraTarget.GUARD])
+    normalization_ready = min(len(off_scores[AuraTarget.SIGHT]), len(off_scores[AuraTarget.GUARD])) >= 3
+
+    return CalibrationProfile(
+        model_id, min_score, min_margin, accuracy,
+        accepted / max(1, sum(counts.values())), counts,
+        sight_center, sight_scale, guard_center, guard_scale, normalization_ready,
+    )
+
+
+def normalize_calibrated_scores(
+    profile: CalibrationProfile,
+    scores: dict[AuraTarget, float],
+) -> dict[AuraTarget, float]:
+    """Express each target score relative to its participant-specific unattended leakage."""
+    if not profile.normalization_ready:
+        return {target: float(value) for target, value in scores.items()}
+    return {
+        AuraTarget.SIGHT: (float(scores[AuraTarget.SIGHT]) - profile.sight_off_center) / profile.sight_off_scale,
+        AuraTarget.GUARD: (float(scores[AuraTarget.GUARD]) - profile.guard_off_center) / profile.guard_off_scale,
+    }
 
 
 def _has_low_order_harmonic_collision(
