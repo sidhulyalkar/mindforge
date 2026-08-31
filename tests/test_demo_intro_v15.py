@@ -47,6 +47,17 @@ def test_player_instructions_match_actual_neural_contract():
     assert "KeyCode.F8" not in intro
 
 
+def test_research_hud_is_hidden_without_disabling_evidence_telemetry():
+    intro = read(INTRO)
+    assert "ResolveResearchHudPresentation" in intro
+    assert "FindObjectOfType<NeuralEvidenceHud>(true)" in intro
+    assert "evidence.GetComponent<CanvasGroup>()" in intro
+    assert "evidence.gameObject.AddComponent<CanvasGroup>()" in intro
+    assert "SetResearchHud(false)" in intro
+    resolver = intro[intro.index("private void ResolveResearchHudPresentation"):intro.index("private void SetResearchHud")]
+    assert "evidence.enabled = false" not in resolver
+
+
 def test_demo_overlays_never_steal_gameplay_input():
     intro = read(INTRO)
     fade = intro[intro.index("private IEnumerator FadeGroup"):intro.index("private IEnumerator WaitOrSkip")]
