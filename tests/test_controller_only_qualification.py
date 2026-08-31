@@ -31,7 +31,7 @@ def test_controller_only_qualification_is_explicit_and_excluded_from_release_bui
     assert 'SetStatus("P2 CONTROLLER-ONLY QUALIFICATION · BCI DISABLED")' in awakening
     assert "CalibrationReady = false" in awakening
     assert 'CalibrationStageChanged?.Invoke("controller_only")' in awakening
-    assert "if (ControllerOnlyQualificationActive || !_serviceReady || _running) return;" in awakening
+    assert "if (ControllerOnlyQualificationActive || !_serviceReady || _running || !IntroReady) return;" in awakening
 
 
 def test_controller_only_path_does_not_invent_calibration_success():
