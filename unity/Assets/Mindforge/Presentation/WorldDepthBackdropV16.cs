@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,6 +13,8 @@ namespace Mindforge.Presentation
     /// a level boundary. These forms sit well outside the playable shell and are intentionally
     /// low-frequency, non-emissive silhouettes. They never animate or participate in physics.
     /// One-time construction is deferred while any neural evidence epoch owns the visual field.
+    /// Existing production skylines/distant art are excluded from the bounds survey so one
+    /// background layer can never recursively push the next background farther away.
     /// </summary>
     public sealed class WorldDepthBackdropV16 : MonoBehaviour
     {
@@ -21,8 +24,12 @@ namespace Mindforge.Presentation
         {
             "Mindforge_AetheriaWorld_V1",
             "Mindforge_GroundedWorld_V1",
-            "Mindforge_Production_Art_V09",
             "Mindforge_Demo_Environment_V15",
+        };
+
+        private static readonly string[] IgnoreBoundsTokens =
+        {
+            "Skyline", "Distant", "Backdrop", "Horizon", "Vista",
         };
 
         private Transform _guardian;
@@ -74,8 +81,8 @@ namespace Mindforge.Presentation
             Material hazeBand = CreateLit("V16_HorizonBand", new Color(0.10f, 0.14f, 0.18f), 0f, 0.08f);
 
             Vector3 centerWorld = world.center;
-            float halfX = Mathf.Max(36f, world.extents.x);
-            float halfZ = Mathf.Max(50f, world.extents.z);
+            float halfX = Mathf.Clamp(world.extents.x, 36f, 72f);
+            float halfZ = Mathf.Clamp(world.extents.z, 50f, 92f);
             float outerX = halfX + 28f;
             float outerZ = halfZ + 34f;
 
@@ -138,7 +145,7 @@ namespace Mindforge.Presentation
                 }
             }
 
-            Debug.Log($"[Mindforge:V16] Added {_ownedObjects.Count - 1} collider-free backdrop pieces around surveyed world bounds {world.size}.");
+            Debug.Log($"[Mindforge:V16] Added {_ownedObjects.Count - 1} collider-free backdrop pieces around bounded playable-world survey {world.size}.");
         }
 
         private Bounds SurveyWorldBounds()
@@ -153,16 +160,27 @@ namespace Mindforge.Presentation
                 for (int i = 0; i < renderers.Length; i++)
                 {
                     Renderer renderer = renderers[i];
-                    if (renderer == null) continue;
+                    if (renderer == null || IgnoreForBounds(renderer.gameObject.name)) continue;
+                    Bounds candidate = renderer.bounds;
+                    if (candidate.extents.x > 80f || candidate.extents.z > 110f) continue;
                     if (!has)
                     {
-                        result = renderer.bounds;
+                        result = candidate;
                         has = true;
                     }
-                    else result.Encapsulate(renderer.bounds);
+                    else result.Encapsulate(candidate);
                 }
             }
             return result;
+        }
+
+        private static bool IgnoreForBounds(string objectName)
+        {
+            if (string.IsNullOrEmpty(objectName)) return false;
+            for (int i = 0; i < IgnoreBoundsTokens.Length; i++)
+                if (objectName.IndexOf(IgnoreBoundsTokens[i], StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            return false;
         }
 
         private Material CreateLit(string materialName, Color color, float metallic, float smoothness)
