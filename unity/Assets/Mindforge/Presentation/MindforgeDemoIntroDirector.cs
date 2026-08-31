@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Mindforge.Calibration;
 using Mindforge.Combat;
+using Mindforge.Neural;
 
 namespace Mindforge.Presentation
 {
@@ -116,6 +117,7 @@ namespace Mindforge.Presentation
 
             _calibration.SetIntroReady(false);
             _calibration.CalibrationStageChanged += OnCalibrationStageChanged;
+            ResolveResearchHudPresentation();
             SetResearchHud(false);
             SetGroup(_instructionPanel, 0f, false);
             SetGroup(_controlRibbon, 0f, false);
@@ -308,6 +310,15 @@ namespace Mindforge.Presentation
             group.alpha = alpha;
             group.interactable = false;
             group.blocksRaycasts = false;
+        }
+
+        private void ResolveResearchHudPresentation()
+        {
+            if (_researchHud != null) return;
+            NeuralEvidenceHud evidence = FindObjectOfType<NeuralEvidenceHud>(true);
+            if (evidence == null) return;
+            _researchHud = evidence.GetComponent<CanvasGroup>();
+            if (_researchHud == null) _researchHud = evidence.gameObject.AddComponent<CanvasGroup>();
         }
 
         private void SetResearchHud(bool visible)
