@@ -35,7 +35,9 @@ def test_wisp_separates_fantasy_drift_from_retinal_geometry():
     assert "Mathf.Tan(0.5f * codedCoreAngularDiameterDeg * Mathf.Deg2Rad)" in src
     assert "cam.transform.position" in src
     assert "cam.transform.forward * distance" in src
-    assert "bool showCodedCores = combat && _resonanceWindowActive" in src
+    assert "bool showCodedCores = _calibrationStimuliActive || (combat && _resonanceWindowActive)" in src
+    assert "BeginCalibrationStimuli(bool swapSides)" in src
+    assert "EndCalibrationStimuli" in src
     assert "BeginCodedResonance" in src
     assert "EndResonanceWindow" in src
 
@@ -49,6 +51,8 @@ def test_resonance_state_machine_abstains_instead_of_guessing():
     assert 'Abstain("TARGET_LOST")' in src
     assert 'Abstain("TIMEOUT")' in src
     assert "evt.seq <= _minimumSelectionSeq" in src
+    assert "evt.stimulus_epoch != _windowId" in src
+    assert "evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)" in src
     assert "SelectionAuthorityOpen" in src
     assert "Time.timeScale" not in src
     assert "Attack" not in src
