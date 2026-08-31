@@ -5,15 +5,16 @@ using Mindforge.Combat;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Composes the visual showcase around the already-authoritative competition scene.
-    /// Presentation systems remain non-authoritative; conventional target lock is added
-    /// as an explicit Combat component on the Guardian and then consumed by the camera.
+    /// Composes the legacy visual showcase around the already-authoritative competition scene.
+    /// V0.11 scenes carry MindforgeDemoV11Marker and intentionally bypass this historical
+    /// presentation stack so camera, HUD, character shell and VFX have one owner.
     /// </summary>
     public sealed class ShowcaseRuntimeInstaller : MonoBehaviour
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
         {
+            if (FindObjectOfType<MindforgeDemoV11Marker>(true) != null) return;
             if (FindObjectOfType<ShowcaseRuntimeInstaller>(true) != null) return;
             new GameObject("MindforgeShowcaseRuntime").AddComponent<ShowcaseRuntimeInstaller>();
         }
