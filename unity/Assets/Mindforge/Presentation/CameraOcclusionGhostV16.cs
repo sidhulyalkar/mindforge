@@ -110,6 +110,8 @@ namespace Mindforge.Presentation
 
         private bool NeuralEvidenceOwnsVisualField()
         {
+            if (_calibration == null) _calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (_wisp == null) _wisp = FindObjectOfType<SoulWispController>(true);
             return (_calibration != null && _calibration.CalibrationInProgress) ||
                    (_wisp != null && (_wisp.CalibrationStimuliActive || _wisp.ResonanceWindowActive));
         }
