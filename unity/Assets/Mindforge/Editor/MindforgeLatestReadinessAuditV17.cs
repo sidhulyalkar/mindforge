@@ -17,6 +17,9 @@ namespace Mindforge.Editor
     /// This is diagnostic evidence, not physical SSVEP qualification. It proves that the
     /// expected scene/runtime owners exist and that the software stimulus contract is wired.
     /// Photodiode timing and real EEG remain separate physical gates.
+    ///
+    /// A deferred check is never counted as a pass. Edit-mode audits therefore report
+    /// INCOMPLETE until the runtime-only contracts have actually been observed in Play Mode.
     /// </summary>
     public static class MindforgeLatestReadinessAuditV17
     {
@@ -26,6 +29,8 @@ namespace Mindforge.Editor
         private sealed class AuditCheck
         {
             public string id;
+            public string status;
+            public bool observed;
             public bool passed;
             public string detail;
         }
@@ -40,7 +45,12 @@ namespace Mindforge.Editor
             public string scene_path;
             public bool play_mode;
             public bool physical_ssvep_qualified = false;
+            public string readiness_status;
+            public bool all_required_observed;
             public bool all_passed;
+            public int passed_checks;
+            public int failed_checks;
+            public int deferred_checks;
             public List<AuditCheck> checks = new List<AuditCheck>();
         }
 
@@ -79,8 +89,7 @@ namespace Mindforge.Editor
             CheckWispContract(report);
             CheckRuntimePresentation(report);
 
-            report.all_passed = true;
-            for (int i = 0; i < report.checks.Count; i++) report.all_passed &= report.checks[i].passed;
+            FinalizeStatus(report);
 
             string repoRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
             string reportPath = Path.Combine(repoRoot, ReportRelativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -88,11 +97,13 @@ namespace Mindforge.Editor
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
             File.WriteAllText(reportPath, JsonUtility.ToJson(report, true));
 
-            string summary = $"[Mindforge:LatestAudit] {(report.all_passed ? "PASS" : "FAIL")} " +
-                             $"({report.checks.Count} checks) -> {ReportRelativePath}. " +
+            string summary = $"[Mindforge:LatestAudit] {report.readiness_status} " +
+                             $"({report.passed_checks} pass, {report.failed_checks} fail, {report.deferred_checks} deferred) " +
+                             $"-> {ReportRelativePath}. " +
                              "physical_ssvep_qualified=false; photodiode + real EEG still required.";
-            if (report.all_passed) Debug.Log(summary);
-            else Debug.LogError(summary);
+            if (report.readiness_status == "PASS") Debug.Log(summary);
+            else if (report.readiness_status == "FAIL") Debug.LogError(summary);
+            else Debug.LogWarning(summary);
         }
 
         private static void CheckStimulusContract(AuditReport report)
@@ -137,11 +148,15 @@ namespace Mindforge.Editor
                 return;
             }
 
-            bool pass = !monitor.HasMeasurement || monitor.TimingHealthy;
-            Add(report, "live_display_timing_health", pass,
-                monitor.HasMeasurement
-                    ? $"observed={monitor.ObservedRefreshHz:0.0}Hz drop_fraction={monitor.DropFraction:0.0000} healthy={monitor.TimingHealthy}"
-                    : "measurement not complete yet; physical qualification remains separate");
+            if (!monitor.HasMeasurement)
+            {
+                AddDeferred(report, "live_display_timing_health",
+                    "runtime timing measurement not complete; no display-health claim recorded");
+                return;
+            }
+
+            Add(report, "live_display_timing_health", monitor.TimingHealthy,
+                $"observed={monitor.ObservedRefreshHz:0.0}Hz drop_fraction={monitor.DropFraction:0.0000} healthy={monitor.TimingHealthy}");
         }
 
         private static void CheckWispContract(AuditReport report)
@@ -200,7 +215,8 @@ namespace Mindforge.Editor
             GuardianCombatInput input = UnityEngine.Object.FindObjectOfType<GuardianCombatInput>(true);
             if (input == null || !input.CombatActionsEnabled)
             {
-                AddDeferred(report, "single_gameplay_camera_writer_after_reveal");
+                AddDeferred(report, "single_gameplay_camera_writer_after_reveal",
+                    "combat authority has not returned yet; camera handoff cannot be observed");
             }
             else
             {
@@ -269,14 +285,55 @@ namespace Mindforge.Editor
             return count;
         }
 
+        private static void FinalizeStatus(AuditReport report)
+        {
+            report.passed_checks = 0;
+            report.failed_checks = 0;
+            report.deferred_checks = 0;
+            for (int i = 0; i < report.checks.Count; i++)
+            {
+                AuditCheck check = report.checks[i];
+                if (!check.observed) report.deferred_checks++;
+                else if (check.passed) report.passed_checks++;
+                else report.failed_checks++;
+            }
+
+            report.all_required_observed = report.deferred_checks == 0;
+            report.all_passed = report.failed_checks == 0 && report.deferred_checks == 0;
+            report.readiness_status = report.failed_checks > 0
+                ? "FAIL"
+                : report.deferred_checks > 0
+                    ? "INCOMPLETE"
+                    : "PASS";
+        }
+
         private static void Add(AuditReport report, string id, bool passed, string detail)
         {
-            report.checks.Add(new AuditCheck { id = id, passed = passed, detail = detail });
+            report.checks.Add(new AuditCheck
+            {
+                id = id,
+                status = passed ? "PASS" : "FAIL",
+                observed = true,
+                passed = passed,
+                detail = detail,
+            });
         }
 
         private static void AddDeferred(AuditReport report, string id)
         {
-            Add(report, id, true, "deferred until Play Mode; edit-mode readiness remains diagnostic only");
+            AddDeferred(report, id, "deferred until Play Mode; no runtime pass claimed");
+        }
+
+        private static void AddDeferred(AuditReport report, string id, string detail)
+        {
+            report.checks.Add(new AuditCheck
+            {
+                id = id,
+                status = "DEFERRED",
+                observed = false,
+                passed = false,
+                detail = detail,
+            });
         }
     }
 }
