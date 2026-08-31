@@ -14,10 +14,17 @@ namespace Mindforge.Editor
     /// ProductionMeshLibraryV09 and the MIT aadebdeb/ProceduralMesh reference:
     /// source control stores deterministic construction code; local Unity builds generate
     /// reusable mesh assets beneath Assets/Mindforge/Generated.
+    ///
+    /// MeshRevision is the local generated-asset cache contract. Bump it when topology or
+    /// deformation recipes change so existing Generated/V20 assets are refreshed once.
     /// </summary>
     public static class WorldSoulMeshLibraryV20
     {
         public const string Root = "Assets/Mindforge/Generated/V20/Meshes";
+        public const int MeshRevision = 1;
+
+        private static readonly Dictionary<string, Mesh> TerrainCache = new Dictionary<string, Mesh>();
+        private static readonly Dictionary<int, Mesh> RockCache = new Dictionary<int, Mesh>();
 
         public static Mesh TerrainPatch(
             string assetName,
@@ -30,20 +37,42 @@ namespace Mindforge.Editor
             Func<float, float, float> heightSampler)
         {
             EnsureFolder(Root);
-            Mesh fresh = BuildTerrainPatch(
-                xMin, xMax, zMin, zMax,
-                Mathf.Clamp(xSegments, 2, 96),
-                Mathf.Clamp(zSegments, 2, 160),
-                heightSampler);
-            return Upsert($"{Root}/{assetName}.asset", fresh);
+            if (TerrainCache.TryGetValue(assetName, out Mesh cached) && cached != null) return cached;
+
+            string path = $"{Root}/{assetName}.asset";
+            string expectedName = $"{assetName}_r{MeshRevision}";
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null || mesh.name != expectedName)
+            {
+                Mesh fresh = BuildTerrainPatch(
+                    xMin, xMax, zMin, zMax,
+                    Mathf.Clamp(xSegments, 2, 96),
+                    Mathf.Clamp(zSegments, 2, 160),
+                    heightSampler);
+                mesh = Upsert(path, expectedName, fresh);
+            }
+
+            TerrainCache[assetName] = mesh;
+            return mesh;
         }
 
         public static Mesh RockVariant(int variant)
         {
             variant = Mathf.Abs(variant) % 6;
             EnsureFolder(Root);
-            Mesh fresh = BuildRock(22000 + variant * 101, 11, 7);
-            return Upsert($"{Root}/Rock_{variant:00}.asset", fresh);
+            if (RockCache.TryGetValue(variant, out Mesh cached) && cached != null) return cached;
+
+            string path = $"{Root}/Rock_{variant:00}.asset";
+            string expectedName = $"WorldSoulRock_{variant:00}_r{MeshRevision}";
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null || mesh.name != expectedName)
+            {
+                Mesh fresh = BuildRock(22000 + variant * 101, 11, 7);
+                mesh = Upsert(path, expectedName, fresh);
+            }
+
+            RockCache[variant] = mesh;
+            return mesh;
         }
 
         private static Mesh BuildTerrainPatch(
@@ -155,20 +184,19 @@ namespace Mindforge.Editor
             return mesh;
         }
 
-        private static Mesh Upsert(string path, Mesh fresh)
+        private static Mesh Upsert(string path, string expectedName, Mesh fresh)
         {
             Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             if (existing == null)
             {
-                fresh.name = System.IO.Path.GetFileNameWithoutExtension(path);
+                fresh.name = expectedName;
                 AssetDatabase.CreateAsset(fresh, path);
                 EditorUtility.SetDirty(fresh);
                 return fresh;
             }
 
-            string stableName = existing.name;
             EditorUtility.CopySerialized(fresh, existing);
-            existing.name = stableName;
+            existing.name = expectedName;
             EditorUtility.SetDirty(existing);
             UnityEngine.Object.DestroyImmediate(fresh);
             return existing;
