@@ -4,7 +4,7 @@ import numpy as np
 
 from mindforge_neuro import AuraTarget, SsvepConfig, SsvepDecoder
 from mindforge_neuro.calibration import calibrate_decoder, normalize_calibrated_scores
-from mindforge_neuro.resonance import ResonanceEpochRuntime
+from mindforge_neuro.resonance import ResonanceEpochBuffer, ResonanceEpochRuntime
 
 
 def synthetic(freq: float, cfg: SsvepConfig, seconds: float, seed: int, amplitude: float = 16.0) -> np.ndarray:
@@ -12,7 +12,7 @@ def synthetic(freq: float, cfg: SsvepConfig, seconds: float, seed: int, amplitud
     n = int(round(seconds * cfg.sample_rate_hz))
     t = np.arange(n) / cfg.sample_rate_hz
     channels = []
-    for i in range(8):
+    for _ in range(8):
         phase = rng.uniform(0, 2 * np.pi)
         sig = amplitude * np.sin(2 * np.pi * freq * t + phase)
         sig += 0.35 * amplitude * np.sin(2 * np.pi * 2 * freq * t + 0.5 * phase)
@@ -50,6 +50,18 @@ def test_calibration_learns_target_specific_unattended_leakage():
     assert abs(z[AuraTarget.GUARD]) < 1e-9
 
 
+def test_epoch_buffer_discards_marker_to_photon_guard_samples():
+    cfg = SsvepConfig()
+    buffer = ResonanceEpochBuffer(8, cfg.sample_rate_hz, 1.25, onset_guard_seconds=0.025)
+    buffer.begin(4)
+    guard_samples = buffer.onset_guard_samples
+    assert guard_samples >= 6
+    x = np.ones((8, guard_samples + 10), dtype=float)
+    ts = np.arange(x.shape[1]) / cfg.sample_rate_hz
+    buffer.push(x, ts)
+    assert buffer.count == 10
+
+
 def test_resonance_runtime_emits_only_for_current_epoch_and_reports_post_onset_duration():
     cfg = SsvepConfig(window_seconds=1.25)
     decoder = SsvepDecoder(cfg)
@@ -57,7 +69,7 @@ def test_resonance_runtime_emits_only_for_current_epoch_and_reports_post_onset_d
     runtime = ResonanceEpochRuntime(decoder, p, source_mode="synthetic_eeg", initial_seq=40)
     runtime.begin_epoch(17, session_id="game")
 
-    eeg = synthetic(cfg.blue_frequency_hz, cfg, 1.45, 901, amplitude=24.0)
+    eeg = synthetic(cfg.blue_frequency_hz, cfg, 1.35, 901, amplitude=24.0)
     ts = np.arange(eeg.shape[1]) / cfg.sample_rate_hz
     event = None
     for start in range(0, eeg.shape[1], 25):
@@ -69,7 +81,7 @@ def test_resonance_runtime_emits_only_for_current_epoch_and_reports_post_onset_d
     assert event.event.value == "AURA_SELECTED"
     assert event.target == AuraTarget.SIGHT
     assert event.stimulus_epoch == 17
-    assert 550 <= event.evidence_ms <= 1450
+    assert 550 <= event.evidence_ms <= 1250
     assert not runtime.active
 
 
@@ -79,7 +91,7 @@ def test_resonance_runtime_fails_closed_at_final_checkpoint():
     p = profile(cfg, decoder)
     runtime = ResonanceEpochRuntime(decoder, p, source_mode="synthetic_eeg")
     runtime.begin_epoch(99)
-    n = int(round(1.45 * cfg.sample_rate_hz))
+    n = int(round(1.35 * cfg.sample_rate_hz))
     flat = np.zeros((8, n), dtype=float)
     ts = np.arange(n) / cfg.sample_rate_hz
     event = runtime.push(flat, ts)
@@ -87,4 +99,4 @@ def test_resonance_runtime_fails_closed_at_final_checkpoint():
     assert event.event.value == "ABSTAIN"
     assert event.target is None
     assert event.stimulus_epoch == 99
-    assert event.evidence_ms == 1450
+    assert event.evidence_ms == 1250
