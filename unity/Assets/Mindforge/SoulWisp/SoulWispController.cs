@@ -6,12 +6,12 @@ namespace Mindforge.SoulWisp
 {
     /// <summary>
     /// Persistent soul companion. The fantasy Wisp itself drifts organically around the
-    /// Guardian, while coded Sight/Guard VEP targets remain separately positioned by the
-    /// combat gaze contract. A fallback combat target may be supplied by the encounter,
-    /// but conventional player target lock always takes priority.
+    /// Guardian. Sight/Guard coded cores are a separate retinal interface that is hidden
+    /// during ordinary combat and only materializes for an explicitly armed resonance window.
     ///
-    /// The companion drift is presentation-only and never changes coded target
-    /// luminance/frequency, neural decisions or combat authority.
+    /// During resonance, coded-core placement is camera-relative and angularly specified.
+    /// This keeps the neurophysiology-facing geometry stable while leaving the fantasy shell
+    /// free to move. Physical monitor geometry/timing must still be qualified separately.
     /// </summary>
     public sealed class SoulWispController : MonoBehaviour
     {
@@ -37,7 +37,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private float companionCombatBias = 0.30f;
         [SerializeField] private float companionWanderArcRadians = 2.15f;
 
-        [Header("Free combat gaze anchors")]
+        [Header("Hidden free-combat anchors · pre-position only")]
         [Range(0f, 1f)]
         [SerializeField] private float anchorTowardTarget = 0.78f;
         [SerializeField] private float anchorVerticalOffset = 0.45f;
@@ -45,12 +45,23 @@ namespace Mindforge.SoulWisp
         [SerializeField] private float freeDepthTowardCamera = 0.10f;
         [SerializeField] private float freeAnchorSharpness = 7.5f;
 
-        [Header("Third-person target lock gaze anchors")]
+        [Header("Hidden target-lock anchors · pre-position only")]
         [SerializeField] private float lockedTargetHeight = 1.45f;
         [SerializeField] private float lockedHorizontalSeparation = 1.18f;
         [SerializeField] private float lockedDepthTowardCamera = 0.12f;
         [SerializeField] private float lockedAnchorSharpness = 10f;
         [SerializeField] private float auraScale = 0.30f;
+
+        [Header("Resonance coded-core retinal geometry")]
+        [Tooltip("Camera-space distance only. Angular diameter/separation define the retinal geometry.")]
+        [SerializeField] private float codedCoreDistance = 3.2f;
+        [Range(1f, 8f)]
+        [SerializeField] private float codedCoreAngularDiameterDeg = 3.0f;
+        [Range(4f, 24f)]
+        [SerializeField] private float codedCoreSeparationDeg = 10.0f;
+        [Range(-12f, 12f)]
+        [SerializeField] private float codedCoreVerticalAngleDeg = -1.5f;
+        [SerializeField] private float resonanceAnchorSharpness = 22f;
 
         [Header("VEP")]
         [SerializeField] private float sightFrequencyHz = 10f;
@@ -60,12 +71,14 @@ namespace Mindforge.SoulWisp
 
         private Transform _fallbackTarget;
         private bool _lockSubscribed;
+        private bool _resonanceWindowActive;
         private float _driftSeedA;
         private float _driftSeedB;
         private float _driftSeedC;
 
         public bool InCombat => EffectiveTarget != null;
         public Transform CurrentTarget => EffectiveTarget;
+        public bool ResonanceWindowActive => _resonanceWindowActive;
         public bool StableLockAnchorsActive =>
             targetLock != null && targetLock.Locked && targetLock.Target != null;
         public bool StimuliResting => (sightStimulus != null && sightStimulus.IsResting) ||
@@ -91,6 +104,8 @@ namespace Mindforge.SoulWisp
             }
             sightStimulus?.Configure(sightFrequencyHz, sightColor);
             guardStimulus?.Configure(guardFrequencyHz, guardColor);
+            sightStimulus?.EndWindow();
+            guardStimulus?.EndWindow();
             InitializeDriftSeeds();
             ResolveTargetLock();
             SetTarget(null);
@@ -102,7 +117,11 @@ namespace Mindforge.SoulWisp
             SubscribeLock();
         }
 
-        private void OnDisable() => UnsubscribeLock();
+        private void OnDisable()
+        {
+            EndResonanceWindow();
+            UnsubscribeLock();
+        }
 
         public void SetTarget(Transform target)
         {
@@ -114,6 +133,39 @@ namespace Mindforge.SoulWisp
         {
             sightStimulus?.RestFor(realSeconds);
             guardStimulus?.RestFor(realSeconds);
+            EndResonanceWindow();
+        }
+
+        /// <summary>
+        /// Materializes the two neutral coded cores so they can settle into stable geometry.
+        /// It does not start luminance modulation and grants no gameplay authority.
+        /// </summary>
+        public bool PrepareResonanceWindow()
+        {
+            if (StimuliResting || EffectiveTarget == null) return false;
+            _resonanceWindowActive = true;
+            sightStimulus?.EndWindow();
+            guardStimulus?.EndWindow();
+            ApplyCombatVisibility(true);
+            return true;
+        }
+
+        /// <summary>Starts both coded stimuli from one shared local phase epoch.</summary>
+        public bool BeginCodedResonance()
+        {
+            if (!_resonanceWindowActive || StimuliResting || EffectiveTarget == null) return false;
+            double sharedStart = Time.realtimeSinceStartupAsDouble;
+            sightStimulus?.BeginWindow(sharedStart);
+            guardStimulus?.BeginWindow(sharedStart);
+            return true;
+        }
+
+        public void EndResonanceWindow()
+        {
+            _resonanceWindowActive = false;
+            sightStimulus?.EndWindow();
+            guardStimulus?.EndWindow();
+            ApplyCombatVisibility(EffectiveTarget != null);
         }
 
         private void Update()
@@ -127,11 +179,20 @@ namespace Mindforge.SoulWisp
 
             if (activeTarget == null)
             {
+                if (_resonanceWindowActive) EndResonanceWindow();
                 ApplyCombatVisibility(false);
                 return;
             }
 
             ApplyCombatVisibility(true);
+            if (_resonanceWindowActive)
+            {
+                PlaceResonanceCores();
+                return;
+            }
+
+            // Hidden cores remain pre-positioned near combat context so a future window can
+            // ease cleanly, but they are not visible and VEP modulation is disabled.
             if (StableLockAnchorsActive && targetLock.Target == activeTarget)
             {
                 PlaceStableLockedTargets(activeTarget);
@@ -198,6 +259,24 @@ namespace Mindforge.SoulWisp
             transform.position = Vector3.Lerp(transform.position, desired, response);
         }
 
+        private void PlaceResonanceCores()
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return;
+
+            float distance = Mathf.Max(cam.nearClipPlane + 0.75f, codedCoreDistance);
+            float halfSeparation = distance * Mathf.Tan(0.5f * codedCoreSeparationDeg * Mathf.Deg2Rad);
+            float vertical = distance * Mathf.Tan(codedCoreVerticalAngleDeg * Mathf.Deg2Rad);
+            float diameter = 2f * distance * Mathf.Tan(0.5f * codedCoreAngularDiameterDeg * Mathf.Deg2Rad);
+            Vector3 center = cam.transform.position
+                + cam.transform.forward * distance
+                + cam.transform.up * vertical;
+            float response = 1f - Mathf.Exp(-Mathf.Max(0.1f, resonanceAnchorSharpness) * Time.unscaledDeltaTime);
+
+            PlaceStableAura(sightAura, center - cam.transform.right * halfSeparation, cam, response, diameter);
+            PlaceStableAura(guardAura, center + cam.transform.right * halfSeparation, cam, response, diameter);
+        }
+
         private void PlaceFreeCombatTargets(Transform activeTarget)
         {
             Camera cam = Camera.main;
@@ -214,12 +293,8 @@ namespace Mindforge.SoulWisp
                 + Vector3.up * anchorVerticalOffset
                 + towardCamera * freeDepthTowardCamera;
             float response = 1f - Mathf.Exp(-Mathf.Max(0.1f, freeAnchorSharpness) * Time.unscaledDeltaTime);
-
-            // Free combat no longer makes the coded stimuli orbit. They ease toward a
-            // predictable left/right gaze corridor while the fantasy companion is free
-            // to wander independently around the Guardian.
-            PlaceStableAura(sightAura, anchor - right * freeHorizontalSeparation, cam, response);
-            PlaceStableAura(guardAura, anchor + right * freeHorizontalSeparation, cam, response);
+            PlaceStableAura(sightAura, anchor - right * freeHorizontalSeparation, cam, response, auraScale);
+            PlaceStableAura(guardAura, anchor + right * freeHorizontalSeparation, cam, response, auraScale);
         }
 
         private void PlaceStableLockedTargets(Transform activeTarget)
@@ -238,29 +313,25 @@ namespace Mindforge.SoulWisp
                 + Vector3.up * lockedTargetHeight
                 + towardCamera * lockedDepthTowardCamera;
             float response = 1f - Mathf.Exp(-Mathf.Max(0.1f, lockedAnchorSharpness) * Time.unscaledDeltaTime);
-
-            // Sight stays screen-left and Guard screen-right while locked. The coded
-            // VEP luminance remains owned by VepAuraStimulus; this changes position only.
-            PlaceStableAura(sightAura, anchor - right * lockedHorizontalSeparation, cam, response);
-            PlaceStableAura(guardAura, anchor + right * lockedHorizontalSeparation, cam, response);
+            PlaceStableAura(sightAura, anchor - right * lockedHorizontalSeparation, cam, response, auraScale);
+            PlaceStableAura(guardAura, anchor + right * lockedHorizontalSeparation, cam, response, auraScale);
         }
 
-        private void PlaceStableAura(Transform aura, Vector3 desired, Camera cam, float response)
+        private static void PlaceStableAura(Transform aura, Vector3 desired, Camera cam, float response, float scale)
         {
             if (aura == null) return;
             aura.position = Vector3.Lerp(aura.position, desired, response);
-            aura.localScale = Vector3.one * auraScale;
+            aura.localScale = Vector3.one * Mathf.Max(0.01f, scale);
             if (cam != null)
                 aura.rotation = Quaternion.LookRotation(aura.position - cam.transform.position, cam.transform.up);
         }
 
         private void ApplyCombatVisibility(bool combat)
         {
-            // The fantasy companion remains present during combat. Sight/Guard are
-            // separate coded gaze targets rather than replacing the Wisp itself.
             if (wispCore != null) wispCore.gameObject.SetActive(true);
-            if (sightAura != null) sightAura.gameObject.SetActive(combat);
-            if (guardAura != null) guardAura.gameObject.SetActive(combat);
+            bool showCodedCores = combat && _resonanceWindowActive;
+            if (sightAura != null) sightAura.gameObject.SetActive(showCodedCores);
+            if (guardAura != null) guardAura.gameObject.SetActive(showCodedCores);
         }
 
         private void ResolveTargetLock()
