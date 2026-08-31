@@ -49,10 +49,18 @@ namespace Mindforge.Presentation
 
         private AwakeningCalibrationDirector _calibration;
         private SoulWispController _wisp;
-        private readonly MaterialPropertyBlock _block = new MaterialPropertyBlock();
+        // MaterialPropertyBlock wraps native Unity state. Never construct it from a
+        // MonoBehaviour instance field initializer because Unity may deserialize the component
+        // from its constructor path, where native CreateImpl calls are illegal.
+        private MaterialPropertyBlock _block;
         private int _restyled;
 
         public int RestyledRendererCount => _restyled;
+
+        private void Awake()
+        {
+            _block = new MaterialPropertyBlock();
+        }
 
         public void Configure(AwakeningCalibrationDirector calibration, SoulWispController wisp)
         {
@@ -62,6 +70,9 @@ namespace Mindforge.Presentation
 
         private IEnumerator Start()
         {
+            // Domain reload / unusual editor construction should still fail safe instead of
+            // converting a presentation pass into a null-reference failure.
+            if (_block == null) _block = new MaterialPropertyBlock();
             while (NeuralEvidenceOwnsVisualField()) yield return null;
             ApplyHierarchy();
         }
@@ -76,6 +87,7 @@ namespace Mindforge.Presentation
 
         private void ApplyHierarchy()
         {
+            if (_block == null) _block = new MaterialPropertyBlock();
             _restyled = 0;
             for (int r = 0; r < RootNames.Length; r++)
             {
