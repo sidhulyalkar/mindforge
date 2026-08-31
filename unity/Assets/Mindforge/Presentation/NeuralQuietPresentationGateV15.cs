@@ -42,6 +42,7 @@ namespace Mindforge.Presentation
         private readonly List<Renderer> _quietRenderers = new List<Renderer>();
         private readonly List<bool> _baselineEnabled = new List<bool>();
         private bool _resolved;
+        private bool _subscribed;
         private bool _lastQuiet;
 
         public int SuppressedRendererCount => _quietRenderers.Count;
@@ -68,6 +69,12 @@ namespace Mindforge.Presentation
             Apply(CurrentQuietState());
         }
 
+        private void OnDestroy()
+        {
+            if (_subscribed && _calibration != null)
+                _calibration.CalibrationStageChanged -= OnCalibrationStageChanged;
+        }
+
         private void Update()
         {
             if (!_resolved)
@@ -78,6 +85,23 @@ namespace Mindforge.Presentation
 
             bool quiet = CurrentQuietState();
             if (quiet != _lastQuiet) Apply(quiet);
+        }
+
+        private void OnCalibrationStageChanged(string stage)
+        {
+            if (!_resolved || string.IsNullOrEmpty(stage)) return;
+
+            // AwakeningCalibrationDirector emits the stage event synchronously before
+            // the baseline/coded begin marker, so ornament is already hidden when the
+            // labelled EEG epoch opens rather than disappearing one rendered frame late.
+            if (stage == "baseline" || stage == "sight" || stage == "guard" || stage == "finalizing")
+            {
+                Apply(true);
+                return;
+            }
+
+            if (stage == "ready" || stage == "failed" || stage == "controller_only")
+                Apply(CurrentQuietState());
         }
 
         private bool CurrentQuietState()
@@ -91,6 +115,12 @@ namespace Mindforge.Presentation
             _calibration = UnityEngine.Object.FindObjectOfType<AwakeningCalibrationDirector>(true);
             _wisp = UnityEngine.Object.FindObjectOfType<SoulWispController>(true);
             if (_calibration == null || _wisp == null) return;
+
+            if (!_subscribed)
+            {
+                _calibration.CalibrationStageChanged += OnCalibrationStageChanged;
+                _subscribed = true;
+            }
 
             _quietRenderers.Clear();
             _baselineEnabled.Clear();
