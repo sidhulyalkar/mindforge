@@ -1,0 +1,184 @@
+name: fix-latest-kernel-once
+
+on:
+  push:
+    branches:
+      - fix/latest-inactive-kernel-resolution
+    paths:
+      - '.github/workflows/fix-latest-kernel-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-latest-builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/latest-inactive-kernel-resolution
+          fetch-depth: 0
+
+      - name: Replace active-only kernel lookup with authoritative inactive-safe resolution
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('unity/Assets/Mindforge/Editor/MindforgeDemoV11Builder.cs')
+          text = path.read_text(encoding='utf-8')
+
+          old_using = 'using UnityEngine.SceneManagement;\nusing Mindforge.Combat;'
+          new_using = 'using UnityEngine.SceneManagement;\nusing Mindforge.Calibration;\nusing Mindforge.Combat;'
+          if text.count(old_using) != 1:
+              raise SystemExit('Could not locate deterministic using insertion point')
+          text = text.replace(old_using, new_using, 1)
+
+          old_lookup = '''            GameObject arena = GameObject.Find("Fractured_Signal_Arena");
+            GameObject guardian = GameObject.Find("Guardian");
+            GameObject boss = GameObject.Find("The_Fractured_Signal");
+            if (arena == null || guardian == null || boss == null)
+                throw new UnityEditor.Build.BuildFailedException("V0.11 systems kernel is incomplete after competition assembly.");
+'''
+          new_lookup = '''            // The competition scene deliberately leaves its arena inactive until calibration (or the
+            // explicitly-labelled controller-only qualification path) opens combat. GameObject.Find
+            // only sees active hierarchy objects, so resolving the kernel by names here makes the clean
+            // demo fail immediately even though assembly succeeded. Resolve authority-bearing components
+            // across the active scene, including inactive objects, and read the arena from the calibration
+            // director's serialized reference instead.
+            GuardianMotor motor = FindSingleSceneComponent<GuardianMotor>("GuardianMotor");
+            FracturedSignalDirector bossDirector = FindSingleSceneComponent<FracturedSignalDirector>("FracturedSignalDirector");
+            AwakeningCalibrationDirector calibration = FindSingleSceneComponent<AwakeningCalibrationDirector>("AwakeningCalibrationDirector");
+
+            GameObject guardian = motor != null ? motor.gameObject : null;
+            GameObject boss = bossDirector != null ? bossDirector.gameObject : null;
+            GameObject arena = ResolveArenaRoot(calibration);
+
+            if (arena == null || guardian == null || boss == null)
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    "V0.11 systems kernel is incomplete after competition assembly. " +
+                    $"guardian={(guardian != null ? guardian.name : "MISSING")}, " +
+                    $"boss={(boss != null ? boss.name : "MISSING")}, " +
+                    $"arena={(arena != null ? arena.name : "MISSING")}. " +
+                    "Resolution is scene-scoped, component-based, and includes inactive objects."
+                );
+            }
+
+            if (!boss.transform.IsChildOf(arena.transform))
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.11 systems kernel is malformed: boss '{boss.name}' is not inside calibration arena '{arena.name}'."
+                );
+            }
+'''
+          if text.count(old_lookup) != 1:
+              raise SystemExit('Could not locate brittle V0.11 kernel lookup block')
+          text = text.replace(old_lookup, new_lookup, 1)
+
+          marker = '''        private static void StripKernelBlockout(Transform arena)
+        {
+'''
+          helpers = '''        private static T FindSingleSceneComponent<T>(string label) where T : Component
+        {
+            Scene activeScene = EditorSceneManager.GetActiveScene();
+            T[] candidates = Resources.FindObjectsOfTypeAll<T>();
+            T match = null;
+            int count = 0;
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                T candidate = candidates[i];
+                if (candidate == null || !candidate.gameObject.scene.IsValid() || candidate.gameObject.scene != activeScene)
+                    continue;
+
+                count++;
+                if (match == null) match = candidate;
+            }
+
+            if (count > 1)
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.11 systems kernel is ambiguous: expected one scene {label}, found {count}."
+                );
+            }
+
+            return match;
+        }
+
+        private static GameObject ResolveArenaRoot(AwakeningCalibrationDirector calibration)
+        {
+            if (calibration == null) return null;
+
+            SerializedObject serialized = new SerializedObject(calibration);
+            SerializedProperty arenaRoot = serialized.FindProperty("arenaRoot");
+            GameObject arena = arenaRoot != null ? arenaRoot.objectReferenceValue as GameObject : null;
+            if (arena == null) return null;
+
+            Scene activeScene = EditorSceneManager.GetActiveScene();
+            return arena.scene.IsValid() && arena.scene == activeScene ? arena : null;
+        }
+
+        private static void StripKernelBlockout(Transform arena)
+        {
+'''
+          if text.count(marker) != 1:
+              raise SystemExit('Could not locate helper insertion point')
+          text = text.replace(marker, helpers, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Add regression contract for inactive competition kernel
+        shell: bash
+        run: |
+          cat > tests/test_latest_inactive_kernel_resolution.py <<'PY'
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          BUILDER = ROOT / 'unity' / 'Assets' / 'Mindforge' / 'Editor' / 'MindforgeDemoV11Builder.cs'
+          ASSEMBLER = ROOT / 'unity' / 'Assets' / 'Mindforge' / 'Editor' / 'CompetitionSceneAssembler.cs'
+          CALIBRATION = ROOT / 'unity' / 'Assets' / 'Mindforge' / 'Calibration' / 'AwakeningCalibrationDirector.cs'
+
+
+          def read(path: Path) -> str:
+              return path.read_text(encoding='utf-8')
+
+
+          def test_latest_builder_resolves_intentionally_inactive_competition_kernel():
+              builder = read(BUILDER)
+              assembler = read(ASSEMBLER)
+              calibration = read(CALIBRATION)
+
+              # Competition assembly intentionally starts with combat hidden until calibration.
+              assert 'arena.SetActive(false);' in assembler
+              assert 'if (arenaRoot != null) arenaRoot.SetActive(false);' in calibration
+              assert 'if (arenaRoot != null) arenaRoot.SetActive(true);' in calibration
+
+              # The integrated builder must therefore never use active-only GameObject.Find for
+              # the authority-bearing arena/boss handshake.
+              assert 'GameObject.Find("Fractured_Signal_Arena")' not in builder
+              assert 'GameObject.Find("The_Fractured_Signal")' not in builder
+              assert 'FindSingleSceneComponent<GuardianMotor>("GuardianMotor")' in builder
+              assert 'FindSingleSceneComponent<FracturedSignalDirector>("FracturedSignalDirector")' in builder
+              assert 'FindSingleSceneComponent<AwakeningCalibrationDirector>("AwakeningCalibrationDirector")' in builder
+              assert 'Resources.FindObjectsOfTypeAll<T>()' in builder
+              assert 'candidate.gameObject.scene != activeScene' in builder
+
+              # Arena ownership comes from the actual serialized calibration reference rather
+              # than duplicating a historical scene-object name contract.
+              assert 'serialized.FindProperty("arenaRoot")' in builder
+              assert 'boss.transform.IsChildOf(arena.transform)' in builder
+
+              # Builder construction must not bypass the calibration/controller-only lifecycle.
+              assert 'arena.SetActive(true)' not in builder
+          PY
+
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          git config user.name 'mindforge-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add unity/Assets/Mindforge/Editor/MindforgeDemoV11Builder.cs tests/test_latest_inactive_kernel_resolution.py
+          git commit -m 'fix(editor): resolve inactive competition kernel in Latest build'
+          git push origin HEAD:fix/latest-inactive-kernel-resolution
