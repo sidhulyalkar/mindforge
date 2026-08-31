@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using Mindforge.SoulWisp;
 using UnityEngine;
@@ -12,8 +11,8 @@ namespace Mindforge.Combat
     /// retunes its serialized cadence and moves the existing authoritative kinematic body
     /// between attack commitments so the encounter reads as a creature rather than a turret.
     ///
-    /// Movement freezes whenever the boss is externally paused, poise-broken, or a Wisp
-    /// calibration/resonance visual field is active. Neural evidence never chooses movement.
+    /// Movement freezes whenever the boss is externally paused, poise-broken, attacking, or a
+    /// Wisp calibration/resonance visual field is active. Neural evidence never chooses movement.
     /// </summary>
     [DefaultExecutionOrder(-95)]
     [RequireComponent(typeof(FracturedSignalDirector))]
@@ -21,20 +20,20 @@ namespace Mindforge.Combat
     public sealed class FracturedSignalFirstBossV19 : MonoBehaviour
     {
         [Header("First-encounter cadence")]
-        [SerializeField] private float phaseOneInterval = 1.85f;
-        [SerializeField] private float phaseTwoInterval = 1.52f;
-        [SerializeField] private float phaseThreeInterval = 1.22f;
+        [SerializeField] private float phaseOneInterval = 2.15f;
+        [SerializeField] private float phaseTwoInterval = 1.78f;
+        [SerializeField] private float phaseThreeInterval = 1.48f;
         [SerializeField] private float phaseOneTelegraph = 0.76f;
         [SerializeField] private float phaseTwoTelegraph = 0.66f;
         [SerializeField] private float phaseThreeTelegraph = 0.58f;
-        [SerializeField] private int radialCount = 8;
+        [SerializeField] private int radialCount = 7;
         [SerializeField] private int maxEchoes = 2;
 
         [Header("Duel movement")]
-        [SerializeField] private float phaseOnePreferredDistance = 6.8f;
-        [SerializeField] private float phaseTwoPreferredDistance = 5.9f;
-        [SerializeField] private float phaseThreePreferredDistance = 5.2f;
-        [SerializeField] private float distanceBand = 0.75f;
+        [SerializeField] private float phaseOnePreferredDistance = 4.35f;
+        [SerializeField] private float phaseTwoPreferredDistance = 5.10f;
+        [SerializeField] private float phaseThreePreferredDistance = 4.20f;
+        [SerializeField] private float distanceBand = 0.72f;
         [SerializeField] private float phaseOneMoveSpeed = 1.75f;
         [SerializeField] private float phaseTwoMoveSpeed = 2.15f;
         [SerializeField] private float phaseThreeMoveSpeed = 2.55f;
@@ -42,7 +41,7 @@ namespace Mindforge.Combat
         [SerializeField] private float orbitBias = 0.72f;
         [SerializeField] private float turnSharpness = 6.5f;
         [SerializeField] private float homeLeashRadius = 5.4f;
-        [SerializeField] private float collisionProbeRadius = 1.05f;
+        [SerializeField] private float collisionProbeRadius = 0.95f;
         [SerializeField] private float postAttackRecovery = 0.62f;
         [SerializeField] private float orbitSideHoldSeconds = 3.2f;
 
@@ -92,6 +91,7 @@ namespace Mindforge.Combat
                 _director.AttackFired += OnAttackFired;
             }
             _home = transform.position;
+            _nextOrbitSwap = Time.unscaledTime + Mathf.Max(1.2f, orbitSideHoldSeconds);
         }
 
         private void OnDisable()
@@ -119,7 +119,7 @@ namespace Mindforge.Combat
 
             if (Time.unscaledTime < _holdUntil)
             {
-                FacePlayer(0f);
+                FacePlayer();
                 MovementActive = false;
                 CurrentMoveSpeed = 0f;
                 return;
@@ -179,15 +179,13 @@ namespace Mindforge.Combat
 
             MovementActive = Vector3.Distance(candidate, transform.position) > 0.0005f;
             CurrentMoveSpeed = MovementActive ? speed : 0f;
-            if (_body != null && _body.isKinematic)
-                _body.MovePosition(candidate);
-            else
-                transform.position = candidate;
+            if (_body != null && _body.isKinematic) _body.MovePosition(candidate);
+            else transform.position = candidate;
 
-            FacePlayer(speed);
+            FacePlayer();
         }
 
-        private void FacePlayer(float movementSpeed)
+        private void FacePlayer()
         {
             if (_player == null) return;
             Vector3 direction = Vector3.ProjectOnPlane(_player.position - transform.position, Vector3.up);
@@ -217,7 +215,7 @@ namespace Mindforge.Combat
         private bool PositionClear(Vector3 candidate)
         {
             int count = Physics.OverlapSphereNonAlloc(
-                candidate + Vector3.up * 0.75f,
+                candidate + Vector3.up * 1.05f,
                 Mathf.Max(0.35f, collisionProbeRadius),
                 _overlap,
                 ~0,
@@ -229,7 +227,8 @@ namespace Mindforge.Combat
                 if (hit == null) continue;
                 Transform t = hit.transform;
                 if (t == transform || t.IsChildOf(transform) || transform.IsChildOf(t)) continue;
-                if (_player != null && (t == _player || t.IsChildOf(_player) || _player.IsChildOf(t))) continue;
+                if (hit.GetComponentInParent<MindforgeProjectile>() != null) continue;
+                if (hit.GetComponentInParent<FracturedEchoNode>() != null) continue;
                 return false;
             }
             return true;
@@ -247,10 +246,16 @@ namespace Mindforge.Combat
             return Mathf.Max(0.2f, phase <= 1 ? phaseOneMoveSpeed : phase == 2 ? phaseTwoMoveSpeed : phaseThreeMoveSpeed);
         }
 
+        private float TelegraphDuration()
+        {
+            int phase = _director != null ? _director.Phase : 1;
+            return phase <= 1 ? phaseOneTelegraph : phase == 2 ? phaseTwoTelegraph : phaseThreeTelegraph;
+        }
+
         private void OnAttackTelegraphed(string pattern, int count, bool heavy)
         {
-            float extra = heavy ? 0.16f : 0f;
-            _holdUntil = Mathf.Max(_holdUntil, Time.unscaledTime + 0.28f + extra);
+            float commitment = Mathf.Max(0.20f, TelegraphDuration()) + 0.08f + (heavy ? 0.10f : 0f);
+            _holdUntil = Mathf.Max(_holdUntil, Time.unscaledTime + commitment);
         }
 
         private void OnAttackFired(string pattern, int count, bool heavy)
