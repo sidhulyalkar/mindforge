@@ -36,7 +36,7 @@
       "license": "MIT",
       "usage": "reference_only",
       "vendored_paths": [],
-      "asset_policy": "Procedural texture-authoring workflow reference only. V0.9 texture synthesis is an original Unity/C# implementation; no Material Maker source or binary textures are copied."
+      "asset_policy": "Procedural texture-authoring workflow reference only. V0.9/V0.20 texture synthesis is implemented inside Mindforge; no Material Maker source or binary textures are copied."
     },
     {
       "id": "cyanilux.urp_shader_code_templates",
@@ -91,6 +91,36 @@
       "usage": "reference_only",
       "vendored_paths": [],
       "asset_policy": "URP technique reference only; no shader or binary assets copied in V0.7/V0.9."
+    },
+    {
+      "id": "seblague.procedural_landmass_generation",
+      "name": "Procedural Landmass Generation",
+      "upstream": "https://github.com/SebLague/Procedural-Landmass-Generation",
+      "license": "MIT",
+      "usage": "adapted_code",
+      "vendored_paths": [
+        "unity/Assets/Mindforge/Editor/WorldSoulNoiseV20.cs",
+        "third_party/licenses/SebLague_Procedural_Landmass_Generation_MIT.txt"
+      ],
+      "asset_policy": "V0.20 adapts the deterministic octave-noise grammar for editor-authored terrain/material synthesis. No upstream scenes, textures, meshes or other binary assets are copied."
+    },
+    {
+      "id": "aadebdeb.procedural_mesh",
+      "name": "ProceduralMesh",
+      "upstream": "https://github.com/aadebdeb/ProceduralMesh",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Mesh-recipe workflow and topology reference. Mindforge's V0.19/V0.20 mesh implementations are project-authored; no upstream runtime package or binary art is vendored."
+    },
+    {
+      "id": "keijiro.noise_shader",
+      "name": "NoiseShader",
+      "upstream": "https://github.com/keijiro/NoiseShader",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "Evaluated for future GPU procedural surface noise. V0.20 does not import the package or its HLSL; current world surfaces are editor-authored and use Mindforge's existing production triplanar shader."
     }
   ],
   "binary_art_assets": []

@@ -10,19 +10,21 @@ namespace Mindforge.Editor
     /// The only ordinary-development entry point for the current integrated game.
     ///
     /// Product version and scene-asset version are deliberately decoupled. The clean
-    /// V0.11 scene builder remains the authoritative world assembler while current runtime
-    /// presentation, combat and BCI systems compose on top of it after scene load.
+    /// V0.11 scene builder remains the authoritative systems/traversal assembler. V0.20
+    /// World Soul then authors one deterministic presentation landscape onto that kernel
+    /// before current runtime combat, presentation and BCI systems compose after scene load.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.17 Directed Demo";
+        public const string ProductVersion = "V0.20 World Soul";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
         {
             if (!PrepareForSceneReplacement()) return;
-            MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault: true);
+            BuildCanonical(controllerOnlyByDefault: true);
             OpenCanonicalScene();
+            EnsureWorldSoulOpenScene();
             Debug.Log($"[Mindforge:Latest] Starting {ProductVersion} in controller-only BCI simulation mode.");
             EditorApplication.delayCall += () =>
             {
@@ -35,8 +37,9 @@ namespace Mindforge.Editor
         public static void RebuildLatest()
         {
             if (!PrepareForSceneReplacement()) return;
-            MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault: true);
+            BuildCanonical(controllerOnlyByDefault: true);
             OpenCanonicalScene();
+            EnsureWorldSoulOpenScene();
             Debug.Log($"[Mindforge:Latest] Rebuilt {ProductVersion} at {MindforgeDemoV11Builder.DemoScenePath}.");
         }
 
@@ -51,6 +54,7 @@ namespace Mindforge.Editor
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             EnsureCanonicalSceneExists(controllerOnlyByDefault: true);
             OpenCanonicalScene();
+            EnsureWorldSoulOpenScene();
         }
 
         [MenuItem("Mindforge/Latest/Validate Latest Readiness", priority = 20)]
@@ -65,6 +69,7 @@ namespace Mindforge.Editor
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             EnsureCanonicalSceneExists(controllerOnlyByDefault: true);
             OpenCanonicalScene();
+            EnsureWorldSoulOpenScene();
             MindforgeLatestReadinessAuditV17.AuditActiveDemo();
         }
 
@@ -72,13 +77,20 @@ namespace Mindforge.Editor
         public static void BuildNeuralHardwareVariant()
         {
             if (!PrepareForSceneReplacement()) return;
-            MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault: false);
+            BuildCanonical(controllerOnlyByDefault: false);
             OpenCanonicalScene();
+            EnsureWorldSoulOpenScene();
             Debug.Log(
                 $"[Mindforge:Latest] Built {ProductVersion} neural-hardware variant. " +
                 "Use this only with the live neural service and a physically qualified display; " +
                 "ordinary Editor playtests should use PLAY LATEST (BCI Simulation)."
             );
+        }
+
+        private static void BuildCanonical(bool controllerOnlyByDefault)
+        {
+            MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);
+            WorldSoulV20Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -94,7 +106,7 @@ namespace Mindforge.Editor
         private static void EnsureCanonicalSceneExists(bool controllerOnlyByDefault)
         {
             if (File.Exists(MindforgeDemoV11Builder.DemoScenePath)) return;
-            MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);
+            BuildCanonical(controllerOnlyByDefault);
         }
 
         private static void OpenCanonicalScene()
@@ -105,6 +117,12 @@ namespace Mindforge.Editor
                 );
 
             EditorSceneManager.OpenScene(MindforgeDemoV11Builder.DemoScenePath, OpenSceneMode.Single);
+        }
+
+        private static void EnsureWorldSoulOpenScene()
+        {
+            if (WorldSoulV20Builder.PresentInOpenScene()) return;
+            WorldSoulV20Builder.ApplyOpenScene();
         }
     }
 }
