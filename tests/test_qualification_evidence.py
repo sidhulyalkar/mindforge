@@ -167,6 +167,9 @@ def test_unity_gate_is_clean_checkout_batch_qualification_not_source_only():
     assert "unity-gate1-run.json" in runner
     assert "mindforge-software-evidence" in workflow
     assert "pytest --junitxml" in workflow
+    assert "Assemble exact-commit promotion manifest" in workflow
+    assert "promotion-manifest.json" in workflow
+    assert "--require-through P0" in workflow
 
     # The process-generated Gate 1 evidence must echo the exact Git identity supplied
     # to Unity, and the Python wrapper must require that identity to match before P1.
