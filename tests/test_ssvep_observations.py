@@ -1,3 +1,4 @@
+import json
 import math
 
 import pytest
@@ -64,13 +65,7 @@ def test_observation_round_trip_and_epoch_grouping():
     observation = SsvepObservation.from_dict(payload())
     assert observation.epoch_group_key == ("game-session-01", "gameplay", 3)
     assert observation.geometry_qualified
-    restored = SsvepObservation.from_json(observation.to_dict() | {"schema": SSVEP_OBSERVATION_V1} if False else observation.to_dict().__repr__())
 
-
-def test_json_round_trip_uses_real_json():
-    import json
-
-    observation = SsvepObservation.from_dict(payload())
     restored = SsvepObservation.from_json(json.dumps(observation.to_dict()))
     assert restored == observation
 
