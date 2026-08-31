@@ -7,11 +7,16 @@ namespace Mindforge.SoulWisp
     /// opened resonance window. The luminance sequence is derived from presented frame index at
     /// the qualified refresh rate, so renderer phase, photodiode phase and experiment logs share
     /// one deterministic sequence. Physical photon timing still requires final-display measurement.
+    ///
+    /// By default only the small coded renderer is luminance-modulated. A world-space Light must
+    /// never silently splash the tag across the arena because that would destroy the controlled
+    /// retinal geometry. Light modulation remains an explicit qualification-only opt-in.
     /// </summary>
     public sealed class VepAuraStimulus : MonoBehaviour
     {
         [SerializeField] private Renderer targetRenderer;
         [SerializeField] private Light targetLight;
+        [SerializeField] private bool modulateTargetLight;
         [SerializeField] private float frequencyHz = 10f;
         [SerializeField] private float qualifiedRefreshHz = 120f;
         [SerializeField, Range(0f, 1f)] private float minLuminance = 0.30f;
@@ -91,7 +96,7 @@ namespace Mindforge.SoulWisp
                 _block.SetColor(EmissionColor, baseColor * Mathf.LinearToGammaSpace(luminance));
                 targetRenderer.SetPropertyBlock(_block);
             }
-            if (targetLight != null)
+            if (modulateTargetLight && targetLight != null)
             {
                 targetLight.color = baseColor;
                 targetLight.intensity = luminance;
