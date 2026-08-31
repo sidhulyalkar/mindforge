@@ -17,13 +17,15 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_world_soul_is_part_of_the_single_latest_build():
+def test_world_soul_remains_the_first_world_authoring_stage_of_latest():
     latest = read(LATEST)
     world = read(WORLD)
-    assert 'ProductVersion = "V0.20 World Soul"' in latest
-    assert "MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);" in latest
-    assert "WorldSoulV20Builder.ApplyOpenScene();" in latest
-    assert "EnsureWorldSoulOpenScene();" in latest
+    assert 'ProductVersion = "V0.21 Arena + Patina"' in latest
+    v11_i = latest.index("MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);")
+    v20_i = latest.index("WorldSoulV20Builder.ApplyOpenScene();", v11_i)
+    v21_i = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20_i)
+    assert v11_i < v20_i < v21_i
+    assert "EnsureWorldLayersOpenScene();" in latest
     assert 'RootName = "Mindforge_World_Soul_V20"' in world
     assert "MindforgeDemoV11Builder.RootName" in world
 
@@ -49,7 +51,6 @@ def test_world_soul_builds_one_continuous_environment_grammar():
     ):
         assert token in world
 
-    # Generated terrain wraps the route instead of replacing its collision floors.
     assert '"WorldSoul_WestTerrain"' in world
     assert '"WorldSoul_EastTerrain"' in world
     assert '"WorldSoul_SouthTerrain"' in world
@@ -80,7 +81,6 @@ def test_world_soul_is_editor_authored_static_presentation_not_gameplay_authorit
     ):
         assert forbidden not in combined
 
-    # CreatePrimitive temporarily creates a collider, but every decorative primitive destroys it.
     assert "GameObject.CreatePrimitive" in world
     assert "DestroyImmediate(collider)" in world
     assert "CombatantVitals" in world
@@ -146,7 +146,6 @@ def test_world_soul_tracks_public_graphics_references_without_vendoring_runtime_
     assert "keijiro/NoiseShader" in world
     assert "aadebdeb/ProceduralMesh" in meshes
 
-    # V0.20 uses the techniques, not a package-manager/runtime dependency.
     for forbidden in (
         "jp.keijiro.noiseshader",
         "Packages/",

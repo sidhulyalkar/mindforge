@@ -140,6 +140,24 @@ namespace Mindforge.Tests.Editor
                 if (host != null) Object.DestroyImmediate(host);
             }
         }
+
+        [Test]
+        public void V21ArenaMobilityAdapter_CanBeConstructedByUnity()
+        {
+            GameObject host = null;
+            try
+            {
+                host = new GameObject("Mindforge_UnityLifecycleSmoke_V21_ArenaMobility");
+                host.SetActive(false);
+                FracturedSignalArenaMobilityV21 component = null;
+                Assert.DoesNotThrow(() => component = host.AddComponent<FracturedSignalArenaMobilityV21>());
+                Assert.That(component, Is.Not.Null);
+            }
+            finally
+            {
+                if (host != null) Object.DestroyImmediate(host);
+            }
+        }
     }
 }
 #endif
