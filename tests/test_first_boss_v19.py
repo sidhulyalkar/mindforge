@@ -33,6 +33,8 @@ def test_first_boss_is_a_moving_duelist_not_a_stationary_projectile_turret():
         "maxEchoes = 2",
         "NeuralVisualFieldActive()",
         "_director.ExternalPaused",
+        "CanSetPrivate<float>",
+        "V19 profile applied nothing",
     ):
         assert token in boss
 
@@ -49,6 +51,8 @@ def test_first_boss_is_a_moving_duelist_not_a_stationary_projectile_turret():
     ):
         assert f"private float {field}" in director or f"private int {field}" in director
         assert f'SetPrivate("{field}"' in boss
+
+    assert boss.index("if (!fieldsAvailable)") < boss.index('SetPrivate("phaseOneInterval"')
 
     for forbidden in (
         "NeuralEvent",
@@ -67,6 +71,9 @@ def test_manual_wisp_window_remains_a_two_sided_combat_intermission():
     for token in (
         "WindowArmed += OnWindowArmed",
         "WindowEnded += OnWindowEnded",
+        "DegradationStateChanged += OnLinkDegradationChanged",
+        "OnLinkDegradationChanged(bool degraded)",
+        "ReassertIntermission()",
         "_boss.SetExternalPause(true)",
         "_guardianInput.SetCombatActionsEnabled(false)",
         "projectile.SetExternalPause(true)",
@@ -85,6 +92,12 @@ def test_manual_wisp_window_remains_a_two_sided_combat_intermission():
     disabled = input_source.index("if (!CombatActionsEnabled)")
     sword = input_source.index("if (command.sword_attack_down)")
     assert move < disabled < sword
+
+    # Keep expensive projectile discovery out of the per-frame evidence path. It is allowed
+    # on arm and the rare link-recovery transition, not every Update during SSVEP.
+    update_start = intermission.index("private void Update()")
+    update_end = intermission.index("private void OnDisable()", update_start)
+    assert "FindObjectsOfType<MindforgeProjectile>" not in intermission[update_start:update_end]
 
     for forbidden in (
         "NeuralEvent",
