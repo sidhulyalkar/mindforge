@@ -57,7 +57,25 @@ def test_resonance_state_machine_abstains_instead_of_guessing():
     assert "Time.timeScale" not in src
     assert "Attack" not in src
     assert "ReceiveDamage" not in src
-    assert "GuardianMotor" not in src
+
+    # V0.17 is allowed to *observe* GuardianMotor so neural evidence windows can
+    # fail closed during locomotion. The Wisp must still never gain movement
+    # authority. Lock out representative mutation paths rather than forbidding a
+    # read-only motor reference entirely.
+    for forbidden in (
+        "guardianMotor.enabled = false",
+        "guardianMotor.enabled = true",
+        "guardianMotor.transform.position =",
+        "guardianMotor.transform.rotation =",
+        "guardianMotor.Velocity =",
+        "guardianMotor.SetMoveInput",
+        "guardianMotor.TryJump",
+        "guardianMotor.TryDash",
+        "guardianMotor.MovePosition",
+        "RigidbodyConstraints.FreezePosition",
+        "SetMoveInput(Vector2.zero",
+    ):
+        assert forbidden not in src
 
 
 def test_neural_director_requires_open_window_before_buff():
