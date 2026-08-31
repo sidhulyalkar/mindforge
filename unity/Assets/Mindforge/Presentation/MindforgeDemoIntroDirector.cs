@@ -81,6 +81,10 @@ namespace Mindforge.Presentation
             _camera = camera;
             _cameraRig = cameraRig;
             _calibration = calibration;
+            // The shared calibration director defaults to no cinematic dependency.
+            // Only this competition-demo installer opts into the V0.15 intro gate.
+            _calibration?.ConfigureIntroGate(true);
+            _calibration?.SetIntroReady(false);
             _input = input;
             _boss = boss;
             _titleOverlay = titleOverlay;
