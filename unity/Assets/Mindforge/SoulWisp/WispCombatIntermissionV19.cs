@@ -67,7 +67,16 @@ namespace Mindforge.SoulWisp
             // Checkpoint/death/scene lifecycle can disable the Wisp component without emitting
             // WindowEnded. Never leave combat stranded in a V19-owned pause in that case.
             if (_window == null || !_window.isActiveAndEnabled || _window.State == WispResonanceState.Idle)
+            {
                 ReleaseIntermission();
+                return;
+            }
+
+            // NeuralLinkContingency owns a separate safety pause. If it degrades and recovers
+            // while the Wisp is still active, its recovery path releases the shared low-level
+            // booleans. Reassert our independent intermission ownership before combat can leak
+            // back into the same neural window.
+            ReassertIntermission();
         }
 
         private void OnDisable()
@@ -122,16 +131,39 @@ namespace Mindforge.SoulWisp
             Debug.Log($"[Mindforge:WispV19] Window {windowId} left combat intermission.");
         }
 
+        private void ReassertIntermission()
+        {
+            if (_boss != null && !_boss.ExternalPaused)
+            {
+                _pausedBossByUs = true;
+                _boss.SetExternalPause(true);
+            }
+
+            if (_guardianInput != null && _guardianInput.CombatActionsEnabled)
+            {
+                _pausedGuardianByUs = true;
+                _guardianInput.SetCombatActionsEnabled(false);
+            }
+
+            ReassertProjectilePause();
+        }
+
         private void PauseExistingProjectiles()
         {
             _pausedProjectiles.Clear();
+            ReassertProjectilePause();
+        }
+
+        private void ReassertProjectilePause()
+        {
             MindforgeProjectile[] projectiles = FindObjectsOfType<MindforgeProjectile>(true);
             for (int i = 0; i < projectiles.Length; i++)
             {
                 MindforgeProjectile projectile = projectiles[i];
                 if (projectile == null || projectile.ExternalPaused) continue;
                 projectile.SetExternalPause(true);
-                _pausedProjectiles.Add(projectile);
+                if (!_pausedProjectiles.Contains(projectile))
+                    _pausedProjectiles.Add(projectile);
             }
         }
 
