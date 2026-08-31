@@ -28,7 +28,7 @@ namespace Mindforge.Editor
         private static readonly Vector3 GuardianSpawn = new Vector3(0f, 0.72f, -18f);
         private static readonly Vector3 BossSpawn = new Vector3(0f, 5.0f, 94f);
 
-        [MenuItem("Mindforge/V0.11 Demo/Build + Play Presentable Demo", priority = 1)]
+        [MenuItem("Mindforge/Legacy/V0.11 Demo/Build + Play Presentable Demo", priority = 1)]
         public static void BuildAndPlay()
         {
             BuildDemoScene(true);
@@ -39,10 +39,10 @@ namespace Mindforge.Editor
             };
         }
 
-        [MenuItem("Mindforge/V0.11 Demo/Rebuild Presentable Demo", priority = 2)]
+        [MenuItem("Mindforge/Legacy/V0.11 Demo/Rebuild Presentable Demo", priority = 2)]
         public static void RebuildDemo() => BuildDemoScene(true);
 
-        [MenuItem("Mindforge/V0.11 Demo/Rebuild Neural-Hardware Demo", priority = 3)]
+        [MenuItem("Mindforge/Legacy/V0.11 Demo/Rebuild Neural-Hardware Demo", priority = 3)]
         public static void RebuildNeuralDemo() => BuildDemoScene(false);
 
         public static void BuildDemoScene(bool controllerOnlyByDefault)

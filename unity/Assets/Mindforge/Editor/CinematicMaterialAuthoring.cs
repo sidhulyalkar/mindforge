@@ -17,7 +17,7 @@ namespace Mindforge.Editor
         public const string ResourceFolder = "Assets/Mindforge/Resources/Cinematic";
         private const int TextureSize = 512;
 
-        [MenuItem("Mindforge/Showcase/Author Cinematic PBR Materials", priority = 21)]
+        [MenuItem("Mindforge/Legacy/Showcase/Author Cinematic PBR Materials", priority = 21)]
         public static void EnsureAuthored()
         {
             EnsureFolders();

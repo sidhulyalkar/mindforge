@@ -24,7 +24,7 @@ namespace Mindforge.Editor
         private const string ProjectilePrefabPath = "Assets/Mindforge/Generated/Prefabs/MindforgeProjectile.prefab";
         private const string CourtZoneId = "fracture_court";
 
-        [MenuItem("Mindforge/Showcase/Apply Null Ward Arena Ecosystem V1", priority = 25)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Null Ward Arena Ecosystem V1", priority = 25)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

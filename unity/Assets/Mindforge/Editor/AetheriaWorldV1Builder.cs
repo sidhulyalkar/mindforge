@@ -24,7 +24,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Aetheria World V1", priority = 24)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Aetheria World V1", priority = 24)]
         public static void ApplyOpenScene()
         {
             GameObject grounded = EditorSceneLookup.FindIncludingInactive(GroundedWorldV1Builder.RootName);

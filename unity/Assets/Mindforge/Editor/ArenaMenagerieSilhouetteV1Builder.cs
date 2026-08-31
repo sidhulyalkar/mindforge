@@ -18,7 +18,7 @@ namespace Mindforge.Editor
     {
         public const string RootName = "MenagerieIdentityV1";
 
-        [MenuItem("Mindforge/Showcase/Apply Arena Menagerie Silhouettes V1", priority = 28)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Arena Menagerie Silhouettes V1", priority = 28)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

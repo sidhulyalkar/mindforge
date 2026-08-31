@@ -27,7 +27,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Null Ward Visual Infrastructure V2", priority = 25)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Null Ward Visual Infrastructure V2", priority = 25)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

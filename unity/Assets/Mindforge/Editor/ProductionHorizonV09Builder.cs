@@ -20,7 +20,7 @@ namespace Mindforge.Editor
         public const float FarRidgeRadius = 275f;
         public const float FurthestHeroDepth = 150f;
 
-        [MenuItem("Mindforge/Showcase/Apply Production Horizon V0.9", priority = 45)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Production Horizon V0.9", priority = 45)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);

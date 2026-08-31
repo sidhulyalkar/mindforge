@@ -15,7 +15,7 @@ namespace Mindforge.Editor
     {
         public const string RootName = "Production_Structural_Refinement_V09";
 
-        [MenuItem("Mindforge/Showcase/Apply Production Structural Refinement V0.9", priority = 45)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Production Structural Refinement V0.9", priority = 45)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);

@@ -33,7 +33,7 @@ namespace Mindforge.Editor
 
         private const int TextureSize = 256;
 
-        [MenuItem("Mindforge/Showcase/Author Production Materials V0.9", priority = 41)]
+        [MenuItem("Mindforge/Legacy/Showcase/Author Production Materials V0.9", priority = 41)]
         public static void EnsureAuthored()
         {
             EnsureFolder(Root);

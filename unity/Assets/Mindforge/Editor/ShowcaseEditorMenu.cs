@@ -23,7 +23,7 @@ namespace Mindforge.Editor
             "The persistent shortcut and geometric intent telegraphs remain intact. Layered near/mid/far set dressing remains downstream of deterministic gameplay authority. " +
             "all ten Menagerie enemies receive unique close/mid-distance silhouette detail. V0.7 is presentation-only: topology, E routing, persistence, combat and BCI remain untouched.";
 
-        [MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase", priority = 1)]
+        [MenuItem("Mindforge/Legacy/Showcase/Build + Play Cinematic Showcase", priority = 1)]
         public static void BuildAndPlay()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -65,10 +65,10 @@ namespace Mindforge.Editor
                 "Tab opens kit + controls + objective + persistent world state.");
         }
 
-        [MenuItem("Mindforge/Showcase/Build + Play Combat Showcase", priority = 2)]
+        [MenuItem("Mindforge/Legacy/Showcase/Build + Play Combat Showcase", priority = 2)]
         public static void BuildAndPlayLegacyAlias() => BuildAndPlay();
 
-        [MenuItem("Mindforge/Showcase/Rebuild Cinematic Showcase Scene", priority = 3)]
+        [MenuItem("Mindforge/Legacy/Showcase/Rebuild Cinematic Showcase Scene", priority = 3)]
         public static void BuildScene()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -206,10 +206,10 @@ namespace Mindforge.Editor
                 "are present before presentation auditing and before Play Mode starts. Gameplay, persistence and neural authority remain inherited.");
         }
 
-        [MenuItem("Mindforge/Showcase/Rebuild Showcase Scene", priority = 4)]
+        [MenuItem("Mindforge/Legacy/Showcase/Rebuild Showcase Scene", priority = 4)]
         public static void BuildSceneLegacyAlias() => BuildScene();
 
-        [MenuItem("Mindforge/Showcase/Open Showcase Scene", priority = 5)]
+        [MenuItem("Mindforge/Legacy/Showcase/Open Showcase Scene", priority = 5)]
         public static void OpenScene()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;

@@ -22,7 +22,7 @@ namespace Mindforge.Editor
             EditorSceneManager.sceneSaved += _ => RemoveReferenceShellsFromSpecializedRosters();
         }
 
-        [MenuItem("Mindforge/Showcase/Validate Sanctum Enemy Presentation Scope V0.8", priority = 39)]
+        [MenuItem("Mindforge/Legacy/Showcase/Validate Sanctum Enemy Presentation Scope V0.8", priority = 39)]
         public static void RemoveReferenceShellsFromSpecializedRosters()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;

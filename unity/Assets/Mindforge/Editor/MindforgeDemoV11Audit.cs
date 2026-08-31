@@ -40,7 +40,7 @@ namespace Mindforge.Editor
             public List<AuditCheck> checks = new List<AuditCheck>();
         }
 
-        [MenuItem("Mindforge/V0.11 Demo/Audit Active Demo Architecture", priority = 50)]
+        [MenuItem("Mindforge/Legacy/V0.11 Demo/Audit Active Demo Architecture", priority = 50)]
         public static void AuditActiveDemo()
         {
             AuditReport report = new AuditReport

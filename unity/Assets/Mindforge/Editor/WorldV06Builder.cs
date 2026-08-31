@@ -21,7 +21,7 @@ namespace Mindforge.Editor
         public const string Revision = "PERSISTENT_WORLD_V06";
         private const string DialoguePath = "Assets/Mindforge/Generated/WorldV06/ArchivistDialogue.asset";
 
-        [MenuItem("Mindforge/Showcase/Apply Persistent World V0.6", priority = 34)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Persistent World V0.6", priority = 34)]
         public static void ApplyOpenScene()
         {
             GameObject guardian = EditorSceneLookup.FindIncludingInactive("Guardian");

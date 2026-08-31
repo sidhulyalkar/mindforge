@@ -17,7 +17,7 @@ namespace Mindforge.Editor
     {
         public const string RootName = "Mindforge_Aetheria_StateOfArt_V2";
 
-        [MenuItem("Mindforge/Showcase/Apply Aetheria State-of-Art V2", priority = 30)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Aetheria State-of-Art V2", priority = 30)]
         public static void ApplyOpenScene()
         {
             GameObject world = EditorSceneLookup.FindIncludingInactive(AetheriaWorldV1Builder.RootName);

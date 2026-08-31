@@ -18,7 +18,7 @@ namespace Mindforge.Editor
         public const string ThreatAmber = "SanctumThreatAmberV08";
         public const string ThreatWhite = "SanctumThreatWhiteV08";
 
-        [MenuItem("Mindforge/Showcase/Author Sanctum Reference Materials V0.8", priority = 24)]
+        [MenuItem("Mindforge/Legacy/Showcase/Author Sanctum Reference Materials V0.8", priority = 24)]
         public static void EnsureAuthored()
         {
             SanctumMaterialAuthoringV08.EnsureAuthored();

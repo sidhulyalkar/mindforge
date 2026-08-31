@@ -35,7 +35,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Grounded World V1", priority = 24)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Grounded World V1", priority = 24)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

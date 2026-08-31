@@ -19,7 +19,7 @@ namespace Mindforge.Editor
         public const string Patina = "CloisterPatinaV07";
         public const string AshStone = "CloisterAshStoneV07";
 
-        [MenuItem("Mindforge/Showcase/Author Neural-Gothic Materials V0.7", priority = 22)]
+        [MenuItem("Mindforge/Legacy/Showcase/Author Neural-Gothic Materials V0.7", priority = 22)]
         public static void EnsureAuthored()
         {
             CinematicMaterialAuthoring.EnsureAuthored();

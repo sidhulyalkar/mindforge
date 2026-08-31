@@ -31,7 +31,7 @@ namespace Mindforge.Editor
             EditorSceneManager.sceneSaved += _ => TryAutoApply();
         }
 
-        [MenuItem("Mindforge/Showcase/Apply Sanctum Crisp Geometry V0.8", priority = 40)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Sanctum Crisp Geometry V0.8", priority = 40)]
         public static void ApplyOpenScene()
         {
             if (_applying || EditorApplication.isPlayingOrWillChangePlaymode) return;

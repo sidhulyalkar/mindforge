@@ -19,7 +19,7 @@ namespace Mindforge.Editor
         public const string RootName = "Mindforge_UX_Interaction_Save_V05";
         public const string Revision = "UX_INTERACTION_SAVE_V05";
 
-        [MenuItem("Mindforge/Showcase/Apply UX + Interaction + Save V0.5", priority = 33)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply UX + Interaction + Save V0.5", priority = 33)]
         public static void ApplyOpenScene()
         {
             GameObject guardian = EditorSceneLookup.FindIncludingInactive("Guardian");

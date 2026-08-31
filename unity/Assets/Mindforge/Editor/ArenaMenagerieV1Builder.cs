@@ -25,7 +25,7 @@ namespace Mindforge.Editor
         private const string ProjectilePrefabPath = "Assets/Mindforge/Generated/Prefabs/MindforgeProjectile.prefab";
         private static readonly Vector3 Center = new Vector3(5.0f, 0f, 18.0f);
 
-        [MenuItem("Mindforge/Showcase/Apply Arena Menagerie V1", priority = 27)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Arena Menagerie V1", priority = 27)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

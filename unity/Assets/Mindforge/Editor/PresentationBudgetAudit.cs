@@ -13,7 +13,7 @@ namespace Mindforge.EditorTools
     /// </summary>
     public static class PresentationBudgetAudit
     {
-        private const string MenuPath = "Mindforge/Showcase/Audit Presentation Budget";
+        private const string MenuPath = "Mindforge/Legacy/Showcase/Audit Presentation Budget";
 
         [Serializable]
         private sealed class ZoneBudget

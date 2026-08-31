@@ -21,7 +21,7 @@ namespace Mindforge.Editor
             public Action<Transform, Material, Material, Material> build;
         }
 
-        [MenuItem("Mindforge/Showcase/Bake Neural-Gothic Prefab Kit V0.7", priority = 23)]
+        [MenuItem("Mindforge/Legacy/Showcase/Bake Neural-Gothic Prefab Kit V0.7", priority = 23)]
         public static void EnsureBakedKit()
         {
             NeuralGothicMaterialAuthoringV07.EnsureAuthored();

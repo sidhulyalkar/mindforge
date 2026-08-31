@@ -28,7 +28,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Production Art V0.9", priority = 42)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Production Art V0.9", priority = 42)]
         public static void ApplyOpenScene()
         {
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");

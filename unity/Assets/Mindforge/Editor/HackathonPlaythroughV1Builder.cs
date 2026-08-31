@@ -28,7 +28,7 @@ namespace Mindforge.Editor
 
         private static readonly Vector3 CrucibleCenter = new Vector3(5f, 0f, 18f);
 
-        [MenuItem("Mindforge/Showcase/Apply Hackathon Playthrough V1", priority = 31)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Hackathon Playthrough V1", priority = 31)]
         public static void ApplyOpenScene()
         {
             GameObject aetheria = EditorSceneLookup.FindIncludingInactive(AetheriaWorldV1Builder.RootName);

@@ -23,7 +23,7 @@ namespace Mindforge.Editor
         private const string GeneratedFolder = "Assets/Mindforge/Generated/ArenaV3";
         private static readonly Vector3 Center = new Vector3(0f, 0f, 1f);
 
-        [MenuItem("Mindforge/Showcase/Apply Arena Environment V3", priority = 23)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Arena Environment V3", priority = 23)]
         public static void BuildOpenScene()
         {
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");

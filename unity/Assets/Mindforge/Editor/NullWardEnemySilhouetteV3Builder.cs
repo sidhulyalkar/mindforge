@@ -18,7 +18,7 @@ namespace Mindforge.Editor
         public const string RootName = "ArchetypeSilhouetteV3";
         private const string LegacyRootName = "ArchetypeSilhouetteV2";
 
-        [MenuItem("Mindforge/Showcase/Apply Enemy Silhouettes V3", priority = 26)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Enemy Silhouettes V3", priority = 26)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

@@ -24,7 +24,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply District Storytelling V0.9", priority = 44)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply District Storytelling V0.9", priority = 44)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
