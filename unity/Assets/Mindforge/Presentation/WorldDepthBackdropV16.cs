@@ -22,6 +22,9 @@ namespace Mindforge.Presentation
 
         private static readonly string[] SurveyRootNames =
         {
+            // Canonical Latest route. Child names containing Skyline are still excluded below,
+            // so the bounds come from playable V11 districts rather than its existing horizon art.
+            "Mindforge_Demo_World_V11",
             "Mindforge_AetheriaWorld_V1",
             "Mindforge_GroundedWorld_V1",
             "Mindforge_Demo_Environment_V15",
@@ -145,7 +148,7 @@ namespace Mindforge.Presentation
                 }
             }
 
-            Debug.Log($"[Mindforge:V16] Added {_ownedObjects.Count - 1} collider-free backdrop pieces around bounded playable-world survey {world.size}.");
+            Debug.Log($"[Mindforge:V16] Added {_ownedObjects.Count - 1} collider-free backdrop pieces around bounded canonical/playable-world survey {world.size}.");
         }
 
         private Bounds SurveyWorldBounds()
