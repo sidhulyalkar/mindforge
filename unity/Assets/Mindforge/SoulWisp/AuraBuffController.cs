@@ -4,19 +4,37 @@ using Mindforge.Neural;
 
 namespace Mindforge.SoulWisp
 {
+    /// <summary>
+    /// Stores accepted slower neural transformations only. Frame-critical combat still belongs
+    /// to conventional player input. Sight changes how effectively the player can exploit an
+    /// opening; Guard changes how forgiving a player-executed counter opportunity becomes.
+    /// Neither aura attacks, blocks, parries, moves, aims or targets on the player's behalf.
+    /// </summary>
     public sealed class AuraBuffController : MonoBehaviour
     {
         [Header("Neural acceptance")]
         [Range(0f, 1f)] public float minConfidence = 0.55f;
         [Range(0f, 1f)] public float minQuality = 0.55f;
 
-        [Header("Sight")]
+        [Header("Sight · expose and punish")]
         public float sightDurationSeconds = 3.6f;
-        public float sightDamageMultiplier = 1.58f;
+        [Tooltip("Kept meaningful but deliberately smaller than the old pure damage-buff identity.")]
+        public float sightDamageMultiplier = 1.30f;
+        [Tooltip("Sight should make a created opening easier to exploit, not execute the hit itself.")]
+        public float sightReachMultiplier = 1.16f;
+        [Tooltip("Poise pressure makes Sight useful against readable vulnerability windows.")]
+        public float sightPoiseMultiplier = 1.45f;
 
-        [Header("Guard")]
+        [Header("Guard · survive by executing defense")]
         public float guardDurationSeconds = 3.6f;
-        public float guardHealingPerSecond = 4.4f;
+        [Tooltip("Small recovery remains, but Guard's main identity is a better physical counter opportunity.")]
+        public float guardHealingPerSecond = 2.2f;
+        [Tooltip("Multiplies the conventional counter timing window. Guard never triggers the counter itself.")]
+        public float guardCounterWindowMultiplier = 1.28f;
+        [Tooltip("Modestly increases projectile capture geometry for an already-player-triggered counter.")]
+        public float guardCounterRadiusMultiplier = 1.10f;
+        [Tooltip("Reward delivered only after the player successfully reflects a projectile while Guard is active.")]
+        public float guardSuccessfulCounterHeal = 3.2f;
 
         [Header("Concord")]
         [Tooltip("Once true Sight+Guard overlap occurs, Concord remains available long enough for physical execution.")]
@@ -30,8 +48,13 @@ namespace Mindforge.SoulWisp
         public bool SightActive => Now < _sightUntil;
         public bool GuardActive => Now < _guardUntil;
         public bool ConcordActive => Now < _concordUntil;
-        public float DamageMultiplier => SightActive ? sightDamageMultiplier : 1f;
-        public float HealingPerSecond => GuardActive ? guardHealingPerSecond : 0f;
+        public float DamageMultiplier => SightActive ? Mathf.Max(1f, sightDamageMultiplier) : 1f;
+        public float SightReachMultiplier => SightActive ? Mathf.Max(1f, sightReachMultiplier) : 1f;
+        public float SightPoiseMultiplier => SightActive ? Mathf.Max(1f, sightPoiseMultiplier) : 1f;
+        public float HealingPerSecond => GuardActive ? Mathf.Max(0f, guardHealingPerSecond) : 0f;
+        public float GuardCounterWindowMultiplier => GuardActive ? Mathf.Max(1f, guardCounterWindowMultiplier) : 1f;
+        public float GuardCounterRadiusMultiplier => GuardActive ? Mathf.Max(1f, guardCounterRadiusMultiplier) : 1f;
+        public float GuardSuccessfulCounterHeal => GuardActive ? Mathf.Max(0f, guardSuccessfulCounterHeal) : 0f;
         public float SightRemaining => Mathf.Max(0f, (float)(_sightUntil - Now));
         public float GuardRemaining => Mathf.Max(0f, (float)(_guardUntil - Now));
         public float ConcordRemaining => Mathf.Max(0f, (float)(_concordUntil - Now));
