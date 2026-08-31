@@ -25,7 +25,7 @@ namespace Mindforge.Presentation
         [SerializeField] private float arenaRevealSeconds = 1.75f;
         [SerializeField] private float controlsHoldSeconds = 8.0f;
         [SerializeField] private KeyCode skipKey = KeyCode.Space;
-        [SerializeField] private KeyCode researchHudKey = KeyCode.F8;
+        [SerializeField] private KeyCode researchHudKey = KeyCode.F7;
 
         private Camera _camera;
         private Transform _cameraRig;
@@ -155,9 +155,9 @@ namespace Mindforge.Presentation
             {
                 _instructionText.text =
                     "HOLD V TO OPEN A NEURAL WINDOW\n" +
-                    "ATTEND BLUE: SIGHT   ·   ATTEND GREEN: GUARD\n" +
-                    "UNCLEAR SIGNALS DO NOTHING";
-                _phaseText.text = "HANDS FIGHT · EEG CHOOSES THE WISP STATE";
+                    "LOOK AT BLUE: SIGHT   ·   LOOK AT GREEN: GUARD\n" +
+                    "KEEP YOUR GAZE ON YOUR CHOICE · UNCLEAR SIGNALS DO NOTHING";
+                _phaseText.text = "HANDS FIGHT · EEG CONFIRMS THE WISP STATE";
                 SetGroup(_instructionPanel, 1f, true);
                 yield return WaitOrSkip(instructionSeconds);
             }
@@ -186,8 +186,8 @@ namespace Mindforge.Presentation
                 switch (stage)
                 {
                     case "baseline": _phaseText.text = "BASELINE · KEEP STILL"; break;
-                    case "sight": _phaseText.text = "ATTEND BLUE · SIGHT"; break;
-                    case "guard": _phaseText.text = "ATTEND GREEN · GUARD"; break;
+                    case "sight": _phaseText.text = "LOOK AT BLUE · SIGHT"; break;
+                    case "guard": _phaseText.text = "LOOK AT GREEN · GUARD"; break;
                     case "finalizing": _phaseText.text = "DECODER CALIBRATING"; break;
                     case "failed": _phaseText.text = "SIGNAL UNCLEAR · RETRY AVAILABLE"; break;
                 }
@@ -268,8 +268,9 @@ namespace Mindforge.Presentation
                 yield return null;
             }
             group.alpha = target;
-            group.interactable = target > 0.99f;
-            group.blocksRaycasts = target > 0.99f;
+            // Demo overlays are informational only. They never own input or raycasts.
+            group.interactable = false;
+            group.blocksRaycasts = false;
             if (!active && target <= 0.001f) group.gameObject.SetActive(false);
         }
 
