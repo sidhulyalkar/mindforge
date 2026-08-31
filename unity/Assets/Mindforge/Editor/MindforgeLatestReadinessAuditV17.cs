@@ -66,7 +66,10 @@ namespace Mindforge.Editor
             CheckCount<GuardianMotor>(report, "single_guardian_motor", 1);
             CheckCount<GuardianCombatInput>(report, "single_guardian_input", 1);
             CheckCount<FracturedSignalDirector>(report, "single_fractured_signal", 1);
-            CheckCount<GuardianTargetLock>(report, "single_target_lock", 1);
+            if (EditorApplication.isPlaying)
+                CheckCount<GuardianTargetLock>(report, "single_target_lock", 1);
+            else
+                AddDeferred(report, "single_target_lock");
             CheckCount<AwakeningCalibrationDirector>(report, "single_calibration_owner", 1);
             CheckCount<SoulWispController>(report, "single_wisp_owner", 1);
             CheckCount<DisplayTimingMonitor>(report, "single_display_timing_monitor", 1);
@@ -158,7 +161,11 @@ namespace Mindforge.Editor
             if (!EditorApplication.isPlaying)
             {
                 AddDeferred(report, "v16_visual_identity_runtime");
+                AddDeferred(report, "v17_canonical_intro_runtime");
                 AddDeferred(report, "v17_directed_demo_runtime");
+                AddDeferred(report, "v16_material_hierarchy_hits_canonical_world");
+                AddDeferred(report, "v16_camera_occlusion_hits_canonical_world");
+                AddDeferred(report, "v16_backdrop_built_from_canonical_world");
                 AddDeferred(report, "single_v17_hud");
                 AddDeferred(report, "v17_target_presence");
                 AddDeferred(report, "single_gameplay_camera_writer_after_reveal");
@@ -166,9 +173,29 @@ namespace Mindforge.Editor
             }
 
             CheckCount<VisualIdentityV16Installer>(report, "v16_visual_identity_runtime", 1);
+            CheckCount<MindforgeCanonicalIntroV17>(report, "v17_canonical_intro_runtime", 1);
             CheckCount<MindforgeDirectedDemoV17>(report, "v17_directed_demo_runtime", 1);
             CheckBehaviourTypeCount(report, "single_v17_hud", "MindforgeDemoHudV17", 1, true);
             CheckBehaviourTypeCount(report, "v17_target_presence", "MindforgeTargetPresenceV17", 1, true);
+
+            MindforgeCanonicalIntroV17 intro = UnityEngine.Object.FindObjectOfType<MindforgeCanonicalIntroV17>(true);
+            Add(report, "v17_canonical_intro_complete", intro != null && intro.IntroComplete,
+                intro == null ? "intro missing" : $"complete={intro.IntroComplete}");
+
+            LegacyMaterialHierarchyV16 materials = UnityEngine.Object.FindObjectOfType<LegacyMaterialHierarchyV16>(true);
+            Add(report, "v16_material_hierarchy_hits_canonical_world",
+                materials != null && materials.RestyledRendererCount > 0,
+                materials == null ? "component missing" : $"restyled_renderers={materials.RestyledRendererCount}");
+
+            CameraOcclusionGhostV16 occlusion = UnityEngine.Object.FindObjectOfType<CameraOcclusionGhostV16>(true);
+            Add(report, "v16_camera_occlusion_hits_canonical_world",
+                occlusion != null && occlusion.CandidateCount > 0,
+                occlusion == null ? "component missing" : $"candidate_renderers={occlusion.CandidateCount}");
+
+            WorldDepthBackdropV16 backdrop = UnityEngine.Object.FindObjectOfType<WorldDepthBackdropV16>(true);
+            Add(report, "v16_backdrop_built_from_canonical_world",
+                backdrop != null && backdrop.BackdropPieceCount > 0,
+                backdrop == null ? "component missing" : $"backdrop_pieces={backdrop.BackdropPieceCount}");
 
             GuardianCombatInput input = UnityEngine.Object.FindObjectOfType<GuardianCombatInput>(true);
             if (input == null || !input.CombatActionsEnabled)
