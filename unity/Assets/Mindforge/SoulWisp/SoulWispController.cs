@@ -313,11 +313,15 @@ namespace Mindforge.SoulWisp
                 + Vector3.up * lockedTargetHeight
                 + towardCamera * lockedDepthTowardCamera;
             float response = 1f - Mathf.Exp(-Mathf.Max(0.1f, lockedAnchorSharpness) * Time.unscaledDeltaTime);
+
+            // Preserve the historical lock-target gaze contract: this changes position only.
+            // Coded luminance/frequency remains owned by VepAuraStimulus and is now disabled
+            // entirely outside an explicitly armed resonance listening window.
             PlaceStableAura(sightAura, anchor - right * lockedHorizontalSeparation, cam, response, auraScale);
             PlaceStableAura(guardAura, anchor + right * lockedHorizontalSeparation, cam, response, auraScale);
         }
 
-        private static void PlaceStableAura(Transform aura, Vector3 desired, Camera cam, float response, float scale)
+        private void PlaceStableAura(Transform aura, Vector3 desired, Camera cam, float response, float scale)
         {
             if (aura == null) return;
             aura.position = Vector3.Lerp(aura.position, desired, response);
