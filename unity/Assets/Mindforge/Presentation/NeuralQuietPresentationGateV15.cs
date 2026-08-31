@@ -16,12 +16,17 @@ namespace Mindforge.Presentation
     /// explicitly excluded. Renderer enable states are restored afterwards, so this owns
     /// presentation only and never mutates stimulus timing, GameObject activity, collision,
     /// target geometry, or gameplay authority.
+    ///
+    /// V0.15 also disables the earlier ambient light-breathing component. Slow geometric
+    /// ring rotation is retained outside neural windows, but global scene luminance stays
+    /// constant so Wisp onset does not coincide with an unnecessary light-pulse transition.
     /// </summary>
     [DefaultExecutionOrder(-70)]
     public sealed class NeuralQuietPresentationGateV15 : MonoBehaviour
     {
         private const string CompetitionSceneName = "Mindforge_Competition";
         private const string RootName = "Mindforge_Neural_Quiet_Presentation_V15";
+        private const float DecorativeRotationDegreesPerSecond = 5.5f;
 
         private static readonly string[] QuietTokens =
         {
@@ -37,10 +42,20 @@ namespace Mindforge.Presentation
             "FracturedSignalHalo",
         };
 
+        private static readonly string[] RotationTokens =
+        {
+            "WispHalo",
+            "SanctumSignalRing",
+            "ArenaOuterSignalRing",
+            "ArenaFractureCrown",
+            "FracturedSignalHalo",
+        };
+
         private AwakeningCalibrationDirector _calibration;
         private SoulWispController _wisp;
         private readonly List<Renderer> _quietRenderers = new List<Renderer>();
         private readonly List<bool> _baselineEnabled = new List<bool>();
+        private readonly List<Transform> _rotators = new List<Transform>();
         private bool _resolved;
         private bool _subscribed;
         private bool _lastQuiet;
@@ -85,6 +100,18 @@ namespace Mindforge.Presentation
 
             bool quiet = CurrentQuietState();
             if (quiet != _lastQuiet) Apply(quiet);
+
+            if (!quiet)
+            {
+                float delta = Time.unscaledDeltaTime * DecorativeRotationDegreesPerSecond;
+                for (int i = 0; i < _rotators.Count; i++)
+                {
+                    Transform rotator = _rotators[i];
+                    if (rotator == null) continue;
+                    float direction = i % 2 == 0 ? 1f : -1f;
+                    rotator.Rotate(0f, 0f, delta * direction, Space.Self);
+                }
+            }
         }
 
         private void OnCalibrationStageChanged(string stage)
@@ -122,8 +149,15 @@ namespace Mindforge.Presentation
                 _subscribed = true;
             }
 
+            // The environment builder's original component modulated accent-light intensity.
+            // Keep all scene lights constant for EEG demos; this gate owns only safe geometric
+            // rotation outside evidence windows.
+            NeuralQuietAmbientMotionV15 ambient = UnityEngine.Object.FindObjectOfType<NeuralQuietAmbientMotionV15>(true);
+            if (ambient != null) ambient.enabled = false;
+
             _quietRenderers.Clear();
             _baselineEnabled.Clear();
+            _rotators.Clear();
 
             Scene scene = SceneManager.GetActiveScene();
             foreach (GameObject root in scene.GetRootGameObjects())
@@ -148,6 +182,7 @@ namespace Mindforge.Presentation
                         string.Equals(objectName, "GuardVepCore", StringComparison.Ordinal))
                         continue;
 
+                    if (ShouldRotate(objectName)) _rotators.Add(renderer.transform);
                     if (!ShouldSuppress(objectName)) continue;
                     _quietRenderers.Add(renderer);
                     _baselineEnabled.Add(renderer.enabled);
@@ -155,13 +190,21 @@ namespace Mindforge.Presentation
             }
 
             _resolved = true;
-            Debug.Log($"[Mindforge:NeuralQuietV15] Isolated coded visual field; {_quietRenderers.Count} decorative renderers are suppressed during EEG evidence.");
+            Debug.Log($"[Mindforge:NeuralQuietV15] Isolated coded visual field; {_quietRenderers.Count} decorative renderers are suppressed during EEG evidence and scene-light luminance is constant.");
         }
 
         private static bool ShouldSuppress(string objectName)
         {
             for (int i = 0; i < QuietTokens.Length; i++)
                 if (objectName.IndexOf(QuietTokens[i], StringComparison.Ordinal) >= 0)
+                    return true;
+            return false;
+        }
+
+        private static bool ShouldRotate(string objectName)
+        {
+            for (int i = 0; i < RotationTokens.Length; i++)
+                if (objectName.IndexOf(RotationTokens[i], StringComparison.Ordinal) >= 0)
                     return true;
             return false;
         }
