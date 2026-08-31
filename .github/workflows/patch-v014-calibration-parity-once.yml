@@ -1,0 +1,40 @@
+name: patch-v014-calibration-parity-once
+
+on:
+  push:
+    branches:
+      - feat/v014-ssvep-low-latency-architecture
+    paths:
+      - tools/patch_v014_calibration_parity.py
+      - .github/workflows/patch-v014-calibration-parity-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/v014-ssvep-low-latency-architecture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply calibration parity patch
+        run: python tools/patch_v014_calibration_parity.py
+      - name: Syntax check Python changes
+        run: |
+          python -m py_compile tools/run_unity_calibrated_decoder.py
+          python -m py_compile tests/test_v014_calibration_parity.py
+      - name: Commit calibration parity
+        run: |
+          git config user.name 'mindforge-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add unity/Assets/Mindforge/SoulWisp/SoulWispController.cs \
+                  unity/Assets/Mindforge/Calibration/AwakeningCalibrationDirector.cs \
+                  tools/run_unity_calibrated_decoder.py \
+                  tests/test_v014_calibration_parity.py
+          git commit -m 'feat(v014): calibrate on simultaneous counterbalanced Wisp tags'
+          git push origin HEAD:feat/v014-ssvep-low-latency-architecture
