@@ -47,8 +47,14 @@ def test_motion_contamination_abstains_and_cannot_authorize_a_late_selection():
     window = WINDOW.read_text(encoding="utf-8")
     motion = MOTION.read_text(encoding="utf-8")
 
-    assert "motionQualification == null || motionQualification.TryGetEvidenceInstability" in window
+    # Keep null qualification and sensor-reported instability as separate branches. The
+    # previous short-circuit form could leave the out variable unassigned under C# definite
+    # assignment rules, which Unity correctly rejected with CS0165.
+    assert 'if (motionQualification == null)' in window
+    assert 'Abstain("MOTION_STATE_UNAVAILABLE");' in window
+    assert "if (motionQualification.TryGetEvidenceInstability(out string motionReason))" in window
     assert 'Abstain(string.IsNullOrEmpty(motionReason) ? "MOTION_STATE_UNAVAILABLE" : motionReason);' in window
+    assert "motionQualification == null || motionQualification.TryGetEvidenceInstability" not in window
     assert "if (motionQualification == null || !motionQualification.EvidenceQualified) return false;" in window
 
     for reason in (
