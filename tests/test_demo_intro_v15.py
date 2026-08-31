@@ -4,6 +4,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CAL = ROOT / "unity/Assets/Mindforge/Calibration/AwakeningCalibrationDirector.cs"
 INTRO = ROOT / "unity/Assets/Mindforge/Presentation/MindforgeDemoIntroDirector.cs"
 ENV = ROOT / "unity/Assets/Mindforge/Presentation/MindforgeDemoEnvironmentV15.cs"
+QUIET = ROOT / "unity/Assets/Mindforge/Presentation/NeuralQuietPresentationGateV15.cs"
 
 
 def read(path: Path) -> str:
@@ -33,11 +34,21 @@ def test_camera_parks_before_calibration_gate_opens():
 def test_player_instructions_match_actual_neural_contract():
     intro = read(INTRO)
     assert "HOLD V TO OPEN A NEURAL WINDOW" in intro
-    assert "ATTEND BLUE: SIGHT" in intro
-    assert "ATTEND GREEN: GUARD" in intro
+    assert "LOOK AT BLUE: SIGHT" in intro
+    assert "LOOK AT GREEN: GUARD" in intro
+    assert "KEEP YOUR GAZE ON YOUR CHOICE" in intro
     assert "UNCLEAR SIGNALS DO NOTHING" in intro
     assert "V NEURAL WINDOW" in intro
-    assert "F8" in intro and "researchHudKey" in intro
+    assert "KeyCode.F7" in intro and "researchHudKey" in intro
+    assert "KeyCode.F8" not in intro
+
+
+def test_demo_overlays_never_steal_gameplay_input():
+    intro = read(INTRO)
+    fade = intro[intro.index("private IEnumerator FadeGroup"):intro.index("private IEnumerator WaitOrSkip")]
+    assert "group.interactable = false" in fade
+    assert "group.blocksRaycasts = false" in fade
+    assert "group.interactable = target >" not in fade
 
 
 def test_arena_reveal_cannot_deal_free_damage():
@@ -77,6 +88,31 @@ def test_decorative_motion_freezes_for_all_neural_evidence_intervals():
     rotate = env.index("rotator.Rotate", quiet)
     assert quiet < rotate
     assert "_lights[i].intensity = _baseLightIntensities[i]" in env
+
+
+def test_decorative_emission_is_hidden_while_eeg_has_authority():
+    quiet = read(QUIET)
+    assert "_calibration.CalibrationInProgress" in quiet
+    assert "_wisp.CalibrationStimuliActive" in quiet
+    assert "_wisp.ResonanceWindowActive" in quiet
+    assert '"SightVepCore"' in quiet and '"GuardVepCore"' in quiet
+    assert "continue;" in quiet.split('"GuardVepCore"', 1)[1]
+    assert "renderer.enabled = quiet ? false : _baselineEnabled[i];" in quiet
+    for token in (
+        "WispHalo",
+        "SanctumSignalRing",
+        "SignalPylonCore",
+        "ArenaRune",
+        "FracturedSignalHalo",
+    ):
+        assert token in quiet
+
+
+def test_opaque_boss_placeholder_cage_is_permanently_suppressed():
+    quiet = read(QUIET)
+    assert 'string.Equals(objectName, "FracturedSignalCage"' in quiet
+    cage = quiet.split('string.Equals(objectName, "FracturedSignalCage"', 1)[1].split("continue;", 1)[0]
+    assert "renderer.enabled = false" in cage
 
 
 def test_demo_scene_has_distinct_visual_silhouettes():
