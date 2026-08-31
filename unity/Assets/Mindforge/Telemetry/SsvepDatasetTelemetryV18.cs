@@ -40,6 +40,7 @@ namespace Mindforge.Telemetry
         [SerializeField] private SsvepFocusBackdropV18 focusBackdrop;
 
         private UdpClient _client;
+        private Transform _guardian;
         private VepAuraStimulus _sightStimulus;
         private VepAuraStimulus _guardStimulus;
         private double _nextSampleAt;
@@ -123,12 +124,13 @@ namespace Mindforge.Telemetry
             for (int frame = 0; frame < 300; frame++)
             {
                 Resolve();
-                if (wisp != null && targetCamera != null && _sightStimulus != null && _guardStimulus != null)
+                if (wisp != null && _guardian != null && targetCamera != null &&
+                    _sightStimulus != null && _guardStimulus != null)
                     yield break;
                 yield return null;
             }
 
-            Debug.LogWarning("[Mindforge:Dataset] SSVEP observation stream could not resolve the full stimulus pair; disabled.");
+            Debug.LogWarning("[Mindforge:Dataset] SSVEP observation stream could not resolve Guardian/camera/stimulus pair; disabled.");
             enabled = false;
         }
 
@@ -136,11 +138,14 @@ namespace Mindforge.Telemetry
         {
             if (wisp == null) wisp = FindObjectOfType<SoulWispController>(true);
             if (wisp != null && resonance == null) resonance = wisp.GetComponent<WispResonanceWindow>();
-            if (targetLock == null)
+
+            GuardianCombatInput input = FindObjectOfType<GuardianCombatInput>(true);
+            if (input != null)
             {
-                GuardianCombatInput input = FindObjectOfType<GuardianCombatInput>(true);
-                if (input != null) targetLock = input.GetComponent<GuardianTargetLock>();
+                _guardian = input.transform;
+                if (targetLock == null) targetLock = input.GetComponent<GuardianTargetLock>();
             }
+
             if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
             if (targetCamera == null) targetCamera = Camera.main;
             if (focusBackdrop == null) focusBackdrop = FindObjectOfType<SsvepFocusBackdropV18>(true);
@@ -176,7 +181,8 @@ namespace Mindforge.Telemetry
 
         private void LateUpdate()
         {
-            if (wisp == null || targetCamera == null || _sightStimulus == null || _guardStimulus == null)
+            if (wisp == null || _guardian == null || targetCamera == null ||
+                _sightStimulus == null || _guardStimulus == null)
             {
                 Resolve();
                 return;
@@ -243,8 +249,8 @@ namespace Mindforge.Telemetry
                 target_kind = DescribeTarget(target),
                 target_locked = targetLock != null && targetLock.Locked,
                 target_lock_reason = targetLock != null ? targetLock.LastChangeReason : string.Empty,
-                target_distance_m = target != null && wisp != null
-                    ? Vector3.Distance(wisp.transform.position, target.position)
+                target_distance_m = target != null
+                    ? HorizontalDistance(_guardian, target)
                     : -1f,
                 target_viewport_x = targetViewport.x,
                 target_viewport_y = targetViewport.y,
@@ -335,6 +341,14 @@ namespace Mindforge.Telemetry
             if (journey != null) return "journey:" + journey.Archetype.ToString().ToLowerInvariant();
             CombatantVitals vitals = target.GetComponentInParent<CombatantVitals>();
             return vitals != null && vitals.Team == CombatTeam.Enemy ? "enemy" : "other";
+        }
+
+        private static float HorizontalDistance(Transform a, Transform b)
+        {
+            if (a == null || b == null) return float.PositiveInfinity;
+            Vector3 delta = b.position - a.position;
+            delta.y = 0f;
+            return delta.magnitude;
         }
 
         private void OnDestroy()
