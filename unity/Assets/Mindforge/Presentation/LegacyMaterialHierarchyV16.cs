@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.SoulWisp;
@@ -12,7 +13,8 @@ namespace Mindforge.Presentation
     /// local, reversible, allocation-light, and cannot create gameplay authority.
     ///
     /// Periodic/emissive neural targets are explicit exclusions. V0.16 never writes their
-    /// material properties or touches their stimulus components.
+    /// material properties or touches their stimulus components. The one-time restyle also
+    /// waits until no baseline/calibration/resonance epoch owns the retinal field.
     /// </summary>
     public sealed class LegacyMaterialHierarchyV16 : MonoBehaviour
     {
@@ -55,9 +57,18 @@ namespace Mindforge.Presentation
             _wisp = wisp;
         }
 
-        private void Start()
+        private IEnumerator Start()
         {
+            while (NeuralEvidenceOwnsVisualField()) yield return null;
             ApplyHierarchy();
+        }
+
+        private bool NeuralEvidenceOwnsVisualField()
+        {
+            if (_calibration == null) _calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (_wisp == null) _wisp = FindObjectOfType<SoulWispController>(true);
+            return (_calibration != null && _calibration.CalibrationInProgress) ||
+                   (_wisp != null && (_wisp.CalibrationStimuliActive || _wisp.ResonanceWindowActive));
         }
 
         private void ApplyHierarchy()
