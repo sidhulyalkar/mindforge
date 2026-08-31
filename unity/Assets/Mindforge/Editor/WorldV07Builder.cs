@@ -28,7 +28,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Neural-Gothic World V0.7", priority = 35)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Neural-Gothic World V0.7", priority = 35)]
         public static void ApplyOpenScene()
         {
             GameObject persistentRoot = EditorSceneLookup.FindIncludingInactive(WorldV06Builder.RootName);

@@ -30,7 +30,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Sanctum Onboarding V0.8", priority = 36)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Sanctum Onboarding V0.8", priority = 36)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

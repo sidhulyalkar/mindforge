@@ -29,7 +29,7 @@ namespace Mindforge.Editor
         private const string ProjectilePrefabPath = "Assets/Mindforge/Generated/Prefabs/MindforgeProjectile.prefab";
         private const string EchoPrefabPath = "Assets/Mindforge/Generated/Prefabs/FracturedEcho.prefab";
 
-        [MenuItem("Mindforge/Showcase/Apply Null Ward Vertical Slice", priority = 24)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Null Ward Vertical Slice", priority = 24)]
         public static void BuildOpenScene()
         {
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");

@@ -27,7 +27,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Neural Sanctum Presentation V0.9", priority = 45)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Neural Sanctum Presentation V0.9", priority = 45)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);

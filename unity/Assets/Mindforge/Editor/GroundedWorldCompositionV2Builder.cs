@@ -31,7 +31,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Grounded World Composition V2", priority = 25)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Grounded World Composition V2", priority = 25)]
         public static void ApplyOpenScene()
         {
             GameObject grounded = EditorSceneLookup.FindIncludingInactive(GroundedWorldV1Builder.RootName);

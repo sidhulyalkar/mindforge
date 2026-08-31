@@ -23,7 +23,7 @@ namespace Mindforge.Editor
         public const string Revision = "AETHERIA_HORDE_BOSS_V1";
         private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
 
-        [MenuItem("Mindforge/Showcase/Apply Aetheria Horde + Malatract V1", priority = 29)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Aetheria Horde + Malatract V1", priority = 29)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

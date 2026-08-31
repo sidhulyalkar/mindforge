@@ -20,7 +20,7 @@ namespace Mindforge.Editor
         public const string RootName = "Mindforge_GameFoundation_V1";
         public const string Revision = "GAME_FOUNDATION_V1";
 
-        [MenuItem("Mindforge/Showcase/Apply Game Foundation V1", priority = 32)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Game Foundation V1", priority = 32)]
         public static void ApplyOpenScene()
         {
             GameObject guardian = EditorSceneLookup.FindIncludingInactive("Guardian");

@@ -19,7 +19,7 @@ namespace Mindforge.Editor
         public const string RootName = "Production_PostFX_V09";
         public const string ProfilePath = "Assets/Mindforge/Generated/ProductionV09/ProductionPostFxV09.asset";
 
-        [MenuItem("Mindforge/Showcase/Apply Production Post FX V0.9", priority = 44)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Production Post FX V0.9", priority = 44)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);

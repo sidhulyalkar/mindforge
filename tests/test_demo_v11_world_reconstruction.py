@@ -101,8 +101,8 @@ def test_v11_guardian_shell_does_not_replace_gameplay_authority():
     assert "AddComponent<GuardianCombatController>" not in source
 
 
-def test_v11_demo_has_explicit_one_click_menu():
+def test_v11_builder_one_click_menu_is_archived_as_legacy():
     source = read(EDITOR / "MindforgeDemoV11Builder.cs")
-    assert 'MenuItem("Mindforge/V0.11 Demo/Build + Play Presentable Demo"' in source
+    assert 'MenuItem("Mindforge/Legacy/V0.11 Demo/Build + Play Presentable Demo"' in source
     assert "BuildDemoScene(true);" in source
     assert "MindforgeDemoV11.unity" in source

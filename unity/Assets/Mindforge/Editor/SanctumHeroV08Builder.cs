@@ -18,7 +18,7 @@ namespace Mindforge.Editor
     {
         public const string RootName = "Sanctum_Hero_Props_V08";
 
-        [MenuItem("Mindforge/Showcase/Apply Sanctum Hero Props V0.8", priority = 37)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Sanctum Hero Props V0.8", priority = 37)]
         public static void ApplyOpenScene()
         {
             GameObject sanctum = EditorSceneLookup.FindIncludingInactive(SanctumOnboardingV08Builder.RootName);

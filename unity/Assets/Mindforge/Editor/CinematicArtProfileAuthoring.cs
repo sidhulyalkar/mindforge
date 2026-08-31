@@ -9,7 +9,7 @@ namespace Mindforge.Editor
     {
         public const string ProfilePath = "Assets/Mindforge/Resources/Cinematic/MindforgeArtProfile.asset";
 
-        [MenuItem("Mindforge/Showcase/Open Production Art Binding Profile", priority = 23)]
+        [MenuItem("Mindforge/Legacy/Showcase/Open Production Art Binding Profile", priority = 23)]
         public static void OpenOrCreate()
         {
             CinematicMaterialAuthoring.EnsureAuthored();

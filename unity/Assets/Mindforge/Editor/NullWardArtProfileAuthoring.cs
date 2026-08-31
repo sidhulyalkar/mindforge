@@ -13,7 +13,7 @@ namespace Mindforge.Editor
     {
         private const string ProfilePath = "Assets/Mindforge/Resources/Cinematic/NullWardArtProfile.asset";
 
-        [MenuItem("Mindforge/Showcase/Open Null Ward Art Binding Profile", priority = 26)]
+        [MenuItem("Mindforge/Legacy/Showcase/Open Null Ward Art Binding Profile", priority = 26)]
         public static void OpenOrCreate()
         {
             CinematicMaterialAuthoring.EnsureAuthored();

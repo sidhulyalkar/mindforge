@@ -22,7 +22,7 @@ namespace Mindforge.Editor
             StaticEditorFlags.OccludeeStatic |
             StaticEditorFlags.ReflectionProbeStatic;
 
-        [MenuItem("Mindforge/Showcase/Apply Arena Set Dressing V3", priority = 28)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Arena Set Dressing V3", priority = 28)]
         public static void ApplyOpenScene()
         {
             GameObject ward = EditorSceneLookup.FindIncludingInactive(NullWardSceneBuilder.RootName);

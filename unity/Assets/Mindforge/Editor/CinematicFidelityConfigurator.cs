@@ -21,7 +21,7 @@ namespace Mindforge.Editor
     {
         public const string ProfileName = "MINDFORGE_CINEMATIC_URP14_V2";
 
-        [MenuItem("Mindforge/Showcase/Configure Cinematic Fidelity", priority = 20)]
+        [MenuItem("Mindforge/Legacy/Showcase/Configure Cinematic Fidelity", priority = 20)]
         public static void Configure()
         {
             CompetitionProjectConfigurator.Configure();

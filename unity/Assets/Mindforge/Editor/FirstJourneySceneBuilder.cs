@@ -23,7 +23,7 @@ namespace Mindforge.Editor
         private const string GeneratedFolder = "Assets/Mindforge/Generated/JourneyV1";
         private const string ProjectilePrefabPath = "Assets/Mindforge/Generated/Prefabs/MindforgeProjectile.prefab";
 
-        [MenuItem("Mindforge/Showcase/Apply First Journey Vertical Slice", priority = 24)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply First Journey Vertical Slice", priority = 24)]
         public static void BuildOpenScene()
         {
             GameObject arena = EditorSceneLookup.FindIncludingInactive("Fractured_Signal_Arena");

@@ -41,7 +41,7 @@ namespace Mindforge.Editor
             EditorSceneManager.sceneSaved += _ => TryAutoApply();
         }
 
-        [MenuItem("Mindforge/Showcase/Apply Sanctum Reference Fidelity V0.8", priority = 38)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Sanctum Reference Fidelity V0.8", priority = 38)]
         public static void ApplyOpenScene()
         {
             if (_applying || EditorApplication.isPlayingOrWillChangePlaymode) return;

@@ -25,7 +25,7 @@ namespace Mindforge.Editor
             };
         }
 
-        [MenuItem("Mindforge/Showcase/Apply Complete Production Presentation V0.9", priority = 43)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Complete Production Presentation V0.9", priority = 43)]
         public static void ApplyNow()
         {
             if (!ReferenceFidelityReady())

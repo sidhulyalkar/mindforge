@@ -20,7 +20,7 @@ namespace Mindforge.Editor
         public const string Garden = "SanctumGardenV08";
         public const string Sky = "SanctumSkyV08";
 
-        [MenuItem("Mindforge/Showcase/Author Sanctum Materials V0.8", priority = 23)]
+        [MenuItem("Mindforge/Legacy/Showcase/Author Sanctum Materials V0.8", priority = 23)]
         public static void EnsureAuthored()
         {
             CinematicMaterialAuthoring.EnsureAuthored();

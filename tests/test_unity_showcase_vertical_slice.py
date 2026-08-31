@@ -11,12 +11,12 @@ def read(*parts: str) -> str:
     return UNITY.joinpath(*parts).read_text(encoding="utf-8")
 
 
-def test_showcase_has_one_click_editor_build_play_path_without_faking_bci():
+def test_legacy_showcase_build_path_remains_recoverable_without_faking_bci():
     menu = read("Editor", "ShowcaseEditorMenu.cs")
     preview = read("Qualification", "ShowcasePreviewBootstrap.cs")
 
-    assert 'MenuItem("Mindforge/Showcase/Build + Play Combat Showcase"' in menu
-    assert 'MenuItem("Mindforge/Showcase/Build + Play Cinematic Showcase"' in menu
+    assert 'MenuItem("Mindforge/Legacy/Showcase/Build + Play Combat Showcase"' in menu
+    assert 'MenuItem("Mindforge/Legacy/Showcase/Build + Play Cinematic Showcase"' in menu
     assert "CompetitionSceneAssembler.BuildCompetitionScene()" in menu
     assert "ShowcaseSceneDecorator.DecorateOpenScene()" in menu
     assert "CinematicSceneDetailer.EnhanceOpenScene()" in menu

@@ -16,7 +16,7 @@ namespace Mindforge.Editor
     {
         public const string CinematicRootName = "Mindforge_Cinematic_Fidelity";
 
-        [MenuItem("Mindforge/Showcase/Apply Cinematic Environment Detail", priority = 22)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Cinematic Environment Detail", priority = 22)]
         public static void EnhanceOpenScene()
         {
             CinematicMaterialAuthoring.EnsureAuthored();

@@ -25,7 +25,7 @@ namespace Mindforge.Editor
             "CourtFill",
         };
 
-        [MenuItem("Mindforge/Showcase/Apply Production Lighting Consolidation V0.9", priority = 46)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Production Lighting Consolidation V0.9", priority = 46)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);

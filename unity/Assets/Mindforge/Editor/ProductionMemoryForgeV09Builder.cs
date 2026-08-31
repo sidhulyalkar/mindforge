@@ -34,7 +34,7 @@ namespace Mindforge.Editor
             "ForgeHaloInner",
         };
 
-        [MenuItem("Mindforge/Showcase/Apply Production Memory Forge V0.9", priority = 45)]
+        [MenuItem("Mindforge/Legacy/Showcase/Apply Production Memory Forge V0.9", priority = 45)]
         public static void ApplyOpenScene()
         {
             GameObject production = EditorSceneLookup.FindIncludingInactive(ProductionArtV09Builder.RootName);
