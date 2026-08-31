@@ -29,20 +29,16 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           cal = Path('unity/Assets/Mindforge/Calibration/AwakeningCalibrationDirector.cs')
           text = cal.read_text(encoding='utf-8')
-          old = '''            yield return RunDualTaggedTrial(stage, trialSeconds, firstSwap,
-                cue + (firstSwap ? " · LOOK LEFT" : " · LOOK LEFT"));
-            yield return RunNeutralSettle();
-            yield return RunDualTaggedTrial(stage, trialSeconds, !firstSwap,
-                cue + (!firstSwap ? " · LOOK LEFT" : " · LOOK RIGHT"));'''
-          new = '''            yield return RunDualTaggedTrial(stage, trialSeconds, firstSwap, cue);
-            yield return RunNeutralSettle();
-            yield return RunDualTaggedTrial(stage, trialSeconds, !firstSwap, cue);'''
-          if text.count(old) != 1:
-              raise SystemExit('generated counterbalance cue block was not found exactly once')
-          cal.write_text(text.replace(old, new, 1), encoding='utf-8')
+          first = 'cue + (firstSwap ? " · LOOK LEFT" : " · LOOK LEFT")'
+          second = 'cue + (!firstSwap ? " · LOOK LEFT" : " · LOOK RIGHT")'
+          if text.count(first) != 1 or text.count(second) != 1:
+              raise SystemExit('generated cue expressions were not found exactly once')
+          text = text.replace(first, 'cue', 1).replace(second, 'cue', 1)
+          if 'LOOK LEFT' in text or 'LOOK RIGHT' in text:
+              raise SystemExit('stale positional calibration cue remained after hardening')
+          cal.write_text(text, encoding='utf-8')
           PY
 
           cat > tests/test_v014_calibration_parity.py <<'PY'
