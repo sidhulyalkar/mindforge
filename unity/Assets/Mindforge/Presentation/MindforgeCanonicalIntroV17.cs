@@ -10,10 +10,11 @@ namespace Mindforge.Presentation
     /// Mindforge > Latest. This is deliberately separate from the competition-scene V0.15
     /// cinematic, whose world coordinates do not match the clean V0.11 route.
     ///
-    /// The calibration presentation gate is closed synchronously after scene load, before
-    /// Update can auto-start calibration. Camera motion and title presentation happen only
-    /// while that gate is closed. The final pose is submitted for a clean frame before
-    /// SetIntroReady(true) permits baseline or coded calibration to begin.
+    /// The calibration presentation gate and conventional combat presentation are suspended
+    /// synchronously after scene load, before Update can auto-start calibration or a gameplay
+    /// camera can claim the first frame. Camera motion and title presentation happen only while
+    /// that gate is closed. The final pose is submitted for a clean frame before SetIntroReady(true)
+    /// permits baseline or coded calibration to begin.
     /// </summary>
     [DefaultExecutionOrder(-50)]
     public sealed class MindforgeCanonicalIntroV17 : MonoBehaviour
@@ -46,6 +47,15 @@ namespace Mindforge.Presentation
         private static void Install()
         {
             if (FindObjectOfType<MindforgeDemoV11Marker>(true) == null) return;
+
+            // Seize presentation authority before the first Update. Controller-only
+            // qualification may have enabled combat during another Start path; clearing it
+            // here prevents a gameplay camera or boss attack from slipping underneath the
+            // canonical intro for even one rendered frame.
+            GuardianCombatInput input = FindObjectOfType<GuardianCombatInput>(true);
+            input?.SetCombatActionsEnabled(false);
+            FracturedSignalDirector boss = FindObjectOfType<FracturedSignalDirector>(true);
+            boss?.SetExternalPause(true);
 
             // Close the neural presentation gate immediately. RuntimeInitialize runs before
             // the first Update, so a ready neural service cannot start baseline underneath
