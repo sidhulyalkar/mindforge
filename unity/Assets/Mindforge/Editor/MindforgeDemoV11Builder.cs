@@ -6,6 +6,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using Mindforge.Calibration;
 using Mindforge.Combat;
 using Mindforge.Presentation;
 
@@ -55,11 +56,37 @@ namespace Mindforge.Editor
             CompetitionSceneAssembler.BuildCompetitionScene();
             EnsureFolders();
 
-            GameObject arena = GameObject.Find("Fractured_Signal_Arena");
-            GameObject guardian = GameObject.Find("Guardian");
-            GameObject boss = GameObject.Find("The_Fractured_Signal");
+            // The competition scene deliberately leaves its arena inactive until calibration (or the
+            // explicitly-labelled controller-only qualification path) opens combat. GameObject.Find
+            // only sees active hierarchy objects, so resolving the kernel by names here makes the clean
+            // demo fail immediately even though assembly succeeded. Resolve authority-bearing components
+            // across the active scene, including inactive objects, and read the arena from the calibration
+            // director's serialized reference instead.
+            GuardianMotor motor = FindSingleSceneComponent<GuardianMotor>("GuardianMotor");
+            FracturedSignalDirector bossDirector = FindSingleSceneComponent<FracturedSignalDirector>("FracturedSignalDirector");
+            AwakeningCalibrationDirector calibration = FindSingleSceneComponent<AwakeningCalibrationDirector>("AwakeningCalibrationDirector");
+
+            GameObject guardian = motor != null ? motor.gameObject : null;
+            GameObject boss = bossDirector != null ? bossDirector.gameObject : null;
+            GameObject arena = ResolveArenaRoot(calibration);
+
             if (arena == null || guardian == null || boss == null)
-                throw new UnityEditor.Build.BuildFailedException("V0.11 systems kernel is incomplete after competition assembly.");
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    "V0.11 systems kernel is incomplete after competition assembly. " +
+                    $"guardian={(guardian != null ? guardian.name : "MISSING")}, " +
+                    $"boss={(boss != null ? boss.name : "MISSING")}, " +
+                    $"arena={(arena != null ? arena.name : "MISSING")}. " +
+                    "Resolution is scene-scoped, component-based, and includes inactive objects."
+                );
+            }
+
+            if (!boss.transform.IsChildOf(arena.transform))
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.11 systems kernel is malformed: boss '{boss.name}' is not inside calibration arena '{arena.name}'."
+                );
+            }
 
             StripKernelBlockout(arena.transform);
 
@@ -109,6 +136,46 @@ namespace Mindforge.Editor
                 "[Mindforge:V11] Clean demo rebuilt. Systems kernel preserved; historical world decorators omitted. " +
                 "Route: Memory Forge Sanctum → Causeway → Market → Tower Ascent → Fractured Signal. " +
                 "All primary traversal floors/walls are visible collision owners; V0.11 runtime owns camera, HUD and Guardian presentation.");
+        }
+
+        private static T FindSingleSceneComponent<T>(string label) where T : Component
+        {
+            Scene activeScene = EditorSceneManager.GetActiveScene();
+            T[] candidates = Resources.FindObjectsOfTypeAll<T>();
+            T match = null;
+            int count = 0;
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                T candidate = candidates[i];
+                if (candidate == null || !candidate.gameObject.scene.IsValid() || candidate.gameObject.scene != activeScene)
+                    continue;
+
+                count++;
+                if (match == null) match = candidate;
+            }
+
+            if (count > 1)
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.11 systems kernel is ambiguous: expected one scene {label}, found {count}."
+                );
+            }
+
+            return match;
+        }
+
+        private static GameObject ResolveArenaRoot(AwakeningCalibrationDirector calibration)
+        {
+            if (calibration == null) return null;
+
+            SerializedObject serialized = new SerializedObject(calibration);
+            SerializedProperty arenaRoot = serialized.FindProperty("arenaRoot");
+            GameObject arena = arenaRoot != null ? arenaRoot.objectReferenceValue as GameObject : null;
+            if (arena == null) return null;
+
+            Scene activeScene = EditorSceneManager.GetActiveScene();
+            return arena.scene.IsValid() && arena.scene == activeScene ? arena : null;
         }
 
         private static void StripKernelBlockout(Transform arena)
