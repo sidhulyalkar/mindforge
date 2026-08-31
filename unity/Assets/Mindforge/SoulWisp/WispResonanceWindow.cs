@@ -33,6 +33,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private GuardianControlProfileV1 controls;
         [SerializeField] private UdpNeuralReceiver neuralReceiver;
         [SerializeField] private UdpGameMarkerSender markerSender;
+        [SerializeField] private DisplayTimingMonitor displayTiming;
 
         [Header("Decision timing")]
         [Tooltip("Neutral cores settle before modulation starts. This is presentation time, not decoder evidence.")]
@@ -47,6 +48,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private bool requireHoldThroughDecision = true;
         [Tooltip("Selections with less post-onset EEG than this never gain gameplay authority.")]
         [SerializeField] private int minimumEvidenceMs = 450;
+        [SerializeField] private bool requireHealthyDisplayTimingForNeuralAuthority = true;
 
 #if UNITY_EDITOR
         [Header("Editor-only gameplay simulation")]
@@ -121,6 +123,7 @@ namespace Mindforge.SoulWisp
             if (controls == null) controls = GuardianControlProfileV1.ResolveOrCreate();
             if (neuralReceiver == null) neuralReceiver = FindObjectOfType<UdpNeuralReceiver>(true);
             if (markerSender == null) markerSender = FindObjectOfType<UdpGameMarkerSender>(true);
+            if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
 #if UNITY_EDITOR
             if (editorBuffs == null) editorBuffs = FindObjectOfType<AuraBuffController>(true);
 #endif
@@ -230,6 +233,14 @@ namespace Mindforge.SoulWisp
             if (evt.seq <= _minimumSelectionSeq) return false;
             if (evt.stimulus_epoch != _windowId) return false;
             if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
+#if UNITY_EDITOR
+            bool editorSimulation = string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
+#else
+            bool editorSimulation = false;
+#endif
+            if (!editorSimulation && requireHealthyDisplayTimingForNeuralAuthority &&
+                (displayTiming == null || !displayTiming.HasMeasurement || !displayTiming.TimingHealthy))
+                return false;
             return true;
         }
 

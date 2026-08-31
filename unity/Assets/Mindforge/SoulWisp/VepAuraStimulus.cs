@@ -55,6 +55,11 @@ namespace Mindforge.SoulWisp
             baseColor = color;
         }
 
+        public void ConfigureTiming(float refreshHz)
+        {
+            qualifiedRefreshHz = Mathf.Max(1f, refreshHz);
+        }
+
         public void BeginWindow(double sharedStart) => BeginWindow(sharedStart, Time.frameCount);
 
         /// <summary>Starts a coded window from one shared time+frame phase epoch.</summary>

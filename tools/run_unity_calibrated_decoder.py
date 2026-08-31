@@ -184,6 +184,7 @@ def main() -> None:
                     active_calibration = calibration_session
                     active_stage = stage
                     active_chunks = []
+                    source.flush()
                     if phantom_enabled:
                         phantom.send(PHANTOM_STAGE_COMMAND[stage])
                     print(

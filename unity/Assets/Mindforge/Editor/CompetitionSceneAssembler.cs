@@ -144,7 +144,7 @@ namespace Mindforge.Editor
 
             AwakeningCalibrationDirector calibration = neural.AddComponent<AwakeningCalibrationDirector>();
             SetRef(calibration, "receiver", receiver); SetRef(calibration, "markerSender", marker); SetRef(calibration, "linkContingency", contingency);
-            SetRef(calibration, "guardianInput", input); SetRef(calibration, "soulWisp", wispController); SetRef(calibration, "combatTarget", boss.transform);
+            SetRef(calibration, "guardianInput", input); SetRef(calibration, "soulWisp", wispController); SetRef(calibration, "displayTiming", timing); SetRef(calibration, "combatTarget", boss.transform);
             SetRef(calibration, "wispCoreRoot", core); SetRef(calibration, "sightAuraRoot", sightRoot); SetRef(calibration, "guardAuraRoot", guardRoot);
             SetRef(calibration, "awakeningRoomRoot", awakening); SetRef(calibration, "arenaRoot", arena); SetRef(calibration, "statusText", calibrationStatus);
 

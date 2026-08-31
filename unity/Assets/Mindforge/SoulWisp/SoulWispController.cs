@@ -74,6 +74,7 @@ namespace Mindforge.SoulWisp
         private bool _resonanceWindowActive;
         private bool _calibrationStimuliActive;
         private bool _calibrationSwapSides;
+        private DisplayTimingMonitor _displayTiming;
         private float _driftSeedA;
         private float _driftSeedB;
         private float _driftSeedC;
@@ -82,6 +83,8 @@ namespace Mindforge.SoulWisp
         public Transform CurrentTarget => EffectiveTarget;
         public bool ResonanceWindowActive => _resonanceWindowActive;
         public bool CalibrationStimuliActive => _calibrationStimuliActive;
+        public bool StimulusPairAvailable => sightStimulus != null && guardStimulus != null &&
+                                             sightAura != null && guardAura != null;
         public bool StableLockAnchorsActive =>
             targetLock != null && targetLock.Locked && targetLock.Target != null;
         public bool StimuliResting => (sightStimulus != null && sightStimulus.IsResting) ||
@@ -105,8 +108,12 @@ namespace Mindforge.SoulWisp
                 sightColor = palette.sightTarget;
                 guardColor = palette.guardTarget;
             }
+            _displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
+            float qualifiedHz = _displayTiming != null ? _displayTiming.ExpectedRefreshHz : 120f;
             sightStimulus?.Configure(sightFrequencyHz, sightColor);
             guardStimulus?.Configure(guardFrequencyHz, guardColor);
+            sightStimulus?.ConfigureTiming(qualifiedHz);
+            guardStimulus?.ConfigureTiming(qualifiedHz);
             sightStimulus?.EndWindow();
             guardStimulus?.EndWindow();
             InitializeDriftSeeds();
@@ -116,6 +123,7 @@ namespace Mindforge.SoulWisp
 
         private void OnEnable()
         {
+            if (_displayTiming == null) _displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
             ResolveTargetLock();
             SubscribeLock();
         }
@@ -147,7 +155,7 @@ namespace Mindforge.SoulWisp
         /// </summary>
         public bool PrepareResonanceWindow()
         {
-            if (_calibrationStimuliActive || StimuliResting || EffectiveTarget == null) return false;
+            if (!StimulusPairAvailable || _calibrationStimuliActive || StimuliResting || EffectiveTarget == null) return false;
             _resonanceWindowActive = true;
             sightStimulus?.EndWindow();
             guardStimulus?.EndWindow();
@@ -158,7 +166,7 @@ namespace Mindforge.SoulWisp
         /// <summary>Starts both coded stimuli from one shared local phase epoch.</summary>
         public bool BeginCodedResonance()
         {
-            if (_calibrationStimuliActive || !_resonanceWindowActive || StimuliResting || EffectiveTarget == null) return false;
+            if (!StimulusPairAvailable || _calibrationStimuliActive || !_resonanceWindowActive || StimuliResting || EffectiveTarget == null) return false;
             double sharedStart = Time.realtimeSinceStartupAsDouble;
             int sharedFrame = Time.frameCount;
             sightStimulus?.BeginWindow(sharedStart, sharedFrame);
@@ -184,7 +192,7 @@ namespace Mindforge.SoulWisp
         /// </summary>
         public bool BeginCalibrationStimuli(bool swapSides)
         {
-            if (StimuliResting) return false;
+            if (!StimulusPairAvailable || StimuliResting) return false;
             _resonanceWindowActive = false;
             _calibrationStimuliActive = true;
             _calibrationSwapSides = swapSides;

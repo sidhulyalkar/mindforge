@@ -20,6 +20,8 @@ namespace Mindforge.SoulWisp
         private double _sumDelta;
         private double _windowStarted;
 
+        public float ExpectedRefreshHz => Mathf.Max(1f, expectedRefreshHz);
+        public bool HasMeasurement { get; private set; }
         public bool TimingHealthy { get; private set; }
         public float ObservedRefreshHz { get; private set; }
         public float DropFraction { get; private set; }
@@ -37,14 +39,15 @@ namespace Mindforge.SoulWisp
             if (delta <= 0.0) return;
             _frames++;
             _sumDelta += delta;
-            double expectedDelta = 1.0 / Mathf.Max(1f, expectedRefreshHz);
+            double expectedDelta = 1.0 / ExpectedRefreshHz;
             if (delta > expectedDelta * droppedFrameMultiplier) _drops++;
             if (_frames < Mathf.Max(30, sampleFrames)) return;
 
             ObservedRefreshHz = (float)(_frames / Math.Max(_sumDelta, 1e-9));
             DropFraction = _drops / (float)_frames;
-            bool rateClose = Mathf.Abs(ObservedRefreshHz - expectedRefreshHz) <= Mathf.Max(1f, expectedRefreshHz * 0.03f);
+            bool rateClose = Mathf.Abs(ObservedRefreshHz - ExpectedRefreshHz) <= Mathf.Max(1f, ExpectedRefreshHz * 0.03f);
             bool healthy = rateClose && DropFraction <= maximumDropFraction;
+            HasMeasurement = true;
             if (healthy != TimingHealthy)
             {
                 TimingHealthy = healthy;
