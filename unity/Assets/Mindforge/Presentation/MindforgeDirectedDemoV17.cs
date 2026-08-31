@@ -99,7 +99,8 @@ namespace Mindforge.Presentation
         private const float FreeLookAhead = 5.4f;
         private const float LockTargetHeight = 1.05f;
         private const float LockLookWeight = 0.57f;
-        private const float MinDistance = 2.65f;
+        private const float CollisionPadding = 0.28f;
+        private const float CollisionSafetyEpsilon = 0.02f;
 
         private Transform _guardian;
         private GuardianCombatInput _input;
@@ -284,7 +285,11 @@ namespace Mindforge.Presentation
             }
             if (!found) return desired;
 
-            float resolved = Mathf.Max(MinDistance, nearest - 0.28f);
+            // Collision is a hard upper bound on camera distance. A preferred framing
+            // distance must never push the camera back through a nearer wall or column.
+            float clearance = Mathf.Max(0f, nearest - CollisionSafetyEpsilon);
+            float resolved = Mathf.Max(0f, nearest - CollisionPadding);
+            resolved = Mathf.Min(resolved, clearance);
             return pivot + direction * resolved;
         }
 
