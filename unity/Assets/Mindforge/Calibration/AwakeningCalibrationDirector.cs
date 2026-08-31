@@ -15,9 +15,10 @@ namespace Mindforge.Calibration
     /// recent SSVEP carry-over. Combat actions stay locked until Python accepts the
     /// participant-specific calibration.
     ///
-    /// V0.15 adds a presentation gate: the cinematic introduction may move the camera
-    /// and decorative environment, but calibration cannot begin until the intro has
-    /// explicitly parked the camera and released a visually quiet neural scene.
+    /// V0.15 adds an optional presentation gate: a demo scene may move the camera and
+    /// decorative environment first, then explicitly park the camera and release a
+    /// visually quiet neural scene. The gate defaults off so non-demo scenes preserve
+    /// the original calibration lifecycle.
     /// </summary>
     public sealed class AwakeningCalibrationDirector : MonoBehaviour
     {
@@ -44,8 +45,8 @@ namespace Mindforge.Calibration
         [SerializeField] private KeyCode retryKey = KeyCode.Return;
 
         [Header("Presentation gate")]
-        [Tooltip("When enabled, calibration cannot begin until the intro explicitly parks the camera and releases the neural scene.")]
-        [SerializeField] private bool requireIntroReady = true;
+        [Tooltip("Optional demo-only gate. Shared/non-demo scenes leave this disabled.")]
+        [SerializeField] private bool requireIntroReady = false;
 
         [Header("Scene events")]
         [SerializeField] private UnityEvent calibrationReady;
@@ -92,6 +93,17 @@ namespace Mindforge.Calibration
             if (_serviceReady && IntroReady && autoStartWhenServiceReady && !_running && !_failed && !CalibrationReady && DisplayTimingReady)
                 BeginCalibration();
             if (_failed && _serviceReady && IntroReady && DisplayTimingReady && Input.GetKeyDown(retryKey)) BeginCalibration();
+        }
+
+        /// <summary>
+        /// Enables/disables the optional presentation gate. Demo installers call this
+        /// before Start/Update authority is possible; shared scenes never need to.
+        /// </summary>
+        public void ConfigureIntroGate(bool required)
+        {
+            requireIntroReady = required;
+            _introReady = !required;
+            if (!_running && !CalibrationReady) SetWaitingStatus();
         }
 
         /// <summary>
