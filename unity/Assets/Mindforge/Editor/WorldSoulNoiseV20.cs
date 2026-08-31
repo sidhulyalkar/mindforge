@@ -1,5 +1,4 @@
 #if UNITY_EDITOR
-using System;
 using UnityEngine;
 
 namespace Mindforge.Editor
@@ -70,13 +69,13 @@ namespace Mindforge.Editor
         {
             unchecked
             {
-                uint x = (uint)(seed + index * 0x9E3779B9);
+                uint x = (uint)seed + (uint)index * 0x9E3779B9u;
                 x ^= x >> 16;
-                x *= 0x7FEB352D;
+                x *= 0x7FEB352Du;
                 x ^= x >> 15;
-                x *= 0x846CA68B;
+                x *= 0x846CA68Bu;
                 x ^= x >> 16;
-                return (x & 0x00FFFFFF) / 16777215f;
+                return (x & 0x00FFFFFFu) / 16777215f;
             }
         }
 
