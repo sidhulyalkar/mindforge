@@ -1,0 +1,71 @@
+name: archive-legacy-unity-menus-once
+
+on:
+  push:
+    branches:
+      - feat/latest-integrated-unity-menu
+    paths:
+      - '.github/workflows/archive-legacy-unity-menus-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-menu-surface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/latest-integrated-unity-menu
+          fetch-depth: 0
+
+      - name: Archive historical Unity menu entries
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('unity/Assets/Mindforge/Editor')
+          replacements = {
+              'Mindforge/Showcase/': 'Mindforge/Legacy/Showcase/',
+              'Mindforge/V0.11 Demo/': 'Mindforge/Legacy/V0.11 Demo/',
+          }
+          changed = []
+          for path in sorted(root.rglob('*.cs')):
+              original = path.read_text(encoding='utf-8')
+              updated = original
+              for old, new in replacements.items():
+                  updated = updated.replace(old, new)
+              if updated == original:
+                  continue
+              path.write_text(updated, encoding='utf-8')
+              changed.append(str(path))
+
+          if len(changed) < 30:
+              raise SystemExit(f'Expected broad legacy-menu migration; changed only {len(changed)} files')
+
+          violations = []
+          for path in sorted(root.rglob('*.cs')):
+              text = path.read_text(encoding='utf-8')
+              if 'MenuItem("Mindforge/Showcase/' in text or 'MenuItem("Mindforge/V0.11 Demo/' in text:
+                  violations.append(str(path))
+          if violations:
+              raise SystemExit('Legacy menu roots remain:\n' + '\n'.join(violations))
+
+          print(f'Archived menu attributes in {len(changed)} files:')
+          for path in changed:
+              print(f'  {path}')
+          PY
+
+      - name: Commit deterministic menu migration
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No migration changes required.'
+            exit 0
+          fi
+          git config user.name 'mindforge-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add unity/Assets/Mindforge/Editor
+          git commit -m 'chore(editor): archive historical build menus'
+          git push origin HEAD:feat/latest-integrated-unity-menu
