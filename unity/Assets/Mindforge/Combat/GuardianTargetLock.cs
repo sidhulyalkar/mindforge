@@ -70,12 +70,13 @@ namespace Mindforge.Combat
         /// <summary>
         /// Exact conventional assist used by encounter framing. It bypasses the current camera
         /// acquire cone so a boss can re-establish orientation when the player has turned away,
-        /// but it never bypasses enemy/alive/range validation. Neural code must not call this.
+        /// but it never bypasses enemy/alive/range/visibility validation. Neural code must not call this.
         /// </summary>
         public bool TryLockTarget(Transform candidate, string reason = "encounter_assist")
         {
             if (!TargetAvailable(candidate)) return false;
             if (HorizontalDistanceTo(candidate) > Mathf.Max(lockRange, breakRange)) return false;
+            if (requireLineOfSight && !HasLineOfSight(candidate)) return false;
             SetState(true, candidate, string.IsNullOrWhiteSpace(reason) ? "encounter_assist" : reason);
             return Locked && Target == candidate;
         }
