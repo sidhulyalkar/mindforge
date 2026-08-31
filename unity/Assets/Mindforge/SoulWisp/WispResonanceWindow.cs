@@ -36,15 +36,17 @@ namespace Mindforge.SoulWisp
 
         [Header("Decision timing")]
         [Tooltip("Neutral cores settle before modulation starts. This is presentation time, not decoder evidence.")]
-        [SerializeField] private float settleSeconds = 0.18f;
+        [SerializeField] private float settleSeconds = 0.09f;
         [Tooltip("Maximum coded decision duration. Dynamic stopping may resolve earlier.")]
-        [SerializeField] private float listeningSeconds = 1.25f;
+        [SerializeField] private float listeningSeconds = 1.50f;
         [SerializeField] private float outcomeHoldSeconds = 0.34f;
         [SerializeField] private float cooldownSeconds = 0.72f;
 
         [Header("Authority")]
         [SerializeField] private bool requireCombatTarget = true;
         [SerializeField] private bool requireHoldThroughDecision = true;
+        [Tooltip("Selections with less post-onset EEG than this never gain gameplay authority.")]
+        [SerializeField] private int minimumEvidenceMs = 450;
 
 #if UNITY_EDITOR
         [Header("Editor-only gameplay simulation")]
@@ -224,8 +226,10 @@ namespace Mindforge.SoulWisp
         public bool CanAcceptSelection(NeuralEvent evt)
         {
             if (State != WispResonanceState.Listening || evt == null || !evt.IsSelection) return false;
-            if (evt.Target == AuraTarget.None || evt.artifact) return false;
+            if (evt.Target == AuraTarget.None || evt.artifact || !evt.IsV2) return false;
             if (evt.seq <= _minimumSelectionSeq) return false;
+            if (evt.stimulus_epoch != _windowId) return false;
+            if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
             return true;
         }
 
@@ -248,7 +252,8 @@ namespace Mindforge.SoulWisp
         public void ObserveAbstain(NeuralEvent evt)
         {
             if (State != WispResonanceState.Listening || evt == null || !evt.IsAbstain) return;
-            if (evt.seq <= _minimumSelectionSeq) return;
+            if (evt.seq <= _minimumSelectionSeq || !evt.IsV2) return;
+            if (evt.stimulus_epoch != _windowId) return;
             Abstain(string.IsNullOrEmpty(evt.reason) ? "DECODER_ABSTAIN" : evt.reason);
         }
 
@@ -323,6 +328,8 @@ namespace Mindforge.SoulWisp
                 margin = 1f,
                 source_mode = "unity_editor_resonance_sim",
                 authority_ttl_ms = 250,
+                stimulus_epoch = _windowId,
+                evidence_ms = 750,
             };
 
             if (CanAcceptSelection(simulated) && editorBuffs.TryApply(simulated))

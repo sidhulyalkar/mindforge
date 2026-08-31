@@ -78,6 +78,11 @@ class NeuralEvent:
     decoder_time_ns: int = 0
     authority_ttl_ms: int = 900
 
+    # V0.14 causal provenance. stimulus_epoch is Unity's resonance-window id.
+    # evidence_ms is the amount of EEG acquired strictly after coded onset.
+    stimulus_epoch: int = -1
+    evidence_ms: int = 0
+
     # V0.8 participant-calibration metadata. These are derived scalar outputs only.
     # EEG samples, channel traces, spectra and other raw arrays never enter NeuralEvent.
     stimulus_hz: float = 0.0
@@ -109,6 +114,8 @@ class NeuralEvent:
         source_sample_end: int = -1,
         decoder_time_ns: int | None = None,
         authority_ttl_ms: int = 900,
+        stimulus_epoch: int = -1,
+        evidence_ms: int = 0,
         stimulus_hz: float = 0.0,
         candidate_rank: int = 0,
         selected_sight_hz: float = 0.0,
@@ -154,6 +161,8 @@ class NeuralEvent:
             source_sample_end=sample_end,
             decoder_time_ns=decoder_ns,
             authority_ttl_ms=max(0, int(authority_ttl_ms)),
+            stimulus_epoch=int(stimulus_epoch),
+            evidence_ms=max(0, int(evidence_ms)),
             stimulus_hz=float(max(0.0, stimulus_hz)),
             candidate_rank=max(0, int(candidate_rank)),
             selected_sight_hz=float(max(0.0, selected_sight_hz)),
@@ -190,6 +199,8 @@ class NeuralEvent:
             source_sample_end=int(payload.get("source_sample_end", -1)),
             decoder_time_ns=int(payload.get("decoder_time_ns", payload.get("monotonic_ns", 0))),
             authority_ttl_ms=int(payload.get("authority_ttl_ms", 0 if schema == NEURAL_EVENT_V1 else 900)),
+            stimulus_epoch=int(payload.get("stimulus_epoch", -1)),
+            evidence_ms=int(payload.get("evidence_ms", 0)),
             stimulus_hz=float(payload.get("stimulus_hz", 0.0)),
             candidate_rank=int(payload.get("candidate_rank", 0)),
             selected_sight_hz=float(payload.get("selected_sight_hz", 0.0)),

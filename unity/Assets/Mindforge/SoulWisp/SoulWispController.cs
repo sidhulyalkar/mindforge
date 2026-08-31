@@ -155,8 +155,9 @@ namespace Mindforge.SoulWisp
         {
             if (!_resonanceWindowActive || StimuliResting || EffectiveTarget == null) return false;
             double sharedStart = Time.realtimeSinceStartupAsDouble;
-            sightStimulus?.BeginWindow(sharedStart);
-            guardStimulus?.BeginWindow(sharedStart);
+            int sharedFrame = Time.frameCount;
+            sightStimulus?.BeginWindow(sharedStart, sharedFrame);
+            guardStimulus?.BeginWindow(sharedStart, sharedFrame);
             return true;
         }
 

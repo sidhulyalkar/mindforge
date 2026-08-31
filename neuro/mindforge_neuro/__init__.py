@@ -14,6 +14,7 @@ from .calibration import (
     FrequencyPairEvaluation,
     ParticipantFrequencyProfile,
     calibrate_decoder,
+    normalize_calibrated_scores,
     personalized_ssvep_config,
     rank_participant_frequency_pairs,
 )
@@ -34,6 +35,7 @@ from .public_validation import (
     leave_one_subject_out_validation,
 )
 from .markers import GameMarker, GameMarkerType, UdpGameMarkerSource
+from .resonance import DEFAULT_RESONANCE_CHECKPOINTS, ResonanceCheckpoint, ResonanceEpochBuffer, ResonanceEpochRuntime
 from .dev_sources import DecisionSimulationConfig, DecisionSimulator, NeuralEventTape, TapeEntry
 
 __all__ = [
@@ -48,6 +50,7 @@ __all__ = [
     "FrequencyPairEvaluation",
     "ParticipantFrequencyProfile",
     "calibrate_decoder",
+    "normalize_calibrated_scores",
     "rank_participant_frequency_pairs",
     "personalized_ssvep_config",
     "EvidenceWindow",
@@ -65,6 +68,10 @@ __all__ = [
     "GameMarker",
     "GameMarkerType",
     "UdpGameMarkerSource",
+    "ResonanceCheckpoint",
+    "DEFAULT_RESONANCE_CHECKPOINTS",
+    "ResonanceEpochBuffer",
+    "ResonanceEpochRuntime",
     "DecisionSimulationConfig",
     "DecisionSimulator",
     "NeuralEventTape",
