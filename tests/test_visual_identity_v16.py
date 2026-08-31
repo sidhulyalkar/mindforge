@@ -38,7 +38,7 @@ def test_v16_installer_is_presentation_only_and_composes_readability_layers():
         assert forbidden not in text
 
 
-def test_material_hierarchy_preserves_coded_and_emissive_signal_renderers():
+def test_material_hierarchy_preserves_coded_emissive_and_authored_production_art():
     text = read(MATERIALS)
     assert "MaterialPropertyBlock" in text
     assert '"SightVepCore"' in text
@@ -46,6 +46,12 @@ def test_material_hierarchy_preserves_coded_and_emissive_signal_renderers():
     assert 'material.IsKeywordEnabled("_EMISSION")' in text
     assert "renderer.SetPropertyBlock(_block)" in text
     assert "while (NeuralEvidenceOwnsVisualField()) yield return null;" in text
+    root_block = text[text.index("private static readonly string[] RootNames"):text.index("private static readonly string[] PreserveTokens")]
+    assert '"Mindforge_AetheriaWorld_V1"' in root_block
+    assert '"Mindforge_GroundedWorld_V1"' in root_block
+    assert '"Mindforge_Demo_Environment_V15"' in root_block
+    assert '"Mindforge_Production_Art_V09"' not in root_block
+    assert "authored production PBR" in text
     for forbidden in (
         "renderer.sharedMaterial =",
         "collider.enabled",
@@ -65,6 +71,8 @@ def test_camera_occlusion_changes_renderer_visibility_only_and_freezes_for_eeg()
     assert "_calibration.CalibrationInProgress" in text
     assert "_wisp.CalibrationStimuliActive" in text
     assert "_wisp.ResonanceWindowActive" in text
+    assert "FindObjectOfType<AwakeningCalibrationDirector>(true)" in text
+    assert "FindObjectOfType<SoulWispController>(true)" in text
     assert "if (NeuralEvidenceOwnsVisualField()) return;" in text
     for forbidden in (
         "Collider.enabled",
@@ -79,7 +87,7 @@ def test_camera_occlusion_changes_renderer_visibility_only_and_freezes_for_eeg()
         assert forbidden not in text
 
 
-def test_backdrop_is_static_non_emissive_and_collider_free():
+def test_backdrop_is_static_non_emissive_collider_free_and_bounded_to_near_world():
     text = read(BACKDROP)
     assert 'RootName = "Mindforge_WorldDepthBackdrop_V16"' in text
     assert "Skyline_L" in text
@@ -89,6 +97,13 @@ def test_backdrop_is_static_non_emissive_and_collider_free():
     assert "collider.enabled = false" in text
     assert "Destroy(collider)" in text
     assert "shadowCastingMode" in text
+    survey_block = text[text.index("private static readonly string[] SurveyRootNames"):text.index("private static readonly string[] IgnoreBoundsTokens")]
+    assert '"Mindforge_Production_Art_V09"' not in survey_block
+    for token in ('"Skyline"', '"Distant"', '"Backdrop"', '"Horizon"', '"Vista"'):
+        assert token in text
+    assert "IgnoreForBounds(renderer.gameObject.name)" in text
+    assert "Mathf.Clamp(world.extents.x, 36f, 72f)" in text
+    assert "Mathf.Clamp(world.extents.z, 50f, 92f)" in text
     for forbidden in (
         "_EmissionColor",
         "EnableKeyword(\"_EMISSION\")",
