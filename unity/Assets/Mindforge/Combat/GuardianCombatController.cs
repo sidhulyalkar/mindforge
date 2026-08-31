@@ -102,6 +102,7 @@ namespace Mindforge.Combat
             bool sight = auras != null && auras.SightActive;
             float speed = sight ? tuning.sightShotSpeed : tuning.shotSpeed;
             float damage = sight ? tuning.sightShotDamage : tuning.shotDamage;
+            float poise = tuning.shotPoise * (sight ? auras.SightPoiseMultiplier : 1f);
             float neuralBonusDamage = sight ? Mathf.Max(0f, damage - tuning.shotDamage) : 0f;
             int pierce = sight ? 1 : 0;
             Vector3 origin = muzzle != null ? muzzle.position : transform.position + Vector3.up;
@@ -110,7 +111,7 @@ namespace Mindforge.Combat
                 CombatTeam.Guardian,
                 aimDirection.normalized * speed,
                 damage,
-                tuning.shotPoise,
+                poise,
                 pierce,
                 sight ? "SIGHT_PULSE_DAMAGE" : null,
                 neuralBonusDamage);
@@ -127,8 +128,8 @@ namespace Mindforge.Combat
 
             ActionAccepted?.Invoke("RIFT_CLEAVE");
             bool sight = auras != null && auras.SightActive;
-            float range = tuning.cleaveRange * (sight ? 1.18f : 1f);
-            float halfArc = tuning.cleaveArcDegrees * (sight ? 1.12f : 1f) * 0.5f;
+            float range = tuning.cleaveRange * (sight ? auras.SightReachMultiplier : 1f);
+            float halfArc = tuning.cleaveArcDegrees * (sight ? 1.10f : 1f) * 0.5f;
             int count = Physics.OverlapSphereNonAlloc(transform.position, range, _hits, damageMask, QueryTriggerInteraction.Collide);
             bool hit = false;
             for (int i = 0; i < count; i++)
@@ -140,10 +141,11 @@ namespace Mindforge.Combat
                 if (delta.sqrMagnitude < 0.01f || Vector3.Angle(aimDirection, delta) > halfArc) continue;
                 float multiplier = auras != null ? auras.DamageMultiplier : 1f;
                 float totalDamage = tuning.cleaveDamage * multiplier;
+                float totalPoise = tuning.cleavePoise * (sight ? auras.SightPoiseMultiplier : 1f);
                 float neuralBonusDamage = sight ? Mathf.Max(0f, totalDamage - tuning.cleaveDamage) : 0f;
                 receiver.ReceiveDamage(new DamagePacket(
                     totalDamage,
-                    tuning.cleavePoise,
+                    totalPoise,
                     delta.normalized * tuning.cleaveImpulse,
                     _hits[i].ClosestPoint(transform.position),
                     CombatTeam.Guardian,
@@ -167,7 +169,16 @@ namespace Mindforge.Combat
             long now = FixedTick;
             if (now - _lastCounterTick < SecondsToTicks(tuning.counterCooldown)) return false;
             _lastCounterTick = now;
+
+            // Preserve the canonical baseline window and fixed-tick contract first.
             _counterUntilTick = now + SecondsToTicks(tuning.counterWindow);
+            if (auras != null && auras.GuardActive)
+            {
+                float extraSeconds = tuning.counterWindow * Mathf.Max(0f, auras.GuardCounterWindowMultiplier - 1f);
+                if (extraSeconds > 0.0001f)
+                    _counterUntilTick += SecondsToTicks(extraSeconds);
+            }
+
             _reflectedThisWindow.Clear();
             ActionAccepted?.Invoke("COUNTER_PULSE");
             return true;
@@ -180,7 +191,9 @@ namespace Mindforge.Combat
             Transform target = CombatTargetResolver.Resolve(targetLock, primaryTarget);
             if (target == null) return;
 
-            int count = Physics.OverlapSphereNonAlloc(transform.position, tuning.counterRadius, _hits, projectileMask, QueryTriggerInteraction.Collide);
+            bool guard = auras != null && auras.GuardActive;
+            float counterRadius = tuning.counterRadius * (guard ? auras.GuardCounterRadiusMultiplier : 1f);
+            int count = Physics.OverlapSphereNonAlloc(transform.position, counterRadius, _hits, projectileMask, QueryTriggerInteraction.Collide);
             bool reflectedAny = false;
             Vector3 impactDirection = target.position - transform.position;
 
@@ -200,9 +213,9 @@ namespace Mindforge.Combat
                     concord ? "CONCORD_COUNTER_DAMAGE" : null,
                     concord ? Mathf.Max(0f, reflectedDamage - baselineDamage) : 0f);
                 flux?.Award(tuning.counterFlux, "Perfect Counter");
-                if (auras != null && auras.GuardActive && vitals != null)
+                if (guard && vitals != null)
                 {
-                    float restored = vitals.Heal(2.4f);
+                    float restored = vitals.Heal(auras.GuardSuccessfulCounterHeal);
                     if (restored > 0f)
                         NeuralPayoffObserved?.Invoke("GUARD_COUNTER_HEAL_REALIZED", restored);
                 }
