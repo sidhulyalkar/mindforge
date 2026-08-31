@@ -22,8 +22,10 @@ namespace Mindforge.SoulWisp
     ///
     /// V answers WHEN the player wants a neural decision. It never says WHICH decision.
     /// During Listening, only a fresh derived NeuralEvent may resolve Sight or Guard.
-    /// Ordinary movement, camera, attack, evade, target lock and interaction remain live.
-    /// Ambiguous/late evidence fails closed into abstention and spends no aura.
+    /// Ordinary movement remains player-owned; the Wisp never zeroes movement input. Instead,
+    /// an independent read-only motion qualifier tells this state machine whether the visual/
+    /// EEG interval is stable enough to use. Camera, attack, evade, target lock and interaction
+    /// remain conventional authorities, and this class never depends on the locomotion motor.
     /// </summary>
     [DefaultExecutionOrder(-120)]
     [RequireComponent(typeof(SoulWispController))]
@@ -34,6 +36,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private UdpNeuralReceiver neuralReceiver;
         [SerializeField] private UdpGameMarkerSender markerSender;
         [SerializeField] private DisplayTimingMonitor displayTiming;
+        [SerializeField] private WispMotionQualification motionQualification;
 
         [Header("Decision timing")]
         [Tooltip("Neutral cores settle before modulation starts. This is presentation time, not decoder evidence.")]
@@ -69,10 +72,15 @@ namespace Mindforge.SoulWisp
         public long MinimumSelectionSequence => _minimumSelectionSeq;
         public string LastOutcome => _lastOutcome;
         public AuraTarget LastResolvedTarget => _lastResolvedTarget;
+        public bool MotionQualifiedForArm => motionQualification != null && motionQualification.MotionQualifiedForArm;
+        public string MotionBlockReason => motionQualification != null
+            ? motionQualification.ArmBlockReason
+            : "MOTION_STATE_UNAVAILABLE";
         public bool CanArm => State == WispResonanceState.Idle &&
                               wisp != null &&
                               (!requireCombatTarget || wisp.InCombat) &&
-                              !wisp.StimuliResting;
+                              !wisp.StimuliResting &&
+                              MotionQualifiedForArm;
 
         public float StateProgress
         {
@@ -124,6 +132,8 @@ namespace Mindforge.SoulWisp
             if (neuralReceiver == null) neuralReceiver = FindObjectOfType<UdpNeuralReceiver>(true);
             if (markerSender == null) markerSender = FindObjectOfType<UdpGameMarkerSender>(true);
             if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
+            if (motionQualification == null) motionQualification = GetComponent<WispMotionQualification>();
+            if (motionQualification == null) motionQualification = gameObject.AddComponent<WispMotionQualification>();
 #if UNITY_EDITOR
             if (editorBuffs == null) editorBuffs = FindObjectOfType<AuraBuffController>(true);
 #endif
@@ -131,7 +141,7 @@ namespace Mindforge.SoulWisp
 
         private void Update()
         {
-            if (wisp == null || controls == null) ResolveReferences();
+            if (wisp == null || controls == null || motionQualification == null) ResolveReferences();
 
             if (State == WispResonanceState.Idle)
             {
@@ -150,6 +160,11 @@ namespace Mindforge.SoulWisp
                 if (requireCombatTarget && (wisp == null || !wisp.InCombat))
                 {
                     Abstain("TARGET_LOST");
+                    return;
+                }
+                if (motionQualification == null || motionQualification.TryGetEvidenceInstability(out string motionReason))
+                {
+                    Abstain(string.IsNullOrEmpty(motionReason) ? "MOTION_STATE_UNAVAILABLE" : motionReason);
                     return;
                 }
             }
@@ -233,6 +248,7 @@ namespace Mindforge.SoulWisp
             if (evt.seq <= _minimumSelectionSeq) return false;
             if (evt.stimulus_epoch != _windowId) return false;
             if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
+            if (motionQualification == null || !motionQualification.EvidenceQualified) return false;
 #if UNITY_EDITOR
             bool editorSimulation = string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
 #else
@@ -351,7 +367,8 @@ namespace Mindforge.SoulWisp
 
     /// <summary>
     /// Merge-friendly bootstrap so existing scenes gain the state machine without serialized
-    /// scene surgery. It binds the combat authority gate once both Wisp and director exist.
+    /// scene surgery. It binds the motion-quality sensor and combat authority gate once the
+    /// Wisp and aura director exist.
     /// </summary>
     public sealed class WispResonanceBootstrap : MonoBehaviour
     {
@@ -370,6 +387,8 @@ namespace Mindforge.SoulWisp
                 DualAuraCombatDirector director = FindObjectOfType<DualAuraCombatDirector>(true);
                 if (wisp != null && director != null)
                 {
+                    if (wisp.GetComponent<WispMotionQualification>() == null)
+                        wisp.gameObject.AddComponent<WispMotionQualification>();
                     WispResonanceWindow window = wisp.GetComponent<WispResonanceWindow>();
                     if (window == null) window = wisp.gameObject.AddComponent<WispResonanceWindow>();
                     director.BindResonanceWindow(window);

@@ -10,13 +10,12 @@ namespace Mindforge.Editor
     /// The only ordinary-development entry point for the current integrated game.
     ///
     /// Product version and scene-asset version are deliberately decoupled. The clean
-    /// V0.11 scene builder is still the newest authoritative world assembler, while the
-    /// V0.13 Wisp/combat systems install on top of that runtime. Keeping the proven scene
-    /// path avoids a destructive rename while giving developers one unambiguous menu.
+    /// V0.11 scene builder remains the authoritative world assembler while current runtime
+    /// presentation, combat and BCI systems compose on top of it after scene load.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.13 Integrated";
+        public const string ProductVersion = "V0.17 Directed Demo";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -24,6 +23,7 @@ namespace Mindforge.Editor
             if (!PrepareForSceneReplacement()) return;
             MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault: true);
             OpenCanonicalScene();
+            Debug.Log($"[Mindforge:Latest] Starting {ProductVersion} in controller-only BCI simulation mode.");
             EditorApplication.delayCall += () =>
             {
                 if (!EditorApplication.isPlayingOrWillChangePlaymode)
@@ -53,21 +53,19 @@ namespace Mindforge.Editor
             OpenCanonicalScene();
         }
 
-        [MenuItem("Mindforge/Latest/Validate Latest Architecture", priority = 20)]
+        [MenuItem("Mindforge/Latest/Validate Latest Readiness", priority = 20)]
         public static void ValidateLatest()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                // Runtime ownership checks are more complete in Play Mode, so auditing the
-                // currently-running canonical scene is useful and intentionally supported.
-                MindforgeDemoV11Audit.AuditActiveDemo();
+                MindforgeLatestReadinessAuditV17.AuditActiveDemo();
                 return;
             }
 
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             EnsureCanonicalSceneExists(controllerOnlyByDefault: true);
             OpenCanonicalScene();
-            MindforgeDemoV11Audit.AuditActiveDemo();
+            MindforgeLatestReadinessAuditV17.AuditActiveDemo();
         }
 
         [MenuItem("Mindforge/Latest/Build Neural-Hardware Variant", priority = 30)]
@@ -78,7 +76,8 @@ namespace Mindforge.Editor
             OpenCanonicalScene();
             Debug.Log(
                 $"[Mindforge:Latest] Built {ProductVersion} neural-hardware variant. " +
-                "Use this only with the live neural service; ordinary Editor playtests should use PLAY LATEST (BCI Simulation)."
+                "Use this only with the live neural service and a physically qualified display; " +
+                "ordinary Editor playtests should use PLAY LATEST (BCI Simulation)."
             );
         }
 

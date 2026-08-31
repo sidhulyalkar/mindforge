@@ -19,6 +19,9 @@ namespace Mindforge.Presentation
     {
         private static readonly string[] RootNames =
         {
+            // Canonical Latest scene. This includes the V11 causeway walls, fracture walls
+            // and hostile FractureSpire_* presentation visible in the recording.
+            "Mindforge_Demo_World_V11",
             "Mindforge_AetheriaWorld_V1",
             "Mindforge_GroundedWorld_V1",
             "Mindforge_Production_Art_V09",
@@ -45,7 +48,7 @@ namespace Mindforge.Presentation
         private Transform _guardian;
         private AwakeningCalibrationDirector _calibration;
         private SoulWispController _wisp;
-        private readonly List<Entry> _entries = new List<Entry>(160);
+        private readonly List<Entry> _entries = new List<Entry>(192);
         private bool _cached;
 
         private sealed class Entry
@@ -144,7 +147,7 @@ namespace Mindforge.Presentation
             }
 
             _cached = true;
-            Debug.Log($"[Mindforge:V16] Camera readability registered {_entries.Count} presentation occluders. Collision remains untouched.");
+            Debug.Log($"[Mindforge:V16] Camera readability registered {_entries.Count} presentation occluders across the canonical V11 world and optional legacy roots. Collision remains untouched.");
         }
 
         private void OnDisable() => RestoreAll();

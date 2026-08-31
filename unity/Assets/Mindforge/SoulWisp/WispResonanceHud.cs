@@ -6,8 +6,9 @@ namespace Mindforge.SoulWisp
 {
     /// <summary>
     /// Minimal presentation for the resonance ritual. It intentionally never displays raw
-    /// decoder scores. Ordinary players see only actionable state: arm, hold, resolve, or
-    /// graceful uncertainty. The coded cores themselves carry Sight/Guard color identity.
+    /// decoder scores. Ordinary players see only actionable state: create a stable opening,
+    /// arm, hold, resolve, or graceful uncertainty. The coded cores themselves carry
+    /// Sight/Guard color identity.
     /// </summary>
     [RequireComponent(typeof(WispResonanceWindow))]
     public sealed class WispResonanceHud : MonoBehaviour
@@ -43,6 +44,7 @@ namespace Mindforge.SoulWisp
             if (window.State == WispResonanceState.Idle)
             {
                 if (window.CanArm) DrawArmPrompt(key);
+                else if (wisp.InCombat && !window.MotionQualifiedForArm) DrawMotionPrompt();
                 return;
             }
 
@@ -88,6 +90,22 @@ namespace Mindforge.SoulWisp
             GUI.color = before;
         }
 
+        private void DrawMotionPrompt()
+        {
+            const float width = 270f;
+            const float height = 24f;
+            Rect r = new Rect(Screen.width - width - 24f, Screen.height - height - 54f, width, height);
+            Fill(r, new Color(0.015f, 0.020f, 0.034f, 0.58f));
+            Color before = GUI.color;
+            GUI.color = new Color(0.80f, 0.84f, 0.92f, 0.90f);
+            string reason = window.MotionBlockReason;
+            string label = reason == "PLAYER_AIRBORNE" || reason == "PLAYER_HOVERING"
+                ? "LAND TO CHANNEL WISP"
+                : "CREATE SPACE · HOLD STILL TO CHANNEL";
+            GUI.Label(r, label, _small);
+            GUI.color = before;
+        }
+
         private void DrawListening(Rect panel, string key)
         {
             float inner = panel.width * 0.42f;
@@ -99,7 +117,7 @@ namespace Mindforge.SoulWisp
             GUI.color = Guard;
             GUI.Label(right, "GUARD", _option);
             GUI.color = Neutral;
-            GUI.Label(new Rect(panel.x, panel.y + 32f, panel.width, 20f), "HOLD " + key + "  ·  LET THE WISP RESOLVE", _small);
+            GUI.Label(new Rect(panel.x, panel.y + 32f, panel.width, 20f), "HOLD " + key + "  ·  KEEP STILL · LET THE WISP RESOLVE", _small);
 #if UNITY_EDITOR
             GUI.Label(new Rect(panel.x, panel.y - 19f, panel.width, 18f), "EDITOR SIM  ·  1 SIGHT   2 GUARD   0 ABSTAIN", _small);
 #endif

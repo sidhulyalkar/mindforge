@@ -5,20 +5,42 @@ ROOT = Path(__file__).resolve().parents[1]
 EDITOR = ROOT / "unity" / "Assets" / "Mindforge" / "Editor"
 LATEST = EDITOR / "MindforgeLatestEditorMenu.cs"
 V11 = EDITOR / "MindforgeDemoV11Builder.cs"
+READINESS = EDITOR / "MindforgeLatestReadinessAuditV17.cs"
 WISP = ROOT / "unity" / "Assets" / "Mindforge" / "SoulWisp" / "WispResonanceWindow.cs"
 
 
 def test_latest_menu_is_the_single_supported_play_surface():
     source = LATEST.read_text(encoding="utf-8")
-    assert 'ProductVersion = "V0.13 Integrated"' in source
+    assert 'ProductVersion = "V0.17 Directed Demo"' in source
     assert 'Mindforge/Latest/PLAY LATEST (BCI Simulation)' in source
     assert 'Mindforge/Latest/Rebuild Latest Integrated Scene' in source
     assert 'Mindforge/Latest/Open Latest Integrated Scene' in source
-    assert 'Mindforge/Latest/Validate Latest Architecture' in source
+    assert 'Mindforge/Latest/Validate Latest Readiness' in source
     assert 'Mindforge/Latest/Build Neural-Hardware Variant' in source
     assert "MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault: true)" in source
     assert "MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault: false)" in source
-    assert "MindforgeDemoV11Audit.AuditActiveDemo()" in source
+    assert "MindforgeLatestReadinessAuditV17.AuditActiveDemo()" in source
+    assert "MindforgeDemoV11Audit.AuditActiveDemo()" not in source
+
+
+def test_latest_readiness_audit_tracks_current_bci_and_presentation_owners():
+    source = READINESS.read_text(encoding="utf-8")
+    assert 'schema = "mindforge.latest_readiness.v17"' in source
+    assert "physical_ssvep_qualified = false" in source
+    for token in (
+        "VepAuraStimulus",
+        "FrequencyHz",
+        "QualifiedRefreshHz",
+        "DisplayTimingMonitor",
+        "StimulusPairAvailable",
+        "VisualIdentityV16Installer",
+        "MindforgeDirectedDemoV17",
+        '"MindforgeGameplayCameraV17"',
+        '"MindforgeDemoCameraV11"',
+        '"MindforgeDemoHudV17"',
+        '"MindforgeDemoHudV11"',
+    ):
+        assert token in source
 
 
 def test_latest_menu_targets_clean_world_assembler_not_showcase_chain():
@@ -66,5 +88,7 @@ def test_current_wisp_runtime_auto_installs_on_the_canonical_scene():
 def test_latest_build_documentation_forbids_manual_version_stack_composition():
     doc = (ROOT / "docs" / "LATEST_UNITY_BUILD.md").read_text(encoding="utf-8")
     assert "Mindforge → Latest → PLAY LATEST (BCI Simulation)" in doc
+    assert "V0.17 Directed Demo" in doc
+    assert "Validate Latest Readiness" in doc
     assert "Do not compose a new release by manually running historical `Apply ...` commands." in doc
     assert "There should never again be multiple equally plausible \"latest\" builders." in doc
