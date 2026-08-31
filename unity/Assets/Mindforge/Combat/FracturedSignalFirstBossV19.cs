@@ -55,6 +55,7 @@ namespace Mindforge.Combat
         private float _holdUntil;
         private float _nextOrbitSwap;
         private float _orbitSide = 1f;
+        private bool _cadenceAttempted;
         private bool _cadenceApplied;
 
         public bool MovementActive { get; private set; }
@@ -279,28 +280,46 @@ namespace Mindforge.Combat
 
         private void ApplyCadenceProfile()
         {
-            if (_cadenceApplied || _director == null) return;
-            bool ok =
-                SetPrivate("phaseOneInterval", phaseOneInterval) &
-                SetPrivate("phaseTwoInterval", phaseTwoInterval) &
-                SetPrivate("phaseThreeInterval", phaseThreeInterval) &
-                SetPrivate("phaseOneTelegraph", phaseOneTelegraph) &
-                SetPrivate("phaseTwoTelegraph", phaseTwoTelegraph) &
-                SetPrivate("phaseThreeTelegraph", phaseThreeTelegraph) &
-                SetPrivate("radialCount", radialCount) &
-                SetPrivate("maxEchoes", maxEchoes);
+            if (_cadenceApplied || _cadenceAttempted || _director == null) return;
+            _cadenceAttempted = true;
 
-            _cadenceApplied = ok;
-            if (!ok)
-                Debug.LogError("[Mindforge:BossV19] FracturedSignalDirector cadence fields changed; V19 profile refused partial application.");
+            bool fieldsAvailable =
+                CanSetPrivate<float>("phaseOneInterval") &
+                CanSetPrivate<float>("phaseTwoInterval") &
+                CanSetPrivate<float>("phaseThreeInterval") &
+                CanSetPrivate<float>("phaseOneTelegraph") &
+                CanSetPrivate<float>("phaseTwoTelegraph") &
+                CanSetPrivate<float>("phaseThreeTelegraph") &
+                CanSetPrivate<int>("radialCount") &
+                CanSetPrivate<int>("maxEchoes");
+
+            if (!fieldsAvailable)
+            {
+                Debug.LogError("[Mindforge:BossV19] FracturedSignalDirector cadence fields changed; V19 profile applied nothing.");
+                return;
+            }
+
+            SetPrivate("phaseOneInterval", phaseOneInterval);
+            SetPrivate("phaseTwoInterval", phaseTwoInterval);
+            SetPrivate("phaseThreeInterval", phaseThreeInterval);
+            SetPrivate("phaseOneTelegraph", phaseOneTelegraph);
+            SetPrivate("phaseTwoTelegraph", phaseTwoTelegraph);
+            SetPrivate("phaseThreeTelegraph", phaseThreeTelegraph);
+            SetPrivate("radialCount", radialCount);
+            SetPrivate("maxEchoes", maxEchoes);
+            _cadenceApplied = true;
         }
 
-        private bool SetPrivate<T>(string fieldName, T value)
+        private static bool CanSetPrivate<T>(string fieldName)
         {
             FieldInfo field = typeof(FracturedSignalDirector).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field == null || !field.FieldType.IsAssignableFrom(typeof(T))) return false;
+            return field != null && field.FieldType.IsAssignableFrom(typeof(T));
+        }
+
+        private void SetPrivate<T>(string fieldName, T value)
+        {
+            FieldInfo field = typeof(FracturedSignalDirector).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             field.SetValue(_director, value);
-            return true;
         }
     }
 }
