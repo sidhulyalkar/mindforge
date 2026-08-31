@@ -157,7 +157,7 @@ def main() -> None:
     active_game_session: str | None = None
     active_calibration: str | None = None
     active_chunks: list[np.ndarray] = []
-    epochs: dict[str, np.ndarray] = {}
+    epochs: dict[str, list[np.ndarray]] = {}
 
     try:
         while True:
@@ -190,9 +190,12 @@ def main() -> None:
                         f"Calibration BEGIN {stage} game={active_game_session or '-'} "
                         f"calibration={(active_calibration or '-')[:12]}")
                 elif action == "end" and active_stage == stage and active_calibration == calibration_session:
-                    epochs[stage] = (np.concatenate(active_chunks, axis=1)
-                                     if active_chunks else np.empty((8, 0), dtype=float))
-                    print(f"Calibration END {stage}: {epochs[stage].shape[1]} samples")
+                    segment = (np.concatenate(active_chunks, axis=1)
+                               if active_chunks else np.empty((8, 0), dtype=float))
+                    epochs.setdefault(stage, []).append(segment)
+                    print(
+                        f"Calibration END {stage}: segment={len(epochs[stage])} "
+                        f"samples={segment.shape[1]}")
                     active_stage = None
                     active_chunks = []
                     if phantom_enabled and stage == "guard":
@@ -216,15 +219,17 @@ def main() -> None:
                 ))
                 heartbeat_at = now + 0.5
 
-            if all(stage in epochs for stage in STAGES):
+            if all(stage in epochs and epochs[stage] for stage in STAGES):
                 try:
                     hop = max(1, int(round(args.calibration_hop_seconds * cfg.sample_rate_hz)))
                     trials: list[tuple[AuraTarget, np.ndarray]] = []
                     for target, stage in ((AuraTarget.SIGHT, "sight"), (AuraTarget.GUARD, "guard")):
-                        trials.extend((target, window) for window in split_windows(
-                            epochs[stage], cfg.window_samples, hop))
+                        for segment in epochs[stage]:
+                            trials.extend((target, window) for window in split_windows(
+                                segment, cfg.window_samples, hop))
                     profile = calibrate_decoder(decoder, trials, model_id=model_id)
-                    baseline = resting_alpha_diagnostics(epochs["baseline"], cfg.sample_rate_hz)
+                    baseline_epoch = np.concatenate(epochs["baseline"], axis=1)
+                    baseline = resting_alpha_diagnostics(baseline_epoch, cfg.sample_rate_hz)
                     if profile.training_accuracy < 0.70 or profile.accepted_fraction < 0.50:
                         raise ValueError(
                             f"separability below promotion gate: accuracy={profile.training_accuracy:.3f}, "

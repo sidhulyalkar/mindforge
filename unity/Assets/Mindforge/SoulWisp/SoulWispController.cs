@@ -72,6 +72,8 @@ namespace Mindforge.SoulWisp
         private Transform _fallbackTarget;
         private bool _lockSubscribed;
         private bool _resonanceWindowActive;
+        private bool _calibrationStimuliActive;
+        private bool _calibrationSwapSides;
         private float _driftSeedA;
         private float _driftSeedB;
         private float _driftSeedC;
@@ -79,6 +81,7 @@ namespace Mindforge.SoulWisp
         public bool InCombat => EffectiveTarget != null;
         public Transform CurrentTarget => EffectiveTarget;
         public bool ResonanceWindowActive => _resonanceWindowActive;
+        public bool CalibrationStimuliActive => _calibrationStimuliActive;
         public bool StableLockAnchorsActive =>
             targetLock != null && targetLock.Locked && targetLock.Target != null;
         public bool StimuliResting => (sightStimulus != null && sightStimulus.IsResting) ||
@@ -119,6 +122,7 @@ namespace Mindforge.SoulWisp
 
         private void OnDisable()
         {
+            EndCalibrationStimuli();
             EndResonanceWindow();
             UnsubscribeLock();
         }
@@ -133,6 +137,7 @@ namespace Mindforge.SoulWisp
         {
             sightStimulus?.RestFor(realSeconds);
             guardStimulus?.RestFor(realSeconds);
+            EndCalibrationStimuli();
             EndResonanceWindow();
         }
 
@@ -142,7 +147,7 @@ namespace Mindforge.SoulWisp
         /// </summary>
         public bool PrepareResonanceWindow()
         {
-            if (StimuliResting || EffectiveTarget == null) return false;
+            if (_calibrationStimuliActive || StimuliResting || EffectiveTarget == null) return false;
             _resonanceWindowActive = true;
             sightStimulus?.EndWindow();
             guardStimulus?.EndWindow();
@@ -153,7 +158,7 @@ namespace Mindforge.SoulWisp
         /// <summary>Starts both coded stimuli from one shared local phase epoch.</summary>
         public bool BeginCodedResonance()
         {
-            if (!_resonanceWindowActive || StimuliResting || EffectiveTarget == null) return false;
+            if (_calibrationStimuliActive || !_resonanceWindowActive || StimuliResting || EffectiveTarget == null) return false;
             double sharedStart = Time.realtimeSinceStartupAsDouble;
             int sharedFrame = Time.frameCount;
             sightStimulus?.BeginWindow(sharedStart, sharedFrame);
@@ -164,6 +169,38 @@ namespace Mindforge.SoulWisp
         public void EndResonanceWindow()
         {
             _resonanceWindowActive = false;
+            if (!_calibrationStimuliActive)
+            {
+                sightStimulus?.EndWindow();
+                guardStimulus?.EndWindow();
+            }
+            ApplyCombatVisibility(EffectiveTarget != null);
+        }
+
+        /// <summary>
+        /// Calibration uses the exact two coded cores used by gameplay, simultaneously.
+        /// swapSides counterbalances retinal position so semantic target and gaze direction
+        /// cannot remain perfectly confounded across the participant calibration.
+        /// </summary>
+        public bool BeginCalibrationStimuli(bool swapSides)
+        {
+            if (StimuliResting) return false;
+            _resonanceWindowActive = false;
+            _calibrationStimuliActive = true;
+            _calibrationSwapSides = swapSides;
+            double sharedStart = Time.realtimeSinceStartupAsDouble;
+            int sharedFrame = Time.frameCount;
+            sightStimulus?.BeginWindow(sharedStart, sharedFrame);
+            guardStimulus?.BeginWindow(sharedStart, sharedFrame);
+            ApplyCombatVisibility(true);
+            return true;
+        }
+
+        public void EndCalibrationStimuli()
+        {
+            if (!_calibrationStimuliActive) return;
+            _calibrationStimuliActive = false;
+            _calibrationSwapSides = false;
             sightStimulus?.EndWindow();
             guardStimulus?.EndWindow();
             ApplyCombatVisibility(EffectiveTarget != null);
@@ -177,6 +214,13 @@ namespace Mindforge.SoulWisp
 
             Transform activeTarget = EffectiveTarget;
             UpdateCompanionDrift(activeTarget);
+
+            if (_calibrationStimuliActive)
+            {
+                ApplyCombatVisibility(true);
+                PlaceResonanceCores();
+                return;
+            }
 
             if (activeTarget == null)
             {
@@ -274,8 +318,10 @@ namespace Mindforge.SoulWisp
                 + cam.transform.up * vertical;
             float response = 1f - Mathf.Exp(-Mathf.Max(0.1f, resonanceAnchorSharpness) * Time.unscaledDeltaTime);
 
-            PlaceStableAura(sightAura, center - cam.transform.right * halfSeparation, cam, response, diameter);
-            PlaceStableAura(guardAura, center + cam.transform.right * halfSeparation, cam, response, diameter);
+            float sightSide = _calibrationSwapSides ? 1f : -1f;
+            float guardSide = -sightSide;
+            PlaceStableAura(sightAura, center + cam.transform.right * halfSeparation * sightSide, cam, response, diameter);
+            PlaceStableAura(guardAura, center + cam.transform.right * halfSeparation * guardSide, cam, response, diameter);
         }
 
         private void PlaceFreeCombatTargets(Transform activeTarget)
@@ -334,7 +380,7 @@ namespace Mindforge.SoulWisp
         private void ApplyCombatVisibility(bool combat)
         {
             if (wispCore != null) wispCore.gameObject.SetActive(true);
-            bool showCodedCores = combat && _resonanceWindowActive;
+            bool showCodedCores = _calibrationStimuliActive || (combat && _resonanceWindowActive);
             if (sightAura != null) sightAura.gameObject.SetActive(showCodedCores);
             if (guardAura != null) guardAura.gameObject.SetActive(showCodedCores);
         }
