@@ -24,6 +24,57 @@ jobs:
           python-version: '3.12'
       - name: Apply final hardening
         run: python tools/patch_v014_final_hardening.py
+      - name: Replace generated regression with syntax-stable contract
+        shell: bash
+        run: |
+          cat > tests/test_v014_display_and_calibration_hardening.py <<'PY'
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          TIMING = ROOT / "unity/Assets/Mindforge/SoulWisp/DisplayTimingMonitor.cs"
+          STIM = ROOT / "unity/Assets/Mindforge/SoulWisp/VepAuraStimulus.cs"
+          WISP = ROOT / "unity/Assets/Mindforge/SoulWisp/SoulWispController.cs"
+          WINDOW = ROOT / "unity/Assets/Mindforge/SoulWisp/WispResonanceWindow.cs"
+          CAL = ROOT / "unity/Assets/Mindforge/Calibration/AwakeningCalibrationDirector.cs"
+          ASSEMBLER = ROOT / "unity/Assets/Mindforge/Editor/CompetitionSceneAssembler.cs"
+          RUNNER = ROOT / "tools/run_unity_calibrated_decoder.py"
+
+
+          def test_one_display_timing_authority_drives_and_gates_real_stimulus():
+              timing = TIMING.read_text(encoding="utf-8")
+              stim = STIM.read_text(encoding="utf-8")
+              wisp = WISP.read_text(encoding="utf-8")
+              window = WINDOW.read_text(encoding="utf-8")
+              assert "public float ExpectedRefreshHz" in timing
+              assert "public bool HasMeasurement" in timing
+              assert "ConfigureTiming(float refreshHz)" in stim
+              assert "_displayTiming.ExpectedRefreshHz" in wisp
+              assert "StimulusPairAvailable" in wisp
+              assert "requireHealthyDisplayTimingForNeuralAuthority" in window
+              assert "displayTiming.HasMeasurement" in window
+              assert "displayTiming.TimingHealthy" in window
+              assert "unity_editor_resonance_sim" in window
+
+
+          def test_calibration_waits_for_and_monitors_qualified_display():
+              cal = CAL.read_text(encoding="utf-8")
+              assembler = ASSEMBLER.read_text(encoding="utf-8")
+              assert "DisplayTimingReady" in cal
+              assert "WAITING FOR STABLE 120 HZ DISPLAY TIMING" in cal
+              assert "codedSettleSeconds = 0.12f" in cal
+              assert "DISPLAY TIMING LOST DURING CODED TRIAL" in cal
+              assert "if (_failed) yield break;" in cal
+              assert 'SetRef(calibration, "displayTiming", timing)' in assembler
+
+
+          def test_calibration_eeg_is_flushed_at_every_segment_begin():
+              runner_lines = RUNNER.read_text(encoding="utf-8").splitlines()
+              for index, line in enumerate(runner_lines):
+                  if "active_chunks = []" in line and index + 1 < len(runner_lines):
+                      if "source.flush()" in runner_lines[index + 1]:
+                          return
+              raise AssertionError("calibration stage begin does not flush queued EEG")
+          PY
       - name: Syntax check Python changes
         run: |
           python -m py_compile tools/run_unity_calibrated_decoder.py
