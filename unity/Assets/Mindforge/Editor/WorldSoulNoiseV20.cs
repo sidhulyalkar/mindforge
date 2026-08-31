@@ -8,7 +8,9 @@ namespace Mindforge.Editor
     ///
     /// The octave-offset / persistence / lacunarity structure is adapted from the MIT-licensed
     /// terrain workflow in SebLague/Procedural-Landmass-Generation. Mindforge keeps a small,
-    /// editor-only implementation instead of importing a runtime terrain package.
+    /// editor-only implementation instead of importing a runtime terrain package. Octave offsets
+    /// are derived from a stable integer hash so texture/terrain authoring allocates no RNG object
+    /// per sample.
     ///
     /// Reference: https://github.com/SebLague/Procedural-Landmass-Generation
     /// License: MIT
@@ -29,7 +31,6 @@ namespace Mindforge.Editor
             persistence = Mathf.Clamp01(persistence);
             lacunarity = Mathf.Max(1f, lacunarity);
 
-            System.Random random = new System.Random(seed);
             float amplitude = 1f;
             float frequency = 1f;
             float value = 0f;
@@ -37,8 +38,8 @@ namespace Mindforge.Editor
 
             for (int octave = 0; octave < octaves; octave++)
             {
-                float offsetX = random.Next(-100000, 100000);
-                float offsetY = random.Next(-100000, 100000);
+                float offsetX = Mathf.Lerp(-100000f, 100000f, Hash01(seed, octave * 2));
+                float offsetY = Mathf.Lerp(-100000f, 100000f, Hash01(seed ^ 0x6C8E9CF5, octave * 2 + 1));
                 float sampleX = (x + offsetX) / scale * frequency;
                 float sampleY = (y + offsetY) / scale * frequency;
                 float sample = Mathf.PerlinNoise(sampleX, sampleY) * 2f - 1f;
