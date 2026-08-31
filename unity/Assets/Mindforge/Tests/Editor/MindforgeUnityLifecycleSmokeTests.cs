@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using Mindforge.Combat;
 using Mindforge.Presentation;
+using Mindforge.SoulWisp;
 using Mindforge.Telemetry;
 
 namespace Mindforge.Tests.Editor
@@ -94,6 +95,44 @@ namespace Mindforge.Tests.Editor
                 host = new GameObject("Mindforge_UnityLifecycleSmoke_V18_DatasetTelemetry");
                 SsvepDatasetTelemetryV18 component = null;
                 Assert.DoesNotThrow(() => component = host.AddComponent<SsvepDatasetTelemetryV18>());
+                Assert.That(component, Is.Not.Null);
+            }
+            finally
+            {
+                if (host != null) Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
+        public void V19FirstBossAuthorityAndCharacter_CanBeConstructedByUnity()
+        {
+            GameObject host = null;
+            try
+            {
+                host = new GameObject("Mindforge_UnityLifecycleSmoke_V19_FirstBoss");
+                host.SetActive(false);
+                FracturedSignalFirstBossV19 movement = null;
+                FracturedSignalCharacterV19 character = null;
+                Assert.DoesNotThrow(() => movement = host.AddComponent<FracturedSignalFirstBossV19>());
+                Assert.DoesNotThrow(() => character = host.AddComponent<FracturedSignalCharacterV19>());
+                Assert.That(movement, Is.Not.Null);
+                Assert.That(character, Is.Not.Null);
+            }
+            finally
+            {
+                if (host != null) Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
+        public void V19WispCombatIntermission_CanBeConstructedByUnity()
+        {
+            GameObject host = null;
+            try
+            {
+                host = new GameObject("Mindforge_UnityLifecycleSmoke_V19_WispIntermission");
+                WispCombatIntermissionV19 component = null;
+                Assert.DoesNotThrow(() => component = host.AddComponent<WispCombatIntermissionV19>());
                 Assert.That(component, Is.Not.Null);
             }
             finally
