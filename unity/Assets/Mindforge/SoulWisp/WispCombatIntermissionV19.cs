@@ -22,7 +22,8 @@ namespace Mindforge.SoulWisp
         private FracturedSignalDirector _boss;
         private GuardianCombatInput _guardianInput;
         private NeuralLinkContingency _linkContingency;
-        private bool _subscribed;
+        private bool _windowSubscribed;
+        private bool _linkSubscribed;
         private bool _active;
         private bool _pausedBossByUs;
         private bool _pausedGuardianByUs;
@@ -41,11 +42,9 @@ namespace Mindforge.SoulWisp
             for (int frame = 0; frame < 300; frame++)
             {
                 Resolve();
+                Subscribe();
                 if (_window != null && _boss != null && _guardianInput != null)
-                {
-                    Subscribe();
                     yield break;
-                }
                 yield return null;
             }
 
@@ -63,20 +62,12 @@ namespace Mindforge.SoulWisp
         {
             if (!_active) return;
             Resolve();
+            SubscribeLink();
 
             // Checkpoint/death/scene lifecycle can disable the Wisp component without emitting
             // WindowEnded. Never leave combat stranded in a V19-owned pause in that case.
             if (_window == null || !_window.isActiveAndEnabled || _window.State == WispResonanceState.Idle)
-            {
                 ReleaseIntermission();
-                return;
-            }
-
-            // NeuralLinkContingency owns a separate safety pause. If it degrades and recovers
-            // while the Wisp is still active, its recovery path releases the shared low-level
-            // booleans. Reassert our independent intermission ownership before combat can leak
-            // back into the same neural window.
-            ReassertIntermission();
         }
 
         private void OnDisable()
@@ -95,24 +86,40 @@ namespace Mindforge.SoulWisp
 
         private void Subscribe()
         {
-            if (_subscribed || _window == null) return;
-            _window.WindowArmed += OnWindowArmed;
-            _window.WindowEnded += OnWindowEnded;
-            _subscribed = true;
+            if (!_windowSubscribed && _window != null)
+            {
+                _window.WindowArmed += OnWindowArmed;
+                _window.WindowEnded += OnWindowEnded;
+                _windowSubscribed = true;
+            }
+            SubscribeLink();
+        }
+
+        private void SubscribeLink()
+        {
+            if (_linkSubscribed || _linkContingency == null) return;
+            _linkContingency.DegradationStateChanged += OnLinkDegradationChanged;
+            _linkSubscribed = true;
         }
 
         private void Unsubscribe()
         {
-            if (!_subscribed || _window == null) return;
-            _window.WindowArmed -= OnWindowArmed;
-            _window.WindowEnded -= OnWindowEnded;
-            _subscribed = false;
+            if (_windowSubscribed && _window != null)
+            {
+                _window.WindowArmed -= OnWindowArmed;
+                _window.WindowEnded -= OnWindowEnded;
+            }
+            if (_linkSubscribed && _linkContingency != null)
+                _linkContingency.DegradationStateChanged -= OnLinkDegradationChanged;
+            _windowSubscribed = false;
+            _linkSubscribed = false;
         }
 
         private void OnWindowArmed(long windowId)
         {
             if (_active) return;
             Resolve();
+            SubscribeLink();
             _active = true;
 
             _pausedBossByUs = _boss != null && !_boss.ExternalPaused;
@@ -129,6 +136,14 @@ namespace Mindforge.SoulWisp
         {
             ReleaseIntermission();
             Debug.Log($"[Mindforge:WispV19] Window {windowId} left combat intermission.");
+        }
+
+        private void OnLinkDegradationChanged(bool degraded)
+        {
+            if (!_active || degraded) return;
+            // The contingency recovery path has just released the low-level pause booleans.
+            // Re-acquire them once for the still-active Wisp window, without per-frame scans.
+            ReassertIntermission();
         }
 
         private void ReassertIntermission()
