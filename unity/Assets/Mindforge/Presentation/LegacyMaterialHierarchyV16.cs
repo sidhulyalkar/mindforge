@@ -21,6 +21,9 @@ namespace Mindforge.Presentation
     {
         private static readonly string[] RootNames =
         {
+            // The clean V0.11 world is the canonical scene assembled by Mindforge > Latest.
+            // Keep it first so recording-driven restyling always targets the actually played scene.
+            "Mindforge_Demo_World_V11",
             "Mindforge_AetheriaWorld_V1",
             "Mindforge_GroundedWorld_V1",
             "Mindforge_Demo_Environment_V15",
