@@ -79,13 +79,17 @@ def test_ssvep_focus_backdrop_is_noncoded_static_and_neural_interval_only():
         "LightProbeUsage.Off",
         "ReflectionProbeUsage.Off",
         'RootName = "Mindforge_SsvepFocusBackdrop_V18"',
-        "focus backdrop" if False else "local contrast",
     ):
-        assert token in text.lower() if token == "local contrast" else token in text
+        assert token in text
+    assert "local contrast" in text.lower()
+
+    # Trigonometry is allowed to build the static disc mesh. Runtime presentation must not
+    # periodically modulate that plate, or it becomes an uncontrolled visual tag.
+    runtime = text[text.index("private void LateUpdate()") : text.index("private static float ResolveWorldDiameter")]
+    for forbidden in ("Mathf.Sin", "Mathf.Cos", "Time.time", "Time.unscaledTime"):
+        assert forbidden not in runtime
 
     for forbidden in (
-        "Mathf.Sin",
-        "Mathf.Cos(Time",
         "_EmissionColor",
         "EnableKeyword(\"_EMISSION\")",
         "NeuralEvent",
