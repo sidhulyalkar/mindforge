@@ -12,11 +12,15 @@ namespace Mindforge.Editor
     /// V0.20 keeps URP/Lit as the stable shader authority but feeds it deterministic,
     /// generated albedo breakup so large walls, cliffs and terrain stop reading as primitives.
     /// Generated assets live under Assets/Mindforge/Generated and remain reproducible/ignored.
+    ///
+    /// SurfaceRevision is the cache contract. Bump it when the texture recipe changes so an
+    /// existing local Generated/V20 tree is deterministically refreshed exactly once.
     /// </summary>
     public static class WorldSoulMaterialLibraryV20
     {
         public const string Root = "Assets/Mindforge/Generated/V20/Materials";
         public const string TextureRoot = "Assets/Mindforge/Generated/V20/Textures";
+        public const int SurfaceRevision = 1;
 
         public sealed class Palette
         {
@@ -74,7 +78,7 @@ namespace Mindforge.Editor
                 new Color(0.055f, 0.020f, 0.028f), new Color(0.22f, 0.055f, 0.075f),
                 0.36f, 0.01f);
 
-            Palette palette = new Palette
+            return new Palette
             {
                 Limestone = EnsureLit("WorldLimestone", limestone, Color.white, 0.03f, 0.34f, new Vector2(4.5f, 4.5f)),
                 Basalt = EnsureLit("WorldBasalt", basalt, Color.white, 0.08f, 0.28f, new Vector2(5.5f, 5.5f)),
@@ -87,8 +91,6 @@ namespace Mindforge.Editor
                 EmberStone = EnsureLit("WorldEmberStone", ember, Color.white, 0.10f, 0.38f, new Vector2(4.0f, 4.0f)),
                 Skybox = EnsureSkybox(),
             };
-
-            return palette;
         }
 
         private static Texture2D EnsureSurfaceTexture(
@@ -101,18 +103,31 @@ namespace Mindforge.Editor
             float organicStrength)
         {
             string path = $"{TextureRoot}/{name}.asset";
+            string expectedName = $"{name}_r{SurfaceRevision}";
             Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (texture == null || texture.width != size || texture.height != size)
+            if (texture != null && texture.width == size && texture.height == size && texture.name == expectedName)
+                return texture;
+
+            if (texture != null && (texture.width != size || texture.height != size))
             {
-                if (texture != null) AssetDatabase.DeleteAsset(path);
+                AssetDatabase.DeleteAsset(path);
+                texture = null;
+            }
+
+            if (texture == null)
+            {
                 texture = new Texture2D(size, size, TextureFormat.RGBA32, true, false)
                 {
-                    name = name,
+                    name = expectedName,
                     wrapMode = TextureWrapMode.Repeat,
                     filterMode = FilterMode.Trilinear,
                     anisoLevel = 4,
                 };
                 AssetDatabase.CreateAsset(texture, path);
+            }
+            else
+            {
+                texture.name = expectedName;
             }
 
             Color[] pixels = new Color[size * size];
