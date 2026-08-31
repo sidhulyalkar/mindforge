@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Mindforge.Combat
 {
     /// <summary>
-    /// Conventional target lock for third-person combat.
+    /// Conventional target lock for third-person combat. Manual lock remains conventional player input.
     ///
     /// The canonical target-lock key comes from GuardianControlProfileV1. While locked,
     /// the mouse wheel cycles conventional targets. Arrow keys remain camera controls so
