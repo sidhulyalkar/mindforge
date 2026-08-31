@@ -23,9 +23,9 @@ namespace Mindforge.SoulWisp
     /// V answers WHEN the player wants a neural decision. It never says WHICH decision.
     /// During Listening, only a fresh derived NeuralEvent may resolve Sight or Guard.
     /// Ordinary movement remains player-owned; the Wisp never zeroes movement input. Instead,
-    /// the neural window may only arm from a low-motion grounded opening and fails closed if
-    /// strong locomotion contaminates the evidence interval. Camera, attack, evade, target
-    /// lock and interaction remain conventional authorities.
+    /// an independent read-only motion qualifier tells this state machine whether the visual/
+    /// EEG interval is stable enough to use. Camera, attack, evade, target lock and interaction
+    /// remain conventional authorities, and this class never depends on the locomotion motor.
     /// </summary>
     [DefaultExecutionOrder(-120)]
     [RequireComponent(typeof(SoulWispController))]
@@ -36,7 +36,7 @@ namespace Mindforge.SoulWisp
         [SerializeField] private UdpNeuralReceiver neuralReceiver;
         [SerializeField] private UdpGameMarkerSender markerSender;
         [SerializeField] private DisplayTimingMonitor displayTiming;
-        [SerializeField] private GuardianMotor guardianMotor;
+        [SerializeField] private WispMotionQualification motionQualification;
 
         [Header("Decision timing")]
         [Tooltip("Neutral cores settle before modulation starts. This is presentation time, not decoder evidence.")]
@@ -45,16 +45,6 @@ namespace Mindforge.SoulWisp
         [SerializeField] private float listeningSeconds = 1.50f;
         [SerializeField] private float outcomeHoldSeconds = 0.34f;
         [SerializeField] private float cooldownSeconds = 0.72f;
-
-        [Header("Motion qualification")]
-        [Tooltip("The Wisp never stops movement. It simply refuses to open a neural trial while locomotion is too strong for the initial EEG contract.")]
-        [SerializeField] private bool requireLowMotionToArm = true;
-        [SerializeField] private bool requireGroundedToArm = true;
-        [SerializeField] private bool abortOnMotionDuringEvidence = true;
-        [SerializeField] private float maximumArmPlanarSpeed = 0.90f;
-        [SerializeField] private float maximumArmVerticalSpeed = 0.55f;
-        [SerializeField] private float maximumEvidencePlanarSpeed = 1.40f;
-        [SerializeField] private float maximumEvidenceVerticalSpeed = 0.85f;
 
         [Header("Authority")]
         [SerializeField] private bool requireCombatTarget = true;
@@ -82,8 +72,10 @@ namespace Mindforge.SoulWisp
         public long MinimumSelectionSequence => _minimumSelectionSeq;
         public string LastOutcome => _lastOutcome;
         public AuraTarget LastResolvedTarget => _lastResolvedTarget;
-        public bool MotionQualifiedForArm => MotionQualified(arming: true);
-        public string MotionBlockReason => MotionReason(arming: true);
+        public bool MotionQualifiedForArm => motionQualification != null && motionQualification.MotionQualifiedForArm;
+        public string MotionBlockReason => motionQualification != null
+            ? motionQualification.ArmBlockReason
+            : "MOTION_STATE_UNAVAILABLE";
         public bool CanArm => State == WispResonanceState.Idle &&
                               wisp != null &&
                               (!requireCombatTarget || wisp.InCombat) &&
@@ -140,7 +132,8 @@ namespace Mindforge.SoulWisp
             if (neuralReceiver == null) neuralReceiver = FindObjectOfType<UdpNeuralReceiver>(true);
             if (markerSender == null) markerSender = FindObjectOfType<UdpGameMarkerSender>(true);
             if (displayTiming == null) displayTiming = FindObjectOfType<DisplayTimingMonitor>(true);
-            if (guardianMotor == null) guardianMotor = FindObjectOfType<GuardianMotor>(true);
+            if (motionQualification == null) motionQualification = GetComponent<WispMotionQualification>();
+            if (motionQualification == null) motionQualification = gameObject.AddComponent<WispMotionQualification>();
 #if UNITY_EDITOR
             if (editorBuffs == null) editorBuffs = FindObjectOfType<AuraBuffController>(true);
 #endif
@@ -148,7 +141,7 @@ namespace Mindforge.SoulWisp
 
         private void Update()
         {
-            if (wisp == null || controls == null || guardianMotor == null) ResolveReferences();
+            if (wisp == null || controls == null || motionQualification == null) ResolveReferences();
 
             if (State == WispResonanceState.Idle)
             {
@@ -169,9 +162,9 @@ namespace Mindforge.SoulWisp
                     Abstain("TARGET_LOST");
                     return;
                 }
-                if (abortOnMotionDuringEvidence && !MotionQualified(arming: false))
+                if (motionQualification == null || motionQualification.TryGetEvidenceInstability(out string motionReason))
                 {
-                    Abstain(MotionReason(arming: false));
+                    Abstain(string.IsNullOrEmpty(motionReason) ? "MOTION_STATE_UNAVAILABLE" : motionReason);
                     return;
                 }
             }
@@ -255,7 +248,7 @@ namespace Mindforge.SoulWisp
             if (evt.seq <= _minimumSelectionSeq) return false;
             if (evt.stimulus_epoch != _windowId) return false;
             if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
-            if (abortOnMotionDuringEvidence && !MotionQualified(arming: false)) return false;
+            if (motionQualification == null || !motionQualification.EvidenceQualified) return false;
 #if UNITY_EDITOR
             bool editorSimulation = string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
 #else
@@ -295,39 +288,6 @@ namespace Mindforge.SoulWisp
         {
             if (State == WispResonanceState.Priming || State == WispResonanceState.Listening)
                 Abstain(string.IsNullOrEmpty(reason) ? "BCI_LINK_LOST" : reason);
-        }
-
-        private bool MotionQualified(bool arming)
-        {
-            if (!requireLowMotionToArm && arming) return true;
-            if (!abortOnMotionDuringEvidence && !arming) return true;
-            if (guardianMotor == null) return false;
-            if (guardianMotor.IsDashing || guardianMotor.IsAirDashing || guardianMotor.IsHovering) return false;
-            if (requireGroundedToArm && !guardianMotor.IsGrounded) return false;
-
-            Vector3 velocity = guardianMotor.Velocity;
-            float planar = new Vector2(velocity.x, velocity.z).magnitude;
-            float vertical = Mathf.Abs(velocity.y);
-            float maxPlanar = arming ? maximumArmPlanarSpeed : maximumEvidencePlanarSpeed;
-            float maxVertical = arming ? maximumArmVerticalSpeed : maximumEvidenceVerticalSpeed;
-            return planar <= Mathf.Max(0f, maxPlanar) && vertical <= Mathf.Max(0f, maxVertical);
-        }
-
-        private string MotionReason(bool arming)
-        {
-            if (guardianMotor == null) return "MOTION_STATE_UNAVAILABLE";
-            if (guardianMotor.IsDashing || guardianMotor.IsAirDashing) return "PLAYER_DASHING";
-            if (guardianMotor.IsHovering) return "PLAYER_HOVERING";
-            if (requireGroundedToArm && !guardianMotor.IsGrounded) return "PLAYER_AIRBORNE";
-
-            Vector3 velocity = guardianMotor.Velocity;
-            float planar = new Vector2(velocity.x, velocity.z).magnitude;
-            float vertical = Mathf.Abs(velocity.y);
-            float maxPlanar = arming ? maximumArmPlanarSpeed : maximumEvidencePlanarSpeed;
-            float maxVertical = arming ? maximumArmVerticalSpeed : maximumEvidenceVerticalSpeed;
-            if (vertical > Mathf.Max(0f, maxVertical)) return "PLAYER_VERTICAL_MOTION";
-            if (planar > Mathf.Max(0f, maxPlanar)) return "PLAYER_MOVING";
-            return string.Empty;
         }
 
         private void Abstain(string reason)
@@ -407,7 +367,8 @@ namespace Mindforge.SoulWisp
 
     /// <summary>
     /// Merge-friendly bootstrap so existing scenes gain the state machine without serialized
-    /// scene surgery. It binds the combat authority gate once both Wisp and director exist.
+    /// scene surgery. It binds the motion-quality sensor and combat authority gate once the
+    /// Wisp and aura director exist.
     /// </summary>
     public sealed class WispResonanceBootstrap : MonoBehaviour
     {
@@ -426,6 +387,8 @@ namespace Mindforge.SoulWisp
                 DualAuraCombatDirector director = FindObjectOfType<DualAuraCombatDirector>(true);
                 if (wisp != null && director != null)
                 {
+                    if (wisp.GetComponent<WispMotionQualification>() == null)
+                        wisp.gameObject.AddComponent<WispMotionQualification>();
                     WispResonanceWindow window = wisp.GetComponent<WispResonanceWindow>();
                     if (window == null) window = wisp.gameObject.AddComponent<WispResonanceWindow>();
                     director.BindResonanceWindow(window);
