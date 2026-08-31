@@ -14,9 +14,17 @@ def test_calibration_is_a_real_unity_python_handshake():
     python = text(ROOT / "tools" / "run_unity_calibrated_decoder.py")
     assert "evt.IsCalibrationServiceReady" in unity
     assert "evt.IsCalibrationReady" in unity and "evt.IsCalibrationFailed" in unity
-    assert 'RunStage("baseline"' in unity and 'RunStage("sight"' in unity and 'RunStage("guard"' in unity
+    assert "RunBaseline()" in unity
+    assert 'RunCounterbalancedTarget("sight"' in unity
+    assert 'RunCounterbalancedTarget("guard"' in unity
+    assert "BeginCalibrationStimuli(swapSides)" in unity
+    assert "SetDisplay(true, true)" in unity
+    assert "WaitForEndOfFrame" in unity
     assert "mindforge.calibration_marker.v1" in sender
     assert "calibrate_decoder" in python
+    assert "epochs: dict[str, list[np.ndarray]]" in python
+    assert "epochs.setdefault(stage, []).append(segment)" in python
+    assert "for segment in epochs[stage]:" in python
     assert "training_accuracy < 0.70" in python
     assert "resting_alpha_diagnostics" in python
 
