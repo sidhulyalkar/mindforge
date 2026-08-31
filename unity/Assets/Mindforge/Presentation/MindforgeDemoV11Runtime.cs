@@ -17,7 +17,6 @@ namespace Mindforge.Presentation
     public sealed class MindforgeDemoV11Runtime : MonoBehaviour
     {
         private MindforgeDemoV11Marker _marker;
-        private bool _initialized;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
@@ -105,7 +104,6 @@ namespace Mindforge.Presentation
             hud.Configure(guardian.transform, boss.transform);
 
             InitializeEchoes(guardian.transform, guardian.GetComponent<FluxMeter>());
-            _initialized = true;
             Debug.Log(
                 "[Mindforge:V11] Presentable demo runtime ready: one camera, one HUD, one Guardian shell, " +
                 "clean route collision, compact enemy presentation, and inherited deterministic combat/BCI authority.");
