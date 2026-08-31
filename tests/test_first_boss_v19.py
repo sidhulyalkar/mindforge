@@ -147,7 +147,8 @@ def test_v19_visual_motion_stops_during_ssvep_field_instead_of_becoming_backgrou
     update = character[start:end]
     assert "if (NeuralVisualFieldActive())" in update
     assert "return;" in update
-    assert update.index("if (NeuralVisualFieldActive())") < update.index("Mathf.Sin") if "Mathf.Sin" in update else True
+    if "Mathf.Sin" in update:
+        assert update.index("if (NeuralVisualFieldActive())") < update.index("Mathf.Sin")
 
     movement = read("Combat", "FracturedSignalFirstBossV19.cs")
     authority = movement[movement.index("private bool MovementAuthorityAvailable") : movement.index("private bool NeuralVisualFieldActive")]
@@ -169,3 +170,21 @@ def test_v19_does_not_vendor_unqualified_fullscreen_glitch_or_third_party_charac
         ".blend",
     ):
         assert forbidden not in combined
+
+
+def test_v19_runtime_scripts_have_pinned_unique_unity_meta_guids():
+    paths = (
+        UNITY / "Combat" / "FracturedSignalFirstBossV19.cs.meta",
+        UNITY / "SoulWisp" / "WispCombatIntermissionV19.cs.meta",
+        UNITY / "Presentation" / "OpenSourceMeshPrimitivesV19.cs.meta",
+        UNITY / "Presentation" / "FracturedSignalCharacterV19.cs.meta",
+    )
+    guids = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        assert "fileFormatVersion: 2" in text
+        line = next(line for line in text.splitlines() if line.startswith("guid: "))
+        guid = line.split(":", 1)[1].strip()
+        assert len(guid) == 32
+        guids.append(guid)
+    assert len(guids) == len(set(guids))
