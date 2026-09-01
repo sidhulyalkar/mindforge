@@ -11,13 +11,14 @@ WORLD_INTEGRITY = EDITOR / "WorldIntegrityV22Builder.cs"
 WORLD_FOUNDATION = EDITOR / "WorldFoundationV23Builder.cs"
 WORLD_CATHEDRAL = EDITOR / "WorldCathedralV24Builder.cs"
 SENSORY_FIDELITY = EDITOR / "SensoryFidelityV25Builder.cs"
+WORLD_RENDERING = EDITOR / "WorldRenderingV26Builder.cs"
 READINESS = EDITOR / "MindforgeLatestReadinessAuditV17.cs"
 WISP = ROOT / "unity" / "Assets" / "Mindforge" / "SoulWisp" / "WispResonanceWindow.cs"
 
 
 def test_latest_menu_is_the_single_supported_play_surface():
     source = LATEST.read_text(encoding="utf-8")
-    assert 'ProductVersion = "V0.25 Sensory Fidelity + Data Cathedral"' in source
+    assert 'ProductVersion = "V0.26 Production Geometry + Cathedral Depth"' in source
     assert 'Mindforge/Latest/PLAY LATEST (BCI Simulation)' in source
     assert 'Mindforge/Latest/Rebuild Latest Integrated Scene' in source
     assert 'Mindforge/Latest/Open Latest Integrated Scene' in source
@@ -32,6 +33,7 @@ def test_latest_menu_is_the_single_supported_play_surface():
     assert "WorldFoundationV23Builder.ApplyOpenScene();" in source
     assert "WorldCathedralV24Builder.ApplyOpenScene();" in source
     assert "SensoryFidelityV25Builder.ApplyOpenScene();" in source
+    assert "WorldRenderingV26Builder.ApplyOpenScene();" in source
     assert "EnsureWorldLayersOpenScene();" in source
     assert "MindforgeLatestReadinessAuditV17.AuditActiveDemo()" in source
     assert "MindforgeDemoV11Audit.AuditActiveDemo()" not in source
@@ -66,6 +68,7 @@ def test_latest_menu_targets_clean_assembler_plus_ordered_world_layers():
     foundation = WORLD_FOUNDATION.read_text(encoding="utf-8")
     cathedral = WORLD_CATHEDRAL.read_text(encoding="utf-8")
     sensory = SENSORY_FIDELITY.read_text(encoding="utf-8")
+    rendering = WORLD_RENDERING.read_text(encoding="utf-8")
     assert 'DemoScenePath = "Assets/Mindforge/Scenes/MindforgeDemoV11.unity"' in builder
     assert "CompetitionSceneAssembler.BuildCompetitionScene();" in builder
     assert "historical world decorators omitted" in builder
@@ -75,13 +78,15 @@ def test_latest_menu_targets_clean_assembler_plus_ordered_world_layers():
     assert 'RootName = "Mindforge_World_Foundation_V23"' in foundation
     assert 'RootName = "Mindforge_White_Cathedral_V24"' in cathedral
     assert 'RootName = "Mindforge_Sensory_Fidelity_V25"' in sensory
+    assert 'RootName = "Mindforge_Production_World_Rendering_V26"' in rendering
     v20 = latest.index("WorldSoulV20Builder.ApplyOpenScene();")
     v21 = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20)
     v22 = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21)
     v23 = latest.index("WorldFoundationV23Builder.ApplyOpenScene();", v22)
     v24 = latest.index("WorldCathedralV24Builder.ApplyOpenScene();", v23)
     v25 = latest.index("SensoryFidelityV25Builder.ApplyOpenScene();", v24)
-    assert v20 < v21 < v22 < v23 < v24 < v25
+    v26 = latest.index("WorldRenderingV26Builder.ApplyOpenScene();", v25)
+    assert v20 < v21 < v22 < v23 < v24 < v25 < v26
     for forbidden in (
         "ShowcaseEditorMenu",
         "ProductionArtAutoHookV09",
@@ -121,13 +126,14 @@ def test_current_wisp_runtime_auto_installs_on_the_canonical_scene():
 def test_latest_build_documentation_forbids_manual_version_stack_composition():
     doc = (ROOT / "docs" / "LATEST_UNITY_BUILD.md").read_text(encoding="utf-8")
     assert "Mindforge → Latest → PLAY LATEST (BCI Simulation)" in doc
-    assert "V0.25 Sensory Fidelity + Data Cathedral" in doc
+    assert "V0.26 Production Geometry + Cathedral Depth" in doc
     assert "WorldSoulV20Builder" in doc
     assert "WorldCohesionV21Builder" in doc
     assert "WorldIntegrityV22Builder" in doc
     assert "WorldFoundationV23Builder" in doc
     assert "WorldCathedralV24Builder" in doc
     assert "SensoryFidelityV25Builder" in doc
+    assert "WorldRenderingV26Builder" in doc
     assert "Validate Latest Readiness" in doc
     assert "Do not compose a new release by manually running historical `Apply ...` commands." in doc
     assert "There should never again be multiple equally plausible \"latest\" builders." in doc
