@@ -68,9 +68,12 @@ namespace Mindforge.Editor
             Add(report, "canonical_scene",
                 string.Equals(report.scene_path, MindforgeDemoV11Builder.DemoScenePath, StringComparison.Ordinal),
                 report.scene_path);
-            Add(report, "product_version_v17",
-                MindforgeLatestEditorMenu.ProductVersion.StartsWith("V0.17", StringComparison.Ordinal),
+            Add(report, "product_version_v25",
+                MindforgeLatestEditorMenu.ProductVersion.StartsWith("V0.25", StringComparison.Ordinal),
                 MindforgeLatestEditorMenu.ProductVersion);
+            Add(report, "v25_editor_presentation_authored",
+                SensoryFidelityV25Builder.PresentInOpenScene(),
+                $"root={SensoryFidelityV25Builder.RootName}");
 
             CheckCount<MindforgeDemoV11Marker>(report, "single_demo_marker", 1);
             CheckCount<GuardianMotor>(report, "single_guardian_motor", 1);
@@ -178,11 +181,18 @@ namespace Mindforge.Editor
                 AddDeferred(report, "v16_visual_identity_runtime");
                 AddDeferred(report, "v17_canonical_intro_runtime");
                 AddDeferred(report, "v17_directed_demo_runtime");
+                AddDeferred(report, "v25_sensory_fidelity_runtime");
                 AddDeferred(report, "v16_material_hierarchy_hits_canonical_world");
                 AddDeferred(report, "v16_camera_occlusion_hits_canonical_world");
                 AddDeferred(report, "v16_backdrop_built_from_canonical_world");
-                AddDeferred(report, "single_v17_hud");
+                AddDeferred(report, "single_v25_hud");
+                AddDeferred(report, "v17_hud_retired_by_v25");
                 AddDeferred(report, "v17_target_presence");
+                AddDeferred(report, "v25_diegetic_guide");
+                AddDeferred(report, "v25_locomotion_vfx");
+                AddDeferred(report, "v25_camera_impact");
+                AddDeferred(report, "v25_combat_vfx");
+                AddDeferred(report, "v25_fractured_signal_surface");
                 AddDeferred(report, "single_gameplay_camera_writer_after_reveal");
                 return;
             }
@@ -190,8 +200,15 @@ namespace Mindforge.Editor
             CheckCount<VisualIdentityV16Installer>(report, "v16_visual_identity_runtime", 1);
             CheckCount<MindforgeCanonicalIntroV17>(report, "v17_canonical_intro_runtime", 1);
             CheckCount<MindforgeDirectedDemoV17>(report, "v17_directed_demo_runtime", 1);
-            CheckBehaviourTypeCount(report, "single_v17_hud", "MindforgeDemoHudV17", 1, true);
+            CheckCount<MindforgeSensoryFidelityV25>(report, "v25_sensory_fidelity_runtime", 1);
+            CheckBehaviourTypeCount(report, "single_v25_hud", "MindforgeDemoHudV25", 1, true);
+            CheckBehaviourTypeCount(report, "v17_hud_retired_by_v25", "MindforgeDemoHudV17", 0, true);
             CheckBehaviourTypeCount(report, "v17_target_presence", "MindforgeTargetPresenceV17", 1, true);
+            CheckBehaviourTypeCount(report, "v25_diegetic_guide", "MindforgeDiegeticGuideV25", 1, true);
+            CheckBehaviourTypeCount(report, "v25_locomotion_vfx", "MindforgeLocomotionVfxV25", 1, true);
+            CheckBehaviourTypeCount(report, "v25_camera_impact", "MindforgeCameraImpactV25", 1, true);
+            CheckBehaviourTypeCount(report, "v25_combat_vfx", "CombatVfxOrchestrator", 1, true);
+            CheckBehaviourTypeCount(report, "v25_fractured_signal_surface", "FracturedSignalFidelityV25", 1, true);
 
             MindforgeCanonicalIntroV17 intro = UnityEngine.Object.FindObjectOfType<MindforgeCanonicalIntroV17>(true);
             Add(report, "v17_canonical_intro_complete", intro != null && intro.IntroComplete,
@@ -227,9 +244,10 @@ namespace Mindforge.Editor
             }
 
             int oldHud = CountBehaviourType("MindforgeDemoHudV11", true);
+            int v17Hud = CountBehaviourType("MindforgeDemoHudV17", true);
             int productionHud = CountBehaviourType("ProductionHudV09", true);
-            Add(report, "legacy_huds_retired", oldHud == 0 && productionHud == 0,
-                $"enabled_v11_hud={oldHud}, enabled_production_hud={productionHud}");
+            Add(report, "legacy_huds_retired", oldHud == 0 && v17Hud == 0 && productionHud == 0,
+                $"enabled_v11_hud={oldHud}, enabled_v17_hud={v17Hud}, enabled_production_hud={productionHud}");
         }
 
         private static void CheckSceneCameras(AuditReport report)
