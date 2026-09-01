@@ -53,6 +53,14 @@ def test_v25_data_cathedral_inlays_are_static_and_collider_free():
         assert forbidden not in builder
 
 
+def test_v16_cannot_repaint_current_cathedral_back_to_greybox_palette():
+    legacy = read(PRESENTATION / "LegacyMaterialHierarchyV16.cs")
+    assert "IsCurrentAuthoredMaterial(material)" in legacy
+    assert 'StartsWith("V24_"' in legacy
+    assert 'StartsWith("V25_"' in legacy
+    assert "PreservedAuthoredRendererCount" in legacy
+
+
 def test_v25_runtime_replaces_utilitarian_hud_and_promotes_pooled_feedback():
     runtime = read(PRESENTATION / "MindforgeSensoryFidelityV25.cs")
     assert "MindforgeDemoHudV17 v17Hud" in runtime
