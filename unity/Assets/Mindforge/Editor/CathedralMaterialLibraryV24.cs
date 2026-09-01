@@ -121,6 +121,57 @@ namespace Mindforge.Editor
                 renderer.receiveShadows = true;
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             }
+
+            CullLegacyDuplicateArchitecture(canonical.transform);
+        }
+
+        private static void CullLegacyDuplicateArchitecture(Transform canonicalRoot)
+        {
+            Transform sanctum = FindDeep(canonicalRoot, "V11_Memory_Forge_Sanctum");
+            if (sanctum != null) DisableChildrenByPrefix(sanctum, "SanctumColumn_", "SanctumGarden_");
+
+            Transform causeway = FindDeep(canonicalRoot, "V11_Neon_Causeway");
+            if (causeway != null) DisableChildrenByPrefix(causeway, "CausewayPylon");
+
+            Transform market = FindDeep(canonicalRoot, "V11_Market_of_Broken_Momentum");
+            if (market != null) DisableChildrenByPrefix(market, "MarketColumn_", "MarketStall_", "MarketGarden_");
+
+            Transform vaultTransitions = canonicalRoot.Find(
+                WorldIntegrityV22Builder.RootName + "/V22_Cavern_Vault/V22_Vault_Wall_Transitions");
+            if (vaultTransitions != null) DisableChildrenByPrefix(vaultTransitions, "VaultRib_");
+
+            Transform oldBossCrown = canonicalRoot.Find(
+                WorldIntegrityV22Builder.RootName + "/V22_Fractured_Signal_Chamber");
+            if (oldBossCrown != null) oldBossCrown.gameObject.SetActive(false);
+        }
+
+        private static void DisableChildrenByPrefix(Transform root, params string[] prefixes)
+        {
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform child = root.GetChild(i);
+                if (child == null) continue;
+                for (int p = 0; p < prefixes.Length; p++)
+                {
+                    if (child.name.StartsWith(prefixes[p], StringComparison.Ordinal))
+                    {
+                        child.gameObject.SetActive(false);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            if (root == null) return null;
+            if (root.name == name) return root;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform found = FindDeep(root.GetChild(i), name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         private static bool IsSemanticSignal(string objectName, string materialName)
