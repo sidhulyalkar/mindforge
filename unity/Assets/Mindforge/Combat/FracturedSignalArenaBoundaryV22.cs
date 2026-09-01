@@ -22,7 +22,6 @@ namespace Mindforge.Combat
     {
         private const string ArenaName = "V11_Fractured_Signal_Arena";
         private const string GateName = "V22_Arena_Entrance_Gate";
-        private const float ArenaCenterZ = 94f;
         private const float SouthDoorZ = 75.70f;
         private const float FloorTopY = 4.08f;
 
@@ -34,12 +33,10 @@ namespace Mindforge.Combat
         [SerializeField] private float gateClosedCenterY = 7.45f;
         [SerializeField] private float gateOpenCenterY = 15.35f;
 
-        private readonly List<Transform> _bars = new List<Transform>(9);
-        private FracturedSignalDirector _director;
+        private readonly List<Transform> _bars = new List<Transform>(11);
         private CombatantVitals _vitals;
         private Transform _guardian;
         private BoxCollider _sealCollider;
-        private Transform _gateRoot;
         private Material _wallMaterial;
         private bool _encounterEntered;
         private bool _built;
@@ -60,7 +57,6 @@ namespace Mindforge.Combat
 
         private void Awake()
         {
-            _director = GetComponent<FracturedSignalDirector>();
             _vitals = GetComponent<CombatantVitals>();
         }
 
@@ -140,11 +136,10 @@ namespace Mindforge.Combat
             GameObject gate = new GameObject(GateName);
             gate.transform.SetParent(arena, false);
             gate.transform.position = new Vector3(0f, 0f, SouthDoorZ);
-            _gateRoot = gate.transform;
 
-            BuildGateFrame(_gateRoot);
-            BuildPortcullis(_gateRoot);
-            BuildSealCollider(_gateRoot);
+            BuildGateFrame(gate.transform);
+            BuildPortcullis(gate.transform);
+            BuildSealCollider(gate.transform);
             MoveGateImmediate(gateOpenCenterY);
             _built = true;
         }
@@ -223,13 +218,15 @@ namespace Mindforge.Combat
         private void MoveGate(float targetCenterY)
         {
             if (_bars.Count == 0) return;
-            float nextY = Mathf.MoveTowards(_bars[0].localPosition.y, targetCenterY, gateTravelSpeed * Time.fixedDeltaTime);
+            float currentY = _bars[0].localPosition.y;
+            float nextY = Mathf.MoveTowards(currentY, targetCenterY, gateTravelSpeed * Time.fixedDeltaTime);
+            float deltaY = nextY - currentY;
             for (int i = 0; i < _bars.Count; i++)
             {
                 Transform part = _bars[i];
                 if (part == null) continue;
                 Vector3 p = part.localPosition;
-                p.y += nextY - _bars[0].localPosition.y;
+                p.y += deltaY;
                 part.localPosition = p;
             }
 
