@@ -7,13 +7,11 @@ using Mindforge.SoulWisp;
 namespace Mindforge.Presentation
 {
     /// <summary>
-    /// Rebalances legacy blockout color hierarchy without replacing meshes, colliders or
-    /// authored PBR materials. The recording showed large near-black architectural masses
-    /// collapsing into one silhouette. This pass uses MaterialPropertyBlock so the change is
-    /// local, reversible, allocation-light, and cannot create gameplay authority.
+    /// Rebalances genuinely legacy blockout color hierarchy without replacing meshes, colliders
+    /// or authored PBR materials. The recording-driven V0.16 pass predates the V0.24 cathedral;
+    /// current authored V0.24/V0.25 materials are therefore explicit material truth and must never
+    /// be recolored back into the old blue-grey blockout palette at runtime.
     ///
-    /// The authored V0.9 production-art root is deliberately excluded. Its PBR base colors
-    /// are material truth, not legacy blockout values, and V0.16 must never recolor them.
     /// Periodic/emissive neural targets are explicit exclusions as well. The one-time restyle
     /// waits until no baseline/calibration/resonance epoch owns the retinal field.
     /// </summary>
@@ -21,8 +19,6 @@ namespace Mindforge.Presentation
     {
         private static readonly string[] RootNames =
         {
-            // The clean V0.11 world is the canonical scene assembled by Mindforge > Latest.
-            // Keep it first so recording-driven restyling always targets the actually played scene.
             "Mindforge_Demo_World_V11",
             "Mindforge_AetheriaWorld_V1",
             "Mindforge_GroundedWorld_V1",
@@ -49,13 +45,12 @@ namespace Mindforge.Presentation
 
         private AwakeningCalibrationDirector _calibration;
         private SoulWispController _wisp;
-        // MaterialPropertyBlock wraps native Unity state. Never construct it from a
-        // MonoBehaviour instance field initializer because Unity may deserialize the component
-        // from its constructor path, where native CreateImpl calls are illegal.
         private MaterialPropertyBlock _block;
         private int _restyled;
+        private int _preservedAuthored;
 
         public int RestyledRendererCount => _restyled;
+        public int PreservedAuthoredRendererCount => _preservedAuthored;
 
         private void Awake()
         {
@@ -70,8 +65,6 @@ namespace Mindforge.Presentation
 
         private IEnumerator Start()
         {
-            // Domain reload / unusual editor construction should still fail safe instead of
-            // converting a presentation pass into a null-reference failure.
             if (_block == null) _block = new MaterialPropertyBlock();
             while (NeuralEvidenceOwnsVisualField()) yield return null;
             ApplyHierarchy();
@@ -89,6 +82,7 @@ namespace Mindforge.Presentation
         {
             if (_block == null) _block = new MaterialPropertyBlock();
             _restyled = 0;
+            _preservedAuthored = 0;
             for (int r = 0; r < RootNames.Length; r++)
             {
                 GameObject root = VisualIdentityV16Installer.FindSceneObject(RootNames[r]);
@@ -100,6 +94,11 @@ namespace Mindforge.Presentation
                     if (renderer == null || ShouldPreserve(renderer.gameObject.name)) continue;
                     Material material = renderer.sharedMaterial;
                     if (material == null) continue;
+                    if (IsCurrentAuthoredMaterial(material))
+                    {
+                        _preservedAuthored++;
+                        continue;
+                    }
                     if (material.IsKeywordEnabled("_EMISSION")) continue;
 
                     Color source = ReadBaseColor(material);
@@ -115,7 +114,18 @@ namespace Mindforge.Presentation
                 }
             }
 
-            Debug.Log($"[Mindforge:V16] Material hierarchy restyled {_restyled} legacy renderers; authored production PBR and coded/emissive signals preserved.");
+            Debug.Log(
+                $"[Mindforge:V16] Legacy hierarchy restyled {_restyled} renderers and preserved " +
+                $"{_preservedAuthored} current authored V0.24/V0.25 renderers. Coded/emissive signals preserved.");
+        }
+
+        private static bool IsCurrentAuthoredMaterial(Material material)
+        {
+            if (material == null || string.IsNullOrEmpty(material.name)) return false;
+            string n = material.name;
+            return n.StartsWith("V24_", StringComparison.OrdinalIgnoreCase) ||
+                   n.StartsWith("V25_", StringComparison.OrdinalIgnoreCase) ||
+                   n.StartsWith("Production", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool ShouldPreserve(string objectName)

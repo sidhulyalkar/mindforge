@@ -25,6 +25,8 @@ def test_v16_installer_is_presentation_only_and_composes_readability_layers():
         "CombatSilhouetteV16",
     ):
         assert f"AddComponent<{component}>" in text
+    assert 'FindSceneObject("Mindforge_Sensory_Fidelity_V25")' in text
+    assert "if (!modernCathedralAuthority)" in text
     for forbidden in (
         "ReceiveDamage",
         "TakeDamage",
@@ -51,7 +53,10 @@ def test_material_hierarchy_preserves_coded_emissive_and_authored_production_art
     assert '"Mindforge_GroundedWorld_V1"' in root_block
     assert '"Mindforge_Demo_Environment_V15"' in root_block
     assert '"Mindforge_Production_Art_V09"' not in root_block
-    assert "authored production PBR" in text
+    assert "IsCurrentAuthoredMaterial(material)" in text
+    assert 'StartsWith("V24_"' in text
+    assert 'StartsWith("V25_"' in text
+    assert 'StartsWith("Production"' in text
     for forbidden in (
         "renderer.sharedMaterial =",
         "collider.enabled",

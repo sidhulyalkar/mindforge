@@ -13,6 +13,10 @@ namespace Mindforge.Presentation
     /// target-lock and neural-window state, then installs removable visual helpers. It never
     /// moves the player, changes collision, creates damage, creates neural evidence, changes
     /// VEP timing, or owns target selection.
+    ///
+    /// Current V0.24/V0.25 cathedral scenes already own their horizon/enclosure and use the
+    /// V0.17 collision-aware camera. In that path the historical cube skyline and renderer-only
+    /// occlusion ghost are retired rather than stacked over the modern world authority.
     /// </summary>
     [DefaultExecutionOrder(-55)]
     public sealed class VisualIdentityV16Installer : MonoBehaviour
@@ -55,8 +59,6 @@ namespace Mindforge.Presentation
 
             if (!HasMindforgePresentation())
             {
-                // Do not install this visual tranche into isolated test scenes that happen
-                // to contain a CombatantVitals component.
                 Destroy(gameObject);
                 yield break;
             }
@@ -64,19 +66,25 @@ namespace Mindforge.Presentation
             LegacyMaterialHierarchyV16 materialHierarchy = gameObject.AddComponent<LegacyMaterialHierarchyV16>();
             materialHierarchy.Configure(calibration, wisp);
 
-            CameraOcclusionGhostV16 occlusion = gameObject.AddComponent<CameraOcclusionGhostV16>();
-            occlusion.Configure(camera, guardianVitals.transform, calibration, wisp);
+            bool modernCathedralAuthority =
+                FindSceneObject("Mindforge_Sensory_Fidelity_V25") != null ||
+                FindSceneObject("Mindforge_White_Cathedral_V24") != null;
 
-            WorldDepthBackdropV16 backdrop = gameObject.AddComponent<WorldDepthBackdropV16>();
-            backdrop.Configure(guardianVitals.transform, calibration, wisp);
+            if (!modernCathedralAuthority)
+            {
+                CameraOcclusionGhostV16 occlusion = gameObject.AddComponent<CameraOcclusionGhostV16>();
+                occlusion.Configure(camera, guardianVitals.transform, calibration, wisp);
+
+                WorldDepthBackdropV16 backdrop = gameObject.AddComponent<WorldDepthBackdropV16>();
+                backdrop.Configure(guardianVitals.transform, calibration, wisp);
+            }
 
             CombatSilhouetteV16 silhouettes = gameObject.AddComponent<CombatSilhouetteV16>();
             silhouettes.Configure(guardianVitals.transform, targetLock, calibration, wisp);
 
-            Debug.Log(
-                "[Mindforge:V16] Recording-driven visual identity installed: material hierarchy, " +
-                "camera-safe visual ghosting, layered horizon depth, and combat silhouettes. " +
-                "All layers remain presentation-only and freeze visibility changes during neural evidence windows.");
+            Debug.Log(modernCathedralAuthority
+                ? "[Mindforge:V16] Current cathedral authority detected: legacy material safeguards + combat silhouettes retained; obsolete runtime cube skyline and renderer-only occlusion ghost retired."
+                : "[Mindforge:V16] Legacy visual identity installed: material hierarchy, camera occlusion readability, layered horizon depth and combat silhouettes.");
         }
 
         private static CombatantVitals FindGuardianVitals()

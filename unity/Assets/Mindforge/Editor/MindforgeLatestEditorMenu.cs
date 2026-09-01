@@ -13,12 +13,13 @@ namespace Mindforge.Editor
     /// scene builder remains the authoritative systems/traversal assembler. V0.20 World Soul
     /// authors continuous landscape/material grammar, V0.21 Arena + Patina corrects the first
     /// boss bowl and local seams, V0.22 World Integrity seals the visible world envelope,
-    /// V0.23 reconciles visible structure with collision, and V0.24 imposes the canonical
-    /// white-cathedral art/architecture grammar before runtime systems compose.
+    /// V0.23 reconciles visible structure with collision, V0.24 imposes the canonical
+    /// white-cathedral art/architecture grammar, and V0.25 promotes high-fidelity rendering,
+    /// restrained post-processing and the canonical sensory-presentation layer.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.24 White Cathedral + World Reformation";
+        public const string ProductVersion = "V0.25 Sensory Fidelity + Data Cathedral";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -97,6 +98,7 @@ namespace Mindforge.Editor
             WorldIntegrityV22Builder.ApplyOpenScene();
             WorldFoundationV23Builder.ApplyOpenScene();
             WorldCathedralV24Builder.ApplyOpenScene();
+            SensoryFidelityV25Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -137,6 +139,8 @@ namespace Mindforge.Editor
                 WorldFoundationV23Builder.ApplyOpenScene();
             if (!WorldCathedralV24Builder.PresentInOpenScene())
                 WorldCathedralV24Builder.ApplyOpenScene();
+            if (!SensoryFidelityV25Builder.PresentInOpenScene())
+                SensoryFidelityV25Builder.ApplyOpenScene();
         }
     }
 }
