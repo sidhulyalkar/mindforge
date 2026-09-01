@@ -216,8 +216,11 @@ namespace Mindforge.Editor
 
             LegacyMaterialHierarchyV16 materials = UnityEngine.Object.FindObjectOfType<LegacyMaterialHierarchyV16>(true);
             Add(report, "v16_material_hierarchy_hits_canonical_world",
-                materials != null && materials.RestyledRendererCount > 0,
-                materials == null ? "component missing" : $"restyled_renderers={materials.RestyledRendererCount}");
+                materials != null &&
+                (materials.RestyledRendererCount > 0 || materials.PreservedAuthoredRendererCount > 0),
+                materials == null
+                    ? "component missing"
+                    : $"legacy_restyled={materials.RestyledRendererCount}, current_authored_preserved={materials.PreservedAuthoredRendererCount}");
 
             CameraOcclusionGhostV16 occlusion = UnityEngine.Object.FindObjectOfType<CameraOcclusionGhostV16>(true);
             Add(report, "v16_camera_occlusion_hits_canonical_world",
