@@ -105,13 +105,22 @@
       "asset_policy": "V0.20 adapts the deterministic octave-noise grammar for editor-authored terrain/material synthesis. No upstream scenes, textures, meshes or other binary assets are copied."
     },
     {
+      "id": "seblague.procedural_cave_generation",
+      "name": "Procedural Cave Generation",
+      "upstream": "https://github.com/SebLague/Procedural-Cave-Generation",
+      "license": "MIT",
+      "usage": "reference_only",
+      "vendored_paths": [],
+      "asset_policy": "V0.23 uses the shared visible-shell/collision-shell topology principle as an engineering reference for the cavern ceiling. Mindforge's inward height-field topology, collision reconciliation and world geometry are project-authored; no upstream scene, mesh, texture or script is copied."
+    },
+    {
       "id": "aadebdeb.procedural_mesh",
       "name": "ProceduralMesh",
       "upstream": "https://github.com/aadebdeb/ProceduralMesh",
       "license": "MIT",
       "usage": "reference_only",
       "vendored_paths": [],
-      "asset_policy": "Mesh-recipe workflow and topology reference. Mindforge's V0.19/V0.20 mesh implementations are project-authored; no upstream runtime package or binary art is vendored."
+      "asset_policy": "Mesh-recipe workflow and topology reference. Mindforge's V0.19/V0.20/V0.23 mesh implementations are project-authored; no upstream runtime package or binary art is vendored."
     },
     {
       "id": "keijiro.noise_shader",
