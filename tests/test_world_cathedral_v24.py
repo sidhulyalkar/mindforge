@@ -54,6 +54,7 @@ def test_v24_palette_is_light_cathedral_first_not_dark_blockout_first():
         "WorldSoulNoiseV20.Fbm",
         "TextureWrapMode.Repeat",
         "FilterMode.Trilinear",
+        "NormalizeCanonicalScene(palette)",
     ):
         assert token in source
 
@@ -63,21 +64,32 @@ def test_v24_palette_is_light_cathedral_first_not_dark_blockout_first():
 def test_v24_suppresses_patchy_foreground_grammars_instead_of_piling_on_more_scatter():
     source = read(BUILDER)
     for token in (
-        '"WorldSoul_Natural_Rock"',
-        '"WorldSoul_Sanctum_Grove"',
-        '"WorldSoul_Causeway_Banks"',
-        '"WorldSoul_Market_Ruins"',
-        '"WorldSoul_Ascent_Geology"',
-        '"V21_Surface_Transitions"',
-        '"V21_Foreground_Ecology"',
-        '"V21_Near_City_Facades"',
-        '"V21_Landmark_Composition"',
-        '"V22_Route_Luminance_Anchors"',
-        '"V11_Skyline"',
+        "WorldSoul_Natural_Rock",
+        "WorldSoul_Sanctum_Grove",
+        "WorldSoul_Causeway_Banks",
+        "WorldSoul_Market_Ruins",
+        "WorldSoul_Ascent_Geology",
+        "V21_Surface_Transitions",
+        "V21_Foreground_Ecology",
+        "V21_Near_City_Facades",
+        "V21_Landmark_Composition",
+        "V22_Route_Luminance_Anchors",
+        "V11_Skyline",
         'DisableChildrenByPrefix(market, "MarketStall_", "MarketGarden_")',
         "target.gameObject.SetActive(false)",
     ):
         assert token in source
+
+    materials = read(MATERIALS)
+    for token in (
+        "CullLegacyDuplicateArchitecture",
+        'DisableChildrenByPrefix(sanctum, "SanctumColumn_", "SanctumGarden_")',
+        'DisableChildrenByPrefix(causeway, "CausewayPylon")',
+        'DisableChildrenByPrefix(market, "MarketColumn_", "MarketStall_", "MarketGarden_")',
+        'DisableChildrenByPrefix(vaultTransitions, "VaultRib_")',
+        "oldBossCrown.gameObject.SetActive(false)",
+    ):
+        assert token in materials
 
 
 def test_v24_uses_one_floor_visual_language_over_existing_collision_authority():
@@ -167,7 +179,7 @@ def test_v24_boss_apse_frames_but_does_not_compress_the_existing_fight():
     assert '"BossApseArch_' in source
     assert '"ApseFloorRing_' in source
     assert '"BossFractureAxis"' in source
-    assert "collider = false" not in source  # avoid misleading named-argument pseudo-contracts
+    assert "collider = false" not in source
     for forbidden in (
         "FracturedSignalDirector",
         "SetExternalPause(",
