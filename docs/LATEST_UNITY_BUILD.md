@@ -8,102 +8,99 @@ For ordinary Mindforge development there is exactly one supported Unity entry po
 
 This rebuilds and opens the canonical integrated scene, then enters Play Mode.
 
-The current product label is **V0.23 World Foundation + Coherence**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
+The current product label is **V0.24 White Cathedral + World Reformation**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
 
-`MindforgeLatestEditorMenu.BuildCanonical(...)` has five deterministic authoring stages:
+`MindforgeLatestEditorMenu.BuildCanonical(...)` now has six deterministic authoring stages:
 
 1. `MindforgeDemoV11Builder.BuildDemoScene(...)` creates the authoritative systems and traversal kernel.
-2. `WorldSoulV20Builder.ApplyOpenScene()` creates continuous terrain, material, ecology and far-field grammar.
-3. `WorldCohesionV21Builder.ApplyOpenScene()` performs the recording-driven arena correction and local patina/facade/foreground pass.
-4. `WorldIntegrityV22Builder.ApplyOpenScene()` normalizes structural render state, closes visual seams and authors the broad cavern/world envelope.
-5. `WorldFoundationV23Builder.ApplyOpenScene()` reconciles visual geometry with collision, makes generated landmass explorable, replaces the cavern ceiling with inward-facing topology, seals the high vault ends and gives the route believable foundations.
+2. `WorldSoulV20Builder.ApplyOpenScene()` creates continuous terrain/material/world grammar.
+3. `WorldCohesionV21Builder.ApplyOpenScene()` applies the arena correction and earlier local cohesion work.
+4. `WorldIntegrityV22Builder.ApplyOpenScene()` normalizes structural render state and seals the broad cavern/world envelope.
+5. `WorldFoundationV23Builder.ApplyOpenScene()` reconciles visual geometry with collision, makes generated terrain explorable and fixes the inward cavern/foundation shell.
+6. `WorldCathedralV24Builder.ApplyOpenScene()` removes obsolete foreground clutter and imposes the canonical white-cathedral material, module, floor, lighting and architectural grammar.
 
-Runtime then composes the maintained Guardian/combat presentation, V0.19 Fractured Signal movement and scheduler, V0.21 spacing adapter, V0.22 duel-stability layer, manual-Wisp intermission and SSVEP/telemetry systems.
+Runtime then composes the maintained Guardian/combat presentation, Fractured Signal movement/scheduler, manual-Wisp intermission and SSVEP/telemetry systems.
 
-## What V0.23 changes
+## What V0.24 changes
 
-The V0.22 playtest showed an important distinction: a world can be visually sealed while still feeling physically untrustworthy. The new recording exposed a concrete example. The canonical Choir Tower ascent collider is rotated **-8.1 degrees**, while V0.22 placed a broad visual-only `AscentUnderlay` at **+6.5 degrees**. Those two surfaces cross, making correct Rigidbody traversal look like the Guardian is jumping through a floor.
+V0.23 solved physical trust. V0.24 solves **visual and architectural trust**.
 
-V0.23 treats this as a world-foundation problem rather than another decoration pass:
+The latest playtest still looked like a stack of individually reasonable passes: dark blockout surfaces, procedural foreground scatter, market boxes, skyline masses, later foundations, rocks, columns and cavern parts all competed for attention. V0.24 stops treating that as a polish problem and reformulates the world as one architectural system.
 
-- the crossing V0.22 ascent underlay is removed and replaced with a visual foundation skin aligned to the exact canonical ramp slope;
-- the real one-metre gap between `CausewayRoad` ending at z=32 and `MarketFloor` beginning at z=33 is filled by one visible collision-backed worn-stone transition at the exact y=0 walking plane;
-- three additional seam guards remain recessed beneath ordinary route surfaces as fail-safe catchers, never higher invisible floors;
-- all four generated V0.20 outer landmasses receive non-convex `MeshCollider`s sharing their render mesh, so aerial exploration can land on terrain that looks solid instead of falling through presentation-only ground;
-- large visually solid procedural rocks, columns, spires and buttresses receive conservative inset contact proxies so the Guardian and existing camera collision agree with what the player sees;
-- the cavern ceiling is regenerated with inward/downward triangle winding and normals rather than relying on a double-sided material to display outward-facing terrain topology from below;
-- the corrected cavern mesh is shared by render and roof collision so those boundaries cannot drift apart;
-- high north/south backing seals close the remaining gap between the tall center of the vault and V0.22 end walls;
-- causeway, market and ascent retaining/foundation geometry makes the route feel embedded in the cavern rather than suspended inside it.
+The canonical foreground is now a **white cathedral carved into a darker cavern**:
 
-See `docs/WORLD_FOUNDATION_V23.md` for the exact recording diagnosis, geometry contract, public-code provenance and playtest gate.
+- pale ivory and white marble dominate playable architecture;
+- one pale-floor material owns all canonical route surfaces;
+- cool dark stone is restricted to geology, backing and recessed foundations;
+- bronze/gold are restrained trim rather than random accents;
+- cyan remains guidance/sanctum energy;
+- magenta remains Fractured Signal corruption;
+- old scatter/facade/skyline/stall layers that conflict with this grammar are disabled rather than buried under more detail;
+- the route is recomposed as narthex → nave → cloister/transept → choir ascent → corrupted apse;
+- repeated columns, pointed arches, buttresses, wall panels, aisle inlays and vault ribs create a measured architectural cadence;
+- V0.24 floor skins remain collider-free and align to V0.11/V0.23 physical authority;
+- the boss apse is built outside the widened arena so architecture frames the fight without shrinking it;
+- lighting is lifted with a warmer key, brighter ambient fill, cleaner fog and fixed point lights, with no flicker or neural-state modulation.
 
-## What V0.22 still owns
+See `docs/WORLD_CATHEDRAL_V24.md` for the complete art direction, module grammar and playtest gate.
 
-V0.23 composes after V0.22 rather than replacing it. V0.22 still owns:
+## What earlier stages still own
 
-- explicit opaque/depth-writing structural material normalization;
-- opaque stylized world water that avoids depth-sorted shoreline holes;
-- broad visual underlay away from the repaired ascent;
-- the main cavern vault placement, backing walls, irregular shoulders and distant traversal envelope;
-- the expanded Fractured Signal leash and movement profile;
-- lower projectile/echo density and clearer melee telegraphs;
-- the trigger-only boss sword-contact hull;
-- exceptional boss stall recovery that preserves Wisp and neural-safety pause authority.
+V0.24 is a re-art/composition stage, not a replacement for lower-level world correctness.
+
+- V0.20 still owns deterministic landforms and generated world surfaces.
+- V0.21 still owns the enlarged/flattened first-boss movement shell.
+- V0.22 still owns opaque structural normalization, cavern/perimeter containment and boss-duel stability.
+- V0.23 still owns the repaired ascent foundation, route seam protection, explorable generated terrain and shared render/collision cavern topology.
+- V0.24 owns the final foreground aesthetic grammar, modular cathedral composition and cleanup of obsolete decorative layers.
 
 ## Canonical composition
 
 The canonical build combines:
 
 - clean V0.11 systems/traversal authority;
-- V0.20 deterministic landforms, generated triplanar surfaces, ecology and far city;
-- V0.21 enlarged/flattened first-boss arena and local environmental cohesion;
-- V0.22 opaque structural render-state normalization, broad ground backing and world envelope;
-- V0.23 visible/collision-backed route transition and recessed seam protection;
-- V0.23 shared-render-mesh collision for all four outer generated landmasses;
-- V0.23 selective solid-scenery contact/camera proxies;
-- V0.23 inward cavern shell correction, upper vault seals and route foundations;
+- V0.20 deterministic terrain and world-surface generation;
+- V0.21 boss-arena geometry correction;
+- V0.22 structural opacity, cavern envelope and stable boss-duel behavior;
+- V0.23 floor/collision reconciliation, terrain collision and inward cavern shell;
+- V0.24 white-cathedral material palette and deterministic generated stone textures;
+- V0.24 semantic modular building kit (`FloorSkin`, `Column`, `PointedArch`, `Buttress`, `WallPanel`, `LumenSconce`, etc.);
+- V0.24 processional spine and explicit threshold language;
+- V0.24 narthex, nave, cloister, choir and Fractured Signal apse composition;
+- V0.24 static lighting and fail-closed structural-role validation;
 - current Guardian responsive movement, double jump, hover, air dash and physical sword/guard authority;
-- V0.19 Fractured Signal locomotion plus V0.21/V0.22 one-time profile composition;
-- V0.22 trigger-only boss sword-contact hull and exceptional stall recovery;
-- the V0.19 two-sided manual-Wisp combat intermission;
-- synchronized SSVEP epoch/decoder and display-timing contracts;
-- neural-quiet calibration/presentation rules;
-- current directed intro/gameplay camera, HUD, persistence and telemetry.
+- current Wisp/SSVEP/display-timing/persistence/telemetry systems.
 
 ## Graphics engineering policy
 
-World authoring uses public codebases as engineering references, not an asset landfill. V0.20's deterministic noise remains adapted from MIT-licensed `SebLague/Procedural-Landmass-Generation`; the procedural mesh workflow remains informed by MIT-licensed `aadebdeb/ProceduralMesh`; V0.23 additionally uses MIT-licensed `SebLague/Procedural-Cave-Generation` as a reference for keeping visible cave boundaries and physical cave boundaries derived from shared generated topology. `keijiro/NoiseShader` remains reference-only until gameplay-camera evidence demonstrates that runtime GPU microvariation is a higher-value bottleneck than composition, material correctness or module quality.
+World authoring uses public codebases as engineering references, not an asset landfill. V0.20's deterministic noise remains adapted from MIT-licensed `SebLague/Procedural-Landmass-Generation`; the mesh-recipe workflow remains informed by MIT-licensed `aadebdeb/ProceduralMesh`; V0.23 uses MIT-licensed `SebLague/Procedural-Cave-Generation` as a reference for shared visible/physical cave topology.
 
-V0.23 does **not** copy SebLague's cave script, scene, art or marching-squares implementation. Mindforge already has a deterministic height-field cavern, so importing an independent cave generator would create a competing world authority. The project-authored V0.23 mesh recipe borrows the narrower and more useful engineering idea: one generated interior topology should define both what the player sees and what the roof collider represents.
-
-Generated V0.20 textures/materials/meshes remain under ignored `Assets/Mindforge/Generated/V20`; V0.21 and V0.22 generated local materials remain under their ignored generated directories; V0.23 inward meshes are generated locally under ignored `Assets/Mindforge/Generated/V23`.
+V0.24 does not import a new environment framework or copied cathedral art. It builds a project-authored cathedral kit on top of Mindforge's existing production triplanar shader and deterministic noise utilities. Generated V0.24 textures/materials live under ignored `Assets/Mindforge/Generated/V24`.
 
 When borrowing from public projects:
 
 - confirm the upstream license before adapting code or logic;
-- record the upstream and usage in `third_party/manifest.json`;
-- include the required license notice whenever source is actually vendored or substantially adapted;
-- prefer adapting a narrow technique over importing a framework when Mindforge already owns the surrounding authority;
+- record the upstream and usage in `third_party/manifest.json` where applicable;
+- include required license notices when source is actually vendored or substantially adapted;
+- prefer narrow techniques over importing a competing world-authority framework;
 - do not copy another game's character identity, level art or visual signature;
-- do not add runtime complexity where deterministic editor-authored results are sufficient;
 - preserve the SSVEP visual-control boundary.
 
 ## Authority boundary
 
-V0.20 scenery and V0.21 patina/facades/ecology remain static presentation. V0.22 owns the distant cavern envelope collision and V0.23 adds static physical reconciliation required to make visible solidity truthful.
+The V0.24 cathedral stage is deterministic editor authoring. It adds no gameplay scheduler, damage logic, input path, persistence authority or neural consumer.
 
-V0.23's known causeway/market gap is solved with one visible collider-backed stone transition. Its three seam guards are deliberately recessed beneath canonical traversal surfaces and act only as catchers. The four V0.20 outer landmasses now use their exact visible generated meshes as static `MeshCollider` topology. V0.23 also adds conservative contact proxies to selected large foreground solids. Small foliage, patina, fracture marks and atmospheric detail remain non-blocking.
+Its processional floor skins are presentation only. Canonical V0.11/V0.23 floor colliders remain the physical authority. Structural columns added close to the ordinary route may own conservative static collision; boss-apartment architecture is placed outside the established combat ring and remains presentation framing.
 
-The V0.23 cavern roof continues to use the same V0.22 spatial recipe, but its mesh is regenerated with inward-facing winding and assigned to both renderer and `MeshCollider`.
+V0.24 lighting is static. There is no `Update`, `LateUpdate`, `FixedUpdate`, flicker, pulsing or neural-state-driven modulation.
 
-`FracturedSignalDuelStabilityV22` still does not create a second ordinary movement or attack scheduler. V0.19 remains the locomotion owner and `FracturedSignalDirector` remains the scheduler. The Wisp intermission and neural-link safety stop remain higher-authority pause owners and are never cleared while active.
+`FracturedSignalDuelStabilityV22` remains the boss-stability layer. V0.24 does not touch boss scheduling or Wisp/neural pause authority.
 
 ## Latest menu
 
 `Mindforge → Latest` intentionally contains only:
 
-- **PLAY LATEST (BCI Simulation)**: rebuild V0.11, apply V0.20 → V0.21 → V0.22 → V0.23, open and play in controller BCI simulation.
+- **PLAY LATEST (BCI Simulation)**: rebuild V0.11, apply V0.20 → V0.21 → V0.22 → V0.23 → V0.24, open and play in controller BCI simulation.
 - **Rebuild Latest Integrated Scene**: perform the same deterministic build without Play Mode.
 - **Open Latest Integrated Scene**: open the canonical scene and upgrade missing world layers in order.
 - **Validate Latest Readiness**: run the maintained readiness audit. It is software/scene evidence, not physical SSVEP qualification.
@@ -111,9 +108,9 @@ The V0.23 cavern roof continues to use the same V0.22 spatial recipe, but its me
 
 ## Manual Wisp and first-boss contract
 
-Holding `V` remains a deliberate listening ritual. When a Wisp window arms, boss attacks and existing hostile projectiles pause and Guardian combat commands are suspended while ordinary locomotion remains available. V0.22 explicitly detects this owner and will not repair that pause; V0.23 does not touch this runtime authority at all.
+Holding `V` remains the deliberate Wisp listening ritual. V0.24 does not alter that ceasefire, the neural-link safety owner, or combat scheduling.
 
-Outside Wisp/neural safety, the ordinary sword fight should remain continuously live after encounter entry. The boss should use most of the chamber, recover from pathological wall stalls, provide reliable sword contact and present fewer simultaneous projectile/echo distractions.
+Outside Wisp/neural safety, the boss fight remains the V0.22/V0.23 fight mechanically. V0.24 only changes the architecture surrounding it.
 
 ## Legacy policy
 
@@ -125,20 +122,18 @@ Do not compose a new release by manually running historical `Apply ...` commands
 
 There should never again be multiple equally plausible "latest" builders.
 
-## V0.23 playtest flow
+## V0.24 playtest flow
 
 1. Pull the intended branch or `main` and allow Unity to compile/import.
 2. Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)**.
-3. Revisit the Choir Tower ascent first. Jump, double-jump, hover and air-dash across the area where the recording showed the intersecting floor. There should be one readable ramp surface and no body-through-stone illusion.
-4. Cross from Causeway to Market around z=32–33 from the center and both sides. The new stone transition should remain visually flush and physically continuous, with no drop or invisible step.
-5. Deliberately explore outside the central route where architecture permits. Land on west/east terrain and probe the north/south generated landmass with the full aerial kit. Visible terrain should support the Guardian.
-6. Traverse every other floor, perch, threshold and boss edge. Recessed seam guards must never feel like higher invisible platforms.
-7. Run into major columns, foreground rocks, fracture spires and chamber buttresses. Large objects that look solid should now feel solid; small foliage and surface patina should remain non-blocking.
-8. Rotate the camera aggressively around those same objects and walls. The existing gameplay-camera sphere cast should respect newly reconciled solid scenery rather than passing through it.
-9. Look upward and toward both cavern ends throughout the route. The ceiling should light as an interior surface and the high north/south vault should remain closed without sky wedges.
-10. Explore lateral edges aggressively. Existing V0.22 roof/perimeter containment remains the final boundary outside newly physical terrain.
-11. Enter the Fractured Signal chamber, use the entire arena, and test sword contact, dodge, jump, guard, projectile parry and all boss phases. V0.23 must not regress V0.22 combat behavior.
-12. Hold `V`, verify the deliberate ceasefire, then end the Wisp window and verify combat resumes.
-13. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console for any V0.23 foundation validation failure.
+3. At spawn, confirm the foreground immediately reads as pale cathedral architecture rather than dark blockout/procedural scatter.
+4. Walk narthex → nave → cloister and inspect the center aisle. Floors should share one visual language and district thresholds should read as deliberate bands.
+5. Inspect the Market from several camera angles. Old stall boxes, noisy scatter, facade clutter and skyline blocks should no longer dominate the view.
+6. Re-test the Choir ascent with jump, double-jump, hover and air dash. The single canonical ramp must remain visually and physically coherent.
+7. Run along columns and walls. Repeated modules should create architectural rhythm without introducing awkward snags or hiding the route.
+8. Enter the Fractured Signal chamber. Pale apse architecture should sit outside the movement bowl; magenta corruption should read as invasion/contrast rather than the whole environment.
+9. Look up and toward the cavern boundaries. Dark geology should frame the white cathedral rather than swallow it.
+10. Test sword, dodge, guard, parry, Wisp and neural simulation flows for regression.
+11. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console for V0.24 structural validation failures.
 
 For real BCI testing, use **Build Neural-Hardware Variant** and the live neural service on a physically qualified display. Software readiness still does not substitute for photodiode timing or real EEG qualification.
