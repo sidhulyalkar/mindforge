@@ -4,7 +4,9 @@
 
 V0.21 corrected a real arena geometry problem, but the next gameplay report exposed a more fundamental failure: Mindforge still read as several procedural layers placed near each other instead of one enclosed place. The symptoms were transparent/ghosted world surfaces, open sightlines into empty sky or void, no convincing cavern roof, weak wall-to-roof continuity, exploration revealing unfinished edges, and a first boss that could still stall or feel unreliable at sword range.
 
-V0.22 therefore treats **world integrity** and **duel integrity** as contracts rather than polish.
+A deeper boundary audit found another concrete problem: the canonical Fractured Signal room still inherited a nearly continuous 14-segment V0.11 wall ring. V0.21 enlarged it but did not create a real entrance or a fight seal. For a Guardian with double jump and aerial movement, entering/leaving the boss room therefore felt like negotiating level-construction geometry rather than crossing an authored threshold.
+
+V0.22 therefore treats **world integrity**, **arena integrity**, and **duel integrity** as contracts rather than polish.
 
 ## World integrity
 
@@ -33,6 +35,20 @@ The ceiling and perimeter are deliberately outside ordinary movement. They are w
 ### Architectural continuity
 
 The shell inherits the route's architectural language through pointed vault ribs, stone shoulders, static luminance anchors and a dedicated Fractured Signal chamber crown. The boss arena should read as a carved chamber inside the same geology rather than a circular platform pasted onto the end of a corridor.
+
+## Arena integrity
+
+`FracturedSignalArenaBoundaryV22` turns the inherited wall ring into a deliberate room boundary without owning attacks, damage, neural state or boss locomotion.
+
+### One real entrance
+
+The exact south radial wall segment (`FractureWall_07`) is disabled at runtime, creating a route-aligned doorway at the south of the chamber. The remaining wall segments are raised from the low V0.21 ring so that the aerial Guardian reads them as the room boundary instead of casual jump-over scenery.
+
+### Visible fight seal
+
+An opaque stone portcullis uses the existing arena-wall material and consists of side pillars, a lintel, nine vertical bars and two crossbars. It begins physically open. Once the Guardian crosses the same `z >= 82` release threshold used by the canonical encounter gate, the visible portcullis descends behind the player. A single full-width collider becomes active only when the visible gate reaches its closed position, so the collision has an obvious visual explanation rather than being an invisible arena wall.
+
+The portcullis reopens immediately after Fractured Signal death. Cosmetic bars do not own separate picket-fence collision, which prevents squeezing or snagging between many small colliders.
 
 ## Duel integrity
 
@@ -78,12 +94,14 @@ Use only **Mindforge → Latest → PLAY LATEST (BCI Simulation)**.
 1. Traverse slowly and quickly through Sanctum, Causeway, Market and Ascent. Look specifically for ghosted floors, see-through rocks, transparent masonry, z-sorting seams, sky-colored cracks and missing geometry below the route.
 2. Jump, double-jump, hover and air-dash aggressively at route edges. The world should remain visually enclosed and the cavern roof should stay present above the camera. You should not be able to escape through the top or fall into an un-authored void.
 3. Inspect long horizontal sightlines. There should be no large gaps between terrain and cavern roof exposing an empty backdrop.
-4. Approach the Fractured Signal. The arena should read as a chamber in the same cavern, with crown/buttress/rib composition around it.
-5. Target-lock and circle through every quadrant. The boss should use substantially more of the arena than V0.21 and should not settle against a wall for long periods.
-6. Repeatedly attack near the edge of sword reach. The trigger hull should make visually plausible swings register consistently without creating an invisible physical blocker.
-7. Test dodge, jump-over-cleave, spacing, perfect guard and sword projectile parry. The encounter should feel readable rather than saturated with radial projectiles.
-8. Hold `V`. Confirm the deliberate Wisp ceasefire still pauses both sides. End the window and confirm combat resumes.
-9. In controller-only simulation, verify the boss never remains externally paused after ordinary encounter entry without a visible Wisp/safety reason.
-10. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console for `[Mindforge:V22]` or `[Mindforge:BossV22]` warnings.
+4. Approach the Fractured Signal chamber on foot without jumping the boundary. Confirm there is one obvious south doorway, tall surrounding walls and a raised/open portcullis that visually belongs to the same stone language.
+5. Cross the encounter-release threshold. Confirm the portcullis closes behind you, the visible bars finish descending before the full-width seal collision becomes authoritative, and normal combat begins without an unexplained pause.
+6. Target-lock and circle through every quadrant. The boss should use substantially more of the arena than V0.21 and should not settle against a wall for long periods. The taller wall ring should keep aerial exploration inside the fight without feeling like a tiny cage.
+7. Repeatedly attack near the edge of sword reach. The trigger hull should make visually plausible swings register consistently without creating an invisible physical blocker.
+8. Test dodge, jump-over-cleave, spacing, perfect guard and sword projectile parry. The encounter should feel readable rather than saturated with radial projectiles.
+9. Hold `V`. Confirm the deliberate Wisp ceasefire still pauses both sides. End the window and confirm combat resumes. The arena gate should remain closed because it is fight-boundary state, not attack authority.
+10. Defeat the boss. Confirm the portcullis rises/reopens and the south doorway becomes traversable again.
+11. In controller-only simulation, verify the boss never remains externally paused after ordinary encounter entry without a visible Wisp/safety reason.
+12. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console for `[Mindforge:V22]` or `[Mindforge:BossV22]` warnings.
 
-If a boss stop remains, capture the exact moment including HUD/Wisp state and Console. V0.22 now separates ordinary movement, attack commitment, legitimate pause ownership and exceptional stall recovery, making any remaining failure materially easier to isolate.
+If a boss stop remains, capture the exact moment including HUD/Wisp state and Console. V0.22 now separates ordinary movement, arena boundary state, attack commitment, legitimate pause ownership and exceptional stall recovery, making any remaining failure materially easier to isolate.
