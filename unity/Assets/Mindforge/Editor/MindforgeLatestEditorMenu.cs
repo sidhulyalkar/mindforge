@@ -12,12 +12,13 @@ namespace Mindforge.Editor
     /// Product version and scene-asset version are deliberately decoupled. The clean V0.11
     /// scene builder remains the authoritative systems/traversal assembler. V0.20 World Soul
     /// authors continuous landscape/material grammar, V0.21 Arena + Patina corrects the first
-    /// boss bowl and local seams, then V0.22 World Integrity seals the visible world envelope
-    /// and normalizes structural rendering before runtime systems compose.
+    /// boss bowl and local seams, V0.22 World Integrity seals the visible world envelope and
+    /// normalizes structural rendering, then V0.23 reconciles visible structure with collision
+    /// and completes the inward cavern/foundation shell before runtime systems compose.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.22 World Integrity + Boss Duel";
+        public const string ProductVersion = "V0.23 World Foundation + Coherence";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -94,6 +95,7 @@ namespace Mindforge.Editor
             WorldSoulV20Builder.ApplyOpenScene();
             WorldCohesionV21Builder.ApplyOpenScene();
             WorldIntegrityV22Builder.ApplyOpenScene();
+            WorldFoundationV23Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -130,6 +132,8 @@ namespace Mindforge.Editor
                 WorldCohesionV21Builder.ApplyOpenScene();
             if (!WorldIntegrityV22Builder.PresentInOpenScene())
                 WorldIntegrityV22Builder.ApplyOpenScene();
+            if (!WorldFoundationV23Builder.PresentInOpenScene())
+                WorldFoundationV23Builder.ApplyOpenScene();
         }
     }
 }
