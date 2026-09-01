@@ -6,7 +6,7 @@ The post-V0.22 gameplay recording showed that closing the visible void is not th
 
 The clearest example was the Choir Tower ascent. The canonical V0.11 collision ramp is rotated **-8.1 degrees**, while V0.22 added a broad visual-only `AscentUnderlay` rotated **+6.5 degrees**. Those slabs physically cross in space. The Guardian can therefore follow the correct collision ramp while appearing to pass through the later visual slab. That is the "weird piece of floor" visible in the recording.
 
-The audit also found a real traversal seam: `CausewayRoad` ends at z=32 while `MarketFloor` begins at z=33. The V0.22 underlay hides that one-metre gap visually but owns no collision. In addition, the V0.22 cavern ceiling reused an ordinary upward-facing terrain mesh. A double-sided material made the ceiling visible from underneath, but its geometric normals still faced out of the cavern. Finally, many rocks, columns and buttresses looked solid while remaining invisible to both Guardian contact and the existing camera collision sphere cast.
+The audit also found a real traversal seam: `CausewayRoad` ends at z=32 while `MarketFloor` begins at z=33. The V0.22 underlay hides that one-metre gap visually but owns no collision. More importantly for exploration, all four large V0.20 generated landmasses were still presentation-only, so a double-jump onto terrain that looked completely solid could fall through it. In addition, the V0.22 cavern ceiling reused an ordinary upward-facing terrain mesh. A double-sided material made the ceiling visible from underneath, but its geometric normals still faced out of the cavern. Finally, many rocks, columns and buttresses looked solid while remaining invisible to both Guardian contact and the existing camera collision sphere cast.
 
 V0.23 fixes these as one world-foundation problem: **visible solidity, collision solidity and camera solidity should agree.**
 
@@ -18,17 +18,25 @@ V0.23 fixes these as one world-foundation problem: **visible solidity, collision
 
 The result is intentionally boring in the best way: when the player jumps on the ascent, there should no longer be a second stone plane intersecting their body.
 
-### 2. Bridge route seams below the visible floor
+### 2. Replace the causeway/market hole with one truthful surface
 
-V0.23 creates exactly three thin, invisible reconciliation colliders:
+The z=32 to z=33 seam is not merely hidden by a lower safety plane anymore. V0.23 authors `CausewayMarketTransition`, a thin worn-stone block whose top is exactly y=0 and whose ends overlap the two canonical floors slightly. Its renderer and collider belong to the same object.
 
-- `LowerRouteSeamGuard` beneath the sanctum/causeway/market path, including the z=32 to z=33 gap;
+V0.23 still creates exactly three recessed fail-safe colliders:
+
+- `LowerRouteSeamGuard` beneath the lower route;
 - `AscentSeamGuard` beneath and parallel to the canonical ramp;
 - `BossArenaSeamGuard` immediately below the widened Fractured Signal floor.
 
-These are not replacement floors. They are recessed catchers underneath the normal contact surfaces. Ordinary V0.11/V0.21 collision remains the first surface the Guardian touches.
+These guards are not replacement floors. They are catcher surfaces below normal contact height. The known causeway/market seam itself is now solved by visible collision-backed geometry instead of an invisible patch.
 
-### 3. Make obvious solid scenery actually solid
+### 3. Make the generated outer landscape explorable
+
+`WestLandmass`, `EastLandmass`, `SouthLandmass` and `NorthHighlands` are deterministic V0.20 meshes that define most of the apparent ground outside the central architectural route. V0.23 gives each one a non-convex `MeshCollider` sharing the exact `MeshFilter.sharedMesh`.
+
+This is a substantial exploration fix. The Guardian's double jump, hover and air dash should no longer expose a split reality where side terrain is visible but physically absent. The V0.22 distant perimeter remains the final containment envelope, while the terrain inside it can now behave like actual terrain.
+
+### 4. Make obvious solid scenery actually solid
 
 V0.20 and V0.21 deliberately kept decorative procedural meshes collider-free. That was useful while establishing visual grammar, but it produces an increasingly strange world once those meshes become large foreground architecture.
 
@@ -41,7 +49,7 @@ V0.23 adds conservative inset `BoxCollider` proxies only to visually obvious sol
 
 The proxies are inset relative to the render bounds so collision communicates mass without snagging the Guardian on every visual corner. This also improves camera behavior because `MindforgeGameplayCameraV17` already sphere-casts against scene colliders. No second camera system is introduced.
 
-### 4. Author the cavern ceiling from the inside
+### 5. Author the cavern ceiling from the inside
 
 `WorldFoundationMeshLibraryV23` generates the cavern ceiling with reversed triangle winding relative to an ordinary terrain patch. `RecalculateNormals()` therefore creates downward/inward normals appropriate for a ceiling viewed from inside the cavern.
 
@@ -49,11 +57,11 @@ The same generated mesh is assigned to both the `MeshFilter` and `MeshCollider`.
 
 `aadebdeb/ProceduralMesh` remains the MIT-licensed workflow reference for storing deterministic construction recipes instead of committing opaque generated mesh binaries.
 
-### 5. Close the high north/south cavern wedges
+### 6. Close the high north/south cavern wedges
 
 V0.22's side walls meet the low roof edges well, but its north/south backing walls do not reach the high center of the vault. V0.23 adds upper backing volumes plus irregular rock masks in front of them. This closes sky wedges without making the player stare at a rectangular box ceiling.
 
-### 6. Give the route visible foundations
+### 7. Give the route visible foundations
 
 The causeway, market and ascent receive retaining/foundation geometry below or outside normal traversal. This is not decorative clutter for its own sake. It makes platforms look embedded in geology instead of floating blocks placed inside a larger cavern.
 
@@ -72,26 +80,29 @@ Directly importing public code can be useful when it buys a maintained subsystem
 
 V0.23 is editor-authored world construction. It does not add `Update`, `LateUpdate`, `FixedUpdate`, runtime randomization, input handling, damage, neural consumers, persistence, combat scheduling or temporal effects.
 
-The only new gameplay-facing authority is static collision whose purpose is to make visible solidity truthful:
+The new gameplay-facing authority is static collision whose purpose is to make visible solidity truthful:
 
+- one visible collision-backed causeway/market transition;
 - three recessed route seam guards;
+- `MeshCollider`s on all four large generated outer landmasses, sharing their render topology;
 - conservative proxies on obvious solid scenery;
 - the existing cavern roof collider now shares the corrected inward-facing render topology.
 
-V0.11/V0.21 remain the ordinary route collision owners and existing combat/neural systems remain unchanged.
+V0.11/V0.21 remain the ordinary central-route collision owners and existing combat/neural systems remain unchanged.
 
 ## Validation gate
 
 Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)** and test the world as something to explore, not just a corridor to finish.
 
 1. Revisit the entire Choir Tower ascent. Jump and double-jump repeatedly where the previous recording showed floor intersection. The Guardian should never visually pass through a second stone slab.
-2. Walk and jump across the Causeway to Market transition around z=32 to z=33 from center and both lateral edges. There should be no fall-through or invisible step.
-3. Jump onto/off the Market perches, ascent edges and boss threshold. The recessed seam guards must never feel like higher phantom floors.
-4. Run directly into major columns, foreground rocks, fracture spires and chamber buttresses. Objects that read as large solid masses should no longer be ghost geometry, while small foliage/patina remains non-blocking.
-5. Rotate the camera tightly around those objects. Camera collision should now respect the same large solids instead of entering them.
-6. Look upward throughout the route, especially near the north/south ends. The cavern ceiling should shade as an interior surface and no sky wedge should appear between the high vault and end walls.
-7. Explore lateral edges with jump, double jump, hover and air dash. Existing V0.22 perimeter/roof containment still applies.
-8. Fight the Fractured Signal through all phases after aggressive arena traversal. V0.23 must not alter V0.22 boss scheduler, Wisp pause or neural-safety authority.
-9. Run **Mindforge → Latest → Validate Latest Readiness** after the playtest.
+2. Walk and jump across the Causeway to Market transition around z=32 to z=33 from center and both lateral edges. It should read and feel like one continuous stone floor with no dip, fall-through or invisible step.
+3. Deliberately leave the central route wherever architecture allows it. Land on west/east terrain and probe the south/north generated landscape with jump, double jump, hover and air dash. Visible landmass should support the Guardian rather than acting like scenery painted over a void.
+4. Jump onto/off the Market perches, ascent edges and boss threshold. The recessed seam guards must never feel like higher phantom floors.
+5. Run directly into major columns, foreground rocks, fracture spires and chamber buttresses. Objects that read as large solid masses should no longer be ghost geometry, while small foliage/patina remains non-blocking.
+6. Rotate the camera tightly around those objects. Camera collision should now respect the same large solids instead of entering them.
+7. Look upward throughout the route, especially near the north/south ends. The cavern ceiling should shade as an interior surface and no sky wedge should appear between the high vault and end walls.
+8. Explore lateral edges aggressively. Existing V0.22 roof/perimeter containment remains the final boundary beyond the newly physical terrain.
+9. Fight the Fractured Signal through all phases after aggressive arena traversal. V0.23 must not alter V0.22 boss scheduler, Wisp pause or neural-safety authority.
+10. Run **Mindforge → Latest → Validate Latest Readiness** after the playtest.
 
 The most important acceptance criterion is perceptual: the player should stop thinking about which surfaces are real. The cavern should read as one continuous place with one physical vocabulary.
