@@ -10,6 +10,7 @@ V11 = EDITOR / "MindforgeDemoV11Builder.cs"
 V20 = EDITOR / "WorldSoulV20Builder.cs"
 V21 = EDITOR / "WorldCohesionV21Builder.cs"
 V22 = EDITOR / "WorldIntegrityV22Builder.cs"
+V23 = EDITOR / "WorldFoundationV23Builder.cs"
 MOBILITY = COMBAT / "FracturedSignalArenaMobilityV21.cs"
 LIFECYCLE = UNITY / "Tests" / "Editor" / "MindforgeUnityLifecycleSmokeTests.cs"
 
@@ -21,14 +22,16 @@ def read(path: Path) -> str:
 
 def test_v21_remains_the_cohesion_stage_between_world_soul_and_v22_integrity():
     latest = read(LATEST)
-    assert 'ProductVersion = "V0.22 World Integrity + Boss Duel"' in latest
+    assert 'ProductVersion = "V0.23 World Foundation + Coherence"' in latest
     v11_i = latest.index("MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);")
     v20_i = latest.index("WorldSoulV20Builder.ApplyOpenScene();", v11_i)
     v21_i = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20_i)
     v22_i = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21_i)
-    assert v11_i < v20_i < v21_i < v22_i
+    v23_i = latest.index("WorldFoundationV23Builder.ApplyOpenScene();", v22_i)
+    assert v11_i < v20_i < v21_i < v22_i < v23_i
     assert "EnsureWorldLayersOpenScene();" in latest
     assert 'RootName = "Mindforge_World_Integrity_V22"' in read(V22)
+    assert 'RootName = "Mindforge_World_Foundation_V23"' in read(V23)
 
 
 def test_recording_driven_arena_is_materially_larger_and_center_is_flat():

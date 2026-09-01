@@ -8,13 +8,14 @@ V11 = EDITOR / "MindforgeDemoV11Builder.cs"
 WORLD_SOUL = EDITOR / "WorldSoulV20Builder.cs"
 WORLD_COHESION = EDITOR / "WorldCohesionV21Builder.cs"
 WORLD_INTEGRITY = EDITOR / "WorldIntegrityV22Builder.cs"
+WORLD_FOUNDATION = EDITOR / "WorldFoundationV23Builder.cs"
 READINESS = EDITOR / "MindforgeLatestReadinessAuditV17.cs"
 WISP = ROOT / "unity" / "Assets" / "Mindforge" / "SoulWisp" / "WispResonanceWindow.cs"
 
 
 def test_latest_menu_is_the_single_supported_play_surface():
     source = LATEST.read_text(encoding="utf-8")
-    assert 'ProductVersion = "V0.22 World Integrity + Boss Duel"' in source
+    assert 'ProductVersion = "V0.23 World Foundation + Coherence"' in source
     assert 'Mindforge/Latest/PLAY LATEST (BCI Simulation)' in source
     assert 'Mindforge/Latest/Rebuild Latest Integrated Scene' in source
     assert 'Mindforge/Latest/Open Latest Integrated Scene' in source
@@ -26,6 +27,7 @@ def test_latest_menu_is_the_single_supported_play_surface():
     assert "WorldSoulV20Builder.ApplyOpenScene();" in source
     assert "WorldCohesionV21Builder.ApplyOpenScene();" in source
     assert "WorldIntegrityV22Builder.ApplyOpenScene();" in source
+    assert "WorldFoundationV23Builder.ApplyOpenScene();" in source
     assert "EnsureWorldLayersOpenScene();" in source
     assert "MindforgeLatestReadinessAuditV17.AuditActiveDemo()" in source
     assert "MindforgeDemoV11Audit.AuditActiveDemo()" not in source
@@ -57,16 +59,19 @@ def test_latest_menu_targets_clean_assembler_plus_ordered_world_layers():
     world_soul = WORLD_SOUL.read_text(encoding="utf-8")
     cohesion = WORLD_COHESION.read_text(encoding="utf-8")
     integrity = WORLD_INTEGRITY.read_text(encoding="utf-8")
+    foundation = WORLD_FOUNDATION.read_text(encoding="utf-8")
     assert 'DemoScenePath = "Assets/Mindforge/Scenes/MindforgeDemoV11.unity"' in builder
     assert "CompetitionSceneAssembler.BuildCompetitionScene();" in builder
     assert "historical world decorators omitted" in builder
     assert 'RootName = "Mindforge_World_Soul_V20"' in world_soul
     assert 'RootName = "Mindforge_World_Cohesion_V21"' in cohesion
     assert 'RootName = "Mindforge_World_Integrity_V22"' in integrity
+    assert 'RootName = "Mindforge_World_Foundation_V23"' in foundation
     v20 = latest.index("WorldSoulV20Builder.ApplyOpenScene();")
     v21 = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20)
     v22 = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21)
-    assert v20 < v21 < v22
+    v23 = latest.index("WorldFoundationV23Builder.ApplyOpenScene();", v22)
+    assert v20 < v21 < v22 < v23
     for forbidden in (
         "ShowcaseEditorMenu",
         "ProductionArtAutoHookV09",
@@ -106,10 +111,11 @@ def test_current_wisp_runtime_auto_installs_on_the_canonical_scene():
 def test_latest_build_documentation_forbids_manual_version_stack_composition():
     doc = (ROOT / "docs" / "LATEST_UNITY_BUILD.md").read_text(encoding="utf-8")
     assert "Mindforge → Latest → PLAY LATEST (BCI Simulation)" in doc
-    assert "V0.22 World Integrity + Boss Duel" in doc
+    assert "V0.23 World Foundation + Coherence" in doc
     assert "WorldSoulV20Builder" in doc
     assert "WorldCohesionV21Builder" in doc
     assert "WorldIntegrityV22Builder" in doc
+    assert "WorldFoundationV23Builder" in doc
     assert "Validate Latest Readiness" in doc
     assert "Do not compose a new release by manually running historical `Apply ...` commands." in doc
     assert "There should never again be multiple equally plausible \"latest\" builders." in doc
