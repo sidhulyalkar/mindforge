@@ -10,8 +10,9 @@ namespace Mindforge.Editor
     /// <summary>
     /// V0.23 reconciles visible world geometry with the collision world after the recording-driven
     /// V0.22 pass. It fixes the ascent fake-floor overlap, closes route collider seams, makes
-    /// obvious solid scenery participate in contact/camera collision, and replaces the cavern
-    /// ceiling with inward-facing topology so the shell is authored from the player's side.
+    /// obvious solid scenery and the generated outer terrain participate in contact/camera
+    /// collision, and replaces the cavern ceiling with inward-facing topology so the shell is
+    /// authored from the player's side.
     ///
     /// Public technique references:
     /// - SebLague/Procedural-Cave-Generation (MIT): render shell and physical shell share topology.
@@ -49,7 +50,8 @@ namespace Mindforge.Editor
             AssetDatabase.Refresh();
             Debug.Log(
                 "[Mindforge:V23] World Foundation authored: ascent visual/collision reconciliation, " +
-                "continuous route seam guards, solid-scenery contact proxies, inward cavern ceiling and upper end seals.");
+                "continuous route transitions, explorable terrain collision, solid-scenery contact proxies, " +
+                "inward cavern ceiling and upper end seals.");
         }
 
         public static void Apply(Transform canonicalRoot)
@@ -63,7 +65,8 @@ namespace Mindforge.Editor
             Transform root = Node(RootName, canonicalRoot);
 
             RepairAscentVisualAuthority(canonicalRoot, root, palette);
-            BuildRouteSeamGuards(root);
+            BuildRouteSeamGuards(root, palette);
+            ReconcileOuterTerrainCollision(canonicalRoot);
             AddStructuralContactProxies(canonicalRoot);
             RebuildInwardCavernCeiling(canonicalRoot);
             BuildUpperCavernSeals(root, palette);
@@ -116,13 +119,27 @@ namespace Mindforge.Editor
             }
         }
 
-        private static void BuildRouteSeamGuards(Transform root)
+        private static void BuildRouteSeamGuards(
+            Transform root,
+            WorldSoulMaterialLibraryV20.Palette palette)
         {
+            // The causeway ends at z=32 and the market starts at z=33. V0.22 visually hid the
+            // one-metre hole with a lower underlay. V0.23 instead authors an actual stone bridge
+            // at the exact y=0 walking plane, overlapping both canonical floors by 0.05 m.
+            Transform transitions = Node("V23_Route_Transition_Caps", root);
+            Block(
+                "CausewayMarketTransition",
+                transitions,
+                new Vector3(0f, -0.05f, 32.5f),
+                new Vector3(8.6f, 0.10f, 1.10f),
+                palette.WornStone,
+                Vector3.zero,
+                true);
+
             Transform guards = Node("V23_Collision_Reconciliation", root);
 
             // Canonical visible floors remain the normal contact surface. These thin colliders sit
-            // just underneath them and bridge only the tiny assembler seams, including the real
-            // one-metre gap between CausewayRoad (ending at z=32) and MarketFloor (starting at z=33).
+            // underneath them as fail-safe catchers, never as higher invisible replacement floors.
             CollisionBlock(
                 "LowerRouteSeamGuard",
                 guards,
@@ -149,17 +166,55 @@ namespace Mindforge.Editor
                 Vector3.zero);
         }
 
+        private static void ReconcileOuterTerrainCollision(Transform canonicalRoot)
+        {
+            string worldRoot = WorldSoulV20Builder.RootName + "/";
+            string[] terrainPaths =
+            {
+                worldRoot + "WestLandmass",
+                worldRoot + "EastLandmass",
+                worldRoot + "SouthLandmass",
+                worldRoot + "NorthHighlands",
+            };
+
+            int reconciled = 0;
+            for (int i = 0; i < terrainPaths.Length; i++)
+            {
+                Transform terrain = Require(canonicalRoot, terrainPaths[i]);
+                MeshFilter filter = terrain.GetComponent<MeshFilter>();
+                if (filter == null || filter.sharedMesh == null)
+                    throw new UnityEditor.Build.BuildFailedException(
+                        $"V0.23 terrain collision reconciliation requires a generated mesh at {terrainPaths[i]}.");
+
+                MeshCollider collider = terrain.GetComponent<MeshCollider>();
+                if (collider == null) collider = terrain.gameObject.AddComponent<MeshCollider>();
+                collider.sharedMesh = filter.sharedMesh;
+                collider.convex = false;
+                reconciled++;
+            }
+
+            if (reconciled != terrainPaths.Length)
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.23 expected {terrainPaths.Length} explorable terrain colliders, reconciled {reconciled}.");
+        }
+
         private static void AddStructuralContactProxies(Transform canonicalRoot)
         {
             MeshFilter[] filters = canonicalRoot.GetComponentsInChildren<MeshFilter>(true);
-            int added = 0;
+            int reconciled = 0;
             for (int i = 0; i < filters.Length; i++)
             {
                 MeshFilter filter = filters[i];
                 if (filter == null || filter.sharedMesh == null) continue;
                 GameObject go = filter.gameObject;
-                if (go.GetComponent<Collider>() != null) continue;
                 if (!ShouldReceiveContactProxy(go.name)) continue;
+
+                Collider existing = go.GetComponent<Collider>();
+                if (existing != null)
+                {
+                    reconciled++;
+                    continue;
+                }
 
                 Bounds bounds = filter.sharedMesh.bounds;
                 if (bounds.size.sqrMagnitude < 0.0001f) continue;
@@ -174,12 +229,12 @@ namespace Mindforge.Editor
                     Mathf.Max(0.05f, size.x * 0.72f),
                     Mathf.Max(0.05f, size.y * 0.90f),
                     Mathf.Max(0.05f, size.z * 0.72f));
-                added++;
+                reconciled++;
             }
 
-            if (added < 8)
+            if (reconciled < 8)
                 throw new UnityEditor.Build.BuildFailedException(
-                    $"V0.23 expected to reconcile obvious solid scenery, but only added {added} contact proxies.");
+                    $"V0.23 expected to reconcile obvious solid scenery, but only found {reconciled} contact proxies.");
         }
 
         private static bool ShouldReceiveContactProxy(string name)
@@ -355,6 +410,23 @@ namespace Mindforge.Editor
                     "V0.23 validation failed: the crossing V0.22 AscentUnderlay is still present.");
             }
 
+            Transform transition = Require(root, "V23_Route_Transition_Caps/CausewayMarketTransition");
+            if (transition.GetComponent<BoxCollider>() == null)
+                throw new UnityEditor.Build.BuildFailedException(
+                    "V0.23 causeway/market transition must be one visible collision-backed surface.");
+
+            string terrainRoot = WorldSoulV20Builder.RootName + "/";
+            string[] terrainNames = { "WestLandmass", "EastLandmass", "SouthLandmass", "NorthHighlands" };
+            for (int i = 0; i < terrainNames.Length; i++)
+            {
+                Transform terrain = Require(canonicalRoot, terrainRoot + terrainNames[i]);
+                MeshFilter terrainFilter = terrain.GetComponent<MeshFilter>();
+                MeshCollider terrainCollider = terrain.GetComponent<MeshCollider>();
+                if (terrainFilter == null || terrainCollider == null || terrainCollider.sharedMesh != terrainFilter.sharedMesh)
+                    throw new UnityEditor.Build.BuildFailedException(
+                        $"V0.23 terrain render/collision topology drifted at {terrainNames[i]}.");
+            }
+
             Transform roof = Require(
                 canonicalRoot,
                 WorldIntegrityV22Builder.RootName + "/V22_Cavern_Vault/CavernVaultUnderside");
@@ -370,7 +442,7 @@ namespace Mindforge.Editor
             Transform guards = root.Find("V23_Collision_Reconciliation");
             if (guards == null || guards.GetComponentsInChildren<BoxCollider>(true).Length != 3)
                 throw new UnityEditor.Build.BuildFailedException(
-                    "V0.23 collision reconciliation requires exactly three seam-guard colliders.");
+                    "V0.23 collision reconciliation requires exactly three recessed seam-guard colliders.");
         }
 
         private static Transform Require(Transform root, string path)
