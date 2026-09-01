@@ -183,8 +183,8 @@ namespace Mindforge.Editor
                 AddDeferred(report, "v17_directed_demo_runtime");
                 AddDeferred(report, "v25_sensory_fidelity_runtime");
                 AddDeferred(report, "v16_material_hierarchy_hits_canonical_world");
-                AddDeferred(report, "v16_camera_occlusion_hits_canonical_world");
-                AddDeferred(report, "v16_backdrop_built_from_canonical_world");
+                AddDeferred(report, "v16_occlusion_ghost_retired_v25");
+                AddDeferred(report, "v16_backdrop_retired_v25");
                 AddDeferred(report, "single_v25_hud");
                 AddDeferred(report, "v17_hud_retired_by_v25");
                 AddDeferred(report, "v17_target_presence");
@@ -209,6 +209,8 @@ namespace Mindforge.Editor
             CheckBehaviourTypeCount(report, "v25_camera_impact", "MindforgeCameraImpactV25", 1, true);
             CheckBehaviourTypeCount(report, "v25_combat_vfx", "CombatVfxOrchestrator", 1, true);
             CheckBehaviourTypeCount(report, "v25_fractured_signal_surface", "FracturedSignalFidelityV25", 1, true);
+            CheckBehaviourTypeCount(report, "v16_occlusion_ghost_retired_v25", "CameraOcclusionGhostV16", 0, false);
+            CheckBehaviourTypeCount(report, "v16_backdrop_retired_v25", "WorldDepthBackdropV16", 0, false);
 
             MindforgeCanonicalIntroV17 intro = UnityEngine.Object.FindObjectOfType<MindforgeCanonicalIntroV17>(true);
             Add(report, "v17_canonical_intro_complete", intro != null && intro.IntroComplete,
@@ -221,16 +223,6 @@ namespace Mindforge.Editor
                 materials == null
                     ? "component missing"
                     : $"legacy_restyled={materials.RestyledRendererCount}, current_authored_preserved={materials.PreservedAuthoredRendererCount}");
-
-            CameraOcclusionGhostV16 occlusion = UnityEngine.Object.FindObjectOfType<CameraOcclusionGhostV16>(true);
-            Add(report, "v16_camera_occlusion_hits_canonical_world",
-                occlusion != null && occlusion.CandidateCount > 0,
-                occlusion == null ? "component missing" : $"candidate_renderers={occlusion.CandidateCount}");
-
-            WorldDepthBackdropV16 backdrop = UnityEngine.Object.FindObjectOfType<WorldDepthBackdropV16>(true);
-            Add(report, "v16_backdrop_built_from_canonical_world",
-                backdrop != null && backdrop.BackdropPieceCount > 0,
-                backdrop == null ? "component missing" : $"backdrop_pieces={backdrop.BackdropPieceCount}");
 
             GuardianCombatInput input = UnityEngine.Object.FindObjectOfType<GuardianCombatInput>(true);
             if (input == null || !input.CombatActionsEnabled)
