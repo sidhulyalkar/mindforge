@@ -16,7 +16,7 @@ The current product label is **V0.23 World Foundation + Coherence**. The scene a
 2. `WorldSoulV20Builder.ApplyOpenScene()` creates continuous terrain, material, ecology and far-field grammar.
 3. `WorldCohesionV21Builder.ApplyOpenScene()` performs the recording-driven arena correction and local patina/facade/foreground pass.
 4. `WorldIntegrityV22Builder.ApplyOpenScene()` normalizes structural render state, closes visual seams and authors the broad cavern/world envelope.
-5. `WorldFoundationV23Builder.ApplyOpenScene()` reconciles visual geometry with collision, replaces the cavern ceiling with inward-facing topology, seals the high vault ends and gives the route believable foundations.
+5. `WorldFoundationV23Builder.ApplyOpenScene()` reconciles visual geometry with collision, makes generated landmass explorable, replaces the cavern ceiling with inward-facing topology, seals the high vault ends and gives the route believable foundations.
 
 Runtime then composes the maintained Guardian/combat presentation, V0.19 Fractured Signal movement and scheduler, V0.21 spacing adapter, V0.22 duel-stability layer, manual-Wisp intermission and SSVEP/telemetry systems.
 
@@ -27,7 +27,9 @@ The V0.22 playtest showed an important distinction: a world can be visually seal
 V0.23 treats this as a world-foundation problem rather than another decoration pass:
 
 - the crossing V0.22 ascent underlay is removed and replaced with a visual foundation skin aligned to the exact canonical ramp slope;
-- three recessed collision seam guards sit below the normal route surfaces, including the real one-metre gap between `CausewayRoad` ending at z=32 and `MarketFloor` beginning at z=33;
+- the real one-metre gap between `CausewayRoad` ending at z=32 and `MarketFloor` beginning at z=33 is filled by one visible collision-backed worn-stone transition at the exact y=0 walking plane;
+- three additional seam guards remain recessed beneath ordinary route surfaces as fail-safe catchers, never higher invisible floors;
+- all four generated V0.20 outer landmasses receive non-convex `MeshCollider`s sharing their render mesh, so aerial exploration can land on terrain that looks solid instead of falling through presentation-only ground;
 - large visually solid procedural rocks, columns, spires and buttresses receive conservative inset contact proxies so the Guardian and existing camera collision agree with what the player sees;
 - the cavern ceiling is regenerated with inward/downward triangle winding and normals rather than relying on a double-sided material to display outward-facing terrain topology from below;
 - the corrected cavern mesh is shared by render and roof collision so those boundaries cannot drift apart;
@@ -57,8 +59,10 @@ The canonical build combines:
 - V0.20 deterministic landforms, generated triplanar surfaces, ecology and far city;
 - V0.21 enlarged/flattened first-boss arena and local environmental cohesion;
 - V0.22 opaque structural render-state normalization, broad ground backing and world envelope;
-- V0.23 route geometry/collision reconciliation and inward cavern shell correction;
-- V0.23 upper cavern seals and below-route foundation composition;
+- V0.23 visible/collision-backed route transition and recessed seam protection;
+- V0.23 shared-render-mesh collision for all four outer generated landmasses;
+- V0.23 selective solid-scenery contact/camera proxies;
+- V0.23 inward cavern shell correction, upper vault seals and route foundations;
 - current Guardian responsive movement, double jump, hover, air dash and physical sword/guard authority;
 - V0.19 Fractured Signal locomotion plus V0.21/V0.22 one-time profile composition;
 - V0.22 trigger-only boss sword-contact hull and exceptional stall recovery;
@@ -87,9 +91,9 @@ When borrowing from public projects:
 
 ## Authority boundary
 
-V0.20 scenery and V0.21 patina/facades/ecology remain static presentation. V0.22 owns the distant cavern envelope collision and V0.23 adds only static physical reconciliation required to make visible solidity truthful.
+V0.20 scenery and V0.21 patina/facades/ecology remain static presentation. V0.22 owns the distant cavern envelope collision and V0.23 adds static physical reconciliation required to make visible solidity truthful.
 
-V0.23's three route seam guards are deliberately recessed beneath canonical traversal surfaces. They are safety catchers, not replacement floors. V0.23 also adds conservative contact proxies to selected large foreground solids. Small foliage, patina, fracture marks and atmospheric detail remain non-blocking.
+V0.23's known causeway/market gap is solved with one visible collider-backed stone transition. Its three seam guards are deliberately recessed beneath canonical traversal surfaces and act only as catchers. The four V0.20 outer landmasses now use their exact visible generated meshes as static `MeshCollider` topology. V0.23 also adds conservative contact proxies to selected large foreground solids. Small foliage, patina, fracture marks and atmospheric detail remain non-blocking.
 
 The V0.23 cavern roof continues to use the same V0.22 spatial recipe, but its mesh is regenerated with inward-facing winding and assigned to both renderer and `MeshCollider`.
 
@@ -126,14 +130,15 @@ There should never again be multiple equally plausible "latest" builders.
 1. Pull the intended branch or `main` and allow Unity to compile/import.
 2. Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)**.
 3. Revisit the Choir Tower ascent first. Jump, double-jump, hover and air-dash across the area where the recording showed the intersecting floor. There should be one readable ramp surface and no body-through-stone illusion.
-4. Cross from Causeway to Market around z=32–33 from the center and both sides. The one-metre historical collision seam must no longer allow a drop while the recessed catcher must remain imperceptible during ordinary traversal.
-5. Traverse every other floor, perch, threshold and boss edge. Seam guards must never feel like higher invisible platforms.
-6. Run into major columns, foreground rocks, fracture spires and chamber buttresses. Large objects that look solid should now feel solid; small foliage and surface patina should remain non-blocking.
-7. Rotate the camera aggressively around those same objects and walls. The existing gameplay-camera sphere cast should respect newly reconciled solid scenery rather than passing through it.
-8. Look upward and toward both cavern ends throughout the route. The ceiling should light as an interior surface and the high north/south vault should remain closed without sky wedges.
-9. Explore lateral edges using the full aerial kit. Existing V0.22 roof/perimeter containment must remain intact.
-10. Enter the Fractured Signal chamber, use the entire arena, and test sword contact, dodge, jump, guard, projectile parry and all boss phases. V0.23 must not regress V0.22 combat behavior.
-11. Hold `V`, verify the deliberate ceasefire, then end the Wisp window and verify combat resumes.
-12. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console for any V0.23 foundation validation failure.
+4. Cross from Causeway to Market around z=32–33 from the center and both sides. The new stone transition should remain visually flush and physically continuous, with no drop or invisible step.
+5. Deliberately explore outside the central route where architecture permits. Land on west/east terrain and probe the north/south generated landmass with the full aerial kit. Visible terrain should support the Guardian.
+6. Traverse every other floor, perch, threshold and boss edge. Recessed seam guards must never feel like higher invisible platforms.
+7. Run into major columns, foreground rocks, fracture spires and chamber buttresses. Large objects that look solid should now feel solid; small foliage and surface patina should remain non-blocking.
+8. Rotate the camera aggressively around those same objects and walls. The existing gameplay-camera sphere cast should respect newly reconciled solid scenery rather than passing through it.
+9. Look upward and toward both cavern ends throughout the route. The ceiling should light as an interior surface and the high north/south vault should remain closed without sky wedges.
+10. Explore lateral edges aggressively. Existing V0.22 roof/perimeter containment remains the final boundary outside newly physical terrain.
+11. Enter the Fractured Signal chamber, use the entire arena, and test sword contact, dodge, jump, guard, projectile parry and all boss phases. V0.23 must not regress V0.22 combat behavior.
+12. Hold `V`, verify the deliberate ceasefire, then end the Wisp window and verify combat resumes.
+13. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console for any V0.23 foundation validation failure.
 
 For real BCI testing, use **Build Neural-Hardware Variant** and the live neural service on a physically qualified display. Software readiness still does not substitute for photodiode timing or real EEG qualification.
