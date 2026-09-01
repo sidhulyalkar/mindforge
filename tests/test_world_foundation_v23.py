@@ -53,12 +53,27 @@ def test_v23_removes_the_recording_visible_crossing_ascent_slab():
         assert token in builder
 
 
-def test_v23_bridges_known_route_seams_below_authoritative_surfaces():
+def test_v23_fills_the_known_causeway_market_hole_with_one_visible_collision_surface():
+    source = read(BUILDER)
+    for token in (
+        '"V23_Route_Transition_Caps"',
+        '"CausewayMarketTransition"',
+        "causeway ends at z=32",
+        "market starts at z=33",
+        "new Vector3(0f, -0.05f, 32.5f)",
+        "new Vector3(8.6f, 0.10f, 1.10f)",
+        "palette.WornStone",
+        'Require(root, "V23_Route_Transition_Caps/CausewayMarketTransition")',
+        "transition.GetComponent<BoxCollider>() == null",
+    ):
+        assert token in source
+
+
+def test_v23_keeps_recessed_guards_below_authoritative_route_surfaces():
     source = read(BUILDER)
     for token in (
         '"V23_Collision_Reconciliation"',
         '"LowerRouteSeamGuard"',
-        "one-metre gap between CausewayRoad",
         '"AscentSeamGuard"',
         '"BossArenaSeamGuard"',
         "BoxCollider collider = go.AddComponent<BoxCollider>()",
@@ -73,6 +88,22 @@ def test_v23_bridges_known_route_seams_below_authoritative_surfaces():
     assert "AddComponent<BoxCollider>()" in collision_section
     assert "MeshRenderer" not in collision_section
     assert "GameObject.CreatePrimitive" not in collision_section
+
+
+def test_v23_makes_all_four_generated_outer_landmasses_physically_explorable():
+    source = read(BUILDER)
+    for token in (
+        "ReconcileOuterTerrainCollision",
+        'worldRoot + "WestLandmass"',
+        'worldRoot + "EastLandmass"',
+        'worldRoot + "SouthLandmass"',
+        'worldRoot + "NorthHighlands"',
+        "terrain.gameObject.AddComponent<MeshCollider>()",
+        "collider.sharedMesh = filter.sharedMesh",
+        "collider.convex = false",
+        "terrainCollider.sharedMesh != terrainFilter.sharedMesh",
+    ):
+        assert token in source
 
 
 def test_v23_reconciles_large_visual_solids_without_turning_patina_into_obstacles():
@@ -95,6 +126,10 @@ def test_v23_reconciles_large_visual_solids_without_turning_patina_into_obstacle
     ):
         assert token in source
 
+    proxy_section = source[
+        source.index("private static bool ShouldReceiveContactProxy") :
+        source.index("private static void RebuildInwardCavernCeiling")
+    ]
     for forbidden_solid in (
         '"Reed_"',
         '"Fern_"',
@@ -102,7 +137,7 @@ def test_v23_reconciles_large_visual_solids_without_turning_patina_into_obstacle
         '"ArenaFracture_"',
         '"RouteLumen_"',
     ):
-        assert forbidden_solid not in source[source.index("private static bool ShouldReceiveContactProxy") : source.index("private static void RebuildInwardCavernCeiling")]
+        assert forbidden_solid not in proxy_section
 
 
 def test_v23_cavern_mesh_faces_inward_and_render_collision_share_topology():
