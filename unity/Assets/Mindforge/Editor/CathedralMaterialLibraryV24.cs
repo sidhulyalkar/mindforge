@@ -2,6 +2,7 @@
 using System;
 using UnityEditor;
 using UnityEngine;
+using Mindforge.Combat;
 
 namespace Mindforge.Editor
 {
@@ -11,6 +12,10 @@ namespace Mindforge.Editor
     /// Architectural stone uses the existing production triplanar shader so texel density stays
     /// stable on modules of different scale. Textures are generated deterministically into the
     /// ignored Generated/V24 tree; source control stores the recipe rather than binary art.
+    ///
+    /// Ensure() also normalizes the canonical scene by renderer role, including inactive arena
+    /// hierarchy objects. The competition arena is commonly inactive while editor authoring runs,
+    /// so relying on activeInHierarchy would silently leave the real route in its old dark palette.
     /// </summary>
     public static class CathedralMaterialLibraryV24
     {
@@ -63,7 +68,7 @@ namespace Mindforge.Editor
                 new Color(0.075f, 0.055f, 0.085f), new Color(0.19f, 0.12f, 0.20f),
                 new Color(0.035f, 0.025f, 0.045f), 0.28f, 0.16f, 0.90f);
 
-            return new Palette
+            Palette palette = new Palette
             {
                 IvoryStone = EnsureTriplanar("V24_IvoryStone", ivory, Color.white, 0.01f, 0.32f, 0.72f, 2.4f),
                 WhiteMarble = EnsureTriplanar("V24_WhiteMarble", marble, Color.white, 0.02f, 0.52f, 0.52f, 2.0f),
@@ -75,6 +80,59 @@ namespace Mindforge.Editor
                 SignalMagenta = EnsureEmission("V24_SignalMagenta", new Color(0.48f, 0.055f, 0.48f), new Color(1.0f, 0.08f, 0.92f) * 2.0f),
                 LumenCyan = EnsureEmission("V24_LumenCyan", new Color(0.08f, 0.34f, 0.42f), new Color(0.16f, 0.78f, 0.92f) * 1.55f),
             };
+
+            NormalizeCanonicalScene(palette);
+            return palette;
+        }
+
+        private static void NormalizeCanonicalScene(Palette palette)
+        {
+            GameObject canonical = EditorSceneLookup.FindIncludingInactive(MindforgeDemoV11Builder.RootName);
+            if (canonical == null) return;
+
+            Renderer[] renderers = canonical.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null) continue;
+                if (renderer.GetComponentInParent<CombatantVitals>() != null) continue;
+
+                string n = renderer.gameObject.name;
+                string materialName = renderer.sharedMaterial != null ? renderer.sharedMaterial.name : string.Empty;
+                if (IsSemanticSignal(n, materialName)) continue;
+
+                Material replacement = null;
+                if (ContainsAny(n, "Floor", "Road", "Ramp", "Platform", "Perch", "Dais", "Threshold", "Transition"))
+                    replacement = palette.PaleFloor;
+                else if (ContainsAny(n, "Gold"))
+                    replacement = palette.SacredGold;
+                else if (ContainsAny(n, "Column", "Arch", "Crown", "Spire", "Buttress", "Rib", "Facade"))
+                    replacement = ContainsAny(n, "FractureSpire") ? palette.WhiteMarble : palette.IvoryStone;
+                else if (ContainsAny(n, "Fracture", "Ember"))
+                    replacement = palette.FractureDark;
+                else if (ContainsAny(n, "Retainer", "Foundation", "Underlay", "Backing", "Backwall", "Boundary"))
+                    replacement = palette.CoolShadowStone;
+                else if (ContainsAny(n, "Terrain", "Landmass", "Highlands", "Rock", "Crater", "Earth"))
+                    replacement = palette.CoolShadowStone;
+                else if (ContainsAny(n, "Wall", "Sanctum", "Market", "Ascent", "Causeway"))
+                    replacement = palette.IvoryStone;
+
+                if (replacement != null) renderer.sharedMaterial = replacement;
+                renderer.receiveShadows = true;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            }
+        }
+
+        private static bool IsSemanticSignal(string objectName, string materialName)
+            => ContainsAny(objectName, "MemoryForgeCore", "SignalOrb", "Wisp", "Vep", "Stimulus", "Telegraph", "Aether") ||
+               ContainsAny(materialName, "Signal", "Wisp", "Vep", "Stimulus", "Telegraph", "Aether");
+
+        private static bool ContainsAny(string source, params string[] needles)
+        {
+            if (string.IsNullOrEmpty(source)) return false;
+            for (int i = 0; i < needles.Length; i++)
+                if (source.IndexOf(needles[i], StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
         }
 
         private static SurfaceSet EnsureStoneSurface(
