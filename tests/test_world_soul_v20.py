@@ -20,14 +20,15 @@ def read(path: Path) -> str:
 def test_world_soul_remains_the_first_world_authoring_stage_of_latest():
     latest = read(LATEST)
     world = read(WORLD)
-    assert 'ProductVersion = "V0.24 White Cathedral + World Reformation"' in latest
+    assert 'ProductVersion = "V0.25 Sensory Fidelity + Data Cathedral"' in latest
     v11_i = latest.index("MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);")
     v20_i = latest.index("WorldSoulV20Builder.ApplyOpenScene();", v11_i)
     v21_i = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20_i)
     v22_i = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21_i)
     v23_i = latest.index("WorldFoundationV23Builder.ApplyOpenScene();", v22_i)
     v24_i = latest.index("WorldCathedralV24Builder.ApplyOpenScene();", v23_i)
-    assert v11_i < v20_i < v21_i < v22_i < v23_i < v24_i
+    v25_i = latest.index("SensoryFidelityV25Builder.ApplyOpenScene();", v24_i)
+    assert v11_i < v20_i < v21_i < v22_i < v23_i < v24_i < v25_i
     assert "EnsureWorldLayersOpenScene();" in latest
     assert 'RootName = "Mindforge_World_Soul_V20"' in world
     assert "MindforgeDemoV11Builder.RootName" in world
