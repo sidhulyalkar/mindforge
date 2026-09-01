@@ -112,7 +112,7 @@ Shader "Mindforge/FracturedSignalV25"
             ENDHLSL
         }
 
-        ShadowCaster
+        Pass
         {
             Name "ShadowCaster"
             Tags { "LightMode"="ShadowCaster" }
