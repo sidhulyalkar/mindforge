@@ -23,19 +23,21 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_v22_remains_the_integrity_stage_before_v23_and_v24():
+def test_v22_remains_the_integrity_stage_before_v23_v24_and_v25_presentation():
     latest = read(LATEST)
-    assert 'ProductVersion = "V0.24 White Cathedral + World Reformation"' in latest
+    assert 'ProductVersion = "V0.25 Sensory Fidelity + Data Cathedral"' in latest
     v11 = latest.index("MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);")
     v20 = latest.index("WorldSoulV20Builder.ApplyOpenScene();", v11)
     v21 = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20)
     v22 = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21)
     v23 = latest.index("WorldFoundationV23Builder.ApplyOpenScene();", v22)
     v24 = latest.index("WorldCathedralV24Builder.ApplyOpenScene();", v23)
-    assert v11 < v20 < v21 < v22 < v23 < v24
+    v25 = latest.index("SensoryFidelityV25Builder.ApplyOpenScene();", v24)
+    assert v11 < v20 < v21 < v22 < v23 < v24 < v25
     assert "if (!WorldIntegrityV22Builder.PresentInOpenScene())" in latest
     assert "if (!WorldFoundationV23Builder.PresentInOpenScene())" in latest
     assert "if (!WorldCathedralV24Builder.PresentInOpenScene())" in latest
+    assert "if (!SensoryFidelityV25Builder.PresentInOpenScene())" in latest
     assert 'RootName = "Mindforge_World_Foundation_V23"' in read(FOUNDATION)
     assert 'RootName = "Mindforge_White_Cathedral_V24"' in read(CATHEDRAL)
 
