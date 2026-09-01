@@ -9,15 +9,15 @@ namespace Mindforge.Editor
     /// <summary>
     /// The only ordinary-development entry point for the current integrated game.
     ///
-    /// Product version and scene-asset version are deliberately decoupled. The clean
-    /// V0.11 scene builder remains the authoritative systems/traversal assembler. V0.20
-    /// World Soul authors the continuous landscape, then V0.21 Arena + Patina performs the
-    /// recording-driven arena/collision and environmental-cohesion pass before runtime systems
-    /// compose after scene load.
+    /// Product version and scene-asset version are deliberately decoupled. The clean V0.11
+    /// scene builder remains the authoritative systems/traversal assembler. V0.20 World Soul
+    /// authors continuous landscape/material grammar, V0.21 Arena + Patina corrects the first
+    /// boss bowl and local seams, then V0.22 World Integrity seals the visible world envelope
+    /// and normalizes structural rendering before runtime systems compose.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.21 Arena + Patina";
+        public const string ProductVersion = "V0.22 World Integrity + Boss Duel";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -93,6 +93,7 @@ namespace Mindforge.Editor
             MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);
             WorldSoulV20Builder.ApplyOpenScene();
             WorldCohesionV21Builder.ApplyOpenScene();
+            WorldIntegrityV22Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -127,6 +128,8 @@ namespace Mindforge.Editor
                 WorldSoulV20Builder.ApplyOpenScene();
             if (!WorldCohesionV21Builder.PresentInOpenScene())
                 WorldCohesionV21Builder.ApplyOpenScene();
+            if (!WorldIntegrityV22Builder.PresentInOpenScene())
+                WorldIntegrityV22Builder.ApplyOpenScene();
         }
     }
 }
