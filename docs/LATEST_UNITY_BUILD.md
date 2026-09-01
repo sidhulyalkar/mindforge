@@ -8,94 +8,81 @@ For ordinary Mindforge development there is exactly one supported Unity entry po
 
 This rebuilds and opens the canonical integrated scene, then enters Play Mode.
 
-The current product label is **V0.25 Sensory Fidelity + Data Cathedral**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
+The current product label is **V0.26 Production Geometry + Cathedral Depth**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
 
-`MindforgeLatestEditorMenu.BuildCanonical(...)` now has seven deterministic authoring stages:
+`MindforgeLatestEditorMenu.BuildCanonical(...)` has eight deterministic stages:
 
-1. `MindforgeDemoV11Builder.BuildDemoScene(...)` creates the authoritative systems and traversal kernel.
+1. `MindforgeDemoV11Builder.BuildDemoScene(...)` creates authoritative gameplay systems and traversal.
 2. `WorldSoulV20Builder.ApplyOpenScene()` creates continuous terrain/material/world grammar.
-3. `WorldCohesionV21Builder.ApplyOpenScene()` applies the arena correction and earlier local cohesion work.
-4. `WorldIntegrityV22Builder.ApplyOpenScene()` normalizes structural render state and seals the broad cavern/world envelope.
-5. `WorldFoundationV23Builder.ApplyOpenScene()` reconciles visible geometry with collision, makes generated terrain explorable and fixes the inward cavern/foundation shell.
-6. `WorldCathedralV24Builder.ApplyOpenScene()` removes obsolete foreground clutter and imposes the canonical white-cathedral material, module, floor, lighting and architectural grammar.
-7. `SensoryFidelityV25Builder.ApplyOpenScene()` promotes the pinned high-fidelity URP configuration, SSAO/screen-space shadows, ACES/bloom/color response and static collider-free data-cathedral inlays.
+3. `WorldCohesionV21Builder.ApplyOpenScene()` corrects the first-boss bowl and local cohesion.
+4. `WorldIntegrityV22Builder.ApplyOpenScene()` normalizes structural render state and seals the cavern/world envelope.
+5. `WorldFoundationV23Builder.ApplyOpenScene()` reconciles visible geometry with collision and makes generated terrain physically trustworthy.
+6. `WorldCathedralV24Builder.ApplyOpenScene()` imposes the white-cathedral palette, modular architecture and final foreground world grammar.
+7. `SensoryFidelityV25Builder.ApplyOpenScene()` promotes the pinned high-fidelity URP configuration, SSAO/screen-space shadows, ACES/post, data-cathedral inlays and maintained sensory presentation.
+8. `WorldRenderingV26Builder.ApplyOpenScene()` replaces remaining primitive structural render meshes, adds tapered buttress silhouettes, recessed wall depth, continuous vault webs, cavern material separation and tri-light environmental depth.
 
-Runtime then composes the maintained Guardian/combat presentation, Fractured Signal movement/scheduler, manual-Wisp intermission and SSVEP/telemetry systems. V0.25 additionally installs the canonical sensory presentation root for pooled combat/locomotion VFX, bounded camera impact, Fractured Signal surface depth, quieter HUD/diegetic prompts and restrained spatial audio.
+Runtime then composes the maintained Guardian/combat presentation, Fractured Signal movement/scheduler, manual-Wisp intermission and SSVEP/telemetry systems.
 
-## What V0.25 changes
+## What V0.26 changes
 
-V0.24 solved architectural trust. V0.25 tackles the next problem visible in playtest captures: the game still **presents like a greybox even when the world logic is increasingly mature**.
+V0.25 removed major runtime presentation conflicts and made the intended cathedral visible. V0.26 addresses what still looked unfinished once that conflict was gone: much of the architecture still resolved to raw cube silhouettes, the transverse ribs lacked a continuous roof surface, and flat ambient fill compressed pale architecture and dark cavern into nearly the same value range.
 
-The root causes are explicit in the codebase:
+V0.26 therefore improves the actual rendered world instead of adding another post-processing layer:
 
-- many V0.24 structural modules are still cube-derived deterministic geometry;
-- the canonical V0.11 Guardian shell is still primitive-based;
-- the Fractured Signal has an improved procedural silhouette but stock surface response makes its large facets look flat;
-- the canonical V0.11 presentation firewall correctly blocks the historical showcase stack, which also means old post/VFX helpers were not automatically reaching Latest;
-- the V0.17 HUD is functional but intentionally utilitarian.
+- semantic V0.24 structural cubes receive deterministic chamfered render meshes;
+- walkable floor skins and mystic/data accents are excluded from that replacement;
+- stacked-box `Foot + Body + Crown` buttresses are visually replaced by tapered shells plus restrained finials;
+- narthex/nave wall panels gain pointed recessed niches and sills;
+- the five established cathedral vault stations are connected by four inward-facing Gothic vault webs;
+- three longitudinal crown ribs prevent the ceiling from reading as one smooth tent;
+- deep cavern/backwall surfaces and distant outer terrain receive separate material response from the pale cathedral;
+- ambient lighting switches from V0.25's diagnostic flat fill to sky/equator/ground tri-light depth;
+- fog resolves toward a deeper blue-slate distance color;
+- cathedral shadow reach is extended to at least 68 m for long nave/cloister views.
 
-V0.25 fixes the presentation-routing and sensory-depth problems without destabilizing the world:
+See `docs/WORLD_RENDERING_V26.md` for implementation details and the focused playtest gate.
 
-- promotes `CinematicFidelityConfigurator` into Latest rather than forking another URP asset;
-- enables HDR, depth/normals, four-cascade shadows, SSAO and screen-space shadows on the pinned URP 14 forward renderer;
-- adds ACES tonemapping, restrained bloom, high-key color response, white balance and a very light vignette;
-- lifts white-cathedral ambient/key response so pale stone separates from recessed geology;
-- adds static cyan processional data inlays through the nave, market, choir rise and apse with **zero colliders**;
-- promotes existing pooled combat VFX into the canonical V0.11 path;
-- adds bounded dash/jump/landing VFX and tiny conventional-combat camera impulses;
-- adds a custom Fractured Signal shader with low-amplitude vertex displacement, main-light depth and fresnel fracture edges;
-- replaces the V0.17 conventional bottom prompt with world-space lock/channel/action prompts;
-- keeps neural calibration/resonance instructions screen-stable and explicit;
-- adds restrained spatial boss ambience and conventional action tones.
-
-All dynamic V0.25 presentation freezes, hides or mutes during calibration or Wisp resonance windows.
-
-See `docs/SENSORY_FIDELITY_V25.md` for the full critique, ownership boundaries and playtest gate.
-
-## What each world stage owns
+## World-stage ownership
 
 The stack is intentionally layered rather than mutually authoritative:
 
 - **V0.11**: gameplay systems and canonical traversal surfaces.
-- **V0.20**: deterministic outer landforms/world surfaces.
-- **V0.21**: first-boss bowl geometry correction and cohesion.
+- **V0.20**: deterministic outer landforms and world surfaces.
+- **V0.21**: first-boss bowl geometry correction and local cohesion.
 - **V0.22**: opaque structural normalization, cavern/perimeter containment and boss-duel stability.
 - **V0.23**: floor/collision reconciliation, terrain collision and inward cavern/foundation shell.
-- **V0.24**: white-cathedral palette, modular architecture, cleanup and final foreground world grammar.
-- **V0.25**: render fidelity and read-only sensory presentation only.
+- **V0.24**: white-cathedral palette, modular architecture and foreground composition.
+- **V0.25**: render fidelity and runtime sensory presentation.
+- **V0.26**: static production render geometry and environmental depth only.
 
-V0.25 does not become a second world generator and does not own collision.
+V0.26 does not become a second collision or gameplay authority. Existing V0.11/V0.23 surfaces remain physically authoritative.
 
-## Canonical composition
+## Rendering architecture
 
-The canonical build combines:
+The canonical build now combines:
 
-- clean V0.11 systems/traversal authority;
-- V0.20 deterministic terrain and world-surface generation;
-- V0.21 boss-arena geometry correction;
-- V0.22 structural opacity, cavern envelope and stable boss-duel behavior;
-- V0.23 floor/collision reconciliation, terrain collision and inward cavern shell;
-- V0.24 white-cathedral material palette and deterministic generated stone textures;
-- V0.24 semantic modular building kit (`FloorSkin`, `Column`, `PointedArch`, `Buttress`, `WallPanel`, `LumenSconce`, etc.);
-- V0.24 narthex, nave, cloister, choir and Fractured Signal apse composition;
-- V0.25 high-fidelity URP/SSAO/shadow/post stack;
-- V0.25 static data-cathedral route inlays;
-- V0.25 pooled combat and locomotion consequence VFX;
-- V0.25 Fractured Signal depth/corruption surface treatment;
-- V0.25 diegetic conventional prompts and compact neural-aware HUD;
-- current Guardian responsive movement, double jump, hover, air dash and physical sword/guard authority;
-- current Wisp/SSVEP/display-timing/persistence/telemetry systems.
+- the clean V0.11 gameplay/traversal kernel;
+- V0.20 deterministic terrain;
+- V0.21 arena correction;
+- V0.22 cavern containment and duel stability;
+- V0.23 truthful visible/physical floor and terrain topology;
+- V0.24 cathedral materials and semantic module grammar;
+- V0.25 HDR, depth/normals, four-cascade shadows, SSAO, screen-space shadows and restrained ACES/bloom/color response;
+- V0.26 chamfered structural geometry, tapered supports, wall recesses and continuous vault surfaces;
+- V0.26 deep-cavern/distant-terrain material separation and tri-light ambience;
+- maintained responsive Guardian movement, double jump, hover, air dash and sword/guard authority;
+- maintained Wisp/SSVEP/display-timing/persistence/telemetry systems.
 
 ## Graphics engineering policy
 
-World authoring uses public codebases as engineering references, not an asset landfill. V0.20's deterministic noise remains adapted from MIT-licensed `SebLague/Procedural-Landmass-Generation`; the mesh-recipe workflow remains informed by MIT-licensed `aadebdeb/ProceduralMesh`; V0.23 uses MIT-licensed `SebLague/Procedural-Cave-Generation` as a reference for shared visible/physical cave topology.
+World authoring uses public codebases as engineering references, not an asset landfill. V0.20's deterministic noise remains adapted from MIT-licensed `SebLague/Procedural-Landmass-Generation`; the mesh-recipe workflow remains informed by MIT-licensed `aadebdeb/ProceduralMesh`; V0.23 records MIT-licensed `SebLague/Procedural-Cave-Generation` as a reference for visible/physical cave topology.
 
-V0.24 and V0.25 do not import another game's cathedral art or a competing environment framework. Generated V0.24/V0.25 materials and profiles live under ignored `Assets/Mindforge/Generated` paths.
+V0.24-V0.26 do not import another game's cathedral art or a competing environment framework. Generated materials, meshes and profiles live under ignored `Assets/Mindforge/Generated` paths.
 
 When borrowing from public projects:
 
 - confirm the upstream license before adapting code or logic;
-- record the upstream and usage in `third_party/manifest.json` where applicable;
+- record upstream usage when applicable;
 - include required license notices when source is actually vendored or substantially adapted;
 - prefer narrow techniques over importing a competing world-authority framework;
 - do not copy another game's character identity, level art or visual signature;
@@ -103,13 +90,11 @@ When borrowing from public projects:
 
 ## Authority boundary
 
-V0.25 is presentation only.
+V0.26 is editor-authored static presentation.
 
-It does not create damage, modify boss cadence, call locomotion requests, award Flux, change target authority, mutate persistence, or create neural evidence. Existing `HitStopController` remains the one hit-stop owner. V0.25 reads authoritative combat and locomotion events and emits optional pooled effects downstream.
+It does not create colliders, Rigidbody components, damage, boss cadence, locomotion requests, Flux, target authority, persistence state, Wisp state or neural evidence. It also has no `Update`, `LateUpdate` or `FixedUpdate` loop.
 
-The data inlays are collider-free. Canonical V0.11/V0.23 route surfaces remain physical authority.
-
-The custom Fractured Signal shader has a motion-scale freeze, and runtime sets that motion to zero through the complete calibration/Wisp resonance visual-field interval. Diegetic prompts, camera impact and V0.25 audio also suppress during that interval.
+V0.25 remains the runtime sensory-presentation owner. Its Fractured Signal motion, diegetic prompts, camera impact and audio still suppress through calibration/Wisp resonance windows. V0.26 adds no temporal stimuli at all.
 
 Software readiness still does not substitute for photodiode/display timing or real EEG qualification.
 
@@ -117,17 +102,15 @@ Software readiness still does not substitute for photodiode/display timing or re
 
 `Mindforge → Latest` intentionally contains only:
 
-- **PLAY LATEST (BCI Simulation)**: rebuild V0.11, apply V0.20 → V0.21 → V0.22 → V0.23 → V0.24 → V0.25, open and play in controller BCI simulation.
+- **PLAY LATEST (BCI Simulation)**: rebuild V0.11 and apply V0.20 → V0.21 → V0.22 → V0.23 → V0.24 → V0.25 → V0.26, then open and play in controller BCI simulation.
 - **Rebuild Latest Integrated Scene**: perform the same deterministic build without Play Mode.
-- **Open Latest Integrated Scene**: open the canonical scene and upgrade missing world layers in order.
+- **Open Latest Integrated Scene**: open the canonical scene and upgrade missing layers in order.
 - **Validate Latest Readiness**: run the maintained readiness audit. It is software/scene evidence, not physical SSVEP qualification.
 - **Build Neural-Hardware Variant**: build the same world with controller-only qualification disabled for real neural-service/hardware testing.
 
 ## Manual Wisp and first-boss contract
 
-Holding `V` remains the deliberate Wisp listening ritual. V0.25 does not alter that ceasefire, neural-link safety owner, target policy or combat scheduler.
-
-Conventional combat presentation becomes richer outside neural windows. During neural evidence collection, V0.25 deliberately becomes quieter and more static.
+Holding `V` remains the deliberate Wisp listening ritual. V0.26 does not alter that ceasefire, neural-link safety owner, target policy or combat scheduler.
 
 ## Legacy policy
 
@@ -139,18 +122,17 @@ Do not compose a new release by manually running historical `Apply ...` commands
 
 There should never again be multiple equally plausible "latest" builders.
 
-## V0.25 playtest flow
+## V0.26 playtest flow
 
-1. Pull the intended branch or `main` and allow Unity to compile/import.
+1. Pull the intended branch and allow Unity to compile/import generated V0.26 mesh/material assets.
 2. Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)**.
-3. At spawn, inspect pale stone contacts. Columns/floors should have substantially better shadow and occlusion weight than V0.24.
-4. Follow the cyan data inlays through the nave and market. They should guide direction without behaving like flashing stimuli or combat telegraphs.
-5. Re-test the Choir ascent with jump, double-jump, hover and air dash. The inlay must not create collision or a second floor.
-6. Lock the Fractured Signal and orbit it. It should read as dark fractured mass with hot edges/core rather than uniform flat magenta geometry.
-7. Dash, jump, double-jump, land, strike and perfect-guard. Pooled effects should be short and bounded; camera impact should be noticeable but small.
-8. Confirm conventional lock/channel guidance is anchored in world space rather than a persistent bottom-screen banner.
-9. Start calibration/Wisp resonance. Boss displacement must freeze and V0.25 diegetic prompts, camera kick and audio must suppress while coded-core instructions remain explicit.
-10. Re-run outer terrain and boss-bowl exploration to confirm no V0.23/V0.24 collision regression.
-11. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console.
+3. Walk slowly through the Causeway nave and inspect column bases, capitals, walls and trim from oblique angles. They should catch beveled highlights rather than terminate in razor-edged cubes.
+4. Orbit close to narthex and nave wall panels. Pointed frames should sit in front of visibly recessed darker surfaces.
+5. Inspect Cloister, Choir and apse buttresses. Their dominant silhouette should taper upward instead of reading as three stacked blocks.
+6. Look upward from nave/cloister. Transverse ribs should belong to a continuous roof surface, with three longitudinal ribs breaking the ceiling mass.
+7. Look down the long route. White architecture should remain readable against a darker cavern shell and distinct distant terrain.
+8. Re-test the Choir ascent, Causeway/Market seam, outer terrain and boss bowl with jump, double jump, hover and air dash. V0.26 must not change collision behaviour.
+9. Start calibration/Wisp resonance and verify V0.25 neural-window suppression remains unchanged.
+10. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console.
 
-The next dedicated visual tranche after V0.25 should be **production mesh/character replacement**, not another layer of post-processing. V0.25 makes the current architecture readable; it does not pretend primitive-derived silhouettes are final art.
+If this still reads as prototype art, the next visual tranche should target the Guardian/hero props and bespoke region-specific facade modules rather than another global post pass.
