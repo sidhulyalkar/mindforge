@@ -9,6 +9,7 @@ LATEST = EDITOR / "MindforgeLatestEditorMenu.cs"
 V11 = EDITOR / "MindforgeDemoV11Builder.cs"
 V20 = EDITOR / "WorldSoulV20Builder.cs"
 V21 = EDITOR / "WorldCohesionV21Builder.cs"
+V22 = EDITOR / "WorldIntegrityV22Builder.cs"
 MOBILITY = COMBAT / "FracturedSignalArenaMobilityV21.cs"
 LIFECYCLE = UNITY / "Tests" / "Editor" / "MindforgeUnityLifecycleSmokeTests.cs"
 
@@ -18,21 +19,21 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_v21_is_the_latest_stage_after_world_soul():
+def test_v21_remains_the_cohesion_stage_between_world_soul_and_v22_integrity():
     latest = read(LATEST)
-    assert 'ProductVersion = "V0.21 Arena + Patina"' in latest
+    assert 'ProductVersion = "V0.22 World Integrity + Boss Duel"' in latest
     v11_i = latest.index("MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);")
     v20_i = latest.index("WorldSoulV20Builder.ApplyOpenScene();", v11_i)
     v21_i = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20_i)
-    assert v11_i < v20_i < v21_i
+    v22_i = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21_i)
+    assert v11_i < v20_i < v21_i < v22_i
     assert "EnsureWorldLayersOpenScene();" in latest
+    assert 'RootName = "Mindforge_World_Integrity_V22"' in read(V22)
 
 
 def test_recording_driven_arena_is_materially_larger_and_center_is_flat():
     source = read(V21)
     legacy = read(V11)
-
-    # The capture showed that the old 13 m ring plus 5.4 m boss leash behaved like a corridor.
     assert "const float radius = 13.0f" in legacy
     assert "new Vector3(25f, 0.72f, 24f)" in legacy
     assert 'Block("FractureInnerDais"' in legacy
@@ -89,8 +90,6 @@ def test_v21_boss_spacing_matches_the_new_arena_and_fails_closed():
         assert token in source
 
     assert source.index("if (!fieldsAvailable)") < source.index('Set("phaseOnePreferredDistance"')
-
-    # V21 changes V19's tuning, not its movement/attack/neural authority.
     for forbidden in (
         "FixedUpdate(",
         "MovePosition(",
@@ -129,7 +128,6 @@ def test_v21_patina_is_static_collider_free_world_evidence():
     ):
         assert token in source
 
-    # New presentation stays temporally quiet for SSVEP evidence and never creates collision.
     for forbidden in (
         "RuntimeInitializeOnLoadMethod",
         "private void Update(",

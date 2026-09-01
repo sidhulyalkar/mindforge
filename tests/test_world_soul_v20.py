@@ -20,11 +20,12 @@ def read(path: Path) -> str:
 def test_world_soul_remains_the_first_world_authoring_stage_of_latest():
     latest = read(LATEST)
     world = read(WORLD)
-    assert 'ProductVersion = "V0.21 Arena + Patina"' in latest
+    assert 'ProductVersion = "V0.22 World Integrity + Boss Duel"' in latest
     v11_i = latest.index("MindforgeDemoV11Builder.BuildDemoScene(controllerOnlyByDefault);")
     v20_i = latest.index("WorldSoulV20Builder.ApplyOpenScene();", v11_i)
     v21_i = latest.index("WorldCohesionV21Builder.ApplyOpenScene();", v20_i)
-    assert v11_i < v20_i < v21_i
+    v22_i = latest.index("WorldIntegrityV22Builder.ApplyOpenScene();", v21_i)
+    assert v11_i < v20_i < v21_i < v22_i
     assert "EnsureWorldLayersOpenScene();" in latest
     assert 'RootName = "Mindforge_World_Soul_V20"' in world
     assert "MindforgeDemoV11Builder.RootName" in world
