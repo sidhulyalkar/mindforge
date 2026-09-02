@@ -8,9 +8,9 @@ For ordinary Mindforge development there is exactly one supported Unity entry po
 
 This deterministically rebuilds and opens the canonical integrated scene, then enters Play Mode.
 
-The current product label is **V0.27 Guardian Embodiment + Fractured Beast**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
+The current product label is **V0.28 Professional Creature + World Staging**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
 
-`MindforgeLatestEditorMenu.BuildCanonical(...)` now has nine ordered authoring stages:
+`MindforgeLatestEditorMenu.BuildCanonical(...)` now has ten ordered authoring stages:
 
 1. `MindforgeDemoV11Builder.BuildDemoScene(...)` creates the authoritative systems and traversal kernel.
 2. `WorldSoulV20Builder.ApplyOpenScene()` creates continuous terrain/material/world grammar.
@@ -20,115 +20,78 @@ The current product label is **V0.27 Guardian Embodiment + Fractured Beast**. Th
 6. `WorldCathedralV24Builder.ApplyOpenScene()` imposes the white-cathedral palette, cleanup, processional route and architectural grammar.
 7. `SensoryFidelityV25Builder.ApplyOpenScene()` promotes the pinned URP fidelity stack, restrained post-processing, static data inlays and maintained sensory presentation.
 8. `WorldRenderingV26Builder.ApplyOpenScene()` replaces remaining primitive cathedral render silhouettes, adds continuous vault webs and restores cavern/material depth.
-9. `CombatEmbodimentV27Builder.ApplyOpenScene()` adds collider-free encounter staging for the Fractured Signal while runtime presentation supplies the Guardian sword arm and new animalistic beast body.
+9. `CombatEmbodimentV27Builder.ApplyOpenScene()` supplies Guardian sword-arm embodiment and collider-free encounter staging.
+10. `ProfessionalEncounterV28Builder.ApplyOpenScene()` replaces the procedural boss proxy with pinned authored quadruped art, derives the matching sword-contact envelope, installs actor-separation/camera readability support and adds sparse socketed cathedral dressing.
 
-Runtime then composes the maintained Guardian/combat presentation, Fractured Signal scheduler, manual-Wisp intermission and SSVEP/telemetry systems. V0.27 adds `GuardianCombatEmbodimentV27`, `FracturedSignalBeastV27` and `FracturedArenaDynamicsV27` downstream of those authorities.
+## What V0.28 changes
 
-## What V0.27 changes
+V0.27 proved that the first boss needed an animal body, but the generated proxy still read as primitive art and could visually overlap the Guardian. V0.28 treats those as structural production problems rather than shader problems.
 
-V0.26 made the cathedral geometry read more like production architecture. The most obvious remaining prototype silhouettes were therefore the moving characters and the static boss-stage response.
+The pass now:
 
-V0.27 addresses those directly:
+- keeps boss-player minimum spacing inside `FracturedSignalFirstBossV19`, the existing boss movement owner;
+- replaces the V0.27 generated creature with Gobkit's pinned CC0 rigged `Rhino.glb` anatomy and authored idle/walk/attack/death clips;
+- normalizes and grounds the imported body from its actual renderer bounds;
+- derives four trigger-only anatomical sword hurt volumes from that rendered body so head, chest, flank and rear contact agree with visible anatomy;
+- disables the old humanoid-sized V0.22 boss combat hull;
+- adds a bounded V0.28 camera post-resolver only when the boss actually occludes the Guardian sight corridor;
+- imports a deliberately tiny CC0 KayKit subset for banners, mounted fixtures, chairs, relic tables and a reliquary;
+- places those props only from deterministic side sockets with a protected processional corridor and boss clear radius;
+- removes all collision/Rigidbody authority from decorative imported props and applies Mindforge's existing white-cathedral materials;
+- reduces half of the V0.27 radial floor-line noise rather than adding another full visual layer;
+- keeps all dynamic V0.28 creature/camera behavior neutral during neural visual fields.
 
-- replaces only the visible Guardian right arm/hand with an articulated shoulder → elbow → wrist presentation chain;
-- solves that arm from `GuardianSwordShieldController` combo state and the actual runtime Aetherblade hilt, while keeping mathematical sword contact unchanged;
-- adds bounded torso/chest/head/off-hand follow-through so attacks read as body motion rather than a floating blade;
-- retires the V0.19 shard-knight render root in favor of a continuous low animalistic parasite body with jowls, maw, jaw, sensory eyes, forelimbs, feelers and dorsal signal crystals;
-- drives beast pose only from existing movement, phase, telegraph, fired and damage events;
-- adds thin floor rites, perimeter corruption spines, beast altar framing and encounter-local lights without adding colliders or Rigidbody components;
-- makes arena scale/emission/light response follow the existing boss phase/attack events;
-- freezes dynamic V0.27 presentation to neutral during Wisp calibration/resonance windows.
+See `docs/PROFESSIONAL_ENCOUNTER_V28.md` for the full authority, provenance and validation contract.
 
-See `docs/COMBAT_EMBODIMENT_V27.md` for the detailed authority and playtest contract.
+## Public art acquisition
 
-## What each stage owns
+The first V0.28 rebuild may need network access in the Unity Editor because the source art is acquired from immutable GitHub commit URLs into the ignored `Assets/Mindforge/Generated/V28/ThirdParty` cache.
 
-The stack is intentionally layered rather than mutually authoritative:
+This is intentional. Source art is not manually dragged into the project and is not fetched at runtime. `PublicAssetAcquisitionV28` verifies every download against its exact upstream Git blob SHA-1 before import. A missing network connection or hash mismatch fails the V0.28 build closed rather than silently restoring the procedural creature.
 
-- **V0.11**: gameplay systems and canonical traversal surfaces.
-- **V0.20**: deterministic outer landforms/world surfaces.
-- **V0.21**: first-boss bowl geometry correction and cohesion.
-- **V0.22**: structural opacity, cavern/perimeter containment and boss-duel stability.
-- **V0.23**: floor/collision reconciliation, terrain collision and inward cavern/foundation shell.
-- **V0.24**: white-cathedral palette, modular architecture, cleanup and final foreground world grammar.
-- **V0.25**: render fidelity and read-only sensory presentation.
-- **V0.26**: production world-render geometry and atmospheric/material depth only.
-- **V0.27**: character embodiment and encounter-stage presentation only.
+The pinned sources are:
 
-The physical sword sweep remains owned by `GuardianSwordShieldController`. The boss movement/attacks remain owned by the existing Fractured Signal combat components. V0.27 cannot create damage, reach, collision, locomotion, target selection, Flux or neural evidence.
+- **Gobkit Free Assets**, CC0, commit `0d654ab3306515b1b63621a5c6548554034482dc`, using only `animal/Rhino.glb`.
+- **KayKit Dungeon Remastered 1.0**, CC0, commit `b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07`, using only five selected OBJ props.
+- **Khronos UnityGLTF**, MIT, pinned to `release/2.20.0`, used solely for glTF import.
 
-## Canonical composition
-
-The canonical build combines:
-
-- clean V0.11 systems/traversal authority;
-- V0.20 deterministic terrain and world-surface generation;
-- V0.21 boss-arena geometry correction;
-- V0.22 structural opacity, cavern envelope and stable boss-duel behavior;
-- V0.23 floor/collision reconciliation, terrain collision and inward cavern shell;
-- V0.24 white-cathedral material palette and deterministic generated stone textures;
-- V0.24 semantic modular building kit;
-- V0.24 narthex, nave, cloister, choir and Fractured Signal apse composition;
-- V0.25 high-fidelity URP/SSAO/shadow/post stack;
-- V0.25 static data-cathedral route inlays;
-- V0.25 pooled combat/locomotion consequence VFX, compact HUD, diegetic prompts and spatial audio;
-- V0.26 chamfered structural meshes, tapered buttresses, wall-niche depth, continuous vault webs and cavern depth separation;
-- V0.27 articulated Guardian sword-arm embodiment;
-- V0.27 animalistic Fractured Signal parasite presentation;
-- V0.27 collider-free encounter rites, phase spines, altar frame and local arena response;
-- current Guardian responsive movement, double jump, hover, air dash and physical sword/guard authority;
-- current Wisp/SSVEP/display-timing/persistence/telemetry systems.
-
-## Graphics engineering policy
-
-World and character presentation code should improve **what the proven game renders**, not become a competing gameplay engine. Generated or procedural geometry can iterate quickly, but final production assets may later replace it behind the same presentation contracts.
-
-When borrowing from public projects:
-
-- confirm the upstream license before adapting code or logic;
-- record the upstream and usage in `third_party/manifest.json` where applicable;
-- include required license notices when source is actually vendored or substantially adapted;
-- prefer narrow techniques over importing a competing world-authority framework;
-- do not copy another game's character identity, level art or visual signature;
-- preserve the SSVEP visual-control boundary.
+Exact asset-level provenance is recorded in `third_party/manifest.json`.
 
 ## Authority boundary
 
-V0.27 is presentation only.
+The physical sword sweep remains owned by `GuardianSwordShieldController`. Multiple V0.28 hurt boxes all resolve to the same `CombatantVitals`, and the sword already deduplicates each receiver per swing.
 
-The visible sword hilt may be translated to meet the solved gauntlet, but physical contact remains the fixed-tick mathematical sweep from `GuardianSwordShieldController`. The V0.27 boss body is a renderer hierarchy attached to the existing boss root; it creates no boss Rigidbody, collider, navigation or attack path. The V0.27 arena builder fails if its root contains any Collider or Rigidbody.
+Boss locomotion remains owned by `FracturedSignalFirstBossV19`; V0.28 adds its minimum-separation contract there rather than creating a second push controller. Boss attack scheduling remains unchanged.
 
-During neural evidence collection, Guardian embodiment, beast pose and arena dynamic response settle to neutral. Software readiness still does not substitute for photodiode/display timing or real EEG qualification.
+The canonical V0.17 gameplay camera still owns orbit, fixed FOV and ordinary framing. `MindforgeActorOcclusionGuardV28` is a bounded post-resolver that only acts when target renderer bounds block the camera-to-Guardian sight corridor.
+
+V0.23 remains world collision/foundation authority. V0.28 decorative staging is collider-free.
+
+Neural calibration and Wisp systems remain the only owners of the neural visual-field interval. V0.28 animation/camera corrections freeze or neutralize during that interval.
 
 ## Latest menu
 
 `Mindforge → Latest` intentionally contains only:
 
-- **PLAY LATEST (BCI Simulation)**: rebuild V0.11 → V0.20 → V0.21 → V0.22 → V0.23 → V0.24 → V0.25 → V0.26 → V0.27, open and play in controller BCI simulation.
+- **PLAY LATEST (BCI Simulation)**: rebuild V0.11 → V0.20 → V0.21 → V0.22 → V0.23 → V0.24 → V0.25 → V0.26 → V0.27 → V0.28, open and play in controller BCI simulation.
 - **Rebuild Latest Integrated Scene**: perform the same deterministic build without Play Mode.
 - **Open Latest Integrated Scene**: open the canonical scene and upgrade missing layers in order.
 - **Validate Latest Readiness**: run the maintained readiness audit. It is software/scene evidence, not physical SSVEP qualification.
 - **Build Neural-Hardware Variant**: build the same product with controller-only qualification disabled for real neural-service/hardware testing.
 
-## Legacy policy
+Historical build commands remain implementation history. Do not manually compose a release from old `Apply ...` commands.
 
-Historical build commands remain implementation history, not supported development entry points.
+## V0.28 focused playtest
 
-**Do not compose a new release by manually running historical `Apply ...` commands.** The latest assembler must call the smallest required implementation explicitly and deterministically.
+1. Pull the V0.28 branch and allow Unity Package Manager to resolve UnityGLTF.
+2. Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)**. The first build downloads and hash-verifies the pinned CC0 art if the generated cache is empty.
+3. Walk directly into the Fractured Signal from several angles. The boss should retreat before the Guardian disappears inside the visible body.
+4. Lock on at point-blank range and circle both directions. The V0.17 camera remains primary; the V0.28 occlusion guard should only make small corrections when the creature blocks the Guardian sightline.
+5. Attack head, chest, both flanks and rear. The Aetherblade should register on visible anatomy instead of passing through broad parts of the creature.
+6. Observe idle, movement, attack and death behavior. The boss should read as one authored quadruped with skeletal motion, not a procedural dinosaur or shard cloud.
+7. Traverse Memory Forge, Causeway and Market slowly. Side dressing should create lived-in cathedral detail while the central processional corridor remains visually and physically open.
+8. Run the full boss-floor perimeter. No imported decorative prop should intrude into the protected encounter radius.
+9. Trigger a Wisp/calibration visual window. Creature animation correction and actor-occlusion correction must neutralize while coded visual evidence is active.
+10. Run **Mindforge → Latest → Validate Latest Readiness** and capture the Console plus a new gameplay video.
 
-There should never again be multiple equally plausible "latest" builders.
-
-## V0.27 focused playtest
-
-1. Pull the intended V0.27 branch and allow Unity to compile/import.
-2. Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)**.
-3. Lock onto the boss and orbit the Guardian. The Aetherblade should now visibly belong to a shoulder/elbow/wrist chain instead of floating beside the primitive torso.
-4. Perform all three sword combo steps from frontal and oblique camera angles. Watch for elbow popping, wrist separation or sword/gauntlet drift.
-5. Guard, dodge and immediately attack. The arm should recover into a readable combat-ready pose while physical contact behavior remains identical to V0.26.
-6. Orbit the Fractured Signal. It should read first as one heavy low creature with a broad maw and second as a corrupted signal organism, not as a loose shard construct.
-7. Observe attack telegraph/release and phase transitions. Head/jaw/crystals and arena spines/lights should reinforce, not obscure, the authoritative telegraph.
-8. Traverse the complete boss floor and perimeter. New rites, altar and spines must have zero gameplay collision.
-9. Trigger calibration/Wisp resonance. V0.27 dynamic presentation must settle to neutral while coded-core instructions remain explicit.
-10. Run **Mindforge → Latest → Validate Latest Readiness** and inspect the Console.
-
-The next tranche should be selected from the V0.27 recording. Likely candidates are full Guardian torso/leg replacement, richer beast material/skin breakup, authored creature attack locomotion and arena environmental ecology, but those should follow observed play rather than another speculative layer.
+V0.28 should be judged by coherence and negative space, not raw object count: one readable cathedral, one readable Guardian, one credible corrupted animal, and clear combat geometry between them.
