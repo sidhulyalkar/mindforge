@@ -194,7 +194,7 @@ namespace Mindforge.Chassis.Editor
                         Mathf.Approximately(orb.GetRequestedFrequencyHz(MindforgeIntentV29.Concord), 12f);
                     Add(report, "bci_requested_frequency_map", true, frequencies, orb.FrequencyLabel);
                     Add(report, "bci_reduced_contrast_default", true,
-                        orb.SimulationEnabled && orb.ReducedContrastDefault && !orb.HighContrastPreviewEnabled,
+                        orb.ReducedContrastDefault && !orb.HighContrastPreviewEnabled,
                         $"simulation={orb.SimulationEnabled}, contrast={orb.CurrentContrast:0.00}, high={orb.HighContrastPreviewEnabled}");
                 }
                 Add(report, "bci_physical_display_frequency", false, false,
