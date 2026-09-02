@@ -8,7 +8,8 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Runtime installer for the V0.31 production slice. It uses the inherited
     /// Dragon Souls world and state machines, then installs camera, crowd-spacing,
-    /// enemy identity, boss presentation, hit-feedback, HUD and world look.
+    /// enemy identity, boss presentation, sword assurance, BCI preview, hit-feedback,
+    /// HUD and world look without replacing upstream gameplay authority.
     /// </summary>
     [DefaultExecutionOrder(-150)]
     [DisallowMultipleComponent]
@@ -34,6 +35,8 @@ namespace Mindforge.Chassis
         {
             InstallCamera();
             InstallCombatPresentation();
+            InstallSwordAssurance();
+            InstallBciPreview();
             InstallBossPresentation();
             InstallHud();
             CurateTerrains();
@@ -56,6 +59,18 @@ namespace Mindforge.Chassis
         {
             if (GetComponent<MindforgeHudPresentationV31>() == null)
                 gameObject.AddComponent<MindforgeHudPresentationV31>();
+        }
+
+        private void InstallSwordAssurance()
+        {
+            if (GetComponent<MindforgeSwordCombatAssuranceV31>() == null)
+                gameObject.AddComponent<MindforgeSwordCombatAssuranceV31>();
+        }
+
+        private void InstallBciPreview()
+        {
+            if (GetComponent<MindforgeBciOrbV31>() == null)
+                gameObject.AddComponent<MindforgeBciOrbV31>();
         }
 
         private void InstallCombatPresentation()
