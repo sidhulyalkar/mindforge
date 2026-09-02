@@ -130,7 +130,105 @@
       "usage": "reference_only",
       "vendored_paths": [],
       "asset_policy": "Evaluated for future GPU procedural surface noise. V0.20 does not import the package or its HLSL; current world surfaces are editor-authored and use Mindforge's existing production triplanar shader."
+    },
+    {
+      "id": "khronos.unitygltf",
+      "name": "UnityGLTF",
+      "upstream": "https://github.com/KhronosGroup/UnityGLTF",
+      "source_ref": "release/2.20.0",
+      "license": "MIT",
+      "usage": "package_dependency",
+      "vendored_paths": [
+        "unity/Packages/manifest.json",
+        "third_party/licenses/Khronos_UnityGLTF_MIT.txt"
+      ],
+      "asset_policy": "V0.28 uses the pinned package only as the Unity Editor/runtime glTF importer for authored CC0 creature art. Mindforge combat, movement, collision and BCI authority do not come from UnityGLTF."
+    },
+    {
+      "id": "gobkit.free_assets",
+      "name": "Gobkit Free Assets",
+      "upstream": "https://github.com/Ariescar/gobkit-free-assets",
+      "source_ref": "0d654ab3306515b1b63621a5c6548554034482dc",
+      "license": "CC0-1.0",
+      "usage": "editor_acquired_asset_source",
+      "vendored_paths": [
+        "third_party/licenses/Gobkit_Free_Assets_CC0.txt"
+      ],
+      "asset_policy": "V0.28 acquires only the pinned Rhino.glb into the ignored Generated/V28 cache, verifies the exact upstream Git blob SHA-1 before import, and uses its rig/anatomy/animation only as presentation behind Mindforge authority."
+    },
+    {
+      "id": "kaykit.dungeon_remastered",
+      "name": "KayKit Dungeon Remastered 1.0",
+      "upstream": "https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0",
+      "source_ref": "b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07",
+      "license": "CC0-1.0",
+      "usage": "editor_acquired_asset_source",
+      "vendored_paths": [
+        "third_party/licenses/KayKit_Dungeon_Remastered_CC0.txt"
+      ],
+      "asset_policy": "V0.28 acquires only five pinned OBJ props into the ignored Generated/V28 cache. Each upstream blob is hash-verified, its unused mtllib declaration is stripped after verification, and Mindforge cathedral materials are applied at composition time."
     }
   ],
-  "binary_art_assets": []
+  "binary_art_assets": [
+    {
+      "id": "gobkit.rhino.v28",
+      "source_entry": "gobkit.free_assets",
+      "source_path": "animal/Rhino.glb",
+      "source_commit": "0d654ab3306515b1b63621a5c6548554034482dc",
+      "source_git_blob_sha1": "f638b1cf00a6472192beb85b1a4162535bfc189e",
+      "generated_path": "unity/Assets/Mindforge/Generated/V28/ThirdParty/Gobkit/Rhino.glb",
+      "license": "CC0-1.0",
+      "role": "fractured_signal_authored_creature"
+    },
+    {
+      "id": "kaykit.banner_white.v28",
+      "source_entry": "kaykit.dungeon_remastered",
+      "source_path": "addons/kaykit_dungeon_remastered/Assets/obj/banner_white.obj",
+      "source_commit": "b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07",
+      "source_git_blob_sha1": "caf89af21053f2aa8081421d05b4d393f5b06fc7",
+      "generated_path": "unity/Assets/Mindforge/Generated/V28/ThirdParty/KayKitDungeon/banner_white.obj",
+      "license": "CC0-1.0",
+      "role": "cathedral_banner"
+    },
+    {
+      "id": "kaykit.torch_mounted.v28",
+      "source_entry": "kaykit.dungeon_remastered",
+      "source_path": "addons/kaykit_dungeon_remastered/Assets/obj/torch_mounted.obj",
+      "source_commit": "b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07",
+      "source_git_blob_sha1": "b29c171929a5995de358a35bad91c63f475cab2b",
+      "generated_path": "unity/Assets/Mindforge/Generated/V28/ThirdParty/KayKitDungeon/torch_mounted.obj",
+      "license": "CC0-1.0",
+      "role": "cathedral_wall_fixture"
+    },
+    {
+      "id": "kaykit.chair.v28",
+      "source_entry": "kaykit.dungeon_remastered",
+      "source_path": "addons/kaykit_dungeon_remastered/Assets/obj/chair.obj",
+      "source_commit": "b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07",
+      "source_git_blob_sha1": "0532f0992b7ce9cadcdc8921e3762760ca87441f",
+      "generated_path": "unity/Assets/Mindforge/Generated/V28/ThirdParty/KayKitDungeon/chair.obj",
+      "license": "CC0-1.0",
+      "role": "cathedral_side_furniture"
+    },
+    {
+      "id": "kaykit.relic_table.v28",
+      "source_entry": "kaykit.dungeon_remastered",
+      "source_path": "addons/kaykit_dungeon_remastered/Assets/obj/table_small_decorated_A.obj",
+      "source_commit": "b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07",
+      "source_git_blob_sha1": "f49a5780d08533f1fa17b7506b847b18be28a8f5",
+      "generated_path": "unity/Assets/Mindforge/Generated/V28/ThirdParty/KayKitDungeon/table_small_decorated_A.obj",
+      "license": "CC0-1.0",
+      "role": "cathedral_relic_table"
+    },
+    {
+      "id": "kaykit.chest_gold.v28",
+      "source_entry": "kaykit.dungeon_remastered",
+      "source_path": "addons/kaykit_dungeon_remastered/Assets/obj/chest_gold.obj",
+      "source_commit": "b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07",
+      "source_git_blob_sha1": "9d0bf6592588cca750940b0f0688e7158e2e51fa",
+      "generated_path": "unity/Assets/Mindforge/Generated/V28/ThirdParty/KayKitDungeon/chest_gold.obj",
+      "license": "CC0-1.0",
+      "role": "cathedral_reliquary"
+    }
+  ]
 }
