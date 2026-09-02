@@ -35,17 +35,17 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Monotonic presentation/progression observer for the V0.32 showcase chapter.
     /// It never moves the player, selects an attack, changes damage, writes stamina,
-    /// or changes Dragon Souls combat state. Spatial checkpoint triggers and existing
+    /// or changes Dragon Souls combat state. Spatial checkpoint observers and existing
     /// combat instrumentation feed evidence into this one chapter-level authority.
     /// </summary>
     [DefaultExecutionOrder(980)]
     [DisallowMultipleComponent]
+    [RequireComponent(typeof(MindforgeShowcaseTutorialV32))]
     public sealed class MindforgeShowcaseFlowV32 : MonoBehaviour
     {
         public const string ProductVersion = "V0.32 Showcase Intro";
 
         private MindforgeSwordCombatAssuranceV31 _swordAssurance;
-        private MindforgeBciOrbV31 _bciOrb;
         private GameObject _bciVisual;
         private int _lastObservedSwingWindows;
         private int _lastObservedHits;
@@ -63,7 +63,6 @@ namespace Mindforge.Chassis
         private void Start()
         {
             _swordAssurance = FindObjectOfType<MindforgeSwordCombatAssuranceV31>(true);
-            _bciOrb = FindObjectOfType<MindforgeBciOrbV31>(true);
             _stageStartedAt = Time.unscaledTime;
             ResolveBciVisual();
             SetBciVisualVisible(false);
