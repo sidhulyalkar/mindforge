@@ -7,7 +7,10 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Visual-only hit punctuation layered on the existing Health events. Damage,
     /// invulnerability, knockback, animation and death remain Dragon Souls authority.
+    /// This runs after the V0.31 identity/boss presentation layers so every material
+    /// slot can be restored to its authored Mindforge state after a hit flash.
     /// </summary>
+    [DefaultExecutionOrder(830)]
     [DisallowMultipleComponent]
     public sealed class MindforgeCombatFeedbackV31 : MonoBehaviour
     {
@@ -17,7 +20,7 @@ namespace Mindforge.Chassis
 
         private Health _health;
         private Renderer[] _renderers;
-        private MaterialPropertyBlock[] _baselineBlocks;
+        private MaterialPropertyBlock[][] _baselineBlocks;
         private ParticleSystem _sparks;
         private Material _sparkMaterial;
         private bool _isPlayer;
@@ -26,6 +29,7 @@ namespace Mindforge.Chassis
 
         public bool Installed { get; private set; }
         public int HitEventsObserved { get; private set; }
+        public int MaterialSlotsPreserved { get; private set; }
 
         private void Start()
         {
@@ -38,15 +42,9 @@ namespace Mindforge.Chassis
                 return;
             }
 
-            _isPlayer = GetComponent<PlayerStateMachine>() != null;
+            _isPlayer = GetComponent<PlayerStateMachine>() != null || GetComponentInParent<PlayerStateMachine>() != null;
             _renderers = GetComponentsInChildren<Renderer>(true);
-            _baselineBlocks = new MaterialPropertyBlock[_renderers.Length];
-            for (int i = 0; i < _renderers.Length; i++)
-            {
-                MaterialPropertyBlock block = new MaterialPropertyBlock();
-                _renderers[i].GetPropertyBlock(block);
-                _baselineBlocks[i] = block;
-            }
+            CaptureBaselineMaterialBlocks();
 
             BuildSparkSystem();
             _health.OnHealthUpdated += HandleHealthUpdated;
@@ -73,6 +71,34 @@ namespace Mindforge.Chassis
             }
         }
 
+        private void CaptureBaselineMaterialBlocks()
+        {
+            if (_renderers == null)
+            {
+                _baselineBlocks = new MaterialPropertyBlock[0][];
+                return;
+            }
+
+            _baselineBlocks = new MaterialPropertyBlock[_renderers.Length][];
+            int preserved = 0;
+            for (int r = 0; r < _renderers.Length; r++)
+            {
+                Renderer renderer = _renderers[r];
+                if (!IsCombatSurface(renderer)) continue;
+
+                Material[] materials = renderer.sharedMaterials;
+                _baselineBlocks[r] = new MaterialPropertyBlock[materials.Length];
+                for (int m = 0; m < materials.Length; m++)
+                {
+                    MaterialPropertyBlock block = new MaterialPropertyBlock();
+                    renderer.GetPropertyBlock(block, m);
+                    _baselineBlocks[r][m] = block;
+                    preserved++;
+                }
+            }
+            MaterialSlotsPreserved = preserved;
+        }
+
         private void HandleHealthUpdated(int remainingHealth, int damage)
         {
             if (damage <= 0) return;
@@ -97,35 +123,50 @@ namespace Mindforge.Chassis
             _flashUntil = Time.unscaledTime + flashDuration;
             _flashActive = true;
 
-            for (int i = 0; i < _renderers.Length; i++)
+            for (int r = 0; r < _renderers.Length; r++)
             {
-                Renderer renderer = _renderers[i];
-                if (renderer == null || !renderer.enabled) continue;
-                Material material = renderer.sharedMaterial;
-                if (material == null) continue;
+                Renderer renderer = _renderers[r];
+                if (!IsCombatSurface(renderer) || !renderer.enabled) continue;
 
-                MaterialPropertyBlock block = new MaterialPropertyBlock();
-                renderer.GetPropertyBlock(block);
-                if (material.HasProperty("_EmissionColor"))
-                    block.SetColor("_EmissionColor", color * 2.4f);
-                else if (material.HasProperty("_BaseColor"))
-                    block.SetColor("_BaseColor", color);
-                else if (material.HasProperty("_Color"))
-                    block.SetColor("_Color", color);
-                else
-                    continue;
-                renderer.SetPropertyBlock(block);
+                Material[] materials = renderer.sharedMaterials;
+                for (int m = 0; m < materials.Length; m++)
+                {
+                    Material material = materials[m];
+                    if (material == null) continue;
+
+                    MaterialPropertyBlock block = new MaterialPropertyBlock();
+                    renderer.GetPropertyBlock(block, m);
+                    if (material.HasProperty("_EmissionColor"))
+                        block.SetColor("_EmissionColor", color * 2.4f);
+                    else if (material.HasProperty("_BaseColor"))
+                        block.SetColor("_BaseColor", color);
+                    else if (material.HasProperty("_Color"))
+                        block.SetColor("_Color", color);
+                    else
+                        continue;
+                    renderer.SetPropertyBlock(block, m);
+                }
             }
         }
 
         private void RestoreRendererBlocks()
         {
             if (_renderers == null || _baselineBlocks == null) return;
-            int count = Mathf.Min(_renderers.Length, _baselineBlocks.Length);
-            for (int i = 0; i < count; i++)
+            int rendererCount = Mathf.Min(_renderers.Length, _baselineBlocks.Length);
+            for (int r = 0; r < rendererCount; r++)
             {
-                if (_renderers[i] != null)
-                    _renderers[i].SetPropertyBlock(_baselineBlocks[i]);
+                Renderer renderer = _renderers[r];
+                MaterialPropertyBlock[] slots = _baselineBlocks[r];
+                if (!IsCombatSurface(renderer) || slots == null) continue;
+
+                Material[] materials = renderer.sharedMaterials;
+                int slotCount = Mathf.Min(materials.Length, slots.Length);
+                for (int m = 0; m < slotCount; m++)
+                {
+                    MaterialPropertyBlock baseline = slots[m];
+                    if (baseline != null)
+                        renderer.SetPropertyBlock(baseline, m);
+                }
             }
         }
 
@@ -141,7 +182,7 @@ namespace Mindforge.Chassis
             if (_renderers != null)
             {
                 for (int i = 0; i < _renderers.Length; i++)
-                    if (_renderers[i] != null && _renderers[i].enabled)
+                    if (IsCombatSurface(_renderers[i]) && _renderers[i].enabled)
                         return _renderers[i].bounds.center;
             }
             return transform.position + Vector3.up * 1.0f;
@@ -197,6 +238,14 @@ namespace Mindforge.Chassis
                 emit.startLifetime = Random.Range(0.12f, 0.27f);
                 _sparks.Emit(emit, 1);
             }
+        }
+
+        private static bool IsCombatSurface(Renderer renderer)
+        {
+            return renderer != null &&
+                   !(renderer is ParticleSystemRenderer) &&
+                   !(renderer is TrailRenderer) &&
+                   !(renderer is LineRenderer);
         }
     }
 }
