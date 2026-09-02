@@ -43,6 +43,10 @@ def test_latest_readiness_audit_tracks_current_bci_and_presentation_owners():
     source = READINESS.read_text(encoding="utf-8")
     assert 'schema = "mindforge.latest_readiness.v17"' in source
     assert "physical_ssvep_qualified = false" in source
+    assert '"product_version_v26"' in source
+    assert 'ProductVersion.StartsWith("V0.26"' in source
+    assert '"v26_world_rendering_authored"' in source
+    assert "WorldRenderingV26Builder.PresentInOpenScene()" in source
     for token in (
         "VepAuraStimulus",
         "FrequencyHz",
