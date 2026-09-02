@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 namespace Mindforge.Chassis
@@ -13,7 +14,8 @@ namespace Mindforge.Chassis
     /// IMPORTANT: these are requested simulation frequencies, not measured display
     /// frequencies. Monitor refresh, frame pacing and display response determine the
     /// physically presented stimulus. This component publishes no BCI decisions and
-    /// owns no movement, combat, damage, camera or pause authority.
+    /// owns no movement, combat, damage, camera or game-pause authority. The B key
+    /// only pauses/resumes this local visual modulation while leaving the orb visible.
     /// </summary>
     [DefaultExecutionOrder(940)]
     [DisallowMultipleComponent]
@@ -55,6 +57,7 @@ namespace Mindforge.Chassis
         private Transform _visualRoot;
         private Material _coreMaterial;
         private Material _shellMaterial;
+        private TextMeshPro _headerLabel;
         private MindforgeIntentV29 _selectedIntent = MindforgeIntentV29.None;
         private float _selectedUntil;
         private Camera _camera;
@@ -77,6 +80,7 @@ namespace Mindforge.Chassis
             }
 
             BuildOrb();
+            UpdateHeader();
             MindforgeIntentBusV29.IntentPublished += HandleIntentPublished;
             Installed = _visualRoot != null && _nodes.Count == StimulusNodeCount;
         }
@@ -94,6 +98,13 @@ namespace Mindforge.Chassis
         private void LateUpdate()
         {
             if (!Installed) return;
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.bKey.wasPressedThisFrame)
+            {
+                simulationEnabled = !simulationEnabled;
+                UpdateHeader();
+            }
 
             float now = Time.unscaledTime;
             float contrast = Mathf.Clamp01(CurrentContrast);
@@ -124,7 +135,9 @@ namespace Mindforge.Chassis
                 Color resolved = coreColor;
                 if (hasSelection)
                     resolved = Color.Lerp(coreColor, ColorForIntent(_selectedIntent), 0.58f);
-                float corePulse = 1f + Mathf.Sin(now * Mathf.PI * 1.4f) * 0.08f;
+                float corePulse = simulationEnabled
+                    ? 1f + Mathf.Sin(now * Mathf.PI * 1.4f) * 0.08f
+                    : 1f;
                 ApplyEmission(_coreMaterial, resolved, 1.8f * corePulse);
             }
         }
@@ -216,14 +229,22 @@ namespace Mindforge.Chassis
 
         private void CreateHeader()
         {
-            TextMeshPro header = CreateLabel(
+            _headerLabel = CreateLabel(
                 "PreviewLabel",
                 new Vector3(0f, 0.205f, 0.002f),
-                "BCI SIM  •  REDUCED CONTRAST",
+                string.Empty,
                 new Color(0.78f, 0.86f, 0.94f, 1f),
                 0.56f);
-            if (header != null)
-                header.fontStyle = FontStyles.SmallCaps;
+            if (_headerLabel != null)
+                _headerLabel.fontStyle = FontStyles.SmallCaps;
+        }
+
+        private void UpdateHeader()
+        {
+            if (_headerLabel == null) return;
+            _headerLabel.text = simulationEnabled
+                ? "BCI SIM  •  REDUCED CONTRAST  •  B PAUSE"
+                : "BCI SIM PAUSED  •  B RESUME";
         }
 
         private TextMeshPro CreateLabel(string name, Vector3 localPosition, string text, Color color, float fontSize)
@@ -240,7 +261,7 @@ namespace Mindforge.Chassis
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = color;
             tmp.enableWordWrapping = false;
-            tmp.rectTransform.sizeDelta = new Vector2(1.8f, 0.55f);
+            tmp.rectTransform.sizeDelta = new Vector2(2.2f, 0.55f);
             return tmp;
         }
 
