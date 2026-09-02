@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using Combat;
+using PlayerController;
 using States;
 using UnityEditor;
 using UnityEngine;
@@ -98,8 +100,32 @@ namespace Mindforge.Chassis.Editor
 
             PlayerStateMachine[] players = UnityEngine.Object.FindObjectsOfType<PlayerStateMachine>(true);
             EnemyStateMachine[] enemies = UnityEngine.Object.FindObjectsOfType<EnemyStateMachine>(true);
+            CombatController[] combatControllers = UnityEngine.Object.FindObjectsOfType<CombatController>(true);
+            Sword[] swords = UnityEngine.Object.FindObjectsOfType<Sword>(true);
             Add(report, "single_player", true, players.Length == 1, $"found={players.Length}");
             Add(report, "enemy_population", true, enemies.Length > 0, $"found={enemies.Length}");
+            Add(report, "single_sword_authority", true, swords.Length == 1, $"found={swords.Length}");
+            Add(report, "single_player_combat_controller", true, combatControllers.Length == 1, $"found={combatControllers.Length}");
+
+            if (swords.Length == 1)
+            {
+                CapsuleCollider swordCollider = swords[0].GetComponent<CapsuleCollider>();
+                Damage swordDamage = swords[0].GetComponent<Damage>();
+                TrailRenderer swordTrail = swords[0].GetComponentInChildren<TrailRenderer>(true);
+                Add(report, "sword_authority_components", true,
+                    swordCollider != null && swordDamage != null && swordTrail != null,
+                    $"collider={(swordCollider != null)}, damage={(swordDamage != null)}, trail={(swordTrail != null)}");
+            }
+
+            if (combatControllers.Length == 1)
+            {
+                CombatController combat = combatControllers[0];
+                bool lightAuthored = AttackCatalogLooksAuthored(combat.SwordLightAttacks, 3);
+                bool heavyAuthored = AttackCatalogLooksAuthored(combat.SwordHeavyAttacks, 1);
+                Add(report, "sword_attack_catalog", true, lightAuthored && heavyAuthored,
+                    $"light={(combat.SwordLightAttacks == null ? 0 : combat.SwordLightAttacks.Length)}, " +
+                    $"heavy={(combat.SwordHeavyAttacks == null ? 0 : combat.SwordHeavyAttacks.Length)}");
+            }
 
             if (EditorApplication.isPlaying)
             {
@@ -114,6 +140,8 @@ namespace Mindforge.Chassis.Editor
                 MindforgeBossEncounterPresentationV31[] bosses = UnityEngine.Object.FindObjectsOfType<MindforgeBossEncounterPresentationV31>(true);
                 MindforgeCombatFeedbackV31[] feedback = UnityEngine.Object.FindObjectsOfType<MindforgeCombatFeedbackV31>(true);
                 MindforgeHudPresentationV31[] hud = UnityEngine.Object.FindObjectsOfType<MindforgeHudPresentationV31>(true);
+                MindforgeSwordCombatAssuranceV31[] swordAssurance = UnityEngine.Object.FindObjectsOfType<MindforgeSwordCombatAssuranceV31>(true);
+                MindforgeBciOrbV31[] bciOrbs = UnityEngine.Object.FindObjectsOfType<MindforgeBciOrbV31>(true);
 
                 Add(report, "runtime_installed", true, runtimes.Length == 1 && runtimes[0].Installed,
                     $"owners={runtimes.Length}");
@@ -129,6 +157,42 @@ namespace Mindforge.Chassis.Editor
                     $"owners={feedback.Length}");
                 Add(report, "hud_presentation_runtime", true, hud.Length == 1 && hud[0].Installed,
                     $"owners={hud.Length}");
+
+                bool assuranceReady = swordAssurance.Length == 1 && swordAssurance[0].Installed &&
+                    swordAssurance[0].Configured && swordAssurance[0].AetherbladeInstalled;
+                Add(report, "sword_combat_assurance_runtime", true, assuranceReady,
+                    $"owners={swordAssurance.Length}");
+                if (swordAssurance.Length == 1)
+                {
+                    MindforgeSwordCombatAssuranceV31 assurance = swordAssurance[0];
+                    bool sawSwing = assurance.SwingWindowsObserved > 0;
+                    Add(report, "sword_swing_window_observed", sawSwing,
+                        sawSwing && assurance.PresentedSwingWindowsObserved > 0 &&
+                        !assurance.StuckHitboxDetected && !string.IsNullOrEmpty(assurance.LastAttackName),
+                        $"windows={assurance.SwingWindowsObserved}, presented={assurance.PresentedSwingWindowsObserved}, " +
+                        $"last={assurance.LastAttackName ?? "none"}, stuck={assurance.StuckHitboxDetected}");
+                    bool sawHit = assurance.HitsObserved > 0;
+                    Add(report, "sword_damage_hit_observed", sawHit, sawHit,
+                        $"hits={assurance.HitsObserved}");
+                }
+
+                bool orbReady = bciOrbs.Length == 1 && bciOrbs[0].Installed &&
+                    bciOrbs[0].NodeCount == MindforgeBciOrbV31.StimulusNodeCount;
+                Add(report, "bci_orb_runtime", true, orbReady,
+                    $"owners={bciOrbs.Length}, nodes={(bciOrbs.Length == 1 ? bciOrbs[0].NodeCount : 0)}");
+                if (bciOrbs.Length == 1)
+                {
+                    MindforgeBciOrbV31 orb = bciOrbs[0];
+                    bool frequencies = Mathf.Approximately(orb.GetRequestedFrequencyHz(MindforgeIntentV29.Sight), 8f) &&
+                        Mathf.Approximately(orb.GetRequestedFrequencyHz(MindforgeIntentV29.Guard), 10f) &&
+                        Mathf.Approximately(orb.GetRequestedFrequencyHz(MindforgeIntentV29.Concord), 12f);
+                    Add(report, "bci_requested_frequency_map", true, frequencies, orb.FrequencyLabel);
+                    Add(report, "bci_reduced_contrast_default", true,
+                        orb.SimulationEnabled && orb.ReducedContrastDefault && !orb.HighContrastPreviewEnabled,
+                        $"simulation={orb.SimulationEnabled}, contrast={orb.CurrentContrast:0.00}, high={orb.HighContrastPreviewEnabled}");
+                }
+                Add(report, "bci_physical_display_frequency", false, false,
+                    "simulation only; requires measured display timing / photodiode qualification");
             }
             else
             {
@@ -140,6 +204,14 @@ namespace Mindforge.Chassis.Editor
                 Add(report, "boss_presentation_runtime", false, false, "requires Play Mode");
                 Add(report, "combat_feedback_runtime", false, false, "requires Play Mode");
                 Add(report, "hud_presentation_runtime", false, false, "requires Play Mode");
+                Add(report, "sword_combat_assurance_runtime", false, false, "requires Play Mode");
+                Add(report, "sword_swing_window_observed", false, false, "swing sword in Play Mode, then audit");
+                Add(report, "sword_damage_hit_observed", false, false, "land a sword hit in Play Mode, then audit");
+                Add(report, "bci_orb_runtime", false, false, "requires Play Mode");
+                Add(report, "bci_requested_frequency_map", false, false, "requires Play Mode");
+                Add(report, "bci_reduced_contrast_default", false, false, "requires Play Mode");
+                Add(report, "bci_physical_display_frequency", false, false,
+                    "simulation only; requires measured display timing / photodiode qualification");
             }
 
             report.passed = true;
@@ -152,6 +224,18 @@ namespace Mindforge.Chassis.Editor
                 }
             }
             return report;
+        }
+
+        private static bool AttackCatalogLooksAuthored(Attack[] attacks, int minimumCount)
+        {
+            if (attacks == null || attacks.Length < minimumCount) return false;
+            for (int i = 0; i < attacks.Length; i++)
+            {
+                Attack attack = attacks[i];
+                if (string.IsNullOrEmpty(attack.animationName)) return false;
+                if (attack.attackDuration <= 0f || attack.damage <= 0) return false;
+            }
+            return true;
         }
 
         private static void Add(Report report, string id, bool observed, bool passed, string detail)
