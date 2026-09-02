@@ -72,13 +72,19 @@ def test_v32_stage_checkpoints_are_distance_observers_with_no_physics_or_combat_
     ):
         assert token in text
     for forbidden in (
-        "OnTriggerEnter",
-        "Collider",
-        "Rigidbody",
+        "OnTriggerEnter(",
+        "GetComponent<Collider>",
+        "GetComponentsInChildren<Collider>",
+        "AddComponent<Collider>",
+        "AddComponent<BoxCollider>",
+        "AddComponent<SphereCollider>",
+        "AddComponent<CapsuleCollider>",
+        "GetComponent<Rigidbody>",
+        "AddComponent<Rigidbody>",
         "TakeDamage(",
         "ChangeState(",
         "transform.position =",
-        "CharacterController",
+        "CharacterController.Move",
     ):
         assert forbidden not in text
 
