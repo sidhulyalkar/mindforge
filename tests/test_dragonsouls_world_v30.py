@@ -31,6 +31,8 @@ def test_v30_promotes_complete_main_game_scene_into_mindforge_owned_world():
         "EnemyStateMachine",
         "BossManager",
         "EnemyNightmareDragonController",
+        "Bonfire",
+        "BonfiresManager",
     ):
         assert token in source
 
@@ -116,7 +118,7 @@ def test_v30_enemy_identity_is_visual_only_and_keeps_enemy_state_machine_authori
         assert forbidden not in source
 
 
-def test_v30_readiness_observes_full_world_navigation_combat_and_presentation():
+def test_v30_readiness_observes_full_world_navigation_progression_combat_and_presentation():
     source = read(READINESS)
     for token in (
         'schema = "mindforge.dragonsouls_world_readiness.v30"',
@@ -128,6 +130,9 @@ def test_v30_readiness_observes_full_world_navigation_combat_and_presentation():
         '"single_authoritative_sword"',
         '"standard_enemy_population"',
         '"boss_pipeline"',
+        '"bonfire_progression"',
+        "Bonfire[]",
+        "BonfiresManager[]",
         '"baked_navmesh_runtime"',
         "NavMesh.CalculateTriangulation()",
         '"presentation_installed_runtime"',
