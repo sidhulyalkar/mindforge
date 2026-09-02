@@ -10,7 +10,7 @@ This deterministically rebuilds and opens the canonical integrated scene, then e
 
 The current product label is **V0.28 Professional Creature + World Staging**. Its explicit predecessor is **V0.27 Guardian Embodiment + Fractured Beast**, which remains composed as the Guardian/encounter-presentation stage beneath V0.28. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
 
-`MindforgeLatestEditorMenu.BuildCanonical(...)` now has ten ordered authoring stages:
+`MindforgeLatestEditorMenu.BuildCanonical(...)` now has eleven ordered authoring stages:
 
 1. `MindforgeDemoV11Builder.BuildDemoScene(...)` creates the authoritative systems and traversal kernel.
 2. `WorldSoulV20Builder.ApplyOpenScene()` creates continuous terrain/material/world grammar.
@@ -22,6 +22,7 @@ The current product label is **V0.28 Professional Creature + World Staging**. It
 8. `WorldRenderingV26Builder.ApplyOpenScene()` replaces remaining primitive cathedral render silhouettes, adds continuous vault webs and restores cavern/material depth.
 9. `CombatEmbodimentV27Builder.ApplyOpenScene()` supplies Guardian sword-arm embodiment and collider-free encounter staging.
 10. `ProfessionalEncounterV28Builder.ApplyOpenScene()` replaces the procedural boss proxy with pinned authored quadruped art, derives the matching sword-contact envelope, installs actor-separation/camera readability support and adds sparse socketed cathedral dressing.
+11. `ProfessionalWorldDetailV28Builder.ApplyOpenScene()` reuses the same verified art cache for sparse choir/ascent rhythm and distant apse reliquary framing while preserving route and boss negative space.
 
 ## What V0.28 changes
 
@@ -33,21 +34,23 @@ The pass now:
 - replaces the V0.27 generated creature with Gobkit's pinned CC0 rigged `Rhino.glb` anatomy and authored idle/walk/attack/death clips;
 - normalizes and grounds the imported body from its actual renderer bounds;
 - derives four trigger-only anatomical sword hurt volumes from that rendered body so head, chest, flank and rear contact agree with visible anatomy;
+- disables and retires historical V0.27/V0.19 runtime presentation if their old installers inject them after scene load;
 - disables the old humanoid-sized V0.22 boss combat hull;
 - adds a bounded V0.28 camera post-resolver only when the boss actually occludes the Guardian sight corridor;
-- imports a deliberately tiny CC0 KayKit subset for banners, mounted fixtures, chairs, relic tables and a reliquary;
+- imports a deliberately tiny CC0 KayKit subset for banners, mounted fixtures, chairs, relic tables and reliquaries;
 - places those props only from deterministic side sockets with a protected processional corridor and boss clear radius;
+- extends that same socket grammar up the choir/ascent and to the far apse instead of scattering props through empty floor space;
 - removes all collision/Rigidbody authority from decorative imported props and applies Mindforge's existing white-cathedral materials;
 - reduces half of the V0.27 radial floor-line noise rather than adding another full visual layer;
 - keeps all dynamic V0.28 creature/camera behavior neutral during neural visual fields.
 
-See `docs/PROFESSIONAL_ENCOUNTER_V28.md` for the full authority, provenance and validation contract.
+See `docs/PROFESSIONAL_ENCOUNTER_V28.md` for the encounter authority/provenance contract. `ProfessionalWorldDetailV28Builder` is a second V0.28 render-only sub-stage and does not create a new product/version authority.
 
 ## Public art acquisition
 
 The first V0.28 rebuild may need network access in the Unity Editor because the source art is acquired from immutable GitHub commit URLs into the ignored `Assets/Mindforge/Generated/V28/ThirdParty` cache.
 
-This is intentional. Source art is not manually dragged into the project and is not fetched at runtime. `PublicAssetAcquisitionV28` verifies every download against its exact upstream Git blob SHA-1 before import. Cached raw assets are revalidated, while normalized OBJ assets carry a provenance receipt tying the pinned source blob to the exact local normalized SHA-256. A missing network connection on an empty or invalid cache, or any hash mismatch, fails the V0.28 build closed rather than silently restoring the procedural creature.
+Source art is not manually dragged into the project and is not fetched at runtime. `PublicAssetAcquisitionV28` verifies every download against its exact upstream Git blob SHA-1 before import. Cached raw assets are revalidated, while normalized OBJ assets carry a provenance receipt tying the pinned source blob to the exact local normalized SHA-256. A missing network connection on an empty or invalid cache, or any hash mismatch, fails the V0.28 build closed rather than silently restoring proxy art.
 
 The pinned sources are:
 
@@ -65,7 +68,7 @@ Boss locomotion remains owned by `FracturedSignalFirstBossV19`; V0.28 adds its m
 
 The canonical V0.17 gameplay camera still owns orbit, fixed FOV and ordinary framing. `MindforgeActorOcclusionGuardV28` is a bounded post-resolver that only acts when target renderer bounds block the camera-to-Guardian sight corridor. Its additional lateral/lift correction is sphere-cast against static world geometry so the boss-readability fix cannot push the camera through cathedral architecture.
 
-V0.23 remains world collision/foundation authority. V0.28 decorative staging is collider-free.
+V0.23 remains world collision/foundation authority. Both V0.28 environmental sub-stages are collider-free and Rigidbody-free.
 
 Neural calibration and Wisp systems remain the only owners of the neural visual-field interval. V0.28 animation/camera corrections freeze or neutralize during that interval.
 
@@ -73,7 +76,7 @@ Neural calibration and Wisp systems remain the only owners of the neural visual-
 
 `Mindforge → Latest` intentionally contains only:
 
-- **PLAY LATEST (BCI Simulation)**: rebuild V0.11 → V0.20 → V0.21 → V0.22 → V0.23 → V0.24 → V0.25 → V0.26 → V0.27 → V0.28, open and play in controller BCI simulation.
+- **PLAY LATEST (BCI Simulation)**: rebuild V0.11 → V0.20 → V0.21 → V0.22 → V0.23 → V0.24 → V0.25 → V0.26 → V0.27 → V0.28 encounter → V0.28 world detail, open and play in controller BCI simulation.
 - **Rebuild Latest Integrated Scene**: perform the same deterministic build without Play Mode.
 - **Open Latest Integrated Scene**: open the canonical scene and upgrade missing layers in order.
 - **Validate Latest Readiness**: run the maintained readiness audit. It is software/scene evidence, not physical SSVEP qualification.
@@ -94,9 +97,9 @@ There should never again be multiple equally plausible "latest" builders.
 3. Walk directly into the Fractured Signal from several angles. The boss should retreat before the Guardian disappears inside the visible body.
 4. Lock on at point-blank range and circle both directions. The V0.17 camera remains primary; the V0.28 occlusion guard should only make small corrections when the creature blocks the Guardian sightline, and those corrections must still respect walls and columns.
 5. Attack head, chest, both flanks and rear. The Aetherblade should register on visible anatomy instead of passing through broad parts of the creature.
-6. Observe idle, movement, attack and death behavior. The boss should read as one authored quadruped with skeletal motion, not a procedural dinosaur or shard cloud.
-7. Traverse Memory Forge, Causeway and Market slowly. Side dressing should create lived-in cathedral detail while the central processional corridor remains visually and physically open.
-8. Run the full boss-floor perimeter. No imported decorative prop should intrude into the protected encounter radius.
+6. Observe idle, movement, attack and death behavior. The boss should read as one authored quadruped with skeletal motion, not a procedural dinosaur or shard cloud. No historical V0.27/V0.19 creature root should remain visibly active.
+7. Traverse Memory Forge, Causeway, Market and the complete choir ascent slowly. Dressing should create a repeated side rhythm while the center processional lane remains open from floor to camera.
+8. Enter the boss chamber and inspect the distant north apse. Reliquaries/banners should deepen the far composition while remaining outside the protected 14.4 m duel radius.
 9. Trigger a Wisp/calibration visual window. Creature animation correction and actor-occlusion correction must neutralize while coded visual evidence is active.
 10. Run **Mindforge → Latest → Validate Latest Readiness** and capture the Console plus a new gameplay video.
 
