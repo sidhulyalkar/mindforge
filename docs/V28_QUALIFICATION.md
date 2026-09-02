@@ -1,6 +1,8 @@
 # V0.28 qualification snapshot
 
-Candidate head: `28d1a1deba60b7813559e6534f8a21d09057d0e1`
+Last code-bearing qualified head: `28d1a1deba60b7813559e6534f8a21d09057d0e1`
+
+This file records immutable evidence for that code-bearing state. Documentation commits made after it do not change the V0.28 runtime implementation. The live PR conversation is the source for the current exact PR-head CI status because recording a branch head inside a committed file necessarily creates a newer branch head.
 
 ## Observed
 
