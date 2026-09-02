@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using System;
-using System.Collections.Generic;
 using PlayerController;
 using UnityEditor;
 using UnityEngine;
@@ -17,7 +16,7 @@ namespace Mindforge.Chassis.Editor
     {
         public const float OrdinaryCorridorTarget = 8f;
         public const float BossArenaRadiusTarget = 16f;
-        private const float MaxProbeDistance = 12f;
+        private const float MaxProbeDistance = 20f;
         private const float SampleSpacing = 2f;
 
         [Serializable]
