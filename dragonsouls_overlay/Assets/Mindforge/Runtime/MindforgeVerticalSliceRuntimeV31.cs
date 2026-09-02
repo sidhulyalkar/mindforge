@@ -8,7 +8,7 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Runtime installer for the V0.31 production slice. It uses the inherited
     /// Dragon Souls world and state machines, then installs camera, crowd-spacing,
-    /// enemy identity, hit-feedback, HUD and restrained world-look presentation.
+    /// enemy identity, boss presentation, hit-feedback, HUD and world look.
     /// </summary>
     [DefaultExecutionOrder(-150)]
     [DisallowMultipleComponent]
@@ -34,6 +34,7 @@ namespace Mindforge.Chassis
         {
             InstallCamera();
             InstallCombatPresentation();
+            InstallBossPresentation();
             InstallHud();
             CurateTerrains();
             InstallWorldLook();
@@ -83,6 +84,19 @@ namespace Mindforge.Chassis
                     FeedbackOwnersConfigured++;
                 }
                 EnemiesConfigured++;
+            }
+        }
+
+        private void InstallBossPresentation()
+        {
+            EnemyNightmareDragonController dragon = FindObjectOfType<EnemyNightmareDragonController>();
+            if (dragon == null) return;
+            if (dragon.GetComponent<MindforgeBossEncounterPresentationV31>() == null)
+                dragon.gameObject.AddComponent<MindforgeBossEncounterPresentationV31>();
+            if (dragon.GetComponent<MindforgeCombatFeedbackV31>() == null)
+            {
+                dragon.gameObject.AddComponent<MindforgeCombatFeedbackV31>();
+                FeedbackOwnersConfigured++;
             }
         }
 
