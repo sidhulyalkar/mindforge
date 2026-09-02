@@ -6,6 +6,7 @@ OVERLAY = ROOT / "dragonsouls_overlay" / "Assets" / "Mindforge"
 CAMERA = OVERLAY / "Runtime" / "MindforgeProductionCameraV31.cs"
 FORMATION = OVERLAY / "Runtime" / "MindforgeEnemyFormationV31.cs"
 IDENTITY = OVERLAY / "Runtime" / "MindforgeEnemyIdentityV31.cs"
+BOSS = OVERLAY / "Runtime" / "MindforgeBossEncounterPresentationV31.cs"
 FEEDBACK = OVERLAY / "Runtime" / "MindforgeCombatFeedbackV31.cs"
 HUD = OVERLAY / "Runtime" / "MindforgeHudPresentationV31.cs"
 RUNTIME = OVERLAY / "Runtime" / "MindforgeVerticalSliceRuntimeV31.cs"
@@ -111,10 +112,40 @@ def test_v31_enemy_identity_desaturates_inherited_rigs_and_preserves_gameplay_au
         assert forbidden not in text
 
 
+def test_v31_boss_presentation_is_health_phase_and_authored_particle_driven_only():
+    text = read(BOSS)
+    for token in (
+        "using Combat;",
+        "OnHealthUpdated += HandleHealthUpdated",
+        "OnDead += HandleDead",
+        "Phase = _healthFraction > 0.66f ? 1 : _healthFraction > 0.34f ? 2 : 3",
+        "GetComponentsInChildren<ParticleSystem>(true)",
+        "new ParticleSystem.MinMaxGradient(corruptionColor, neuralColor)",
+        "AuthoredAttackActivity()",
+        "Mindforge_Boss_SignalCore_V31",
+        "MaterialPropertyBlock",
+        "_EmissionColor",
+    ):
+        assert token in text
+
+    for forbidden in (
+        "SpawnFireball(",
+        "ThrowFireProjectile(",
+        "ThrowFireWall(",
+        "TakeDamage(",
+        "ChangeState(",
+        "AddForce(",
+        "NavMeshAgent",
+        "Time.timeScale",
+    ):
+        assert forbidden not in text
+
+
 def test_v31_hit_feedback_is_downstream_of_health_events_and_never_deals_damage():
     text = read(FEEDBACK)
     for token in (
         "using Combat;",
+        "GetComponentInParent<Health>()",
         "OnHealthUpdated += HandleHealthUpdated",
         "OnDead += HandleDead",
         "MaterialPropertyBlock",
@@ -160,13 +191,14 @@ def test_v31_hud_only_styles_inherited_widgets_and_never_writes_gameplay_values(
         assert forbidden not in text
 
 
-def test_v31_runtime_culls_grass_and_installs_camera_spacing_identity_feedback_hud_and_postfx():
+def test_v31_runtime_culls_grass_and_installs_camera_spacing_identity_boss_feedback_hud_and_postfx():
     text = read(RUNTIME)
     for token in (
         'ProductVersion = "V0.31 Production Vertical Slice"',
         "MindforgeProductionCameraV31",
         "MindforgeEnemyFormationV31",
         "MindforgeEnemyIdentityV31",
+        "MindforgeBossEncounterPresentationV31",
         "MindforgeCombatFeedbackV31",
         "MindforgeHudPresentationV31",
         "terrain.detailObjectDensity",
@@ -261,6 +293,7 @@ def test_v31_native_readiness_tracks_geometry_and_runtime_presentation_owners():
         '"production_camera_runtime"',
         '"enemy_formation_runtime"',
         '"enemy_identity_runtime"',
+        '"boss_presentation_runtime"',
         '"combat_feedback_runtime"',
         '"hud_presentation_runtime"',
         "NavMesh.CalculateTriangulation()",
