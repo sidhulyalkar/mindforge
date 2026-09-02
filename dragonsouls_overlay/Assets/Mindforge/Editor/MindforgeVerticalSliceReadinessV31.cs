@@ -110,6 +110,7 @@ namespace Mindforge.Chassis.Editor
                 MindforgeVerticalSliceRuntimeV31[] runtimes = UnityEngine.Object.FindObjectsOfType<MindforgeVerticalSliceRuntimeV31>(true);
                 MindforgeProductionCameraV31[] cameras = UnityEngine.Object.FindObjectsOfType<MindforgeProductionCameraV31>(true);
                 MindforgeEnemyFormationV31[] formations = UnityEngine.Object.FindObjectsOfType<MindforgeEnemyFormationV31>(true);
+                MindforgeEnemyIdentityV31[] identities = UnityEngine.Object.FindObjectsOfType<MindforgeEnemyIdentityV31>(true);
                 MindforgeCombatFeedbackV31[] feedback = UnityEngine.Object.FindObjectsOfType<MindforgeCombatFeedbackV31>(true);
                 MindforgeHudPresentationV31[] hud = UnityEngine.Object.FindObjectsOfType<MindforgeHudPresentationV31>(true);
 
@@ -119,6 +120,8 @@ namespace Mindforge.Chassis.Editor
                     $"owners={cameras.Length}");
                 Add(report, "enemy_formation_runtime", true, formations.Length > 0,
                     $"owners={formations.Length}");
+                Add(report, "enemy_identity_runtime", true, identities.Length > 0,
+                    $"owners={identities.Length}");
                 Add(report, "combat_feedback_runtime", true, feedback.Length >= 2,
                     $"owners={feedback.Length}");
                 Add(report, "hud_presentation_runtime", true, hud.Length == 1 && hud[0].Installed,
@@ -130,6 +133,7 @@ namespace Mindforge.Chassis.Editor
                 Add(report, "runtime_installed", false, false, "requires Play Mode");
                 Add(report, "production_camera_runtime", false, false, "requires Play Mode");
                 Add(report, "enemy_formation_runtime", false, false, "requires Play Mode");
+                Add(report, "enemy_identity_runtime", false, false, "requires Play Mode");
                 Add(report, "combat_feedback_runtime", false, false, "requires Play Mode");
                 Add(report, "hud_presentation_runtime", false, false, "requires Play Mode");
             }
