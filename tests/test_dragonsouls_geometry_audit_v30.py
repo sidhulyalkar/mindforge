@@ -30,6 +30,24 @@ def test_v30_geometry_audit_uses_baked_navmesh_and_measured_collision_clearance(
         assert token in text
 
 
+def test_v30_geometry_audit_anchors_actors_to_navmesh_and_localizes_worst_clearance():
+    text = source()
+    for token in (
+        "PlayerNavMeshAnchorRadius = 4f",
+        "BossNavMeshAnchorRadius = 14f",
+        "NavMesh.SamplePosition(",
+        "playerAnchorObserved",
+        "bossAnchorObserved",
+        "playerNavMeshAnchor",
+        "bossNavMeshAnchor",
+        "narrowestPathPosition",
+        "minimumBossClearAngleDegrees",
+        "NavMesh.CalculatePath(playerHit.position, bossHit.position",
+        "MeasureBossArenaRadius(bossHit.position, report)",
+    ):
+        assert token in text
+
+
 def test_v30_geometry_audit_ignores_actor_colliders_and_never_modifies_world():
     text = source()
     for token in (
