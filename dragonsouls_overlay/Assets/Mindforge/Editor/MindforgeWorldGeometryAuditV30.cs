@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using PlayerController;
+using States;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AI;
