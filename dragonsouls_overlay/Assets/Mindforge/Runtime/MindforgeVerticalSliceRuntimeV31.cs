@@ -8,7 +8,7 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Runtime installer for the V0.31 production slice. It uses the inherited
     /// Dragon Souls world and state machines, then installs camera, crowd-spacing,
-    /// hit-feedback, HUD and restrained world-look presentation on top.
+    /// enemy identity, hit-feedback, HUD and restrained world-look presentation.
     /// </summary>
     [DefaultExecutionOrder(-150)]
     [DisallowMultipleComponent]
@@ -75,6 +75,8 @@ namespace Mindforge.Chassis
 
                 if (enemy.GetComponent<MindforgeEnemyFormationV31>() == null)
                     enemy.gameObject.AddComponent<MindforgeEnemyFormationV31>();
+                if (enemy.GetComponent<MindforgeEnemyIdentityV31>() == null)
+                    enemy.gameObject.AddComponent<MindforgeEnemyIdentityV31>();
                 if (enemy.GetComponent<MindforgeCombatFeedbackV31>() == null)
                 {
                     enemy.gameObject.AddComponent<MindforgeCombatFeedbackV31>();
