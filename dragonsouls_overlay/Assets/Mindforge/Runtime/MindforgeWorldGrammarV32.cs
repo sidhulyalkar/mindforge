@@ -86,6 +86,22 @@ namespace Mindforge.Chassis
             },
             new MindforgeRegionDefinitionV32
             {
+                id = MindforgeRegionIdV32.NeuralCloister,
+                displayName = "Neural Cloister",
+                ambientColor = new Color(0.42f, 0.48f, 0.54f),
+                neuralAccent = new Color(0.18f, 0.88f, 1.00f),
+                corruptionAccent = new Color(0.80f, 0.24f, 0.56f),
+                requiredChunkKinds = new[]
+                {
+                    MindforgeChunkKindV32.Corridor,
+                    MindforgeChunkKindV32.Puzzle,
+                    MindforgeChunkKindV32.Shrine,
+                    MindforgeChunkKindV32.Secret,
+                    MindforgeChunkKindV32.Transition,
+                },
+            },
+            new MindforgeRegionDefinitionV32
+            {
                 id = MindforgeRegionIdV32.FractureCaverns,
                 displayName = "Fracture Caverns",
                 ambientColor = new Color(0.10f, 0.12f, 0.16f),
