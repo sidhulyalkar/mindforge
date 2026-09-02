@@ -14,12 +14,13 @@ namespace Mindforge.Editor
     /// authors continuous landscape/material grammar, V0.21 Arena + Patina corrects the first
     /// boss bowl and local seams, V0.22 World Integrity seals the visible world envelope,
     /// V0.23 reconciles visible structure with collision, V0.24 imposes the canonical
-    /// white-cathedral art/architecture grammar, and V0.25 promotes high-fidelity rendering,
-    /// restrained post-processing and the canonical sensory-presentation layer.
+    /// white-cathedral art/architecture grammar, V0.25 promotes high-fidelity rendering and
+    /// sensory presentation, and V0.26 replaces remaining primitive render silhouettes with
+    /// production geometry while restoring cavern/vault depth.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.25 Sensory Fidelity + Data Cathedral";
+        public const string ProductVersion = "V0.26 Production Geometry + Cathedral Depth";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -99,6 +100,7 @@ namespace Mindforge.Editor
             WorldFoundationV23Builder.ApplyOpenScene();
             WorldCathedralV24Builder.ApplyOpenScene();
             SensoryFidelityV25Builder.ApplyOpenScene();
+            WorldRenderingV26Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -141,6 +143,8 @@ namespace Mindforge.Editor
                 WorldCathedralV24Builder.ApplyOpenScene();
             if (!SensoryFidelityV25Builder.PresentInOpenScene())
                 SensoryFidelityV25Builder.ApplyOpenScene();
+            if (!WorldRenderingV26Builder.PresentInOpenScene())
+                WorldRenderingV26Builder.ApplyOpenScene();
         }
     }
 }

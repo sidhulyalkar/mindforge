@@ -68,12 +68,15 @@ namespace Mindforge.Editor
             Add(report, "canonical_scene",
                 string.Equals(report.scene_path, MindforgeDemoV11Builder.DemoScenePath, StringComparison.Ordinal),
                 report.scene_path);
-            Add(report, "product_version_v25",
-                MindforgeLatestEditorMenu.ProductVersion.StartsWith("V0.25", StringComparison.Ordinal),
+            Add(report, "product_version_v26",
+                MindforgeLatestEditorMenu.ProductVersion.StartsWith("V0.26", StringComparison.Ordinal),
                 MindforgeLatestEditorMenu.ProductVersion);
             Add(report, "v25_editor_presentation_authored",
                 SensoryFidelityV25Builder.PresentInOpenScene(),
                 $"root={SensoryFidelityV25Builder.RootName}");
+            Add(report, "v26_world_rendering_authored",
+                WorldRenderingV26Builder.PresentInOpenScene(),
+                $"root={WorldRenderingV26Builder.RootName}");
 
             CheckCount<MindforgeDemoV11Marker>(report, "single_demo_marker", 1);
             CheckCount<GuardianMotor>(report, "single_guardian_motor", 1);
