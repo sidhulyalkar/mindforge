@@ -152,15 +152,19 @@ def test_v28_anatomical_sword_contact_matches_rendered_creature_body():
     assert "AddComponent<Rigidbody>" not in builder
 
 
-def test_v28_camera_guard_only_corrects_actual_target_occlusion_and_freezes_for_neural_field():
+def test_v28_camera_guard_only_corrects_authored_target_and_respects_world_collision():
     source = read(OCCLUSION)
     for token in (
-        "target.GetComponentsInChildren<Renderer>(true)",
+        "authored.ModelRoot",
+        "renderRoot.GetComponentsInChildren<Renderer>(true)",
         "targetBounds.SqrDistance(cameraPosition)",
         "corridorBlocked",
         "maximumLateralCorrection = 1.55f",
         "maximumLiftCorrection = 0.58f",
         "Never let the guard pull the camera closer",
+        "ResolveWorldCollision(cameraPosition, desired)",
+        "Physics.SphereCastNonAlloc",
+        "IsDynamicActor(collider)",
         "NeuralVisualFieldActive()",
     ):
         assert token in source
