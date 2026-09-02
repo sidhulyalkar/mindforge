@@ -42,6 +42,8 @@ namespace Mindforge.Presentation
         private float _deathTime;
         private bool _dead;
         private bool _configured;
+        private bool _v27RetirementQueued;
+        private bool _v19RetirementQueued;
         private int _phase = 1;
         private VisualState _state;
 
@@ -258,10 +260,44 @@ namespace Mindforge.Presentation
 
         private void HideRetiredBossVisuals()
         {
+            // V0.27 and V0.19 still contain historical AfterSceneLoad installers. V0.28 owns
+            // presentation now, so if either runtime component appears we deactivate its render
+            // root immediately and retire the component. Destroy is end-of-frame; SetActive(false)
+            // happens synchronously before rendering, avoiding persistent duplicate updates/materials.
             FracturedSignalBeastV27 v27 = GetComponent<FracturedSignalBeastV27>();
-            if (v27 != null && v27.enabled) v27.enabled = false;
-            DisableChild(FracturedSignalBeastV27.RootName);
-            DisableChild(FracturedSignalCharacterV19.RootName);
+            if (v27 != null)
+            {
+                if (v27.enabled) v27.enabled = false;
+                DisableChild(FracturedSignalBeastV27.RootName);
+                if (!_v27RetirementQueued)
+                {
+                    _v27RetirementQueued = true;
+                    Destroy(v27);
+                }
+            }
+            else
+            {
+                _v27RetirementQueued = false;
+                DisableChild(FracturedSignalBeastV27.RootName);
+            }
+
+            FracturedSignalCharacterV19 v19 = GetComponent<FracturedSignalCharacterV19>();
+            if (v19 != null)
+            {
+                if (v19.enabled) v19.enabled = false;
+                DisableChild(FracturedSignalCharacterV19.RootName);
+                if (!_v19RetirementQueued)
+                {
+                    _v19RetirementQueued = true;
+                    Destroy(v19);
+                }
+            }
+            else
+            {
+                _v19RetirementQueued = false;
+                DisableChild(FracturedSignalCharacterV19.RootName);
+            }
+
             DisableChild("V11BossVisual");
             DisableChild("FracturedSignalShowcaseAvatar");
             DisableChild("FracturedSignalThreatSilhouette");
