@@ -126,6 +126,8 @@ namespace Mindforge.Chassis.Editor
             EnemyStateMachine[] enemies = Object.FindObjectsOfType<EnemyStateMachine>(true);
             BossManager[] bosses = Object.FindObjectsOfType<BossManager>(true);
             EnemyNightmareDragonController[] dragons = Object.FindObjectsOfType<EnemyNightmareDragonController>(true);
+            Bonfire[] bonfires = Object.FindObjectsOfType<Bonfire>(true);
+            BonfiresManager[] bonfireManagers = Object.FindObjectsOfType<BonfiresManager>(true);
 
             if (players.Length != 1)
                 throw new UnityEditor.Build.BuildFailedException($"V0.30 full world expected one player, found {players.Length}.");
@@ -137,6 +139,10 @@ namespace Mindforge.Chassis.Editor
                 throw new UnityEditor.Build.BuildFailedException("V0.30 full world contains no standard enemy state machines.");
             if (bosses.Length == 0 || dragons.Length == 0)
                 throw new UnityEditor.Build.BuildFailedException("V0.30 full world lost the dragon boss pipeline.");
+            if (bonfires.Length == 0 || bonfireManagers.Length != 1)
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.30 full world lost bonfire progression authority: bonfires={bonfires.Length}, managers={bonfireManagers.Length}."
+                );
         }
 
         private static void ValidateMindforgeRootIsPresentationOnly(GameObject root)
