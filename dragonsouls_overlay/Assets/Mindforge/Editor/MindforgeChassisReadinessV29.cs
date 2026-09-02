@@ -66,6 +66,7 @@ namespace Mindforge.Chassis.Editor
                 Add(report, "boss_manager", false, false, "requires Play Mode");
                 Add(report, "nightmare_dragon_controller", false, false, "requires Play Mode");
                 Add(report, "aetherblade_presentation", false, false, "requires Play Mode");
+                Add(report, "mindforge_dragon_presentation", false, false, "requires Play Mode");
                 report.passed = false;
                 Log(report);
                 return report;
@@ -79,6 +80,8 @@ namespace Mindforge.Chassis.Editor
             EnemyNightmareDragonController[] dragons = UnityEngine.Object.FindObjectsOfType<EnemyNightmareDragonController>(true);
             MindforgeAetherbladePresentationV29[] blades =
                 UnityEngine.Object.FindObjectsOfType<MindforgeAetherbladePresentationV29>(true);
+            MindforgeDragonBossPresentationV29[] bossPresentation =
+                UnityEngine.Object.FindObjectsOfType<MindforgeDragonBossPresentationV29>(true);
 
             Add(report, "single_player_state_machine", true, players.Length == 1, $"found={players.Length}");
             Add(report, "single_authoritative_sword", true, swords.Length == 1, $"found={swords.Length}");
@@ -89,6 +92,11 @@ namespace Mindforge.Chassis.Editor
             Add(report, "aetherblade_presentation", true,
                 blades.Length == 1 && blades[0].Installed,
                 blades.Length == 1 ? $"installed={blades[0].Installed}" : $"found={blades.Length}");
+            Add(report, "mindforge_dragon_presentation", true,
+                bossPresentation.Length == 1 && bossPresentation[0].Installed && bossPresentation[0].RendererCount > 0,
+                bossPresentation.Length == 1
+                    ? $"installed={bossPresentation[0].Installed}, renderers={bossPresentation[0].RendererCount}"
+                    : $"found={bossPresentation.Length}");
 
             if (players.Length == 1)
             {
