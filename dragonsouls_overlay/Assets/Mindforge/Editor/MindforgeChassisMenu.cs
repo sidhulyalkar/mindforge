@@ -23,6 +23,12 @@ namespace Mindforge.Chassis.Editor
             OpenAndPlay(MainGameScene);
         }
 
+        [MenuItem("Mindforge/Chassis/PLAY COMBAT SANDBOX", priority = 2)]
+        public static void PlayCombatSandbox()
+        {
+            OpenAndPlay(GameplayTestScene);
+        }
+
         [MenuItem("Mindforge/Chassis/Open Main Menu", priority = 10)]
         public static void OpenMainMenu()
         {
@@ -53,6 +59,12 @@ namespace Mindforge.Chassis.Editor
             }
 
             Debug.Log("[Mindforge:V29] Pinned Dragon Souls chassis validation PASS.");
+        }
+
+        [MenuItem("Mindforge/Chassis/Audit Active Chassis", priority = 21)]
+        public static void AuditActiveChassis()
+        {
+            MindforgeChassisReadinessV29.AuditActiveScene();
         }
 
         private static void OpenAndPlay(string scenePath)
