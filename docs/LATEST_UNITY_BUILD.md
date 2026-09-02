@@ -8,7 +8,7 @@ For ordinary Mindforge development there is exactly one supported Unity entry po
 
 This deterministically rebuilds and opens the canonical integrated scene, then enters Play Mode.
 
-The current product label is **V0.28 Professional Creature + World Staging**. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
+The current product label is **V0.28 Professional Creature + World Staging**. Its explicit predecessor is **V0.27 Guardian Embodiment + Fractured Beast**, which remains composed as the Guardian/encounter-presentation stage beneath V0.28. The scene asset remains `Assets/Mindforge/Scenes/MindforgeDemoV11.unity` because V0.11 is the clean systems/traversal assembler version, not the complete-game product version.
 
 `MindforgeLatestEditorMenu.BuildCanonical(...)` now has ten ordered authoring stages:
 
