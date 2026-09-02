@@ -1,0 +1,20 @@
+Gobkit Free Assets
+Source: https://github.com/Ariescar/gobkit-free-assets
+Pinned source commit for Mindforge V0.28: 0d654ab3306515b1b63621a5c6548554034482dc
+
+Creative Commons Legal Code
+
+CC0 1.0 Universal
+
+The person who associated a work with this deed has dedicated the work to the
+public domain by waiving all of his or her rights to the work worldwide under
+copyright law, including all related and neighboring rights, to the extent
+allowed by law.
+
+You can copy, modify, distribute and perform the work, even for commercial
+purposes, all without asking permission. No attribution is required.
+
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+These 3D assets are provided by Gobkit / Alsomind Tech Co., Ltd.
+No rights reserved. https://gobkit.com
