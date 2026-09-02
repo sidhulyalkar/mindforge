@@ -44,9 +44,10 @@ No upstream `.inputactions` asset is modified and no Mindforge component invokes
 | Sheath / unsheath | X |
 | Heal | H |
 | Memory Forge / bonfire interaction | E |
-| Pause | Escape |
+| Pause game | Escape |
+| Pause / resume BCI flicker only | B |
 
-Gamepad bindings remain inherited and unchanged.
+Gamepad bindings remain inherited and unchanged. The B key only controls the local BCI visual modulation and never pauses gameplay.
 
 ## Sword runtime assurance
 
@@ -88,9 +89,11 @@ Each node uses analytic sinusoidal luminance modulation based on `Time.unscaledT
 
 The default preview uses an 18% luminance modulation range and high-contrast preview is disabled. The stimulus is intentionally compact and kept in peripheral screen space so the first native test evaluates whether it is readable without dominating combat composition.
 
+Press **B** at any point to stop the temporal modulation while leaving the orb and its labels visible. Press **B** again to resume. This local preview control does not change `Time.timeScale`, pause enemies, stop the player or publish a neural intent.
+
 ### Important visual-stimulus caution
 
-Rapid luminance modulation can be uncomfortable and can provoke symptoms in photosensitive users. The reduced-contrast, compact default is a development choice, not a guarantee of safety. High-contrast preview remains disabled by default and should not be enabled casually.
+Rapid luminance modulation can be uncomfortable and can provoke symptoms in photosensitive users. The reduced-contrast, compact default is a development choice, not a guarantee of safety. High-contrast preview remains disabled by default and should not be enabled casually. Use **B** to stop the modulation immediately if it is uncomfortable or distracting.
 
 ## Scientific boundary
 
@@ -128,15 +131,16 @@ Run:
 Then perform this focused sequence:
 
 1. confirm the BCI orb shows Sight 8 Hz, Guard 10 Hz and Concord 12 Hz simultaneously;
-2. move with WASD and verify mouse camera remains usable with the orb visible;
-3. press left mouse at least three times with combo timing and confirm visibly distinct authored sword swings and trail windows;
-4. press right mouse and confirm a heavy sword animation;
-5. land at least one ordinary sword hit on a normal enemy and confirm health/hit feedback changes;
-6. middle-click a target and repeat light/heavy attacks while locked on;
-7. roll with Left Alt during an enemy attack;
-8. aim with Q, throw if appropriate, then recall with R;
-9. verify the Aetherblade remains attached to the animated hand during ordinary attacks and still follows the inherited throw/recall root;
-10. continue into the boss encounter if practical and verify sword attacks still open and close cleanly while the BCI orb remains visible.
+2. press B once and confirm the orb remains visible while flicker stops, then press B again to resume;
+3. move with WASD and verify mouse camera remains usable with the orb visible;
+4. press left mouse at least three times with combo timing and confirm visibly distinct authored sword swings and trail windows;
+5. press right mouse and confirm a heavy sword animation;
+6. land at least one ordinary sword hit on a normal enemy and confirm health/hit feedback changes;
+7. middle-click a target and repeat light/heavy attacks while locked on;
+8. roll with Left Alt during an enemy attack;
+9. aim with Q, throw if appropriate, then recall with R;
+10. verify the Aetherblade remains attached to the animated hand during ordinary attacks and still follows the inherited throw/recall root;
+11. continue into the boss encounter if practical and verify sword attacks still open and close cleanly while the BCI orb remains visible.
 
 After at least one swing and one landed hit, run:
 
@@ -150,10 +154,10 @@ The focused combat evidence should show:
 - `sword_damage_hit_observed`: PASS;
 - `bci_orb_runtime`: PASS;
 - `bci_requested_frequency_map`: PASS;
-- `bci_reduced_contrast_default`: PASS;
+- `bci_reduced_contrast_default`: PASS whether modulation is currently running or locally paused;
 - `bci_physical_display_frequency`: deferred / unobserved by design.
 
-A 20 to 40 second screen recording containing movement, three light swings, one heavy swing, one landed hit, one roll, target lock and the orb in-frame is more useful than a long exploratory capture for the next tuning pass.
+A 20 to 40 second screen recording containing movement, three light swings, one heavy swing, one landed hit, one roll, target lock, one B pause/resume and the orb in-frame is more useful than a long exploratory capture for the next tuning pass.
 
 ## Promotion rule
 
@@ -166,4 +170,5 @@ V0.31 should remain a draft until the exact branch head passes software contract
 - no stuck sword collider is observed;
 - Aetherblade motion remains attached to the authored swing animation;
 - the BCI orb remains legible without materially blocking the combat scene;
+- B pauses/resumes only the stimulus modulation;
 - ordinary enemies, roll, target lock, sword throw/recall, death/respawn and boss entry still function.
