@@ -26,6 +26,7 @@ namespace Mindforge.Chassis.Editor
         public const float BossExclusionRadius = 20f;
         public const int MaximumAddedSolidModules = 12;
 
+        private const float BoundaryPadding = 0.75f;
         private const string CathedralBoundaryPrefab =
             "Assets/ThirdPartySources/Inguz Media Studio/The Beauty Medieval War Banners and PROPS/Prefab/Metal_Wall_With_Pillars.prefab";
         private const string CavernBoundaryPrefab =
@@ -57,7 +58,6 @@ namespace Mindforge.Chassis.Editor
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new UnityEditor.Build.BuildFailedException("Stop Play Mode before rebuilding V0.31.");
 
-            // Reconstruct the known-good V0.30 source from the pinned full game first.
             MindforgeProductionWorldBuilderV30.Build(refresh: refresh);
 
             if (refresh && AssetDatabase.LoadAssetAtPath<SceneAsset>(DestinationScene) != null)
@@ -174,16 +174,48 @@ namespace Mindforge.Chassis.Editor
             instance.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
             instance.transform.position = routeCenter + lateral * side * (ProtectedHalfWidth + 4f) + Vector3.up * 40f;
 
-            Bounds bounds = CalculateBounds(instance);
-            float lateralRadius = Mathf.Abs(lateral.x) * bounds.extents.x + Mathf.Abs(lateral.z) * bounds.extents.z;
-            float centerOffset = ProtectedHalfWidth + lateralRadius + 0.75f;
-            Vector3 desiredCenter = routeCenter + lateral * side * centerOffset;
-            instance.transform.position = new Vector3(desiredCenter.x, instance.transform.position.y, desiredCenter.z);
-
+            AlignBoundaryBoundsToLane(instance, routeCenter, lateral, side);
             GroundInstance(instance, routeCenter.y);
             ValidateBoundaryClearance(instance, routeCenter, lateral, side);
             ConfigureRenderers(instance);
             return instance;
+        }
+
+        /// <summary>
+        /// Positions the actual visible/physical bounds, not the prefab root pivot.
+        /// Some upstream modular prefabs have very large local pivot offsets, so placing
+        /// transform.position directly can put the renderer on the opposite side of the route.
+        /// </summary>
+        private static void AlignBoundaryBoundsToLane(GameObject instance, Vector3 routeCenter, Vector3 lateral, float side)
+        {
+            lateral = lateral.normalized;
+            Bounds bounds = CalculateBounds(instance);
+            float projectedRadius = ProjectedHalfExtent(bounds, lateral);
+            float desiredSignedCenter = ProtectedHalfWidth + projectedRadius + BoundaryPadding;
+
+            Vector3 delta = bounds.center - routeCenter;
+            float currentSignedCenter = Vector3.Dot(delta, lateral) * side;
+            float correction = desiredSignedCenter - currentSignedCenter;
+            instance.transform.position += lateral * side * correction;
+
+            Bounds aligned = CalculateBounds(instance);
+            Vector3 alignedDelta = aligned.center - routeCenter;
+            float resolvedSignedCenter = Vector3.Dot(alignedDelta, lateral) * side;
+            if (Mathf.Abs(resolvedSignedCenter - desiredSignedCenter) > 0.05f)
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"{instance.name} bounds-center alignment failed: resolved={resolvedSignedCenter:F2}m, " +
+                    $"target={desiredSignedCenter:F2}m."
+                );
+            }
+        }
+
+        private static float ProjectedHalfExtent(Bounds bounds, Vector3 axis)
+        {
+            axis = axis.normalized;
+            return Mathf.Abs(axis.x) * bounds.extents.x +
+                   Mathf.Abs(axis.y) * bounds.extents.y +
+                   Mathf.Abs(axis.z) * bounds.extents.z;
         }
 
         private static GameObject InstantiatePrefab(GameObject prefab, Transform parent, string name)
@@ -227,11 +259,11 @@ namespace Mindforge.Chassis.Editor
 
         private static void ValidateBoundaryClearance(GameObject instance, Vector3 routeCenter, Vector3 lateral, float side)
         {
+            lateral = lateral.normalized;
             Bounds bounds = CalculateBounds(instance);
             Vector3 delta = bounds.center - routeCenter;
-            delta.y = 0f;
             float signedCenter = Vector3.Dot(delta, lateral) * side;
-            float projectedRadius = Mathf.Abs(lateral.x) * bounds.extents.x + Mathf.Abs(lateral.z) * bounds.extents.z;
+            float projectedRadius = ProjectedHalfExtent(bounds, lateral);
             float innerEdgeDistance = signedCenter - projectedRadius;
             if (innerEdgeDistance < ProtectedHalfWidth - 0.05f)
             {
