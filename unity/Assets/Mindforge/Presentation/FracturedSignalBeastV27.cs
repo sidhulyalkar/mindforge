@@ -36,6 +36,7 @@ namespace Mindforge.Presentation
         private Transform _leftFeel;
         private Transform _rightFeel;
         private Transform[] _crystals;
+        private Vector3[] _crystalBaseScales;
         private Renderer[] _crystalRenderers;
         private Renderer[] _eyeRenderers;
         private Renderer _mouthRenderer;
@@ -172,7 +173,8 @@ namespace Mindforge.Presentation
             _head.SetParent(_root, false);
             _head.localPosition = new Vector3(0f, 1.03f, 1.62f);
             Transform headMass = MeshPart("BroadJowl", BuildHeadMesh(18, 20), _head, _hide);
-            headMass.localPosition = Vector3.zero;
+            headMass.localPosition = new Vector3(0f, 0.02f, 0.12f);
+            headMass.localScale = new Vector3(1.05f, 1.02f, 0.31f);
 
             Transform leftCheek = Primitive("LeftJowl", PrimitiveType.Sphere, _head, new Vector3(-0.54f, -0.10f, 0.54f), new Vector3(0.78f, 0.58f, 0.72f), _hide);
             Transform rightCheek = Primitive("RightJowl", PrimitiveType.Sphere, _head, new Vector3(0.54f, -0.10f, 0.54f), new Vector3(0.78f, 0.58f, 0.72f), _hide);
@@ -186,7 +188,8 @@ namespace Mindforge.Presentation
             _jaw.SetParent(_head, false);
             _jaw.localPosition = new Vector3(0f, -0.34f, 0.78f);
             Transform lowerJaw = MeshPart("LowerJaw", BuildJawMesh(14, 16), _jaw, _belly);
-            lowerJaw.localPosition = new Vector3(0f, -0.03f, 0.20f);
+            lowerJaw.localPosition = new Vector3(0f, -0.03f, 0.11f);
+            lowerJaw.localScale = new Vector3(1.10f, 0.82f, 0.22f);
             Transform tongue = Primitive("SignalTongue", PrimitiveType.Capsule, _jaw, new Vector3(0f, -0.08f, 0.48f), new Vector3(0.18f, 0.36f, 0.13f), _corruption);
             tongue.localRotation = Quaternion.Euler(72f, 0f, 0f);
 
@@ -223,6 +226,7 @@ namespace Mindforge.Presentation
         {
             const int count = 9;
             _crystals = new Transform[count];
+            _crystalBaseScales = new Vector3[count];
             _crystalRenderers = new Renderer[count];
             for (int i = 0; i < count; i++)
             {
@@ -234,8 +238,10 @@ namespace Mindforge.Presentation
                 crystal.localPosition = new Vector3(x, y, z);
                 crystal.localRotation = Quaternion.Euler(-12f + i * 4f, i * 29f, (i - 4) * 5f);
                 float height = 0.54f + (i % 3) * 0.19f + Mathf.Sin(t * Mathf.PI) * 0.40f;
-                crystal.localScale = new Vector3(0.22f, height, 0.22f);
+                Vector3 baseScale = new Vector3(0.22f, height, 0.22f);
+                crystal.localScale = baseScale;
                 _crystals[i] = crystal;
+                _crystalBaseScales[i] = baseScale;
                 _crystalRenderers[i] = crystal.GetComponent<Renderer>();
             }
         }
@@ -288,9 +294,10 @@ namespace Mindforge.Presentation
 
             float headYaw = 0f;
             float headPitch = 0f;
-            if (!neutral && _guardian != null)
+            if (!neutral && _guardian != null && _head != null)
             {
-                Vector3 local = transform.InverseTransformDirection(_guardian.position + Vector3.up * 0.9f - _head.position);
+                Vector3 toward = _guardian.position + Vector3.up * 0.9f - _head.position;
+                Vector3 local = transform.InverseTransformDirection(toward);
                 headYaw = Mathf.Clamp(Mathf.Atan2(local.x, Mathf.Max(0.001f, local.z)) * Mathf.Rad2Deg, -18f, 18f);
                 headPitch = Mathf.Clamp(-Mathf.Atan2(local.y, Mathf.Max(0.2f, new Vector2(local.x, local.z).magnitude)) * Mathf.Rad2Deg, -8f, 7f);
             }
@@ -317,11 +324,15 @@ namespace Mindforge.Presentation
                 {
                     Transform crystal = _crystals[i];
                     if (crystal == null) continue;
-                    float pulse = neutral ? 0f : Mathf.Sin(time * 0.78f + i * 0.71f) * 0.025f;
-                    Vector3 scale = crystal.localScale;
-                    scale.x = Mathf.Max(0.08f, scale.x * (1f + pulse));
-                    scale.z = Mathf.Max(0.08f, scale.z * (1f + pulse));
-                    crystal.localScale = scale;
+                    Vector3 baseScale = _crystalBaseScales != null && i < _crystalBaseScales.Length
+                        ? _crystalBaseScales[i]
+                        : crystal.localScale;
+                    float pulse = neutral ? 0f : Mathf.Sin(time * 0.78f + i * 0.71f) * 0.035f;
+                    float chargeGrowth = neutral ? 0f : _charge * (0.045f + (i % 3) * 0.012f);
+                    crystal.localScale = new Vector3(
+                        baseScale.x * (1f + pulse),
+                        baseScale.y * (1f + pulse * 0.45f + chargeGrowth),
+                        baseScale.z * (1f + pulse));
                 }
             }
 
@@ -560,6 +571,14 @@ namespace Mindforge.Presentation
                 new Vector3(-0.34f, -0.5f, 0.34f),
                 new Vector3(0.08f, 0.50f, 0.02f),
             };
+            Vector2[] uv =
+            {
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(1f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(0.5f, 0.5f),
+            };
             int[] t =
             {
                 0,1,4, 1,2,4, 2,3,4, 3,0,4,
@@ -567,6 +586,7 @@ namespace Mindforge.Presentation
             };
             Mesh mesh = new Mesh { name = "V27_SignalCrystal" };
             mesh.vertices = v;
+            mesh.uv = uv;
             mesh.triangles = t;
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
