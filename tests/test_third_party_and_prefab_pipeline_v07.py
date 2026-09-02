@@ -35,18 +35,30 @@ def test_third_party_manifest_has_strict_policy_and_known_sources():
     assert "unity/Assets/Mindforge/ThirdParty/Wfc/MindforgeConstraintCollapse.cs" in wfc["vendored_paths"]
     assert "unity/Assets/Mindforge/ThirdParty/Wfc/LICENSE.txt" in wfc["vendored_paths"]
 
+    supported_usage = {
+        "adapted_code",
+        "reference_only",
+        "vendored_asset",
+        "local_asset_source",
+        "package_dependency",
+        "editor_acquired_asset_source",
+    }
     for entry in entries.values():
         assert entry["upstream"].startswith("https://")
         assert entry["license"].strip()
-        assert entry["usage"] in {"adapted_code", "reference_only", "vendored_asset", "local_asset_source"}
+        assert entry["usage"] in supported_usage
         if entry["usage"] != "local_asset_source":
-            # V0.7 code/reference provenance is GitHub-addressable. V0.9 explicitly adds
-            # a separate local-only category for upstream asset sites whose raw files must
-            # not be published by this repository.
+            # Code/reference/package/editor-acquired provenance remains GitHub-addressable.
+            # Local-only source art is the sole category permitted to originate elsewhere.
             assert entry["upstream"].startswith("https://github.com/")
         for relative in entry["vendored_paths"]:
             assert (ROOT / relative).exists(), relative
-        if entry["usage"] in {"reference_only", "local_asset_source"}:
+        if entry["usage"] in {
+            "reference_only",
+            "local_asset_source",
+            "package_dependency",
+            "editor_acquired_asset_source",
+        }:
             assert entry["vendored_paths"] == []
 
 
