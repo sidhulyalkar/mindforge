@@ -15,12 +15,13 @@ namespace Mindforge.Editor
     /// boss bowl and local seams, V0.22 World Integrity seals the visible world envelope,
     /// V0.23 reconciles visible structure with collision, V0.24 imposes the canonical
     /// white-cathedral art/architecture grammar, V0.25 promotes high-fidelity rendering and
-    /// sensory presentation, and V0.26 replaces remaining primitive render silhouettes with
-    /// production geometry while restoring cavern/vault depth.
+    /// sensory presentation, V0.26 replaces remaining primitive render silhouettes with
+    /// production geometry, and V0.27 adds Guardian sword-arm embodiment plus the animalistic
+    /// Fractured Signal encounter stage.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.26 Production Geometry + Cathedral Depth";
+        public const string ProductVersion = "V0.27 Guardian Embodiment + Fractured Beast";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -101,6 +102,7 @@ namespace Mindforge.Editor
             WorldCathedralV24Builder.ApplyOpenScene();
             SensoryFidelityV25Builder.ApplyOpenScene();
             WorldRenderingV26Builder.ApplyOpenScene();
+            CombatEmbodimentV27Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -145,6 +147,8 @@ namespace Mindforge.Editor
                 SensoryFidelityV25Builder.ApplyOpenScene();
             if (!WorldRenderingV26Builder.PresentInOpenScene())
                 WorldRenderingV26Builder.ApplyOpenScene();
+            if (!CombatEmbodimentV27Builder.PresentInOpenScene())
+                CombatEmbodimentV27Builder.ApplyOpenScene();
         }
     }
 }
