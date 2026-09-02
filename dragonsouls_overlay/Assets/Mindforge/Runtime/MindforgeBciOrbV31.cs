@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -48,15 +47,12 @@ namespace Mindforge.Chassis
             public MindforgeIntentV29 intent;
             public float frequencyHz;
             public Color color;
-            public Renderer renderer;
             public Material material;
             public Transform transform;
-            public TextMeshPro label;
         }
 
         private readonly List<StimulusNode> _nodes = new List<StimulusNode>(StimulusNodeCount);
         private Transform _visualRoot;
-        private Renderer _coreRenderer;
         private Material _coreMaterial;
         private Material _shellMaterial;
         private MindforgeIntentV29 _selectedIntent = MindforgeIntentV29.None;
@@ -167,8 +163,7 @@ namespace Mindforge.Chassis
             }
 
             _coreMaterial = CreateEmissionMaterial("MF_V31_BCI_Core", coreColor, 1.8f);
-            GameObject core = CreateSphere("SignalCore", _visualRoot, new Vector3(0f, 0f, -0.010f), 0.062f * orbScale, _coreMaterial);
-            _coreRenderer = core.GetComponent<Renderer>();
+            CreateSphere("SignalCore", _visualRoot, new Vector3(0f, 0f, -0.010f), 0.062f * orbScale, _coreMaterial);
 
             CreateStimulus(
                 MindforgeIntentV29.Sight,
@@ -208,16 +203,14 @@ namespace Mindforge.Chassis
                 renderer.receiveShadows = false;
             }
 
-            TextMeshPro label = CreateLabel(intent + "Label", localPosition + new Vector3(0f, -0.076f, 0.002f), labelText, color, 0.66f);
+            CreateLabel(intent + "Label", localPosition + new Vector3(0f, -0.076f, 0.002f), labelText, color, 0.66f);
             _nodes.Add(new StimulusNode
             {
                 intent = intent,
                 frequencyHz = frequency,
                 color = color,
-                renderer = renderer,
                 material = material,
                 transform = nodeObject.transform,
-                label = label,
             });
         }
 
@@ -247,7 +240,6 @@ namespace Mindforge.Chassis
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = color;
             tmp.enableWordWrapping = false;
-            tmp.raycastTarget = false;
             tmp.rectTransform.sizeDelta = new Vector2(1.8f, 0.55f);
             return tmp;
         }
