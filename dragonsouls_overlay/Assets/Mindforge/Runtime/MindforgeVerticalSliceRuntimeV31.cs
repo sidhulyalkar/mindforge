@@ -7,9 +7,10 @@ namespace Mindforge.Chassis
 {
     /// <summary>
     /// Runtime installer for the V0.31 production slice. It uses the inherited
-    /// Dragon Souls world and state machines, then installs camera, crowd-spacing,
-    /// enemy identity, boss presentation, sword assurance, BCI preview, hit-feedback,
-    /// HUD and world look without replacing upstream gameplay authority.
+    /// Dragon Souls world and state machines, then installs desktop input bindings,
+    /// camera, crowd-spacing, enemy identity, boss presentation, sword assurance,
+    /// BCI preview, hit-feedback, HUD and world look without replacing upstream
+    /// gameplay authority.
     /// </summary>
     [DefaultExecutionOrder(-150)]
     [DisallowMultipleComponent]
@@ -33,6 +34,7 @@ namespace Mindforge.Chassis
 
         private void Start()
         {
+            InstallDesktopBindings();
             InstallCamera();
             InstallCombatPresentation();
             InstallSwordAssurance();
@@ -47,6 +49,12 @@ namespace Mindforge.Chassis
         private void OnDestroy()
         {
             if (_profile != null) Destroy(_profile);
+        }
+
+        private void InstallDesktopBindings()
+        {
+            if (GetComponent<MindforgeDesktopCombatBindingsV31>() == null)
+                gameObject.AddComponent<MindforgeDesktopCombatBindingsV31>();
         }
 
         private void InstallCamera()
