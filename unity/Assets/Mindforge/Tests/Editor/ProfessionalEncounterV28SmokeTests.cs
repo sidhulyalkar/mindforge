@@ -18,6 +18,15 @@ namespace Mindforge.Tests.Editor
         }
 
         [Test]
+        public void V28NormalizedCacheSha256_IsDeterministic()
+        {
+            byte[] bytes = System.Text.Encoding.ASCII.GetBytes("mindforge-v28");
+            Assert.AreEqual(
+                "a0656d180c39a3fffd67767cf4315e47cf51fc4c52e65594db9b3f750e6c0278",
+                PublicAssetAcquisitionV28.ComputeSha256(bytes));
+        }
+
+        [Test]
         public void V28ActorOcclusionGuard_CanBeConstructedByUnity()
         {
             GameObject go = new GameObject("V28_CameraSmoke");
@@ -32,6 +41,13 @@ namespace Mindforge.Tests.Editor
             {
                 Object.DestroyImmediate(go);
             }
+        }
+
+        [Test]
+        public void V28WorldDetail_UsesSameProtectedNegativeSpaceAsEncounterStage()
+        {
+            Assert.AreEqual(3.15f, ProfessionalWorldDetailV28Builder.RouteClearHalfWidth, 0.0001f);
+            Assert.AreEqual(14.4f, ProfessionalWorldDetailV28Builder.BossClearRadius, 0.0001f);
         }
 
         [Test]
