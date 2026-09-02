@@ -53,13 +53,12 @@ def test_third_party_manifest_has_strict_policy_and_known_sources():
             assert entry["upstream"].startswith("https://github.com/")
         for relative in entry["vendored_paths"]:
             assert (ROOT / relative).exists(), relative
-        if entry["usage"] in {
-            "reference_only",
-            "local_asset_source",
-            "package_dependency",
-            "editor_acquired_asset_source",
-        }:
+        if entry["usage"] in {"reference_only", "local_asset_source", "editor_acquired_asset_source"}:
             assert entry["vendored_paths"] == []
+        if entry["usage"] == "package_dependency":
+            # A package dependency may legitimately pin its package manifest and a vendored
+            # license notice while the package source itself remains external.
+            assert entry["vendored_paths"]
 
 
 def test_no_unmanifested_binary_art_is_hiding_under_thirdparty():
