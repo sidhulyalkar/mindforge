@@ -10,6 +10,12 @@ def source() -> str:
     return AUDIT.read_text(encoding="utf-8")
 
 
+def test_v30_geometry_audit_imports_dragon_souls_state_namespace():
+    text = source()
+    assert "using States;" in text
+    assert "PlayerStateMachine" in text
+
+
 def test_v30_geometry_audit_uses_baked_navmesh_and_measured_collision_clearance():
     text = source()
     for token in (
