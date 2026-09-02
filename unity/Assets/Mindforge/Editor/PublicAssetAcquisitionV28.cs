@@ -18,7 +18,10 @@ namespace Mindforge.Editor
     /// Generated/V28 cache. KayKit OBJ files are then normalized by removing their mtllib line
     /// because Mindforge deliberately supplies its own cathedral materials.
     ///
-    /// This is build tooling only. It creates no runtime network request and no gameplay authority.
+    /// Cached source art is never trusted by existence alone. Byte-identical source files are
+    /// rechecked directly against the pinned Git blob. Normalized files carry a receipt that ties
+    /// the pinned upstream blob to the exact normalized SHA-256; a missing or inconsistent receipt
+    /// forces reacquisition. This is build tooling only and creates no runtime network request.
     /// </summary>
     public static class PublicAssetAcquisitionV28
     {
@@ -50,6 +53,8 @@ namespace Mindforge.Editor
                 GitBlobSha1 = gitBlobSha1;
                 NormalizeObj = normalizeObj;
             }
+
+            public string ReceiptPath => LocalPath + ".mindforge-provenance.txt";
         }
 
         private static readonly SourceAsset[] Sources =
@@ -96,12 +101,12 @@ namespace Mindforge.Editor
             using (HttpClient client = new HttpClient())
             {
                 client.Timeout = TimeSpan.FromSeconds(30);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mindforge-V28-Editor-Asset-Acquisition/1.0");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mindforge-V28-Editor-Asset-Acquisition/1.1");
 
                 for (int i = 0; i < Sources.Length; i++)
                 {
                     SourceAsset source = Sources[i];
-                    if (!File.Exists(source.LocalPath)) DownloadVerified(client, source);
+                    if (!ValidateCached(source)) DownloadVerified(client, source);
                     AssetDatabase.ImportAsset(source.LocalPath, ImportAssetOptions.ForceSynchronousImport);
                     NormalizeImporter(source);
                     imported.Add(source.LocalPath);
@@ -111,6 +116,44 @@ namespace Mindforge.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             return imported;
+        }
+
+        private static bool ValidateCached(SourceAsset source)
+        {
+            string local = AbsolutePath(source.LocalPath);
+            if (!File.Exists(local)) return false;
+
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(local);
+                if (!source.NormalizeObj)
+                    return string.Equals(ComputeGitBlobSha1(bytes), source.GitBlobSha1, StringComparison.OrdinalIgnoreCase);
+
+                string receipt = AbsolutePath(source.ReceiptPath);
+                if (!File.Exists(receipt)) return false;
+                string expectedSource = null;
+                string expectedLocal = null;
+                string[] lines = File.ReadAllLines(receipt);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i];
+                    int equals = line.IndexOf('=');
+                    if (equals <= 0) continue;
+                    string key = line.Substring(0, equals).Trim();
+                    string value = line.Substring(equals + 1).Trim();
+                    if (string.Equals(key, "source_git_blob_sha1", StringComparison.Ordinal)) expectedSource = value;
+                    else if (string.Equals(key, "normalized_sha256", StringComparison.Ordinal)) expectedLocal = value;
+                }
+
+                return string.Equals(expectedSource, source.GitBlobSha1, StringComparison.OrdinalIgnoreCase) &&
+                       !string.IsNullOrEmpty(expectedLocal) &&
+                       string.Equals(expectedLocal, ComputeSha256(bytes), StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Mindforge:V28] Cached public asset failed validation and will be reacquired: {source.LocalPath} ({ex.Message})");
+                return false;
+            }
         }
 
         private static void DownloadVerified(HttpClient client, SourceAsset source)
@@ -134,7 +177,7 @@ namespace Mindforge.Editor
                     $"V0.28 public asset hash mismatch for '{source.Url}'. expected={source.GitBlobSha1} actual={blobHash}");
             }
 
-            string local = source.LocalPath;
+            string local = AbsolutePath(source.LocalPath);
             string directory = Path.GetDirectoryName(local);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
@@ -149,12 +192,24 @@ namespace Mindforge.Editor
                     normalized.Append(lines[i]);
                     normalized.Append('\n');
                 }
-                File.WriteAllText(local, normalized.ToString(), new UTF8Encoding(false));
+                byte[] normalizedBytes = new UTF8Encoding(false).GetBytes(normalized.ToString());
+                File.WriteAllBytes(local, normalizedBytes);
+                WriteReceipt(source, normalizedBytes);
             }
             else
             {
                 File.WriteAllBytes(local, bytes);
             }
+        }
+
+        private static void WriteReceipt(SourceAsset source, byte[] normalizedBytes)
+        {
+            string receipt = AbsolutePath(source.ReceiptPath);
+            string text =
+                "schema=mindforge.public_asset_receipt.v1\n" +
+                "source_git_blob_sha1=" + source.GitBlobSha1 + "\n" +
+                "normalized_sha256=" + ComputeSha256(normalizedBytes) + "\n";
+            File.WriteAllText(receipt, text, new UTF8Encoding(false));
         }
 
         private static void NormalizeImporter(SourceAsset source)
@@ -185,11 +240,27 @@ namespace Mindforge.Editor
             using (SHA1 sha = SHA1.Create())
             {
                 byte[] hash = sha.ComputeHash(input);
-                StringBuilder sb = new StringBuilder(hash.Length * 2);
-                for (int i = 0; i < hash.Length; i++) sb.Append(hash[i].ToString("x2"));
-                return sb.ToString();
+                return Hex(hash);
             }
         }
+
+        public static string ComputeSha256(byte[] bytes)
+        {
+            using (SHA256 sha = SHA256.Create())
+            {
+                return Hex(sha.ComputeHash(bytes));
+            }
+        }
+
+        private static string Hex(byte[] hash)
+        {
+            StringBuilder sb = new StringBuilder(hash.Length * 2);
+            for (int i = 0; i < hash.Length; i++) sb.Append(hash[i].ToString("x2"));
+            return sb.ToString();
+        }
+
+        private static string AbsolutePath(string assetPath)
+            => Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
 
         private static void EnsureFolder(string folder)
         {
