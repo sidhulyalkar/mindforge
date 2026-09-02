@@ -9,7 +9,7 @@ namespace Mindforge.Chassis.Editor
 {
     /// <summary>
     /// Creates a Mindforge-owned showcase chapter from the qualified V0.31 slice.
-    /// V0.32 adds only non-blocking semantic checkpoints and the showcase flow owner;
+    /// V0.32 adds only non-physical semantic checkpoints and the showcase flow owner;
     /// inherited combat, NavMesh, collision and boss authority remain untouched.
     /// </summary>
     public static class MindforgeShowcaseIntroBuilderV32
@@ -18,6 +18,7 @@ namespace Mindforge.Chassis.Editor
         public const string DestinationScene = "Assets/Mindforge/Scenes/MindforgeShowcaseIntroV32.unity";
         public const string ShowcaseRoot = "Mindforge_Showcase_Intro_V32";
         public const string CheckpointRoot = "Mindforge_Showcase_Checkpoints_V32";
+        public const int ExpectedCheckpointCount = 9;
 
         private static readonly float[] CheckpointFractions =
         {
@@ -92,7 +93,7 @@ namespace Mindforge.Chassis.Editor
 
             Debug.Log(
                 "[Mindforge:V32] Showcase intro ready. V0.31 combat/world authority preserved; " +
-                "nine non-blocking chapter checkpoints now observe the intro-to-boss playthrough."
+                "nine collider-free route checkpoints now observe the intro-to-boss playthrough."
             );
         }
 
@@ -126,6 +127,9 @@ namespace Mindforge.Chassis.Editor
                 throw new UnityEditor.Build.BuildFailedException("V0.32 requires the complete inherited player-to-boss path.");
             }
 
+            if (CheckpointFractions.Length != ExpectedCheckpointCount || CheckpointStages.Length != ExpectedCheckpointCount)
+                throw new UnityEditor.Build.BuildFailedException("V0.32 checkpoint configuration count drifted.");
+
             for (int i = 0; i < CheckpointFractions.Length; i++)
             {
                 Vector3 center;
@@ -142,18 +146,13 @@ namespace Mindforge.Chassis.Editor
             Vector3 tangent,
             int index)
         {
-            GameObject gate = new GameObject($"V32_Checkpoint_{index:00}_{stage}");
-            gate.transform.SetParent(parent, true);
-            gate.transform.position = center + Vector3.up * 2f;
-            gate.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
+            GameObject checkpoint = new GameObject($"V32_Checkpoint_{index:00}_{stage}");
+            checkpoint.transform.SetParent(parent, true);
+            checkpoint.transform.position = center;
+            checkpoint.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
 
-            BoxCollider trigger = gate.AddComponent<BoxCollider>();
-            trigger.isTrigger = true;
-            trigger.center = Vector3.zero;
-            trigger.size = new Vector3(MindforgeWorldGrammarV32.MinimumCombatHallWidth, 4f, 3f);
-
-            MindforgeShowcaseStageTriggerV32 observer = gate.AddComponent<MindforgeShowcaseStageTriggerV32>();
-            observer.Configure(stage);
+            MindforgeShowcaseStageCheckpointV32 observer = checkpoint.AddComponent<MindforgeShowcaseStageCheckpointV32>();
+            observer.Configure(stage, 5.5f);
         }
 
         private static void ValidateShowcaseScene()
@@ -165,17 +164,13 @@ namespace Mindforge.Chassis.Editor
             if (root.GetComponentsInChildren<Collider>(true).Length != 0 ||
                 root.GetComponentsInChildren<Rigidbody>(true).Length != 0)
                 throw new UnityEditor.Build.BuildFailedException("V0.32 showcase flow root must remain non-physical.");
-            if (checkpoints == null || checkpoints.transform.childCount != CheckpointStages.Length)
+            if (checkpoints == null || checkpoints.transform.childCount != ExpectedCheckpointCount)
                 throw new UnityEditor.Build.BuildFailedException("V0.32 chapter checkpoint set is incomplete.");
-
-            Collider[] checkpointColliders = checkpoints.GetComponentsInChildren<Collider>(true);
-            for (int i = 0; i < checkpointColliders.Length; i++)
-            {
-                if (!checkpointColliders[i].isTrigger)
-                    throw new UnityEditor.Build.BuildFailedException("V0.32 chapter checkpoints must never block traversal.");
-            }
-            if (checkpoints.GetComponentsInChildren<Rigidbody>(true).Length != 0)
-                throw new UnityEditor.Build.BuildFailedException("V0.32 chapter checkpoints must not add physics bodies.");
+            if (checkpoints.GetComponentsInChildren<Collider>(true).Length != 0 ||
+                checkpoints.GetComponentsInChildren<Rigidbody>(true).Length != 0)
+                throw new UnityEditor.Build.BuildFailedException("V0.32 chapter checkpoints must remain collider-free and non-physical.");
+            if (checkpoints.GetComponentsInChildren<MindforgeShowcaseStageCheckpointV32>(true).Length != ExpectedCheckpointCount)
+                throw new UnityEditor.Build.BuildFailedException("V0.32 semantic checkpoint observers are incomplete.");
 
             if (Object.FindObjectsOfType<PlayerStateMachine>(true).Length != 1)
                 throw new UnityEditor.Build.BuildFailedException("V0.32 lost the single player authority.");
