@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OVERLAY = ROOT / "dragonsouls_overlay" / "Assets" / "Mindforge"
 FLOW = OVERLAY / "Runtime" / "MindforgeShowcaseFlowV32.cs"
-TRIGGER = OVERLAY / "Runtime" / "MindforgeShowcaseStageTriggerV32.cs"
+CHECKPOINT = OVERLAY / "Runtime" / "MindforgeShowcaseStageCheckpointV32.cs"
 GRAMMAR = OVERLAY / "Runtime" / "MindforgeWorldGrammarV32.cs"
 ENCOUNTERS = OVERLAY / "Runtime" / "MindforgeEncounterLibraryV32.cs"
 BUILDER = OVERLAY / "Editor" / "MindforgeShowcaseIntroBuilderV32.cs"
@@ -52,7 +52,7 @@ def test_v32_flow_has_complete_showcase_arc_without_combat_authority():
         assert forbidden not in text
 
 
-def test_v32_bci_orb_is_hidden_for_awaken_and_revealed_at_neural_stage():
+def test_v32_bci_orb_is_hidden_for_awakening_and_revealed_at_neural_stage():
     text = read(FLOW)
     assert 'camera.transform.Find("Mindforge_BCI_Orb_V31")' in text
     assert "SetBciVisualVisible(false)" in text
@@ -60,45 +60,50 @@ def test_v32_bci_orb_is_hidden_for_awaken_and_revealed_at_neural_stage():
     assert "SetBciVisualVisible(true)" in text
 
 
-def test_v32_stage_checkpoints_are_nonblocking_observers_only():
-    text = read(TRIGGER)
+def test_v32_stage_checkpoints_are_distance_observers_with_no_physics_or_combat_authority():
+    text = read(CHECKPOINT)
     for token in (
         "PlayerStateMachine",
-        "OnTriggerEnter",
+        "activationRadius = 5.5f",
+        "maximumVerticalDelta = 5f",
+        "delta.sqrMagnitude > activationRadius * activationRadius",
         "ObserveStageArrival(stage)",
-        "Configure(MindforgeShowcaseStageV32 configuredStage)",
+        "Configure(MindforgeShowcaseStageV32 configuredStage, float radius = 5.5f)",
     ):
         assert token in text
     for forbidden in (
+        "OnTriggerEnter",
+        "Collider",
+        "Rigidbody",
         "TakeDamage(",
         "ChangeState(",
         "transform.position =",
         "CharacterController",
-        "Rigidbody.AddForce",
     ):
         assert forbidden not in text
 
 
-def test_v32_builder_derives_from_v31_and_adds_nine_semantic_checkpoints():
+def test_v32_builder_derives_from_v31_and_adds_nine_collider_free_semantic_checkpoints():
     text = read(BUILDER)
     for token in (
         "SourceScene = MindforgeVerticalSliceBuilderV31.DestinationScene",
         'DestinationScene = "Assets/Mindforge/Scenes/MindforgeShowcaseIntroV32.unity"',
         "MindforgeVerticalSliceBuilderV31.Build(refresh: refresh)",
         "MindforgeShowcaseFlowV32",
+        "ExpectedCheckpointCount = 9",
         "CheckpointFractions",
         "CheckpointStages",
         "NavMesh.CalculatePath",
-        "BoxCollider",
-        "trigger.isTrigger = true",
-        "MindforgeWorldGrammarV32.MinimumCombatHallWidth",
-        "MindforgeShowcaseStageTriggerV32",
-        "checkpointColliders[i].isTrigger",
+        "MindforgeShowcaseStageCheckpointV32",
+        "observer.Configure(stage, 5.5f)",
+        "GetComponentsInChildren<Collider>(true).Length != 0",
         "GetComponentsInChildren<Rigidbody>(true).Length != 0",
     ):
         assert token in text
     assert text.count("MindforgeShowcaseStageV32.") >= 9
     for forbidden in (
+        "AddComponent<BoxCollider>",
+        "AddComponent<Rigidbody>",
         "GameObject.CreatePrimitive",
         "Random.Range",
         "Random.value",
@@ -109,16 +114,16 @@ def test_v32_builder_derives_from_v31_and_adds_nine_semantic_checkpoints():
         assert forbidden not in text
 
 
-def test_v32_world_grammar_has_reusable_region_chunk_socket_vocabulary_and_scale_contracts():
+def test_v32_world_grammar_has_six_regions_reusable_chunk_socket_vocabulary_and_scale_contracts():
     text = read(GRAMMAR)
     for token in (
         "MindforgeRegionIdV32",
-        "Sanctum",
-        "NeuralCloister",
-        "FractureCaverns",
-        "MemoryGardens",
-        "SignalFoundry",
-        "AbyssalArchive",
+        "Sanctum Reliquary",
+        "Neural Cloister",
+        "Fracture Caverns",
+        "Memory Gardens",
+        "Signal Foundry",
+        "Abyssal Archive",
         "MindforgeChunkKindV32",
         "Entry",
         "Hub",
@@ -141,6 +146,7 @@ def test_v32_world_grammar_has_reusable_region_chunk_socket_vocabulary_and_scale
         "MinimumBossArenaDiameter = 32f",
     ):
         assert token in text
+    assert text.count("new MindforgeRegionDefinitionV32") == 6
 
 
 def test_v32_encounter_library_authors_roles_waves_spacing_without_spawning_or_ai_rewrite():
