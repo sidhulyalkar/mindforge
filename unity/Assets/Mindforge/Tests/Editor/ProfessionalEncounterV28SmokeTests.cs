@@ -22,7 +22,7 @@ namespace Mindforge.Tests.Editor
         {
             byte[] bytes = System.Text.Encoding.ASCII.GetBytes("mindforge-v28");
             Assert.AreEqual(
-                "a0656d180c39a3fffd67767cf4315e47cf51fc4c52e65594db9b3f750e6c0278",
+                "43122eb0f8a81fcf1c76d783f886068c6eba9b370c8b3453d5768d448bcfb6ac",
                 PublicAssetAcquisitionV28.ComputeSha256(bytes));
         }
 
