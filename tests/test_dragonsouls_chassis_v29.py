@@ -42,8 +42,12 @@ def test_v29_overlay_is_bounded_to_assets_mindforge():
     assert 'OVERLAY_ROOT = ROOT / "dragonsouls_overlay" / "Assets" / "Mindforge"' in source
     assert 'target = project / "Assets" / "Mindforge"' in source
     assert '"overlay_scope": "Assets/Mindforge"' in source
-    assert "ProjectSettings" in source
-    assert "Packages" not in source.replace('"Assets/Mindforge"', "")
+    # The tool may read ProjectSettings to validate the pinned Unity version, but
+    # no tracked overlay write/copy target may escape Assets/Mindforge.
+    assert 'target = project / "Packages"' not in source
+    assert 'target = project / "ProjectSettings"' not in source
+    assert 'shutil.copytree(OVERLAY_ROOT, project / "Packages"' not in source
+    assert 'shutil.copytree(OVERLAY_ROOT, project / "ProjectSettings"' not in source
     assert "shutil.copytree(OVERLAY_ROOT, target)" in source
 
 
