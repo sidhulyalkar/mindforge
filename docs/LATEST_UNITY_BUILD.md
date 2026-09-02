@@ -47,7 +47,7 @@ See `docs/PROFESSIONAL_ENCOUNTER_V28.md` for the full authority, provenance and 
 
 The first V0.28 rebuild may need network access in the Unity Editor because the source art is acquired from immutable GitHub commit URLs into the ignored `Assets/Mindforge/Generated/V28/ThirdParty` cache.
 
-This is intentional. Source art is not manually dragged into the project and is not fetched at runtime. `PublicAssetAcquisitionV28` verifies every download against its exact upstream Git blob SHA-1 before import. A missing network connection or hash mismatch fails the V0.28 build closed rather than silently restoring the procedural creature.
+This is intentional. Source art is not manually dragged into the project and is not fetched at runtime. `PublicAssetAcquisitionV28` verifies every download against its exact upstream Git blob SHA-1 before import. Cached raw assets are revalidated, while normalized OBJ assets carry a provenance receipt tying the pinned source blob to the exact local normalized SHA-256. A missing network connection on an empty or invalid cache, or any hash mismatch, fails the V0.28 build closed rather than silently restoring the procedural creature.
 
 The pinned sources are:
 
@@ -63,7 +63,7 @@ The physical sword sweep remains owned by `GuardianSwordShieldController`. Multi
 
 Boss locomotion remains owned by `FracturedSignalFirstBossV19`; V0.28 adds its minimum-separation contract there rather than creating a second push controller. Boss attack scheduling remains unchanged.
 
-The canonical V0.17 gameplay camera still owns orbit, fixed FOV and ordinary framing. `MindforgeActorOcclusionGuardV28` is a bounded post-resolver that only acts when target renderer bounds block the camera-to-Guardian sight corridor.
+The canonical V0.17 gameplay camera still owns orbit, fixed FOV and ordinary framing. `MindforgeActorOcclusionGuardV28` is a bounded post-resolver that only acts when target renderer bounds block the camera-to-Guardian sight corridor. Its additional lateral/lift correction is sphere-cast against static world geometry so the boss-readability fix cannot push the camera through cathedral architecture.
 
 V0.23 remains world collision/foundation authority. V0.28 decorative staging is collider-free.
 
@@ -79,14 +79,20 @@ Neural calibration and Wisp systems remain the only owners of the neural visual-
 - **Validate Latest Readiness**: run the maintained readiness audit. It is software/scene evidence, not physical SSVEP qualification.
 - **Build Neural-Hardware Variant**: build the same product with controller-only qualification disabled for real neural-service/hardware testing.
 
-Historical build commands remain implementation history. Do not manually compose a release from old `Apply ...` commands.
+## Legacy policy
+
+Historical build commands remain implementation history, not supported development entry points.
+
+**Do not compose a new release by manually running historical `Apply ...` commands.** The latest assembler must call the smallest required implementation explicitly and deterministically.
+
+There should never again be multiple equally plausible "latest" builders.
 
 ## V0.28 focused playtest
 
 1. Pull the V0.28 branch and allow Unity Package Manager to resolve UnityGLTF.
 2. Run **Mindforge → Latest → PLAY LATEST (BCI Simulation)**. The first build downloads and hash-verifies the pinned CC0 art if the generated cache is empty.
 3. Walk directly into the Fractured Signal from several angles. The boss should retreat before the Guardian disappears inside the visible body.
-4. Lock on at point-blank range and circle both directions. The V0.17 camera remains primary; the V0.28 occlusion guard should only make small corrections when the creature blocks the Guardian sightline.
+4. Lock on at point-blank range and circle both directions. The V0.17 camera remains primary; the V0.28 occlusion guard should only make small corrections when the creature blocks the Guardian sightline, and those corrections must still respect walls and columns.
 5. Attack head, chest, both flanks and rear. The Aetherblade should register on visible anatomy instead of passing through broad parts of the creature.
 6. Observe idle, movement, attack and death behavior. The boss should read as one authored quadruped with skeletal motion, not a procedural dinosaur or shard cloud.
 7. Traverse Memory Forge, Causeway and Market slowly. Side dressing should create lived-in cathedral detail while the central processional corridor remains visually and physically open.
