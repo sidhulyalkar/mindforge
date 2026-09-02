@@ -18,7 +18,7 @@ namespace Mindforge.Editor
     /// sensory presentation, V0.26 replaces remaining primitive render silhouettes with
     /// production geometry, V0.27 adds Guardian sword-arm embodiment, and V0.28 replaces the
     /// procedural boss proxy with pinned authored anatomy while enforcing encounter spacing and
-    /// deterministic socketed world dressing.
+    /// deterministic socketed world dressing plus a sparse choir/apse depth pass.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
@@ -108,6 +108,7 @@ namespace Mindforge.Editor
             WorldRenderingV26Builder.ApplyOpenScene();
             CombatEmbodimentV27Builder.ApplyOpenScene();
             ProfessionalEncounterV28Builder.ApplyOpenScene();
+            ProfessionalWorldDetailV28Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -156,6 +157,8 @@ namespace Mindforge.Editor
                 CombatEmbodimentV27Builder.ApplyOpenScene();
             if (!ProfessionalEncounterV28Builder.PresentInOpenScene())
                 ProfessionalEncounterV28Builder.ApplyOpenScene();
+            if (!ProfessionalWorldDetailV28Builder.PresentInOpenScene())
+                ProfessionalWorldDetailV28Builder.ApplyOpenScene();
         }
     }
 }
