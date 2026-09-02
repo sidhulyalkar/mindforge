@@ -20,6 +20,13 @@ unity/Assets/Mindforge/Scenes/Mindforge_Competition.unity.meta
 # editor ingestion seam in ExternalArtDropV09.cs.
 unity/Assets/Mindforge/LocalArt/
 
+# V0.29 playable external chassis.
+# The complete Dragon Souls project is materialized at an immutable commit by
+# tools/bootstrap_dragonsouls_chassis.sh. It contains a large mixed-provenance
+# third-party art/audio graph, so the raw checkout remains local until individual
+# asset families are audited or replaced.
+external/DragonSouls-Unity3D/
+
 # IDE / OS
 .vscode/
 .idea/
