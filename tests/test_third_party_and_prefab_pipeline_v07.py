@@ -53,8 +53,13 @@ def test_third_party_manifest_has_strict_policy_and_known_sources():
             assert entry["upstream"].startswith("https://github.com/")
         for relative in entry["vendored_paths"]:
             assert (ROOT / relative).exists(), relative
-        if entry["usage"] in {"reference_only", "local_asset_source", "editor_acquired_asset_source"}:
+        if entry["usage"] in {"reference_only", "local_asset_source"}:
             assert entry["vendored_paths"] == []
+        if entry["usage"] == "editor_acquired_asset_source":
+            # Source meshes stay outside git, but keeping the authoritative license notice in
+            # tree is desirable and does not make the art itself vendored.
+            for relative in entry["vendored_paths"]:
+                assert relative.startswith("third_party/licenses/")
         if entry["usage"] == "package_dependency":
             # A package dependency may legitimately pin its package manifest and a vendored
             # license notice while the package source itself remains external.
