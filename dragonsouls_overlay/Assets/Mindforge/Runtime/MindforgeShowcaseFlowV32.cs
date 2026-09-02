@@ -33,7 +33,7 @@ namespace Mindforge.Chassis
     }
 
     /// <summary>
-    /// Monotonic presentation/progression observer for the V0.32 showcase chapter.
+    /// Ordered presentation/progression observer for the V0.32 showcase chapter.
     /// It never moves the player, selects an attack, changes damage, writes stamina,
     /// or changes Dragon Souls combat state. Spatial checkpoint observers and existing
     /// combat instrumentation feed evidence into this one chapter-level authority.
@@ -75,12 +75,19 @@ namespace Mindforge.Chassis
             ObserveCombatEvidence();
         }
 
+        public bool CanAdvanceTo(MindforgeShowcaseStageV32 stage)
+        {
+            int current = (int)CurrentStage;
+            int requested = (int)stage;
+            return requested == current + 1;
+        }
+
         public void ObserveStageArrival(MindforgeShowcaseStageV32 stage)
         {
             if (stage > HighestArrivedStage)
                 HighestArrivedStage = stage;
 
-            if (stage <= CurrentStage)
+            if (!CanAdvanceTo(stage))
                 return;
 
             CurrentStage = stage;
