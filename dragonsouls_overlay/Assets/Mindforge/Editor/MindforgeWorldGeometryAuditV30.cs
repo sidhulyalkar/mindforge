@@ -18,6 +18,8 @@ namespace Mindforge.Chassis.Editor
         public const float BossArenaRadiusTarget = 16f;
         private const float MaxProbeDistance = 20f;
         private const float SampleSpacing = 2f;
+        private const float PlayerNavMeshAnchorRadius = 4f;
+        private const float BossNavMeshAnchorRadius = 14f;
 
         [Serializable]
         public sealed class Report
@@ -25,12 +27,18 @@ namespace Mindforge.Chassis.Editor
             public string schema = "mindforge.world_geometry_audit.v30";
             public string scene;
             public bool navMeshObserved;
+            public bool playerAnchorObserved;
+            public bool bossAnchorObserved;
+            public Vector3 playerNavMeshAnchor;
+            public Vector3 bossNavMeshAnchor;
             public bool pathComplete;
             public int pathCornerCount;
             public int clearanceSamples;
             public int chokeSamples;
             public float minimumPathClearWidth;
+            public Vector3 narrowestPathPosition;
             public float minimumBossClearRadius;
+            public float minimumBossClearAngleDegrees;
             public int largeInvisibleColliderCandidates;
             public bool passed;
         }
@@ -42,7 +50,8 @@ namespace Mindforge.Chassis.Editor
             string message =
                 $"[Mindforge:V30] Geometry audit {(report.passed ? "PASS" : "NEEDS REVIEW")}: " +
                 $"pathComplete={report.pathComplete}, samples={report.clearanceSamples}, chokes={report.chokeSamples}, " +
-                $"minPathWidth={report.minimumPathClearWidth:F2}m, bossRadius={report.minimumBossClearRadius:F2}m, " +
+                $"minPathWidth={report.minimumPathClearWidth:F2}m at {report.narrowestPathPosition}, " +
+                $"bossRadius={report.minimumBossClearRadius:F2}m at {report.minimumBossClearAngleDegrees:F0}deg, " +
                 $"largeInvisibleColliderCandidates={report.largeInvisibleColliderCandidates}.";
             if (report.passed) Debug.Log(message); else Debug.LogWarning(message);
         }
@@ -72,8 +81,25 @@ namespace Mindforge.Chassis.Editor
                 return report;
             }
 
+            NavMeshHit playerHit;
+            NavMeshHit bossHit;
+            report.playerAnchorObserved = NavMesh.SamplePosition(
+                player.transform.position, out playerHit, PlayerNavMeshAnchorRadius, NavMesh.AllAreas);
+            report.bossAnchorObserved = NavMesh.SamplePosition(
+                dragon.transform.position, out bossHit, BossNavMeshAnchorRadius, NavMesh.AllAreas);
+
+            if (!report.playerAnchorObserved || !report.bossAnchorObserved)
+            {
+                report.passed = false;
+                return report;
+            }
+
+            report.playerNavMeshAnchor = playerHit.position;
+            report.bossNavMeshAnchor = bossHit.position;
+            report.narrowestPathPosition = playerHit.position;
+
             NavMeshPath path = new NavMeshPath();
-            bool calculated = NavMesh.CalculatePath(player.transform.position, dragon.transform.position, NavMesh.AllAreas, path);
+            bool calculated = NavMesh.CalculatePath(playerHit.position, bossHit.position, NavMesh.AllAreas, path);
             report.pathComplete = calculated && path.status == NavMeshPathStatus.PathComplete;
             Vector3[] corners = path.corners;
             report.pathCornerCount = corners == null ? 0 : corners.Length;
@@ -81,7 +107,7 @@ namespace Mindforge.Chassis.Editor
             if (corners != null && corners.Length >= 2)
                 MeasurePathClearance(corners, report);
 
-            report.minimumBossClearRadius = MeasureBossArenaRadius(dragon.transform.position);
+            MeasureBossArenaRadius(bossHit.position, report);
             report.largeInvisibleColliderCandidates = CountLargeInvisibleColliderCandidates();
             report.passed = report.pathComplete && report.clearanceSamples > 0 &&
                 report.minimumPathClearWidth >= OrdinaryCorridorTarget &&
@@ -106,29 +132,41 @@ namespace Mindforge.Chassis.Editor
                 for (int step = 0; step <= steps; step++)
                 {
                     float t = Mathf.Clamp01(step / (float)steps);
-                    Vector3 sample = Vector3.Lerp(a, b, t) + Vector3.up * 1.0f;
+                    Vector3 pathPosition = Vector3.Lerp(a, b, t);
+                    Vector3 sample = pathPosition + Vector3.up * 1.0f;
                     float left = DistanceToWorldBoundary(sample, -lateral, MaxProbeDistance);
                     float right = DistanceToWorldBoundary(sample, lateral, MaxProbeDistance);
                     float width = left + right;
                     report.clearanceSamples++;
-                    report.minimumPathClearWidth = Mathf.Min(report.minimumPathClearWidth, width);
+                    if (width < report.minimumPathClearWidth)
+                    {
+                        report.minimumPathClearWidth = width;
+                        report.narrowestPathPosition = pathPosition;
+                    }
                     if (width < OrdinaryCorridorTarget) report.chokeSamples++;
                 }
             }
         }
 
-        private static float MeasureBossArenaRadius(Vector3 bossPosition)
+        private static void MeasureBossArenaRadius(Vector3 bossNavMeshAnchor, Report report)
         {
             float minimum = MaxProbeDistance;
-            Vector3 origin = bossPosition + Vector3.up * 1.2f;
+            float minimumAngle = 0f;
+            Vector3 origin = bossNavMeshAnchor + Vector3.up * 1.2f;
             const int rays = 24;
             for (int i = 0; i < rays; i++)
             {
                 float angle = (Mathf.PI * 2f * i) / rays;
                 Vector3 direction = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
-                minimum = Mathf.Min(minimum, DistanceToWorldBoundary(origin, direction, MaxProbeDistance));
+                float distance = DistanceToWorldBoundary(origin, direction, MaxProbeDistance);
+                if (distance < minimum)
+                {
+                    minimum = distance;
+                    minimumAngle = i * (360f / rays);
+                }
             }
-            return minimum;
+            report.minimumBossClearRadius = minimum;
+            report.minimumBossClearAngleDegrees = minimumAngle;
         }
 
         private static float DistanceToWorldBoundary(Vector3 origin, Vector3 direction, float maxDistance)
