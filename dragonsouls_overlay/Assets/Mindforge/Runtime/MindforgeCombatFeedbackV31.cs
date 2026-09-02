@@ -30,6 +30,7 @@ namespace Mindforge.Chassis
         private void Start()
         {
             _health = GetComponent<Health>();
+            if (_health == null) _health = GetComponentInParent<Health>();
             if (_health == null) _health = GetComponentInChildren<Health>(true);
             if (_health == null)
             {
