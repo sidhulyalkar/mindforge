@@ -43,6 +43,16 @@ The production target remains:
 
 V0.30 does not claim the inherited Dragon Souls level already satisfies every one of those measurements. The point of this tranche is to establish a complete functioning world first while freezing collision/navigation authority. Once local play confirms the baseline, individual regions can be widened and rebuilt deliberately inside the Mindforge-owned copy with NavMesh rebakes and explicit traversal tests.
 
+### Measured traversal audit
+
+`MindforgeWorldGeometryAuditV30` provides a read-only ruler before any region is edited. It calculates the inherited baked NavMesh route from the player to the dragon, samples the route every 2 m, then casts horizontal collision probes to measure real left/right clearance. Samples below the 8 m ordinary-corridor target are counted as choke points.
+
+The same audit casts 24 radial probes around the dragon and requires at least a 16 m clear radius for the 32 m boss-arena target. Its probe range is 20 m, so the acceptance target is actually observable rather than mathematically capped below the requirement.
+
+It also reports large collider objects with no renderer on the collider object or its children as **review candidates** for the invisible-obstacle problem. Those candidates are intentionally not an automatic failure because some authored boundary/collision helpers are legitimate.
+
+The geometry audit never moves scene transforms, adds physics, rebakes navigation or edits colliders. Its purpose is to tell the next regional rebuild exactly where to look.
+
 ## Unity workflow
 
 Use Unity `2021.3.20f1` for the materialized Dragon Souls project.
@@ -50,12 +60,13 @@ Use Unity `2021.3.20f1` for the materialized Dragon Souls project.
 1. Run `bash tools/bootstrap_dragonsouls_chassis.sh` from the Mindforge repository root.
 2. Open `external/DragonSouls-Unity3D/ThirdPersonCombat` in Unity 2021.3.20f1.
 3. Run `Mindforge -> World V0.30 -> Build + Open Production World`.
-4. Run `Mindforge -> World V0.30 -> PLAY PRODUCTION WORLD`.
-5. Test ordinary traversal, target lock, attacks, dodge, heal, sword throw/recall, bonfire/progression flow, multiple enemy encounters and dragon entry.
-6. While in Play Mode run `Mindforge -> World V0.30 -> Audit Production World`.
+4. Before Play Mode, run `Mindforge -> World V0.30 -> Audit Traversal Geometry` and save the console numbers.
+5. Run `Mindforge -> World V0.30 -> PLAY PRODUCTION WORLD`.
+6. Test ordinary traversal, target lock, attacks, dodge, heal, sword throw/recall, bonfire/progression flow, multiple enemy encounters and dragon entry.
+7. While in Play Mode run `Mindforge -> World V0.30 -> Audit Production World` and then `Audit Traversal Geometry` again.
 
-The runtime audit must observe a baked NavMesh, one player, one authoritative sword, Cinemachine cameras, standard enemies, the boss pipeline, the V0.30 presentation root and at least one enemy identity component.
+The runtime audit must observe a baked NavMesh, one player, one authoritative sword, Cinemachine cameras, standard enemies, bonfire progression, the boss pipeline, the V0.30 presentation root and at least one enemy identity component.
 
 ## What comes next
 
-After native V0.30 play is observed, the next work should be regional rather than global. Pick one visually important path from spawn to a meaningful encounter, measure it, widen only the places that constrain combat, replace weak set dressing with licensed/known-safe authored modules, rebake NavMesh, and qualify that region before moving to the next. This prevents another world-wide pile of loosely connected visual patches.
+After native V0.30 play is observed, the next work should be regional rather than global. Pick one visually important path from spawn to a meaningful encounter, use the measured choke data to identify where combat space actually fails, widen only those places, replace weak set dressing with licensed/known-safe authored modules, rebake NavMesh, and qualify that region before moving to the next. This prevents another world-wide pile of loosely connected visual patches.
