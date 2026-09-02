@@ -1,0 +1,27 @@
+Mindforge V0.29 Dragon Souls chassis overlay
+
+Upstream repository:
+https://github.com/btuhany/DragonSouls-Unity3D
+
+Pinned commit:
+f54824255517801d5d3443848e1e4275d8d5066d
+
+Upstream Unity project:
+ThirdPersonCombat
+
+Upstream Unity version:
+2021.3.20f1
+
+Upstream repository license:
+MIT, Copyright (c) 2023 btuhany
+
+IMPORTANT ASSET BOUNDARY
+------------------------
+The upstream repository contains many external free art, animation, sound, music,
+and Asset Store resources. The repository-level MIT license is treated as clear
+permission for upstream-authored software/documentation, but Mindforge does not
+assume that every bundled third-party binary asset is independently MIT-licensed.
+
+The complete upstream checkout therefore remains local and git-ignored until each
+asset family that we want to redistribute is separately audited or replaced with
+known permissive/public-domain production art.
