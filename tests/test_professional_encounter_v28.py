@@ -53,6 +53,12 @@ def test_v28_pins_real_public_art_and_importer_instead_of_generating_another_bea
         'blob " + bytes.Length + "\\0"',
         'hash mismatch',
         'ModelImporterMaterialImportMode.None',
+        'ValidateCached(source)',
+        'ReceiptPath',
+        'source_git_blob_sha1=',
+        'normalized_sha256=',
+        'ComputeSha256',
+        'AbsolutePath(source.LocalPath)',
     ):
         assert token in acquire
     assert "RuntimeInitializeOnLoadMethod" not in acquire
