@@ -9,8 +9,10 @@ namespace Mindforge.Presentation
     /// Narrow post-resolver for the V0.17 gameplay camera.
     ///
     /// It does not choose orbit, FOV, target lock or normal camera distance. It activates only
-    /// when the locked target's rendered body intersects the camera-to-Guardian sight corridor,
-    /// then makes a small lateral/upward displacement around that real renderer envelope.
+    /// when the locked target's authored rendered body intersects the camera-to-Guardian sight
+    /// corridor, then makes a small lateral/upward displacement around that real renderer
+    /// envelope. Its own displacement is collision-clipped against static world geometry so the
+    /// readability correction cannot push the camera through a cathedral wall or column.
     /// Neural visual fields disable the correction entirely.
     /// </summary>
     [DefaultExecutionOrder(645)]
@@ -21,13 +23,15 @@ namespace Mindforge.Presentation
         [SerializeField] private float maximumLateralCorrection = 1.55f;
         [SerializeField] private float maximumLiftCorrection = 0.58f;
         [SerializeField] private float correctionSharpness = 18f;
+        [SerializeField] private float collisionProbeRadius = 0.22f;
+        [SerializeField] private float collisionPadding = 0.07f;
 
         private Camera _camera;
         private GuardianCombatInput _guardianInput;
         private GuardianTargetLock _targetLock;
         private AwakeningCalibrationDirector _calibration;
         private SoulWispController _wisp;
-        private readonly Vector3[] _corners = new Vector3[8];
+        private readonly RaycastHit[] _hits = new RaycastHit[18];
 
         public bool Correcting { get; private set; }
 
@@ -50,7 +54,8 @@ namespace Mindforge.Presentation
             if (_camera == null || _guardianInput == null || _targetLock == null) return;
             if (!_targetLock.Locked || _targetLock.Target == null || NeuralVisualFieldActive()) return;
 
-            if (!TryRenderBounds(_targetLock.Target, out Bounds targetBounds)) return;
+            Transform target = _targetLock.Target;
+            if (!TryRenderBounds(target, out Bounds targetBounds)) return;
 
             Vector3 cameraPosition = transform.position;
             Vector3 guardianPoint = _guardianInput.transform.position + Vector3.up * 1.18f;
@@ -90,15 +95,28 @@ namespace Mindforge.Presentation
             if (after.magnitude < minimum && after.sqrMagnitude > 0.001f)
                 desired = targetCenter + after.normalized * minimum;
 
+            // V0.17 has already solved its normal pivot-to-camera collision. Because V0.28 now
+            // adds a lateral post-correction, it must collision-clip that additional displacement
+            // rather than bypass the established world geometry envelope.
+            desired = ResolveWorldCollision(cameraPosition, desired);
+
             float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
             float response = 1f - Mathf.Exp(-Mathf.Max(1f, correctionSharpness) * dt);
-            transform.position = Vector3.Lerp(cameraPosition, desired, response);
+            Vector3 resolved = Vector3.Lerp(cameraPosition, desired, response);
+            if ((resolved - cameraPosition).sqrMagnitude < 0.000001f) return;
+            transform.position = resolved;
             Correcting = true;
         }
 
         private bool TryRenderBounds(Transform target, out Bounds bounds)
         {
-            Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+            Transform renderRoot = target;
+            FracturedSignalCreaturePresentationV28 authored = target.GetComponentInParent<FracturedSignalCreaturePresentationV28>();
+            if (authored == null) authored = target.GetComponent<FracturedSignalCreaturePresentationV28>();
+            if (authored != null && authored.Configured && authored.ModelRoot != null)
+                renderRoot = authored.ModelRoot;
+
+            Renderer[] renderers = renderRoot.GetComponentsInChildren<Renderer>(true);
             bool has = false;
             bounds = default;
             for (int i = 0; i < renderers.Length; i++)
@@ -117,6 +135,49 @@ namespace Mindforge.Presentation
             }
             return has;
         }
+
+        private Vector3 ResolveWorldCollision(Vector3 start, Vector3 desired)
+        {
+            Vector3 delta = desired - start;
+            float distance = delta.magnitude;
+            if (distance < 0.001f) return desired;
+            Vector3 direction = delta / distance;
+
+            int count = Physics.SphereCastNonAlloc(
+                start,
+                Mathf.Max(0.08f, collisionProbeRadius),
+                direction,
+                _hits,
+                distance,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+
+            bool found = false;
+            float nearest = distance;
+            for (int i = 0; i < count; i++)
+            {
+                Collider collider = _hits[i].collider;
+                if (collider == null || IsDynamicActor(collider) || IsGuardian(collider.transform)) continue;
+                float hitDistance = _hits[i].distance;
+                if (hitDistance < 0f || hitDistance >= nearest) continue;
+                nearest = hitDistance;
+                found = true;
+            }
+            if (!found) return desired;
+
+            float resolvedDistance = Mathf.Max(0f, nearest - Mathf.Max(0.01f, collisionPadding));
+            return start + direction * resolvedDistance;
+        }
+
+        private bool IsGuardian(Transform candidate)
+        {
+            Transform guardian = _guardianInput != null ? _guardianInput.transform : null;
+            return candidate != null && guardian != null &&
+                   (candidate == guardian || candidate.IsChildOf(guardian) || guardian.IsChildOf(candidate));
+        }
+
+        private static bool IsDynamicActor(Collider collider)
+            => collider != null && collider.GetComponentInParent<CombatantVitals>() != null;
 
         private bool NeuralVisualFieldActive()
         {
