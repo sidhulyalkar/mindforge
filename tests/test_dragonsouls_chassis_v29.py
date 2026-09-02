@@ -9,6 +9,10 @@ DOC = ROOT / "docs" / "DRAGONSOULS_CHASSIS_V29.md"
 GITIGNORE = ROOT / ".gitignore"
 LICENSE = ROOT / "third_party" / "licenses" / "DragonSouls_Unity3D_MIT.txt"
 AETHERBLADE = OVERLAY / "Runtime" / "MindforgeAetherbladePresentationV29.cs"
+BOSS_PRESENTATION = OVERLAY / "Runtime" / "MindforgeDragonBossPresentationV29.cs"
+READINESS = OVERLAY / "Editor" / "MindforgeChassisReadinessV29.cs"
+SLICE_BUILDER = OVERLAY / "Editor" / "MindforgeCombatSliceBuilderV29.cs"
+SLICE_MARKER = OVERLAY / "Runtime" / "MindforgeCombatSliceMarkerV29.cs"
 
 
 def read(path: Path) -> str:
@@ -43,8 +47,6 @@ def test_v29_overlay_is_bounded_to_assets_mindforge():
     assert 'OVERLAY_ROOT = ROOT / "dragonsouls_overlay" / "Assets" / "Mindforge"' in source
     assert 'target = project / "Assets" / "Mindforge"' in source
     assert '"overlay_scope": "Assets/Mindforge"' in source
-    # The tool may read ProjectSettings to validate the pinned Unity version, but
-    # no tracked overlay write/copy target may escape Assets/Mindforge.
     assert 'target = project / "Packages"' not in source
     assert 'target = project / "ProjectSettings"' not in source
     assert 'shutil.copytree(OVERLAY_ROOT, project / "Packages"' not in source
@@ -59,9 +61,12 @@ def test_v29_unity_overlay_has_fast_play_entry_and_neural_seam_without_combat_au
 
     for token in (
         'MenuItem("Mindforge/Chassis/PLAY MAIN GAME"',
+        'MenuItem("Mindforge/Chassis/PLAY COMBAT SANDBOX"',
+        'MenuItem("Mindforge/Chassis/Audit Active Chassis"',
         'MainGameScene = "Assets/Levels/Scenes/MainGameScene.unity"',
         'MainMenuScene = "Assets/Levels/Scenes/MainMenuScene.unity"',
         'GameplayTestScene = "Assets/Levels/Scenes/GameplayTestScene.unity"',
+        "MindforgeChassisReadinessV29.AuditActiveScene()",
         "m_EditorVersion: 2021.3.20f1",
     ):
         assert token in menu
@@ -93,8 +98,6 @@ def test_v29_aetherblade_replaces_only_visible_sword_mesh_and_preserves_upstream
     ):
         assert token in source
 
-    # The presentation layer may remove colliders from primitives it creates, but
-    # must never create or mutate the authoritative sword hit/Rigidbody machinery.
     for forbidden in (
         "AddComponent<Rigidbody>",
         "AddComponent<BoxCollider>",
@@ -108,6 +111,95 @@ def test_v29_aetherblade_replaces_only_visible_sword_mesh_and_preserves_upstream
         "HitControlPosition",
     ):
         assert forbidden not in source
+
+
+def test_v29_dragon_uses_authored_anatomy_and_changes_only_surface_presentation():
+    source = read(BOSS_PRESENTATION)
+    for token in (
+        "GetComponentsInChildren<Renderer>(true)",
+        "MaterialPropertyBlock",
+        'transform.Find("Mindforge_Boss_LocalKey_V29")',
+        "EnemyNightmareDragonController[] dragons",
+        "dragon.gameObject.AddComponent<MindforgeDragonBossPresentationV29>()",
+        "bodyTint",
+        "membraneTint",
+        "corruptionTint",
+        "neuralTint",
+        "renderer.SetPropertyBlock(_block, m)",
+    ):
+        assert token in source
+
+    # No generated boss geometry, no collision changes, no boss movement/AI/damage authority.
+    for forbidden in (
+        "CreatePrimitive(",
+        "MeshFilter",
+        "SkinnedMeshRenderer =",
+        "AddComponent<Collider",
+        "AddComponent<Rigidbody>",
+        "MovePosition(",
+        "MoveRotation(",
+        "AddForce(",
+        "ReceiveDamage(",
+        "OpenBossFight(",
+        "ChangeState(",
+        "Animator.Play(",
+    ):
+        assert forbidden not in source
+
+
+def test_v29_native_readiness_audits_real_chassis_authorities_not_old_mindforge_scene():
+    source = read(READINESS)
+    for token in (
+        "PlayerStateMachine[] players",
+        "Sword[] swords",
+        "CinemachineBrain[] brains",
+        "CinemachineCollider[] cameraColliders",
+        "BossManager[] bosses",
+        "EnemyNightmareDragonController[] dragons",
+        "MindforgeAetherbladePresentationV29[] blades",
+        "MindforgeDragonBossPresentationV29[] bossPresentation",
+        '"single_player_state_machine"',
+        '"single_authoritative_sword"',
+        '"cinemachine_collision"',
+        '"nightmare_dragon_controller"',
+        '"mindforge_dragon_presentation"',
+        "player.movement.CharacterController",
+        "player.combatController",
+        "player.stamina",
+        "player.health",
+    ):
+        assert token in source
+    assert "MindforgeDemoV11" not in source
+    assert "WorldCathedral" not in source
+
+
+def test_v29_combat_slice_is_a_mindforge_owned_copy_of_working_scene():
+    builder = read(SLICE_BUILDER)
+    marker = read(SLICE_MARKER)
+    for token in (
+        "SourceScene = MindforgeChassisMenu.GameplayTestScene",
+        'DestinationScene = "Assets/Mindforge/Scenes/MindforgeCombatSliceV29.unity"',
+        'MarkerRoot = "Mindforge_Production_Combat_Slice_V29"',
+        "AssetDatabase.CopyAsset(SourceScene, DestinationScene)",
+        "ValidateInheritedProductionSystems()",
+        "PlayerStateMachine player",
+        "Sword sword",
+        "CinemachineVirtualCamera[] virtualCameras",
+        "BossManager boss",
+        "EnemyNightmareDragonController dragon",
+    ):
+        assert token in builder
+    # The builder must never save changes back into the upstream GameplayTestScene.
+    assert "SaveScene(scene, SourceScene)" not in builder
+    assert "DeleteAsset(SourceScene)" not in builder
+
+    for token in (
+        "minimumCombatHallWidth = 14f",
+        "minimumTraversalCorridorWidth = 8f",
+        "decorativeShoulderExclusion = 2f",
+        "minimumBossArenaDiameter = 32f",
+    ):
+        assert token in marker
 
 
 def test_v29_documentation_commits_to_chassis_first_world_and_spacing_rules():
