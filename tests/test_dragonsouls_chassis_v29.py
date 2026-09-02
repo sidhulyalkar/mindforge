@@ -8,6 +8,7 @@ OVERLAY = ROOT / "dragonsouls_overlay" / "Assets" / "Mindforge"
 DOC = ROOT / "docs" / "DRAGONSOULS_CHASSIS_V29.md"
 GITIGNORE = ROOT / ".gitignore"
 LICENSE = ROOT / "third_party" / "licenses" / "DragonSouls_Unity3D_MIT.txt"
+AETHERBLADE = OVERLAY / "Runtime" / "MindforgeAetherbladePresentationV29.cs"
 
 
 def read(path: Path) -> str:
@@ -72,6 +73,40 @@ def test_v29_unity_overlay_has_fast_play_entry_and_neural_seam_without_combat_au
 
     assert "f54824255517801d5d3443848e1e4275d8d5066d" in provenance
     assert "individual redistribution terms" in provenance
+
+
+def test_v29_aetherblade_replaces_only_visible_sword_mesh_and_preserves_upstream_combat():
+    source = read(AETHERBLADE)
+    for token in (
+        'UpstreamMeshName = "Sword1_1_3"',
+        'PresentationRootName = "Mindforge_Aetherblade_V29"',
+        "_retiredUpstreamRenderer.enabled = false",
+        "GetComponentInChildren<TrailRenderer>(true)",
+        'go.name != "Sword"',
+        "go.AddComponent<MindforgeAetherbladePresentationV29>()",
+        'Shader.Find("Universal Render Pipeline/Unlit")',
+        '"Blade_Core"',
+        '"Blade_Glow"',
+        '"Hilt"',
+        '"Aetherblade_LocalLight"',
+    ):
+        assert token in source
+
+    # The presentation layer may remove colliders from primitives it creates, but
+    # must never create or mutate the authoritative sword hit/Rigidbody machinery.
+    for forbidden in (
+        "AddComponent<Rigidbody>",
+        "AddComponent<BoxCollider>",
+        "AddComponent<CapsuleCollider>",
+        "AddComponent<SphereCollider>",
+        "MovePosition(",
+        "MoveRotation(",
+        "AddForce(",
+        "ReceiveDamage(",
+        "AttackDamage",
+        "HitControlPosition",
+    ):
+        assert forbidden not in source
 
 
 def test_v29_documentation_commits_to_chassis_first_world_and_spacing_rules():
