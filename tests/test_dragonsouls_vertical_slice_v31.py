@@ -7,6 +7,8 @@ CAMERA = OVERLAY / "Runtime" / "MindforgeProductionCameraV31.cs"
 FORMATION = OVERLAY / "Runtime" / "MindforgeEnemyFormationV31.cs"
 IDENTITY = OVERLAY / "Runtime" / "MindforgeEnemyIdentityV31.cs"
 BOSS = OVERLAY / "Runtime" / "MindforgeBossEncounterPresentationV31.cs"
+COMBAT_ASSURANCE = OVERLAY / "Runtime" / "MindforgeSwordCombatAssuranceV31.cs"
+BCI_ORB = OVERLAY / "Runtime" / "MindforgeBciOrbV31.cs"
 FEEDBACK = OVERLAY / "Runtime" / "MindforgeCombatFeedbackV31.cs"
 HUD = OVERLAY / "Runtime" / "MindforgeHudPresentationV31.cs"
 RUNTIME = OVERLAY / "Runtime" / "MindforgeVerticalSliceRuntimeV31.cs"
@@ -141,6 +143,79 @@ def test_v31_boss_presentation_is_health_phase_and_authored_particle_driven_only
         assert forbidden not in text
 
 
+def test_v31_sword_assurance_observes_real_animation_damage_windows_without_owning_combat():
+    text = read(COMBAT_ASSURANCE)
+    for token in (
+        "DefaultExecutionOrder(920)",
+        "PlayerStateMachine",
+        "CombatController",
+        "Sword",
+        "CapsuleCollider",
+        "Damage",
+        "TrailRenderer",
+        "SwordLightAttacks == null || _combat.SwordLightAttacks.Length < 3",
+        "SwordHeavyAttacks == null || _combat.SwordHeavyAttacks.Length < 1",
+        "_damage.OnHitGiven += HandleHitGiven",
+        "SwingWindowsObserved++",
+        "PresentedSwingWindowsObserved++",
+        "HitsObserved++",
+        "CurrentAttack.animationName",
+        "StuckHitboxDetected",
+        "AetherbladeInstalled",
+    ):
+        assert token in text
+
+    for forbidden in (
+        "_sword.StartAttack(",
+        "_sword.StopAttack(",
+        "_damage.SetAttackDamage(",
+        "_damage.GiveDamageForced(",
+        "TakeDamage(",
+        "ChangeState(",
+        "CurrentAttack =",
+        "Animator.Set",
+        "transform.position =",
+        "Time.timeScale",
+    ):
+        assert forbidden not in text
+
+
+def test_v31_bci_orb_simulates_three_requested_frequencies_without_publishing_bci_or_combat_authority():
+    text = read(BCI_ORB)
+    for token in (
+        "SightFrequencyHz = 8f",
+        "GuardFrequencyHz = 10f",
+        "ConcordFrequencyHz = 12f",
+        "StimulusNodeCount = 3",
+        "simulationEnabled = true",
+        "Range(0f, 0.22f)",
+        "reducedContrast = 0.18f",
+        "allowHighContrastPreview = false",
+        "Mathf.Sin(2f * Mathf.PI * node.frequencyHz * now)",
+        "Time.unscaledTime",
+        "MindforgeIntentBusV29.IntentPublished += HandleIntentPublished",
+        "GetRequestedFrequencyHz",
+        "Mindforge_BCI_Orb_V31",
+        "BCI SIM  •  REDUCED CONTRAST",
+        "requested simulation frequencies, not measured display",
+        "Destroy(collider)",
+    ):
+        assert token in text
+
+    for forbidden in (
+        "MindforgeIntentBusV29.Publish(",
+        "PublishControllerSimulation(",
+        "TakeDamage(",
+        "ReceiveDamage(",
+        "ChangeState(",
+        "CharacterController",
+        "NavMeshAgent",
+        "Input.Get",
+        "Time.timeScale",
+    ):
+        assert forbidden not in text
+
+
 def test_v31_hit_feedback_is_downstream_of_health_events_and_never_deals_damage():
     text = read(FEEDBACK)
     for token in (
@@ -191,7 +266,7 @@ def test_v31_hud_only_styles_inherited_widgets_and_never_writes_gameplay_values(
         assert forbidden not in text
 
 
-def test_v31_runtime_culls_grass_and_installs_camera_spacing_identity_boss_feedback_hud_and_postfx():
+def test_v31_runtime_installs_combat_assurance_bci_and_all_presentation_layers():
     text = read(RUNTIME)
     for token in (
         'ProductVersion = "V0.31 Production Vertical Slice"',
@@ -199,6 +274,10 @@ def test_v31_runtime_culls_grass_and_installs_camera_spacing_identity_boss_feedb
         "MindforgeEnemyFormationV31",
         "MindforgeEnemyIdentityV31",
         "MindforgeBossEncounterPresentationV31",
+        "MindforgeSwordCombatAssuranceV31",
+        "MindforgeBciOrbV31",
+        "InstallSwordAssurance()",
+        "InstallBciPreview()",
         "MindforgeCombatFeedbackV31",
         "MindforgeHudPresentationV31",
         "terrain.detailObjectDensity",
@@ -216,6 +295,7 @@ def test_v31_runtime_culls_grass_and_installs_camera_spacing_identity_boss_feedb
         "CharacterController.Move",
         "NavMeshAgent.destination",
         "transform.position =",
+        "MindforgeIntentBusV29.Publish(",
     ):
         assert forbidden not in text
 
@@ -281,13 +361,16 @@ def test_v31_builder_preserves_working_player_sword_camera_enemy_bonfire_and_bos
         assert token in text
 
 
-def test_v31_native_readiness_tracks_geometry_and_runtime_presentation_owners():
+def test_v31_native_readiness_tracks_actual_sword_evidence_and_bci_scientific_boundary():
     text = read(READINESS)
     for token in (
         'schema = "mindforge.dragonsouls_vertical_slice_readiness.v31"',
         '"v31_scene"',
         '"authored_boundaries_have_real_collision"',
         '"authored_boundary_budget"',
+        '"single_sword_authority"',
+        '"sword_authority_components"',
+        '"sword_attack_catalog"',
         '"baked_navmesh_runtime"',
         '"runtime_installed"',
         '"production_camera_runtime"',
@@ -296,6 +379,14 @@ def test_v31_native_readiness_tracks_geometry_and_runtime_presentation_owners():
         '"boss_presentation_runtime"',
         '"combat_feedback_runtime"',
         '"hud_presentation_runtime"',
+        '"sword_combat_assurance_runtime"',
+        '"sword_swing_window_observed"',
+        '"sword_damage_hit_observed"',
+        '"bci_orb_runtime"',
+        '"bci_requested_frequency_map"',
+        '"bci_reduced_contrast_default"',
+        '"bci_physical_display_frequency"',
+        "photodiode qualification",
         "NavMesh.CalculateTriangulation()",
     ):
         assert token in text
