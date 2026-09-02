@@ -196,16 +196,17 @@ def test_all_dynamic_v27_presentation_freezes_for_neural_visual_windows():
         assert "NeuralVisualFieldActive" in source
 
 
-def test_latest_readiness_tracks_v27_editor_and_runtime_owners():
+def test_latest_readiness_tracks_v27_stage_beneath_v28_current_product():
     source = read(READINESS)
     for token in (
-        '"product_version_v27"',
-        'StartsWith("V0.27"',
+        '"product_version_v28"',
+        'StartsWith("V0.28"',
         '"v27_combat_embodiment_authored"',
         "CombatEmbodimentV27Builder.PresentInOpenScene()",
         '"GuardianCombatEmbodimentV27"',
         '"FracturedSignalBeastV27"',
         '"FracturedArenaDynamicsV27"',
+        '"v28_professional_encounter_authored"',
     ):
         assert token in source
 

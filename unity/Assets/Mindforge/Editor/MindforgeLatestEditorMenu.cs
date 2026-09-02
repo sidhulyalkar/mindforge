@@ -16,12 +16,16 @@ namespace Mindforge.Editor
     /// V0.23 reconciles visible structure with collision, V0.24 imposes the canonical
     /// white-cathedral art/architecture grammar, V0.25 promotes high-fidelity rendering and
     /// sensory presentation, V0.26 replaces remaining primitive render silhouettes with
-    /// production geometry, and V0.27 adds Guardian sword-arm embodiment plus the animalistic
-    /// Fractured Signal encounter stage.
+    /// production geometry, V0.27 adds Guardian sword-arm embodiment, and V0.28 replaces the
+    /// procedural boss proxy with pinned authored anatomy while enforcing encounter spacing and
+    /// deterministic socketed world dressing plus a sparse choir/apse depth pass.
     /// </summary>
     public static class MindforgeLatestEditorMenu
     {
-        public const string ProductVersion = "V0.27 Guardian Embodiment + Fractured Beast";
+        public const string ProductVersion = "V0.28 Professional Creature + World Staging";
+        // Retained as an explicit migration/provenance label so historical V0.27 contracts can
+        // prove the predecessor stage remains intentionally composed beneath V0.28.
+        public const string PreviousProductVersion = "V0.27 Guardian Embodiment + Fractured Beast";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
@@ -103,6 +107,8 @@ namespace Mindforge.Editor
             SensoryFidelityV25Builder.ApplyOpenScene();
             WorldRenderingV26Builder.ApplyOpenScene();
             CombatEmbodimentV27Builder.ApplyOpenScene();
+            ProfessionalEncounterV28Builder.ApplyOpenScene();
+            ProfessionalWorldDetailV28Builder.ApplyOpenScene();
         }
 
         private static bool PrepareForSceneReplacement()
@@ -149,6 +155,10 @@ namespace Mindforge.Editor
                 WorldRenderingV26Builder.ApplyOpenScene();
             if (!CombatEmbodimentV27Builder.PresentInOpenScene())
                 CombatEmbodimentV27Builder.ApplyOpenScene();
+            if (!ProfessionalEncounterV28Builder.PresentInOpenScene())
+                ProfessionalEncounterV28Builder.ApplyOpenScene();
+            if (!ProfessionalWorldDetailV28Builder.PresentInOpenScene())
+                ProfessionalWorldDetailV28Builder.ApplyOpenScene();
         }
     }
 }
