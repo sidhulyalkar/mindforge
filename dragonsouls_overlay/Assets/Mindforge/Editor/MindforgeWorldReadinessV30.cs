@@ -75,6 +75,8 @@ namespace Mindforge.Chassis.Editor
             EnemyStateMachine[] enemies = UnityEngine.Object.FindObjectsOfType<EnemyStateMachine>(true);
             BossManager[] bosses = UnityEngine.Object.FindObjectsOfType<BossManager>(true);
             EnemyNightmareDragonController[] dragons = UnityEngine.Object.FindObjectsOfType<EnemyNightmareDragonController>(true);
+            Bonfire[] bonfires = UnityEngine.Object.FindObjectsOfType<Bonfire>(true);
+            BonfiresManager[] bonfireManagers = UnityEngine.Object.FindObjectsOfType<BonfiresManager>(true);
 
             Add(report, "single_player", true, players.Length == 1, $"found={players.Length}");
             Add(report, "single_authoritative_sword", true, swords.Length == 1, $"found={swords.Length}");
@@ -82,6 +84,8 @@ namespace Mindforge.Chassis.Editor
             Add(report, "standard_enemy_population", true, enemies.Length >= 1, $"found={enemies.Length}");
             Add(report, "boss_pipeline", true, bosses.Length >= 1 && dragons.Length >= 1,
                 $"bosses={bosses.Length}, dragons={dragons.Length}");
+            Add(report, "bonfire_progression", true, bonfires.Length >= 1 && bonfireManagers.Length == 1,
+                $"bonfires={bonfires.Length}, managers={bonfireManagers.Length}");
 
             if (EditorApplication.isPlaying)
             {
