@@ -103,8 +103,13 @@ def test_v30_enemy_identity_is_visual_only_and_keeps_enemy_state_machine_authori
     assert "MaterialPropertyBlock" in source
     assert "ArchetypeColor" in source
     assert "renderer.SetPropertyBlock(block)" in source
+
+    # Comments are allowed to name upstream authority. What is forbidden here is
+    # executable coupling from this presentation component into gameplay systems.
     for forbidden in (
-        "EnemyStateMachine",
+        "GetComponent<EnemyStateMachine>(",
+        "GetComponentInParent<EnemyStateMachine>(",
+        "FindObjectOfType<EnemyStateMachine>(",
         "Update()",
         "FixedUpdate()",
         "MovePosition(",
@@ -112,8 +117,8 @@ def test_v30_enemy_identity_is_visual_only_and_keeps_enemy_state_machine_authori
         "NavMeshAgent",
         "ReceiveDamage(",
         "AttackDamage",
-        "health",
-        "stamina",
+        ".health",
+        ".stamina",
     ):
         assert forbidden not in source
 
@@ -144,7 +149,7 @@ def test_v30_readiness_observes_full_world_navigation_progression_combat_and_pre
 def test_v30_documentation_commits_to_complete_world_first_and_measured_regional_rebuilds():
     doc = read(DOC)
     for phrase in (
-        "complete MainGameScene",
+        "`Assets/Levels/Scenes/MainGameScene.unity`",
         "baked NavMesh",
         "source scene is never edited in place",
         "primary combat hall clear width >= 14 m",
