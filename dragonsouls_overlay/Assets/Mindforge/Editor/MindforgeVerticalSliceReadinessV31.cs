@@ -134,6 +134,7 @@ namespace Mindforge.Chassis.Editor
                     $"vertices={(nav.vertices == null ? 0 : nav.vertices.Length)}");
 
                 MindforgeVerticalSliceRuntimeV31[] runtimes = UnityEngine.Object.FindObjectsOfType<MindforgeVerticalSliceRuntimeV31>(true);
+                MindforgeDesktopCombatBindingsV31[] desktopBindings = UnityEngine.Object.FindObjectsOfType<MindforgeDesktopCombatBindingsV31>(true);
                 MindforgeProductionCameraV31[] cameras = UnityEngine.Object.FindObjectsOfType<MindforgeProductionCameraV31>(true);
                 MindforgeEnemyFormationV31[] formations = UnityEngine.Object.FindObjectsOfType<MindforgeEnemyFormationV31>(true);
                 MindforgeEnemyIdentityV31[] identities = UnityEngine.Object.FindObjectsOfType<MindforgeEnemyIdentityV31>(true);
@@ -145,6 +146,11 @@ namespace Mindforge.Chassis.Editor
 
                 Add(report, "runtime_installed", true, runtimes.Length == 1 && runtimes[0].Installed,
                     $"owners={runtimes.Length}");
+                Add(report, "desktop_combat_bindings_runtime", true,
+                    desktopBindings.Length == 1 && desktopBindings[0].Installed && desktopBindings[0].DesktopCombatReady,
+                    desktopBindings.Length == 1
+                        ? $"owners=1, added={desktopBindings[0].BindingsAdded}, {desktopBindings[0].BindingSummary}"
+                        : $"owners={desktopBindings.Length}");
                 Add(report, "production_camera_runtime", true, cameras.Length == 1 && cameras[0].Installed,
                     $"owners={cameras.Length}");
                 Add(report, "enemy_formation_runtime", true, formations.Length > 0,
@@ -198,6 +204,7 @@ namespace Mindforge.Chassis.Editor
             {
                 Add(report, "baked_navmesh_runtime", false, false, "requires Play Mode");
                 Add(report, "runtime_installed", false, false, "requires Play Mode");
+                Add(report, "desktop_combat_bindings_runtime", false, false, "requires Play Mode");
                 Add(report, "production_camera_runtime", false, false, "requires Play Mode");
                 Add(report, "enemy_formation_runtime", false, false, "requires Play Mode");
                 Add(report, "enemy_identity_runtime", false, false, "requires Play Mode");
