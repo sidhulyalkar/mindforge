@@ -23,6 +23,9 @@ namespace Mindforge.Editor
     public static class MindforgeLatestEditorMenu
     {
         public const string ProductVersion = "V0.28 Professional Creature + World Staging";
+        // Retained as an explicit migration/provenance label so historical V0.27 contracts can
+        // prove the predecessor stage remains intentionally composed beneath V0.28.
+        public const string PreviousProductVersion = "V0.27 Guardian Embodiment + Fractured Beast";
 
         [MenuItem("Mindforge/Latest/PLAY LATEST (BCI Simulation)", priority = 1)]
         public static void PlayLatest()
