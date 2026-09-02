@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OVERLAY = ROOT / "dragonsouls_overlay" / "Assets" / "Mindforge"
 CAMERA = OVERLAY / "Runtime" / "MindforgeProductionCameraV31.cs"
 FORMATION = OVERLAY / "Runtime" / "MindforgeEnemyFormationV31.cs"
+IDENTITY = OVERLAY / "Runtime" / "MindforgeEnemyIdentityV31.cs"
 FEEDBACK = OVERLAY / "Runtime" / "MindforgeCombatFeedbackV31.cs"
 HUD = OVERLAY / "Runtime" / "MindforgeHudPresentationV31.cs"
 RUNTIME = OVERLAY / "Runtime" / "MindforgeVerticalSliceRuntimeV31.cs"
@@ -76,6 +77,40 @@ def test_v31_enemy_spacing_steers_navmesh_destinations_without_owning_character_
         assert forbidden not in text
 
 
+def test_v31_enemy_identity_desaturates_inherited_rigs_and_preserves_gameplay_authority():
+    text = read(IDENTITY)
+    for token in (
+        "DefaultExecutionOrder(790)",
+        "MaterialPropertyBlock",
+        "GetComponentsInChildren<Renderer>(true)",
+        "GetPropertyBlock(block, m)",
+        "SetPropertyBlock(block, m)",
+        "desaturation = 0.76f",
+        "identityBlend = 0.62f",
+        "SignalCaster",
+        "SignalRanger",
+        "CathedralBrute",
+        "CorruptedBeast",
+        "BoneRemnant",
+        "_EmissionColor",
+        "ShadowCastingMode.On",
+    ):
+        assert token in text
+
+    for forbidden in (
+        "EnemyStateMachine",
+        "NavMeshAgent",
+        "CharacterController",
+        "TakeDamage(",
+        "ReceiveDamage(",
+        "ChangeState(",
+        "transform.position =",
+        "sharedMaterial =",
+        "sharedMaterials =",
+    ):
+        assert forbidden not in text
+
+
 def test_v31_hit_feedback_is_downstream_of_health_events_and_never_deals_damage():
     text = read(FEEDBACK)
     for token in (
@@ -125,12 +160,13 @@ def test_v31_hud_only_styles_inherited_widgets_and_never_writes_gameplay_values(
         assert forbidden not in text
 
 
-def test_v31_runtime_culls_grass_and_installs_camera_spacing_feedback_hud_and_postfx():
+def test_v31_runtime_culls_grass_and_installs_camera_spacing_identity_feedback_hud_and_postfx():
     text = read(RUNTIME)
     for token in (
         'ProductVersion = "V0.31 Production Vertical Slice"',
         "MindforgeProductionCameraV31",
         "MindforgeEnemyFormationV31",
+        "MindforgeEnemyIdentityV31",
         "MindforgeCombatFeedbackV31",
         "MindforgeHudPresentationV31",
         "terrain.detailObjectDensity",
@@ -224,6 +260,7 @@ def test_v31_native_readiness_tracks_geometry_and_runtime_presentation_owners():
         '"runtime_installed"',
         '"production_camera_runtime"',
         '"enemy_formation_runtime"',
+        '"enemy_identity_runtime"',
         '"combat_feedback_runtime"',
         '"hud_presentation_runtime"',
         "NavMesh.CalculateTriangulation()",
