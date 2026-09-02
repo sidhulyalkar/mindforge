@@ -72,7 +72,8 @@ def test_v29_unity_overlay_has_fast_play_entry_and_neural_seam_without_combat_au
         assert forbidden not in intent
 
     assert "f54824255517801d5d3443848e1e4275d8d5066d" in provenance
-    assert "individual redistribution terms" in provenance
+    assert "separately audited or replaced" in provenance
+    assert "known permissive/public-domain production art" in provenance
 
 
 def test_v29_aetherblade_replaces_only_visible_sword_mesh_and_preserves_upstream_combat():
