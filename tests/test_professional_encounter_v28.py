@@ -118,7 +118,7 @@ def test_v28_replaces_childish_procedural_beast_with_authored_rigged_animation()
         assert token in builder
 
     for token in (
-        "AnimationClip.SampleAnimation",
+        "clip.SampleAnimation(modelRoot.gameObject, sample)",
         "animator.applyRootMotion = false",
         "animator.enabled = false",
         "RestoreModelRootTransform",
