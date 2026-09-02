@@ -1,0 +1,28 @@
+{
+  "schema": "mindforge.external_chassis.v1",
+  "id": "btuhany.dragonsouls_unity3d",
+  "name": "Dragon Souls - Unity3D",
+  "upstream": "https://github.com/btuhany/DragonSouls-Unity3D",
+  "source_commit": "f54824255517801d5d3443848e1e4275d8d5066d",
+  "project_subdir": "ThirdPersonCombat",
+  "unity_version": "2021.3.20f1",
+  "repository_license": "MIT",
+  "license_notice": "third_party/licenses/DragonSouls_Unity3D_MIT.txt",
+  "usage": "gitignored_external_playable_chassis",
+  "materialized_path": "external/DragonSouls-Unity3D",
+  "overlay_source": "dragonsouls_overlay/Assets/Mindforge",
+  "overlay_target": "ThirdPersonCombat/Assets/Mindforge",
+  "redistribution_policy": {
+    "upstream_authored_code": "may be adapted with MIT notice retained",
+    "bundled_binary_art": "not assumed MIT; original license must be identified before redistribution",
+    "bundled_audio_music": "not assumed MIT; original license/attribution must be identified before redistribution",
+    "raw_external_checkout": "local development only and gitignored"
+  },
+  "known_upstream_project_dependencies": {
+    "com.unity.cinemachine": "2.9.1",
+    "com.unity.inputsystem": "1.5.1",
+    "com.unity.render-pipelines.universal": "12.1.10",
+    "com.unity.postprocessing": "3.2.2",
+    "com.unity.terrain-tools": "4.0.5"
+  }
+}
