@@ -68,8 +68,8 @@ namespace Mindforge.Editor
             Add(report, "canonical_scene",
                 string.Equals(report.scene_path, MindforgeDemoV11Builder.DemoScenePath, StringComparison.Ordinal),
                 report.scene_path);
-            Add(report, "product_version_v26",
-                MindforgeLatestEditorMenu.ProductVersion.StartsWith("V0.26", StringComparison.Ordinal),
+            Add(report, "product_version_v27",
+                MindforgeLatestEditorMenu.ProductVersion.StartsWith("V0.27", StringComparison.Ordinal),
                 MindforgeLatestEditorMenu.ProductVersion);
             Add(report, "v25_editor_presentation_authored",
                 SensoryFidelityV25Builder.PresentInOpenScene(),
@@ -77,6 +77,9 @@ namespace Mindforge.Editor
             Add(report, "v26_world_rendering_authored",
                 WorldRenderingV26Builder.PresentInOpenScene(),
                 $"root={WorldRenderingV26Builder.RootName}");
+            Add(report, "v27_combat_embodiment_authored",
+                CombatEmbodimentV27Builder.PresentInOpenScene(),
+                $"root={CombatEmbodimentV27Builder.RootName}");
 
             CheckCount<MindforgeDemoV11Marker>(report, "single_demo_marker", 1);
             CheckCount<GuardianMotor>(report, "single_guardian_motor", 1);
@@ -196,6 +199,9 @@ namespace Mindforge.Editor
                 AddDeferred(report, "v25_camera_impact");
                 AddDeferred(report, "v25_combat_vfx");
                 AddDeferred(report, "v25_fractured_signal_surface");
+                AddDeferred(report, "v27_guardian_combat_embodiment");
+                AddDeferred(report, "v27_fractured_signal_beast");
+                AddDeferred(report, "v27_fractured_arena_dynamics");
                 AddDeferred(report, "single_gameplay_camera_writer_after_reveal");
                 return;
             }
@@ -212,6 +218,9 @@ namespace Mindforge.Editor
             CheckBehaviourTypeCount(report, "v25_camera_impact", "MindforgeCameraImpactV25", 1, true);
             CheckBehaviourTypeCount(report, "v25_combat_vfx", "CombatVfxOrchestrator", 1, true);
             CheckBehaviourTypeCount(report, "v25_fractured_signal_surface", "FracturedSignalFidelityV25", 1, true);
+            CheckBehaviourTypeCount(report, "v27_guardian_combat_embodiment", "GuardianCombatEmbodimentV27", 1, true);
+            CheckBehaviourTypeCount(report, "v27_fractured_signal_beast", "FracturedSignalBeastV27", 1, true);
+            CheckBehaviourTypeCount(report, "v27_fractured_arena_dynamics", "FracturedArenaDynamicsV27", 1, true);
             CheckBehaviourTypeCount(report, "v16_occlusion_ghost_retired_v25", "CameraOcclusionGhostV16", 0, false);
             CheckBehaviourTypeCount(report, "v16_backdrop_retired_v25", "WorldDepthBackdropV16", 0, false);
 

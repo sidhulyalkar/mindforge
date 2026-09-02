@@ -16,14 +16,16 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_v26_is_final_presentation_geometry_stage_after_v25():
+def test_v26_remains_production_geometry_stage_before_v27_encounter_presentation():
     latest = read(LATEST)
-    assert 'ProductVersion = "V0.26 Production Geometry + Cathedral Depth"' in latest
+    assert 'ProductVersion = "V0.27 Guardian Embodiment + Fractured Beast"' in latest
     v24 = latest.index("WorldCathedralV24Builder.ApplyOpenScene();")
     v25 = latest.index("SensoryFidelityV25Builder.ApplyOpenScene();", v24)
     v26 = latest.index("WorldRenderingV26Builder.ApplyOpenScene();", v25)
-    assert v24 < v25 < v26
+    v27 = latest.index("CombatEmbodimentV27Builder.ApplyOpenScene();", v26)
+    assert v24 < v25 < v26 < v27
     assert "if (!WorldRenderingV26Builder.PresentInOpenScene())" in latest
+    assert "if (!CombatEmbodimentV27Builder.PresentInOpenScene())" in latest
     assert 'RootName = "Mindforge_Production_World_Rendering_V26"' in read(BUILDER)
 
 
