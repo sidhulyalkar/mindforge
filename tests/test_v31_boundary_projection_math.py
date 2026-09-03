@@ -107,3 +107,14 @@ def test_builder_uses_actual_bounds_alignment_instead_of_root_pivot_assumption()
     # The old bug placed the prefab root at a desired center and implicitly assumed
     # renderer/collider bounds were centered on that pivot.
     assert "Vector3 desiredCenter = routeCenter + lateral * side * centerOffset" not in text
+
+
+def test_builder_syncs_physics_before_mixing_renderer_and_collider_bounds():
+    text = BUILDER.read_text(encoding="utf-8")
+    calculate_bounds = text.split("private static Bounds CalculateBounds", 1)[1].split(
+        "private static void ConfigureRenderers", 1
+    )[0]
+
+    sync = calculate_bounds.index("Physics.SyncTransforms();")
+    assert sync < calculate_bounds.index("renderer.bounds")
+    assert sync < calculate_bounds.index("collider.bounds")
