@@ -290,6 +290,10 @@ namespace Mindforge.Chassis.Editor
 
         private static Bounds CalculateBounds(GameObject instance)
         {
+            // Collider.bounds can lag Transform writes when physics auto-sync is disabled.
+            // Since this method merges renderer and collider bounds, force one coherent snapshot.
+            Physics.SyncTransforms();
+
             Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
             Collider[] colliders = instance.GetComponentsInChildren<Collider>(true);
             bool hasBounds = false;
