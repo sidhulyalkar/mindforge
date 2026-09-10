@@ -66,7 +66,10 @@ namespace Mindforge.Chassis
                 Reject(null, "unsupported_target");
                 return false;
             }
-            return ApplySemanticIntent(intent, Mathf.Clamp01(confidence), "controller_simulation", _windows.ActiveEpoch);
+
+            // Use the same cross-stack provenance vocabulary as Python NeuralEvent.
+            // This remains controller-only evidence; it never implies EEG was observed.
+            return ApplySemanticIntent(intent, Mathf.Clamp01(confidence), "simulated_decision", _windows.ActiveEpoch);
         }
 
         private void HandleNeuralEvent(MindforgeNeuralEventV33 evt)
