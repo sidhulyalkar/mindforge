@@ -46,8 +46,12 @@ namespace Mindforge.Chassis
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard.nKey.wasPressedThisFrame && !IsListening)
-            {
                 OpenWindow("developer_manual", requireCalibration: !allowDeveloperWindowWithoutCalibration);
+
+            if (IsListening && _stimulus != null && _stimulus.ParticipantPaused)
+            {
+                Abort("participant_paused");
+                return;
             }
 
             if (IsListening && Time.unscaledTime - _openedAt >= listeningSeconds)
@@ -112,6 +116,7 @@ namespace Mindforge.Chassis
             _stimulus?.EndListening();
             _markers?.SendNeuralWindow("NEURAL_WINDOW_ENDED", epoch, reason);
             WindowEnded?.Invoke(epoch, reason);
+            Debug.Log($"[Mindforge:V33] Neural window #{epoch} ended ({reason}).");
         }
 
         private void ResolveDependencies()
