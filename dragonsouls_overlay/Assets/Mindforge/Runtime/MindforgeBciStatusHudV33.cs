@@ -5,7 +5,8 @@ namespace Mindforge.Chassis
 {
     /// <summary>
     /// Compact developer-facing neural status readout. It exposes link/calibration/
-    /// window state so a tester never has to guess whether the closed loop is armed.
+    /// window state plus native B0/source identity so a tester never has to guess
+    /// whether the closed loop is armed or whether evidence is promotable.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class MindforgeBciStatusHudV33 : MonoBehaviour
@@ -18,6 +19,8 @@ namespace Mindforge.Chassis
         private MindforgeNeuralWindowControllerV33 _windows;
         private MindforgeNeuralIntentBridgeV33 _bridge;
         private MindforgeDisplayTimingMonitorV33 _timing;
+        private MindforgeNativeProvenanceV33 _provenance;
+        private MindforgeBciQualificationHarnessV33 _qualification;
         private TextMeshPro _text;
         private float _nextRefresh;
 
@@ -34,10 +37,10 @@ namespace Mindforge.Chassis
             root.transform.localScale = Vector3.one * 0.10f;
 
             _text = root.AddComponent<TextMeshPro>();
-            _text.fontSize = 0.52f;
+            _text.fontSize = 0.48f;
             _text.alignment = TextAlignmentOptions.TopLeft;
             _text.enableWordWrapping = false;
-            _text.rectTransform.sizeDelta = new Vector2(5.8f, 2.2f);
+            _text.rectTransform.sizeDelta = new Vector2(6.4f, 2.8f);
             _text.color = new Color(0.78f, 0.88f, 0.96f, 0.92f);
             UpdateText();
         }
@@ -58,6 +61,8 @@ namespace Mindforge.Chassis
             if (_windows == null) _windows = GetComponent<MindforgeNeuralWindowControllerV33>();
             if (_bridge == null) _bridge = GetComponent<MindforgeNeuralIntentBridgeV33>();
             if (_timing == null) _timing = GetComponent<MindforgeDisplayTimingMonitorV33>();
+            if (_provenance == null) _provenance = GetComponent<MindforgeNativeProvenanceV33>();
+            if (_qualification == null) _qualification = GetComponent<MindforgeBciQualificationHarnessV33>();
         }
 
         private void UpdateText()
@@ -74,12 +79,19 @@ namespace Mindforge.Chassis
             string timing = _timing != null && _timing.HasMeasurement
                 ? $"{_timing.ObservedRefreshHz:F0} Hz / long {_timing.LongFrameFraction:P0}"
                 : "timing warming";
+            string source = _provenance == null || !_provenance.IsAvailable
+                ? "SRC unknown"
+                : $"SRC {_provenance.ShortCommit} {(_provenance.IsCleanSource ? "clean" : "DIRTY")}";
+            string b0 = _qualification == null
+                ? "B0 unavailable"
+                : _qualification.Running ? "B0 RUNNING" : "B0 " + _qualification.StatusLabel;
 
             _text.text =
                 $"BCI V0.33  {link}\n" +
                 $"{calibration}  |  {window}\n" +
                 $"{last}  |  {timing}\n" +
-                "C calibrate  N listen  1 Sight  2 Guard  B pause";
+                $"{source}  |  {b0}\n" +
+                "C calibrate  N listen  1 Sight  2 Guard  B pause  F8 B0";
         }
     }
 }
