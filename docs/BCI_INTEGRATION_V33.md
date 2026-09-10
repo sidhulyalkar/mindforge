@@ -52,27 +52,15 @@ Raw EEG never enters Unity.
 
 ## Causal neural windows
 
-Python only decodes gameplay authority after Unity emits:
+Python only decodes gameplay authority after Unity emits `NEURAL_WINDOW_LISTENING` with a concrete `stimulus_epoch`.
 
-`NEURAL_WINDOW_LISTENING`
+The resulting `AURA_SELECTED` must carry the same epoch. V0.33 rejects selections when there is no active Unity listening window, the event belongs to another epoch, calibration is not ready, the artifact flag is set, confidence or signal quality is below the Unity semantic gate, evidence is too short, or semantic refractory time has not elapsed.
 
-with a concrete `stimulus_epoch`.
-
-The resulting `AURA_SELECTED` must carry the same epoch. V0.33 rejects selections when:
-
-- there is no active Unity listening window;
-- the event belongs to another epoch;
-- calibration is not ready;
-- the artifact flag is set;
-- confidence or signal quality is below the Unity semantic gate;
-- evidence is shorter than the minimum gate when evidence duration is available;
-- semantic refractory time has not elapsed.
-
-A timeout becomes `NEURAL_WINDOW_ABSTAINED`. Abstention is a valid outcome and never falls back to whichever class happened to score higher.
+A timeout becomes `NEURAL_WINDOW_ABSTAINED`. Abstention is a valid outcome and never falls back to whichever class happened to score higher. Participant pause is also an authority boundary: pausing the temporal stimulus ends an active neural epoch before any later selection can become authoritative.
 
 ## Calibration handshake
 
-The decoder runner already supports the protocol used by V0.33:
+The decoder runner supports the protocol used by V0.33:
 
 ```bash
 python tools/run_unity_calibrated_decoder.py \
@@ -82,25 +70,24 @@ python tools/run_unity_calibrated_decoder.py \
 
 For a live headset, use the correct LSL stream identity and `--source-mode live`.
 
-Unity owns presentation timing and sends three labeled stages:
-
-1. baseline, 4 s;
-2. Sight, 5 s;
-3. Guard, 5 s.
-
-During Sight/Guard calibration both production targets remain available while the requested target is emphasized. Python fits the session profile and must return a matching `CALIBRATION_READY` event. Unity never invents successful calibration locally.
+Unity owns presentation timing and sends baseline, Sight and Guard labeled stages. Python fits the session profile and must return a matching `CALIBRATION_READY` event. Unity never invents successful calibration locally.
 
 ## Gameplay receptors
 
-### Sight
+**Sight** reveals the nearest encounter actor with a temporary collider-free resonance marker. It is information-only: enemy AI, health, navigation and damage are untouched.
 
-A successful Sight intent reveals the nearest encounter actor with a temporary collider-free resonance marker. It is intentionally information-only in V0.33: enemy AI, health, navigation and damage are untouched.
+**Guard** creates a temporary collider-free stabilization field around the player. It exposes `GuardActive` for later neural-hazard mechanics but does not silently grant invulnerability or rewrite incoming damage.
 
-### Guard
+These intentionally modest receptors prove that a neural decision can produce visible, semantically distinct consequences without stealing authority from the inherited action-game chassis.
 
-A successful Guard intent creates a temporary collider-free stabilization field around the player. It exposes `GuardActive` for later neural-hazard mechanics but V0.33 does not silently grant invulnerability or rewrite incoming damage.
+## Exact-source native provenance
 
-These are deliberately modest first receptors. They prove that a neural decision produces visible, semantically distinct game consequences without stealing authority from the inherited action-game chassis.
+`tools/bootstrap_dragonsouls_chassis.sh` writes two records into the materialized Unity project:
+
+- `.mindforge_chassis.json` identifies the pinned upstream Dragon Souls checkout and Unity version;
+- `.mindforge_overlay.json` identifies the exact Mindforge Git commit used to apply the tracked overlay, whether that worktree was dirty, and whether the overlay was actually applied.
+
+A dirty checkout is allowed for development, but it cannot produce promotable B0 evidence. This distinction is deliberate: **functional** means the native behavior worked; **PASS** means it worked from a sealed clean source identity.
 
 ## Native test scene
 
@@ -110,35 +97,52 @@ Materialize the branch into the local Dragon Souls checkout:
 git fetch origin
 git switch feat/v33-bci-integration-spine
 git pull --ff-only origin feat/v33-bci-integration-spine
+git status --short
 bash tools/bootstrap_dragonsouls_chassis.sh
 ```
 
-Open:
+For promotion, `git status --short` should be empty before bootstrapping.
 
-`external/DragonSouls-Unity3D/ThirdPersonCombat`
-
-with Unity `2021.3.20f1`.
-
-Run:
+Open `external/DragonSouls-Unity3D/ThirdPersonCombat` with Unity `2021.3.20f1`, then run:
 
 **Mindforge -> World V0.33 -> PLAY BCI INTEGRATION**
 
-The developer HUD shows link, calibration, neural-window and display-cadence state.
+The developer HUD shows link, calibration, neural-window, source identity, B0 qualification state and software display-cadence state.
 
-### B0: game-only semantic qualification
+### B0: deterministic controller-only native qualification
 
-No Python process is required.
+No Python process and no EEG are required. Once the scene is running, press **F8** once.
 
-1. press **N** to open a development neural window;
-2. press **1** to inject Sight through `MindforgeNeuralIntentBridgeV33`;
-3. verify a nearby enemy receives the Sight reveal marker;
-4. wait for the short refractory;
-5. press **N**, then **2**;
-6. verify the player receives the Guard stabilization ring;
-7. press **N** and make no selection; verify it times out as abstention;
-8. run **Mindforge -> World V0.33 -> Audit BCI Integration**.
+`MindforgeBciQualificationHarnessV33` deterministically exercises the existing production semantic path rather than manipulating receptors directly:
 
-This proves gameplay semantics and the causal intent seam without making an EEG claim.
+1. open a causal window and inject controller-only Sight through `MindforgeNeuralIntentBridgeV33`;
+2. require the Sight receptor to activate;
+3. repeat for Guard and require the Guard field to become active;
+4. open a window and require a real timeout abstention;
+5. open another window, pause the participant stimulus, and require immediate `participant_paused` epoch termination;
+6. write a JSON receipt beneath `Application.persistentDataPath/mindforge-bci`.
+
+The HUD reports one of:
+
+- `B0 UNRUN`: no receipt attempt yet;
+- `B0 RUNNING`: deterministic sequence in progress;
+- `B0 FUNCTIONAL`: behavior passed, but exact-source provenance was missing or dirty;
+- `B0 PASS`: behavior passed and the overlay came from a clean sealed Git source;
+- `B0 FAIL`: at least one functional requirement failed.
+
+The receipt schema is `mindforge.bci_b0_receipt.v1`. It explicitly records `mode=controller_only`, `source_mode=simulated_decision`, `eeg_observed=false`, and `physical_display_timing_observed=false`, so B0 can never be mistaken for a neural or optical-timing result.
+
+After the run, validate the receipt independently from the repository root:
+
+```bash
+python tools/validate_bci_b0_receipt.py \
+  "/path/to/b0-native-YYYYMMDDTHHMMSSfffZ.json" \
+  --expected-commit "$(git rev-parse HEAD)"
+```
+
+Then run **Mindforge -> World V0.33 -> Audit BCI Integration**. The audit reports B0 functional status, promotable-receipt status and clean-source provenance separately from synthetic/live EEG gates.
+
+Manual `N -> 1`, `N -> 2`, timeout and `B` testing remains useful for visual inspection, but the F8 receipt is the repeatable B0 gate.
 
 ### B1/B2: synthetic closed loop
 
@@ -150,31 +154,13 @@ python tools/run_unity_calibrated_decoder.py \
   --source-mode synthetic_eeg
 ```
 
-In Unity:
-
-1. wait for the HUD to report the neural service;
-2. wait for software timing to become healthy;
-3. press **C** to begin calibration;
-4. allow baseline -> Sight -> Guard to finish without pausing the stimulus;
-5. wait for `CALIBRATED`;
-6. press **N** to open a production neural window;
-7. drive the Phantom source toward Sight or Guard;
-8. verify that only an event from the active epoch reaches the semantic receptor.
+In Unity, wait for the neural service and healthy software timing, press **C** to begin calibration, allow baseline -> Sight -> Guard to finish, wait for `CALIBRATED`, then open a neural window and drive the synthetic source toward Sight or Guard. Only an event from the active epoch may reach the semantic receptor.
 
 The session JSONL path is printed to the Unity Console and stored beneath `Application.persistentDataPath/mindforge-bci`.
 
 ### Live participant progression
 
-Do not jump directly to boss combat. Promote evidence in this order:
-
-1. stationary calibration;
-2. stationary Sight/Guard practice;
-3. selection while walking;
-4. selection while moving the camera;
-5. selection under light enemy pressure;
-6. optional tactical use in a real encounter;
-7. boss integration;
-8. external optical timing measurement.
+Do not jump directly to boss combat. Promote evidence in this order: stationary calibration, stationary Sight/Guard practice, walking, moving the camera, light enemy pressure, optional tactical use in a real encounter, boss integration, then external optical timing measurement.
 
 ## Participant comfort
 
@@ -185,9 +171,10 @@ The targets use reduced smooth luminance modulation and **B** immediately pauses
 V0.33 is ready to merge back into the showcase flow only when all of the following are observed on the same native branch head:
 
 - V0.31 world/combat still loads and plays;
+- exact clean overlay provenance is available;
 - two production stimulus nodes exist at requested 10/12 Hz;
 - V0.31 legacy 8/10/12 preview is suppressed;
-- B0 Sight, Guard and abstention behavior all work;
+- deterministic B0 Sight, Guard, abstention and participant-pause checks produce a validated receipt;
 - UDP receiver stays bounded under event bursts;
 - calibration uses a matching decoder acknowledgement;
 - synthetic EEG can produce a causally valid Sight and Guard decision;
