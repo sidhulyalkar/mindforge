@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -64,6 +65,8 @@ namespace Mindforge.Chassis
         private bool _participantPaused;
         private long _activeEpoch = -1;
 
+        public event Action<bool> ParticipantPauseChanged;
+
         public bool Installed { get; private set; }
         public bool ParticipantPaused => _participantPaused;
         public bool ModulationActive => !_participantPaused &&
@@ -103,10 +106,7 @@ namespace Mindforge.Chassis
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard.bKey.wasPressedThisFrame)
-            {
-                _participantPaused = !_participantPaused;
-                UpdateHeader();
-            }
+                ToggleParticipantPause();
 
             float now = Time.unscaledTime;
             bool selected = _selected != MindforgeIntentV29.None && now <= _selectedUntil;
@@ -133,6 +133,24 @@ namespace Mindforge.Chassis
                 if (node.transform != null)
                     node.transform.localScale = Vector3.one * diameter * panelScale;
             }
+        }
+
+        public void ToggleParticipantPause()
+        {
+            SetParticipantPaused(!_participantPaused);
+        }
+
+        public void SetParticipantPaused(bool paused)
+        {
+            if (_participantPaused == paused) return;
+            _participantPaused = paused;
+            if (_participantPaused)
+            {
+                _activeEpoch = -1;
+                _selected = MindforgeIntentV29.None;
+            }
+            UpdateHeader();
+            ParticipantPauseChanged?.Invoke(_participantPaused);
         }
 
         public void SetVisible(bool visible)
