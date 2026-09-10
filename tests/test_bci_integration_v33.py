@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 
@@ -19,11 +20,15 @@ BRIDGE = RUNTIME / "MindforgeNeuralIntentBridgeV33.cs"
 SIGHT = RUNTIME / "MindforgeSightReceptorV33.cs"
 GUARD = RUNTIME / "MindforgeGuardReceptorV33.cs"
 LOGGER = RUNTIME / "MindforgeBciSessionLoggerV33.cs"
+PROVENANCE = RUNTIME / "MindforgeNativeProvenanceV33.cs"
+QUALIFICATION = RUNTIME / "MindforgeBciQualificationHarnessV33.cs"
 INSTALLER = RUNTIME / "MindforgeBciIntegrationRuntimeV33.cs"
 BUILDER = EDITOR / "MindforgeBciIntegrationBuilderV33.cs"
 AUDIT = EDITOR / "MindforgeBciReadinessV33.cs"
 PY_CONFIG = ROOT / "neuro" / "mindforge_neuro" / "config.py"
 PY_RUNNER = ROOT / "tools" / "run_unity_calibrated_decoder.py"
+BOOTSTRAP = ROOT / "tools" / "bootstrap_dragonsouls_chassis.sh"
+B0_VALIDATOR = ROOT / "tools" / "validate_bci_b0_receipt.py"
 
 
 def read(path: Path) -> str:
@@ -43,7 +48,6 @@ def test_v33_production_stimulus_matches_existing_two_class_decoder():
     assert 'AuraTarget.SIGHT: self.blue_frequency_hz' in config
     assert 'AuraTarget.GUARD: self.green_frequency_hz' in config
 
-    # Concord remains a game semantic but is not falsely advertised as an EEG class.
     assert "ConcordFrequencyHz" not in stimulus
     assert "ProductionTargetCount = 3" not in stimulus
 
@@ -93,7 +97,6 @@ def test_v33_receiver_handles_decoder_restart_only_via_explicit_service_ready_tr
     ):
         assert token in receiver
 
-    # A random packet from a new model must not be able to reset sequence authority.
     authority_transfer = receiver.split("private bool AcceptModelIdentity", 1)[1].split(
         "private void Update", 1
     )[0]
@@ -167,8 +170,12 @@ def test_v33_semantic_bridge_is_confidence_quality_epoch_and_calibration_gated()
         assert forbidden not in bridge
 
 
-def test_v33_participant_pause_terminates_active_causal_window():
+def test_v33_participant_pause_is_explicit_and_terminates_active_causal_window():
+    stimulus = read(STIMULUS)
     window = read(WINDOW)
+    assert "SetParticipantPaused(bool paused)" in stimulus
+    assert "ToggleParticipantPause()" in stimulus
+    assert "ParticipantPauseChanged" in stimulus
     assert "_stimulus.ParticipantPaused" in window
     assert 'Abort("participant_paused")' in window
     assert 'SendNeuralWindow("NEURAL_WINDOW_ENDED"' in window
@@ -222,11 +229,95 @@ def test_v33_session_logger_is_derived_only_and_records_experimental_context():
         assert token not in logger.lower()
 
 
-def test_v33_installer_keeps_legacy_combat_authority_and_suppresses_old_three_target_preview():
+def test_v33_bootstrap_seals_exact_overlay_source_and_dirty_state():
+    bootstrap = read(BOOTSTRAP)
+    provenance = read(PROVENANCE)
+
+    for token in (
+        'MINDFORGE_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD)"',
+        'status --porcelain --untracked-files=normal',
+        '"schema": "mindforge.overlay_provenance.v1"',
+        '"mindforge_source_commit": sys.argv[5]',
+        '"mindforge_worktree_dirty": sys.argv[6] == "1"',
+        '"overlay_applied": sys.argv[7] == "1"',
+        '".mindforge_overlay.json"',
+    ):
+        assert token in bootstrap
+
+    assert 'Schema = "mindforge.overlay_provenance.v1"' in provenance
+    assert '".mindforge_overlay.json"' in provenance
+    assert "IsCleanSource" in provenance
+    assert "WorktreeDirty" in provenance
+    assert "OverlayApplied" in provenance
+
+
+def test_v33_b0_harness_exercises_semantic_path_and_never_claims_eeg():
+    harness = read(QUALIFICATION)
+    for token in (
+        'ReceiptSchema = "mindforge.bci_b0_receipt.v1"',
+        "keyboard.f8Key.wasPressedThisFrame",
+        '_windows.OpenWindow("b0_sight", requireCalibration: false)',
+        "_bridge.InjectControllerSimulation(MindforgeIntentV29.Sight, 1f)",
+        '_windows.OpenWindow("b0_guard", requireCalibration: false)',
+        "_bridge.InjectControllerSimulation(MindforgeIntentV29.Guard, 1f)",
+        'string.Equals(_lastWindowEndReason, "timeout_abstain"',
+        "_stimulus.SetParticipantPaused(true)",
+        'string.Equals(_lastWindowEndReason, "participant_paused"',
+        'mode = "controller_only"',
+        'source_mode = "simulated_decision"',
+        "eeg_observed = false",
+        "physical_display_timing_observed = false",
+        "receipt.passed = receipt.functional_pass && receipt.provenance_available && receipt.source_clean",
+    ):
+        assert token in harness
+
+    for forbidden in ("TakeDamage(", "ReceiveDamage(", "StartAttack(", "MovePosition(", "MoveRotation("):
+        assert forbidden not in harness
+
+
+def test_v33_b0_validator_requires_clean_exact_source_and_scientific_boundaries():
+    spec = importlib.util.spec_from_file_location("validate_bci_b0_receipt", B0_VALIDATOR)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    commit = "a" * 40
+    payload = {
+        "schema": module.SCHEMA,
+        "mode": "controller_only",
+        "source_mode": "simulated_decision",
+        "source_commit": commit,
+        "provenance_available": True,
+        "source_clean": True,
+        "worktree_dirty": False,
+        "overlay_applied": True,
+        "upstream_commit": "b" * 40,
+        "unity_version": "2021.3.20f1",
+        "runtime_platform": "OSXEditor",
+        "sight_selection_resolved": True,
+        "sight_receptor_observed": True,
+        "guard_selection_resolved": True,
+        "guard_receptor_observed": True,
+        "timeout_abstention_observed": True,
+        "participant_pause_abort_observed": True,
+        "functional_pass": True,
+        "passed": True,
+        "eeg_observed": False,
+        "physical_display_timing_observed": False,
+    }
+    assert module.validate(payload, expected_commit=commit) == []
+
+    wrong = dict(payload, eeg_observed=True)
+    assert "eeg_observed_must_be_false" in module.validate(wrong, expected_commit=commit)
+    assert "source_commit_mismatch" in module.validate(payload, expected_commit="c" * 40)
+
+
+def test_v33_installer_keeps_legacy_combat_authority_and_installs_qualification_spine():
     installer = read(INSTALLER)
     builder = read(BUILDER)
 
     for token in (
+        "Install<MindforgeNativeProvenanceV33>()",
         "Install<MindforgeUdpNeuralReceiverV33>()",
         "Install<MindforgeBciStimulusV33>()",
         "Install<MindforgeBciCalibrationDirectorV33>()",
@@ -235,6 +326,7 @@ def test_v33_installer_keeps_legacy_combat_authority_and_suppresses_old_three_ta
         "Install<MindforgeSightReceptorV33>()",
         "Install<MindforgeGuardReceptorV33>()",
         "Install<MindforgeBciSessionLoggerV33>()",
+        "Install<MindforgeBciQualificationHarnessV33>()",
         "MindforgeBciOrbV31",
         'camera.transform.Find("Mindforge_BCI_Orb_V31")',
     ):
@@ -255,10 +347,12 @@ def test_v33_timing_monitor_is_explicitly_software_only():
     assert "LongFrameFraction" in timing
 
 
-def test_v33_native_audit_exists_for_test_handoff():
+def test_v33_native_audit_tracks_b0_separately_from_live_eeg():
     audit = read(AUDIT)
     assert 'MenuItem("Mindforge/World V0.33/Audit BCI Integration"' in audit
+    assert '"controller_only_b0_receipt"' in audit
+    assert '"controller_only_b0_functional"' in audit
+    assert '"controller_only_b0_promotable_receipt"' in audit
+    assert '"clean_overlay_provenance"' in audit
     assert '"human_or_synthetic_calibration"' in audit
-    assert '"semantic_selection_observed"' in audit
-    assert '"sight_receptor_observed"' in audit
-    assert '"guard_receptor_observed"' in audit
+    assert "physical_timing_observed=false" in audit
