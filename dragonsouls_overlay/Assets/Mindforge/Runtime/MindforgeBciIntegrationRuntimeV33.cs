@@ -18,6 +18,7 @@ namespace Mindforge.Chassis
 
         private void Start()
         {
+            Install<MindforgeNativeProvenanceV33>();
             Install<MindforgeDisplayTimingMonitorV33>();
             Install<MindforgeBciMarkerSenderV33>();
             Install<MindforgeUdpNeuralReceiverV33>();
@@ -30,6 +31,7 @@ namespace Mindforge.Chassis
             Install<MindforgeGuardReceptorV33>();
             Install<MindforgeBciStatusHudV33>();
             Install<MindforgeBciSessionLoggerV33>();
+            Install<MindforgeBciQualificationHarnessV33>();
 
             SuppressLegacyPreview();
             Installed = true;
