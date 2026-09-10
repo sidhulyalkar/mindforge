@@ -13,7 +13,9 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Bounded localhost receiver for derived neural decisions. Socket I/O stays off
     /// the Unity thread; stale/backlogged packets are discarded and only the newest
-    /// authoritative event in a frame is allowed downstream.
+    /// authoritative event in a frame is allowed downstream. A new decoder model/session
+    /// may explicitly reset sequence authority with CALIBRATION_SERVICE_READY, which
+    /// keeps local development robust across Python process restarts.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class MindforgeUdpNeuralReceiverV33 : MonoBehaviour
@@ -48,18 +50,22 @@ namespace Mindforge.Chassis
         private bool _connected;
         private long _lastSeenSeq = -1;
         private long _lastAuthoritySeq = -1;
+        private string _activeModelId;
         private double _lastValidEventTime = double.NegativeInfinity;
         private long _droppedForBackpressure;
         private long _droppedForAge;
         private long _droppedExpiredAuthority;
+        private long _droppedForeignModel;
 
         public bool IsConnected => _connected;
         public int Port => port;
         public int QueueDepth => Volatile.Read(ref _queuedCount);
         public long LastSeenSequence => _lastSeenSeq;
+        public string ActiveModelId => _activeModelId;
         public long DroppedForBackpressure => Interlocked.Read(ref _droppedForBackpressure);
         public long DroppedForAge => Interlocked.Read(ref _droppedForAge);
         public long DroppedExpiredAuthority => Interlocked.Read(ref _droppedExpiredAuthority);
+        public long DroppedForeignModel => Interlocked.Read(ref _droppedForeignModel);
 
         private void OnEnable()
         {
@@ -69,6 +75,7 @@ namespace Mindforge.Chassis
             staleAfterSeconds = Mathf.Max(maxPacketQueueAgeSeconds, staleAfterSeconds);
             _lastSeenSeq = -1;
             _lastAuthoritySeq = -1;
+            _activeModelId = null;
             _lastValidEventTime = double.NegativeInfinity;
             DrainPending();
 
@@ -141,6 +148,32 @@ namespace Mindforge.Chassis
             return packetAgeSeconds * 1000.0 > evt.authority_ttl_ms;
         }
 
+        private bool AcceptModelIdentity(MindforgeNeuralEventV33 evt)
+        {
+            string modelId = string.IsNullOrEmpty(evt.model_id) ? "unknown" : evt.model_id;
+            if (string.IsNullOrEmpty(_activeModelId))
+            {
+                _activeModelId = modelId;
+                return true;
+            }
+            if (string.Equals(_activeModelId, modelId, StringComparison.Ordinal))
+                return true;
+
+            // A fresh decoder process restarts its sequence counter. Only an explicit
+            // service-ready event may transfer authority to a new model identity.
+            if (evt.IsCalibrationServiceReady)
+            {
+                _activeModelId = modelId;
+                _lastSeenSeq = -1;
+                _lastAuthoritySeq = -1;
+                Debug.Log($"[Mindforge:V33] Neural decoder authority reset to model {modelId}.");
+                return true;
+            }
+
+            Interlocked.Increment(ref _droppedForeignModel);
+            return false;
+        }
+
         private void Update()
         {
             MindforgeNeuralEventV33 latestEvidence = null;
@@ -172,7 +205,8 @@ namespace Mindforge.Chassis
                     continue;
                 }
 
-                if (evt == null || !evt.HasSupportedSchema || evt.seq <= _lastSeenSeq) continue;
+                if (evt == null || !evt.HasSupportedSchema || !AcceptModelIdentity(evt)) continue;
+                if (evt.seq <= _lastSeenSeq) continue;
 
                 double packetAge = PacketAgeSeconds(packet);
                 bool critical = evt.IsParticipantStop || evt.IsLost || evt.IsRecovered;
