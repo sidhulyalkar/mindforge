@@ -80,6 +80,27 @@ def test_v33_transport_accepts_python_v1_v2_schema_without_raw_eeg():
         assert token not in combined
 
 
+def test_v33_receiver_handles_decoder_restart_only_via_explicit_service_ready_transfer():
+    receiver = read(RECEIVER)
+    for token in (
+        "_activeModelId",
+        "AcceptModelIdentity",
+        "evt.IsCalibrationServiceReady",
+        "_lastSeenSeq = -1",
+        "_lastAuthoritySeq = -1",
+        "DroppedForeignModel",
+        "_droppedForeignModel",
+    ):
+        assert token in receiver
+
+    # A random packet from a new model must not be able to reset sequence authority.
+    authority_transfer = receiver.split("private bool AcceptModelIdentity", 1)[1].split(
+        "private void Update", 1
+    )[0]
+    assert "if (evt.IsCalibrationServiceReady)" in authority_transfer
+    assert "Interlocked.Increment(ref _droppedForeignModel)" in authority_transfer
+
+
 def test_v33_unity_markers_match_calibration_and_epoch_runner_contract():
     markers = read(MARKERS)
     runner = read(PY_RUNNER)
@@ -144,6 +165,13 @@ def test_v33_semantic_bridge_is_confidence_quality_epoch_and_calibration_gated()
         "Animator.Play(",
     ):
         assert forbidden not in bridge
+
+
+def test_v33_participant_pause_terminates_active_causal_window():
+    window = read(WINDOW)
+    assert "_stimulus.ParticipantPaused" in window
+    assert 'Abort("participant_paused")' in window
+    assert 'SendNeuralWindow("NEURAL_WINDOW_ENDED"' in window
 
 
 def test_v33_gameplay_receptors_are_semantic_and_non_authoritative():
