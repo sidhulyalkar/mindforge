@@ -6,9 +6,9 @@ using UnityEngine;
 namespace Mindforge.Chassis.Editor
 {
     /// <summary>
-    /// Focused native audit for the V0.33 closed loop. Static installation checks can
-    /// pass without a headset; calibration/selection evidence remains explicitly
-    /// unobserved until Play Mode produces it.
+    /// Focused native audit for the V0.33 closed loop. Installation failures are
+    /// separated from unobserved experimental gates. Controller-only B0 evidence can
+    /// validate the semantic seam but never substitutes for EEG or physical timing.
     /// </summary>
     public static class MindforgeBciReadinessV33
     {
@@ -29,6 +29,8 @@ namespace Mindforge.Chassis.Editor
             MindforgeSightReceptorV33 sight = Object.FindObjectOfType<MindforgeSightReceptorV33>(true);
             MindforgeGuardReceptorV33 guard = Object.FindObjectOfType<MindforgeGuardReceptorV33>(true);
             MindforgeBciSessionLoggerV33 logger = Object.FindObjectOfType<MindforgeBciSessionLoggerV33>(true);
+            MindforgeNativeProvenanceV33 provenance = Object.FindObjectOfType<MindforgeNativeProvenanceV33>(true);
+            MindforgeBciQualificationHarnessV33 qualification = Object.FindObjectOfType<MindforgeBciQualificationHarnessV33>(true);
 
             if (EditorApplication.isPlaying)
             {
@@ -39,6 +41,20 @@ namespace Mindforge.Chassis.Editor
                 if (bridge == null) failures.Add("intent_bridge_runtime");
                 if (sight == null || guard == null) failures.Add("semantic_receptors_runtime");
                 if (logger == null || string.IsNullOrEmpty(logger.LogPath)) failures.Add("session_logger_runtime");
+                if (provenance == null) failures.Add("native_provenance_runtime");
+                if (qualification == null) failures.Add("b0_qualification_runtime");
+
+                if (provenance != null && !provenance.IsCleanSource) deferred.Add("clean_overlay_provenance");
+
+                if (qualification == null || !qualification.HasRun)
+                {
+                    deferred.Add("controller_only_b0_receipt");
+                }
+                else
+                {
+                    if (!qualification.LastFunctionalPass) failures.Add("controller_only_b0_functional");
+                    if (!qualification.LastPassed) deferred.Add("controller_only_b0_promotable_receipt");
+                }
 
                 if (calibration != null && !calibration.IsCalibrated) deferred.Add("human_or_synthetic_calibration");
                 if (bridge != null && bridge.AcceptedCount == 0) deferred.Add("semantic_selection_observed");
@@ -48,6 +64,7 @@ namespace Mindforge.Chassis.Editor
             else
             {
                 deferred.Add("runtime_components_install_on_play");
+                deferred.Add("controller_only_b0_requires_play_mode");
                 deferred.Add("calibration_and_selection_require_play_mode");
             }
 
@@ -57,10 +74,17 @@ namespace Mindforge.Chassis.Editor
                 MindforgeBciStimulusV33.ProductionTargetCount == 2;
             if (!staticContract) failures.Add("decoder_frequency_contract");
 
+            string source = provenance != null && provenance.IsAvailable ? provenance.ShortCommit : "unknown";
+            string b0 = qualification == null ? "unavailable" : qualification.StatusLabel;
+            string receipt = qualification != null && !string.IsNullOrEmpty(qualification.LastReceiptPath)
+                ? qualification.LastReceiptPath
+                : "unobserved";
+
             string summary =
                 $"[Mindforge:V33:AUDIT] {(failures.Count == 0 ? "PASS" : "FAIL")} " +
                 $"failures={failures.Count} deferred={deferred.Count} " +
-                $"freq=Sight10/Guard12 raw_eeg_in_unity=false";
+                $"freq=Sight10/Guard12 source={source} b0={b0} " +
+                $"raw_eeg_in_unity=false physical_timing_observed=false receipt={receipt}";
 
             if (failures.Count == 0) Debug.Log(summary);
             else Debug.LogError(summary + " failed=[" + string.Join(",", failures) + "]");
