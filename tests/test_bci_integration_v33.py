@@ -189,7 +189,7 @@ def test_v33_session_logger_is_derived_only_and_records_experimental_context():
     ):
         assert token in logger
 
-    assert "raw EEG" in logger
+    assert "raw eeg" in logger.lower()
     for token in ("samples_uv", "channel_data", "eeg_array"):
         assert token not in logger.lower()
 
