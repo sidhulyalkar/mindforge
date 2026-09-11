@@ -24,7 +24,9 @@ def test_calibration_is_a_real_unity_python_handshake():
     assert "calibrate_decoder" in python
     assert "epochs: dict[str, list[np.ndarray]]" in python
     assert "epochs.setdefault(stage, []).append(segment)" in python
-    assert "for segment in epochs[stage]:" in python
+    assert "segments = epochs[stage_name]" in python
+    assert "for segment in train_segments:" in python
+    assert "split_windows(segment, cfg.window_samples, hop)" in python
     assert "training_accuracy < 0.70" in python
     assert "resting_alpha_diagnostics" in python
 
