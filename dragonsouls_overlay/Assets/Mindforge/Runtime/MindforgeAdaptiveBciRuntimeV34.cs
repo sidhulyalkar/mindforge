@@ -29,6 +29,10 @@ namespace Mindforge.Chassis
             Install<MindforgeGazeProfilerV34>();
             Install<MindforgeAdaptiveStimulusLayoutV34>();
             Install<MindforgeAdaptiveBciTutorialV34>();
+            Install<MindforgeAdaptiveBciInvariantV34>();
+
+            MindforgeBciCalibrationDirectorV33 calibration = GetComponent<MindforgeBciCalibrationDirectorV33>();
+            if (calibration != null) calibration.SetRequireFrozenStimulusLayout(true);
 
             Installed = true;
             Debug.Log(
