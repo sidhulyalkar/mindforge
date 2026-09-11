@@ -170,15 +170,16 @@ namespace Mindforge.Chassis
 
         private IEnumerator RunAdaptiveProtocol()
         {
-            // S-G-G-S-S-G gives each class three independent blocks and reduces a simple
-            // monotonic time/order confound. Python reserves the final block per target
-            // for held-out validation instead of promoting on overlapping training windows.
+            // Interleaved S-G-S-G-S-G blocks reduce simple time/order confounds while
+            // keeping the final block for each class close in time. Python reserves each
+            // class's final block for held-out validation rather than promotion on only
+            // overlapping threshold-fit windows.
             MindforgeIntentV29[] sequence =
             {
                 MindforgeIntentV29.Sight,
                 MindforgeIntentV29.Guard,
-                MindforgeIntentV29.Guard,
                 MindforgeIntentV29.Sight,
+                MindforgeIntentV29.Guard,
                 MindforgeIntentV29.Sight,
                 MindforgeIntentV29.Guard,
             };
@@ -218,7 +219,9 @@ namespace Mindforge.Chassis
             _stimulus.BeginCalibrationBaseline();
             _markers.SendCalibrationStage(_calibrationId, "baseline", "begin", baselineSeconds);
             yield return WaitStage(baselineSeconds, "baseline");
+            if (State == CalibrationState.Failed) yield break;
             _markers.SendCalibrationStage(_calibrationId, "baseline", "end", baselineSeconds);
+            _stimulus.EndListening();
         }
 
         private IEnumerator RunTarget(MindforgeIntentV29 intent, string stage, float seconds)
@@ -234,7 +237,9 @@ namespace Mindforge.Chassis
 
             _markers.SendCalibrationStage(_calibrationId, stage, "begin", seconds);
             yield return WaitStage(seconds, stage);
+            if (State == CalibrationState.Failed) yield break;
             _markers.SendCalibrationStage(_calibrationId, stage, "end", seconds);
+            _stimulus.EndListening();
         }
 
         private IEnumerator WaitStage(float seconds, string stage)
