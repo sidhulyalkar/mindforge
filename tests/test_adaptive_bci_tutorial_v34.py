@@ -20,6 +20,8 @@ def test_v34_runtime_stacks_on_v33_and_installs_only_measurement_tutorial_layers
         "Install<MindforgeGazeProfilerV34>()",
         "Install<MindforgeAdaptiveStimulusLayoutV34>()",
         "Install<MindforgeAdaptiveBciTutorialV34>()",
+        "Install<MindforgeAdaptiveBciInvariantV34>()",
+        "calibration.SetRequireFrozenStimulusLayout(true)",
     ):
         assert token in text
     for forbidden in ("CharacterController.Move", "health.CurrentHealth", "BossManager", "EnemyNightmareDragonController"):
@@ -74,6 +76,20 @@ def test_v33_stimulus_can_be_configured_once_then_frozen_before_neural_use():
         assert token in text
     assert "SightFrequencyHz = 10f" in text
     assert "GuardFrequencyHz = 12f" in text
+
+
+def test_v34_fail_closes_calibration_and_presentation_until_layout_is_frozen():
+    calibration = read(RUNTIME / "MindforgeBciCalibrationDirectorV33.cs")
+    invariant = read(RUNTIME / "MindforgeAdaptiveBciInvariantV34.cs")
+
+    assert "SetRequireFrozenStimulusLayout" in calibration
+    assert "_requireFrozenStimulusLayout && !_stimulus.LayoutFrozen" in calibration
+    assert 'CalibrationRejected?.Invoke("stimulus_layout_not_frozen")' in calibration
+    assert "if (_requireFrozenStimulusLayout && !_stimulus.LayoutFrozen) return false;" in calibration
+    assert "preFreeze && _stimulus != null" in invariant
+    assert "_stimulus.SetVisible(false)" in invariant
+    assert "preFreeze && _calibration != null && _calibration.InProgress" in invariant
+    assert "_calibration.ResetCalibration()" in invariant
 
 
 def test_layout_personalization_is_conservative_symmetric_and_does_not_touch_decoder_or_gameplay():
