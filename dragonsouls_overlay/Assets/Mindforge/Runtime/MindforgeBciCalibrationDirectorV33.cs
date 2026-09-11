@@ -10,6 +10,9 @@ namespace Mindforge.Chassis
     /// Python remains decoder authority. Unity only controls presentation and sends
     /// stage markers; calibration is considered ready only after a matching
     /// CALIBRATION_READY event returns from the decoder service.
+    ///
+    /// V0.34 may require the stimulus layout to be frozen before this ceremony starts.
+    /// The requirement is opt-in so standalone V0.33 behavior remains unchanged.
     /// </summary>
     [DefaultExecutionOrder(960)]
     [DisallowMultipleComponent]
@@ -42,6 +45,7 @@ namespace Mindforge.Chassis
         private MindforgeDisplayTimingMonitorV33 _timing;
         private Coroutine _protocol;
         private bool _serviceReady;
+        private bool _requireFrozenStimulusLayout;
         private string _calibrationId;
 
         public event Action<CalibrationState> StateChanged;
@@ -51,6 +55,7 @@ namespace Mindforge.Chassis
         public CalibrationState State { get; private set; } = CalibrationState.Offline;
         public bool IsCalibrated => State == CalibrationState.Calibrated;
         public bool ServiceReady => _serviceReady;
+        public bool RequireFrozenStimulusLayout => _requireFrozenStimulusLayout;
         public bool InProgress => State == CalibrationState.Baseline || State == CalibrationState.Sight ||
                                   State == CalibrationState.Guard || State == CalibrationState.AwaitingDecoder;
         public string CalibrationId => _calibrationId;
@@ -85,12 +90,23 @@ namespace Mindforge.Chassis
                 RefreshIdleState();
         }
 
+        public void SetRequireFrozenStimulusLayout(bool required)
+        {
+            _requireFrozenStimulusLayout = required;
+        }
+
         public bool BeginCalibration()
         {
             ResolveDependencies();
             if (_receiver == null || _stimulus == null || _markers == null || !_serviceReady)
             {
                 SetState(CalibrationState.Offline);
+                return false;
+            }
+            if (_requireFrozenStimulusLayout && !_stimulus.LayoutFrozen)
+            {
+                CalibrationRejected?.Invoke("stimulus_layout_not_frozen");
+                Debug.LogWarning("[Mindforge:V33] BCI calibration refused: stimulus_layout_not_frozen");
                 return false;
             }
             if (requireHealthySoftwareTiming && (_timing == null || !_timing.TimingHealthy))
@@ -180,6 +196,7 @@ namespace Mindforge.Chassis
         private bool StageCanContinue()
         {
             if (_stimulus == null || _stimulus.ParticipantPaused) return false;
+            if (_requireFrozenStimulusLayout && !_stimulus.LayoutFrozen) return false;
             return !requireHealthySoftwareTiming || (_timing != null && _timing.TimingHealthy);
         }
 
