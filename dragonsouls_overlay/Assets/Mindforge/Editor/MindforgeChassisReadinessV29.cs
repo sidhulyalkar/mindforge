@@ -14,6 +14,10 @@ namespace Mindforge.Chassis.Editor
     /// validates the chassis we are adopting instead of the historical Mindforge
     /// scene. Edit-mode evidence only proves assets exist; runtime ownership is
     /// observed only after the selected upstream scene actually enters Play Mode.
+    ///
+    /// GameplayTestScene and its V0.29 copy intentionally do not own a BossManager
+    /// scene instance. MainGameScene does. The audit preserves that upstream scope
+    /// instead of turning a correct sandbox topology into a false failure.
     /// </summary>
     public static class MindforgeChassisReadinessV29
     {
@@ -46,6 +50,12 @@ namespace Mindforge.Chassis.Editor
                 playMode = EditorApplication.isPlaying,
             };
 
+            bool gameplaySandbox =
+                report.scene == MindforgeChassisMenu.GameplayTestScene ||
+                report.scene == MindforgeCombatSliceBuilderV29.DestinationScene;
+            bool fullWorldBossAuthority = report.scene == MindforgeChassisMenu.MainGameScene;
+            bool supportedScene = gameplaySandbox || fullWorldBossAuthority;
+
             Add(report, "pinned_unity_2021_3_20f1",
                 true,
                 string.Equals(Application.unityVersion, "2021.3.20f1", StringComparison.Ordinal),
@@ -53,8 +63,7 @@ namespace Mindforge.Chassis.Editor
 
             Add(report, "supported_upstream_scene",
                 true,
-                report.scene == MindforgeChassisMenu.MainGameScene ||
-                report.scene == MindforgeChassisMenu.GameplayTestScene,
+                supportedScene,
                 report.scene);
 
             if (!EditorApplication.isPlaying)
@@ -63,7 +72,9 @@ namespace Mindforge.Chassis.Editor
                 Add(report, "single_authoritative_sword", false, false, "requires Play Mode");
                 Add(report, "cinemachine_brain", false, false, "requires Play Mode");
                 Add(report, "cinemachine_collision", false, false, "requires Play Mode");
-                Add(report, "boss_manager", false, false, "requires Play Mode");
+                Add(report, "boss_manager", false, false,
+                    fullWorldBossAuthority ? "requires Play Mode; MainGameScene owns boss manager authority" :
+                    "requires Play Mode; sandbox does not require a BossManager scene instance");
                 Add(report, "nightmare_dragon_controller", false, false, "requires Play Mode");
                 Add(report, "aetherblade_presentation", false, false, "requires Play Mode");
                 Add(report, "mindforge_dragon_presentation", false, false, "requires Play Mode");
@@ -87,7 +98,11 @@ namespace Mindforge.Chassis.Editor
             Add(report, "single_authoritative_sword", true, swords.Length == 1, $"found={swords.Length}");
             Add(report, "cinemachine_brain", true, brains.Length == 1, $"found={brains.Length}");
             Add(report, "cinemachine_collision", true, cameraColliders.Length >= 1, $"found={cameraColliders.Length}");
-            Add(report, "boss_manager", true, bosses.Length == 1, $"found={bosses.Length}");
+            Add(report, "boss_manager", true,
+                fullWorldBossAuthority ? bosses.Length == 1 : bosses.Length <= 1,
+                fullWorldBossAuthority
+                    ? $"MainGameScene authority; found={bosses.Length}"
+                    : $"sandbox scope; scene manager not required, found={bosses.Length}; V0.30 owns full-world qualification");
             Add(report, "nightmare_dragon_controller", true, dragons.Length == 1, $"found={dragons.Length}");
             Add(report, "aetherblade_presentation", true,
                 blades.Length == 1 && blades[0].Installed,

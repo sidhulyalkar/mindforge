@@ -14,12 +14,18 @@ namespace Mindforge.Chassis.Editor
     /// GameplayTestScene. The upstream scene is never edited in place. This is the
     /// scene where we can widen halls, replace environment kits, relight the arena
     /// and iterate on final encounter art while preserving a clean baseline.
+    ///
+    /// Important upstream topology: GameplayTestScene contains the inactive nightmare
+    /// dragon encounter, but not the MainGameScene BossManager instance. V0.29 therefore
+    /// validates the dragon scene object plus the pinned BossManager prefab asset. V0.30
+    /// is the first gate that requires a live BossManager scene instance.
     /// </summary>
     public static class MindforgeCombatSliceBuilderV29
     {
         public const string SourceScene = MindforgeChassisMenu.GameplayTestScene;
         public const string DestinationScene = "Assets/Mindforge/Scenes/MindforgeCombatSliceV29.unity";
         public const string MarkerRoot = "Mindforge_Production_Combat_Slice_V29";
+        public const string BossManagerPrefabPath = "Assets/Levels/Prefabs/Core/BossManager.prefab";
 
         [MenuItem("Mindforge/Chassis/Build + Open Mindforge Combat Slice", priority = 3)]
         public static void BuildAndOpen()
@@ -75,7 +81,8 @@ namespace Mindforge.Chassis.Editor
             AssetDatabase.Refresh();
             Debug.Log(
                 "[Mindforge:V29] Production combat slice ready. " +
-                "It is a Mindforge-owned copy of Dragon Souls' working GameplayTestScene; upstream remains untouched."
+                "It is a Mindforge-owned copy of Dragon Souls' GameplayTestScene; upstream remains untouched. " +
+                "Dragon encounter assets are intact and full BossManager scene authority is deferred to V0.30."
             );
         }
 
@@ -84,8 +91,9 @@ namespace Mindforge.Chassis.Editor
             PlayerStateMachine player = Object.FindObjectOfType<PlayerStateMachine>(true);
             Sword sword = Object.FindObjectOfType<Sword>(true);
             CinemachineVirtualCamera[] virtualCameras = Object.FindObjectsOfType<CinemachineVirtualCamera>(true);
-            BossManager boss = Object.FindObjectOfType<BossManager>(true);
             EnemyNightmareDragonController dragon = Object.FindObjectOfType<EnemyNightmareDragonController>(true);
+            BossManager bossSceneInstance = Object.FindObjectOfType<BossManager>(true);
+            GameObject bossManagerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BossManagerPrefabPath);
 
             if (player == null)
                 throw new UnityEditor.Build.BuildFailedException("V0.29 copied slice lost PlayerStateMachine.");
@@ -93,8 +101,29 @@ namespace Mindforge.Chassis.Editor
                 throw new UnityEditor.Build.BuildFailedException("V0.29 copied slice lost the authoritative Sword.");
             if (virtualCameras == null || virtualCameras.Length == 0)
                 throw new UnityEditor.Build.BuildFailedException("V0.29 copied slice lost Cinemachine camera authority.");
-            if (boss == null || dragon == null)
-                throw new UnityEditor.Build.BuildFailedException("V0.29 copied slice lost the working dragon boss pipeline.");
+            if (dragon == null)
+                throw new UnityEditor.Build.BuildFailedException(
+                    "V0.29 copied slice lost the inherited Nightmare Dragon encounter/controller."
+                );
+            if (bossManagerPrefab == null)
+                throw new UnityEditor.Build.BuildFailedException(
+                    $"V0.29 cannot resolve the pinned BossManager prefab asset: {BossManagerPrefabPath}"
+                );
+
+            if (bossSceneInstance == null)
+            {
+                Debug.Log(
+                    "[Mindforge:V29] GameplayTestScene intentionally carries no BossManager scene instance. " +
+                    "The pinned BossManager prefab is present; V0.30 validates live BossManager + dragon authority in MainGameScene."
+                );
+            }
+            else
+            {
+                Debug.Log(
+                    "[Mindforge:V29] GameplayTestScene currently contains a BossManager instance; " +
+                    "V0.29 accepts it but does not require it because the pinned upstream scene does not own that manager."
+                );
+            }
         }
 
         private static void EnsureFolder(string path)

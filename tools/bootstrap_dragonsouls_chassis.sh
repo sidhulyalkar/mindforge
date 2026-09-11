@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Mindforge V0.29 playable-chassis bootstrap.
+# Mindforge V0.29+ playable-chassis bootstrap.
 #
 # This materializes the complete upstream Dragon Souls Unity project locally at
 # an exact immutable commit. The checkout is intentionally git-ignored because
 # the upstream repository contains a large collection of third-party art/audio
 # whose individual redistribution terms must be audited separately from the
 # upstream project's MIT-licensed source code.
+#
+# V0.33 additionally writes .mindforge_overlay.json into the Unity project so
+# native BCI qualification receipts can prove which exact Mindforge source tree
+# produced the overlay. A dirty worktree is recorded, never silently promoted.
 
 UPSTREAM_URL="https://github.com/btuhany/DragonSouls-Unity3D.git"
 UPSTREAM_COMMIT="f54824255517801d5d3443848e1e4275d8d5066d"
@@ -37,8 +41,8 @@ The resulting Unity project is:
   external/DragonSouls-Unity3D/ThirdPersonCombat
 
 Open that directory with Unity 2021.3.20f1. Do not upgrade the project on the
-first qualification run; V0.29 deliberately preserves the upstream known-good
-engine/package combination before we modernize anything.
+first qualification run; Mindforge deliberately preserves the upstream
+known-good engine/package combination before modernizing anything.
 EOF
 }
 
@@ -55,6 +59,13 @@ done
 
 command -v git >/dev/null 2>&1 || { echo "git is required" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
+
+MINDFORGE_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+if [[ -n "$(git -C "${REPO_ROOT}" status --porcelain --untracked-files=normal)" ]]; then
+  MINDFORGE_DIRTY=1
+else
+  MINDFORGE_DIRTY=0
+fi
 
 if [[ ${REFRESH} -eq 1 && -d "${CHECKOUT_ROOT}" ]]; then
   echo "[Mindforge:V29] Removing existing chassis checkout..."
@@ -103,23 +114,41 @@ if [[ ${APPLY_OVERLAY} -eq 1 ]]; then
   python3 "${OVERLAY_TOOL}" --project "${PROJECT_ROOT}" --source-commit "${UPSTREAM_COMMIT}"
 fi
 
-python3 - "${PROJECT_ROOT}" "${UPSTREAM_URL}" "${UPSTREAM_COMMIT}" "${EXPECTED_UNITY}" <<'PY'
+python3 - "${PROJECT_ROOT}" "${UPSTREAM_URL}" "${UPSTREAM_COMMIT}" "${EXPECTED_UNITY}" \
+  "${MINDFORGE_COMMIT}" "${MINDFORGE_DIRTY}" "${APPLY_OVERLAY}" <<'PY'
 import json
 import pathlib
 import sys
 from datetime import datetime, timezone
 
 project = pathlib.Path(sys.argv[1])
-record = {
+now = datetime.now(timezone.utc).isoformat()
+chassis = {
     "schema": "mindforge.dragonsouls_chassis.v1",
     "upstream": sys.argv[2],
     "source_commit": sys.argv[3],
     "unity_version": sys.argv[4],
     "project_subdir": "ThirdPersonCombat",
-    "materialized_utc": datetime.now(timezone.utc).isoformat(),
+    "materialized_utc": now,
     "third_party_art_status": "local_upstream_checkout_requires_individual_license_audit",
 }
-(project / ".mindforge_chassis.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+(project / ".mindforge_chassis.json").write_text(
+    json.dumps(chassis, indent=2) + "\n", encoding="utf-8"
+)
+
+overlay = {
+    "schema": "mindforge.overlay_provenance.v1",
+    "mindforge_source_commit": sys.argv[5],
+    "mindforge_worktree_dirty": sys.argv[6] == "1",
+    "overlay_applied": sys.argv[7] == "1",
+    "upstream_source_commit": sys.argv[3],
+    "unity_version": sys.argv[4],
+    "overlay_source_path": "dragonsouls_overlay",
+    "generated_utc": now,
+}
+(project / ".mindforge_overlay.json").write_text(
+    json.dumps(overlay, indent=2) + "\n", encoding="utf-8"
+)
 PY
 
 if [[ ${PRINT_ONLY} -eq 1 ]]; then
@@ -129,15 +158,17 @@ fi
 
 cat <<EOF
 
-[Mindforge:V29] Dragon Souls chassis ready.
+[Mindforge:V33] Dragon Souls chassis ready.
 
-Project: ${PROJECT_ROOT}
-Commit:  ${UPSTREAM_COMMIT}
-Unity:   ${EXPECTED_UNITY}
+Project:          ${PROJECT_ROOT}
+Upstream commit: ${UPSTREAM_COMMIT}
+Mindforge commit:${MINDFORGE_COMMIT}
+Worktree dirty:  $([[ ${MINDFORGE_DIRTY} -eq 1 ]] && echo true || echo false)
+Unity:            ${EXPECTED_UNITY}
 
 Open the project in Unity Hub with Unity ${EXPECTED_UNITY}, then use:
-  Mindforge > Chassis > PLAY MAIN GAME
+  Mindforge > World V0.33 > PLAY BCI INTEGRATION
 
-The first objective is to prove the untouched chassis plays correctly before
-we replace its presentation and attach Mindforge BCI semantics.
+Native qualification may run from a dirty tree for development, but promotion
+evidence is valid only when .mindforge_overlay.json reports a clean source.
 EOF
