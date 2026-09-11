@@ -123,7 +123,11 @@ def validate_bundle(
 
     tutorial_session = str(tutorial.get("session_id") or "")
     calibration_session = str(calibration.get("session_id") or "")
-    if not tutorial_session or tutorial_session != calibration_session:
+    if not tutorial_session:
+        errors.append("tutorial_session_id_missing")
+    if not calibration_session:
+        errors.append("calibration_session_id_missing")
+    elif tutorial_session and tutorial_session != calibration_session:
         errors.append("session_id_mismatch")
 
     tutorial_source = str(tutorial.get("neural_source_mode") or "")
@@ -131,7 +135,9 @@ def validate_bundle(
     if tutorial.get("tutorial_status") == "complete":
         if not tutorial_source or tutorial_source == "unobserved":
             errors.append("neural_source_unobserved")
-        elif tutorial_source != calibration_source:
+        if not calibration_source:
+            errors.append("calibration_source_mode_missing")
+        elif tutorial_source and tutorial_source != "unobserved" and tutorial_source != calibration_source:
             errors.append("neural_source_mode_mismatch")
 
     records = gaze_records or []
@@ -148,14 +154,29 @@ def validate_bundle(
         record_session = str(record.get("session_id") or "")
         record_layout = str(record.get("layout_id") or "")
         record_calibration = str(record.get("calibration_id") or "")
-        if record_session and record_session != tutorial_session:
+        if not record_session:
+            errors.append(prefix + ":session_id_missing")
+        elif tutorial_session and record_session != tutorial_session:
             errors.append(prefix + ":session_id_mismatch")
-        if record_layout and record_layout != layout_id:
+        if not record_layout:
+            errors.append(prefix + ":layout_id_missing")
+        elif layout_id and record_layout != layout_id:
             errors.append(prefix + ":layout_id_mismatch")
-        if record_calibration and record_calibration != calibration_id:
+        if not record_calibration:
+            errors.append(prefix + ":calibration_id_missing")
+        elif calibration_id and record_calibration != calibration_id:
             errors.append(prefix + ":calibration_id_mismatch")
-        if str(record.get("phase") or "") == "neural_window":
+
+        phase = str(record.get("phase") or "")
+        if phase == "neural_window":
             neural_window_records += 1
+            record_neural_source = str(record.get("neural_source_mode") or "")
+            outcome = str(record.get("outcome") or "")
+            if outcome == "accepted":
+                if not record_neural_source or record_neural_source == "unobserved":
+                    errors.append(prefix + ":neural_source_unobserved")
+                elif calibration_source and record_neural_source != calibration_source:
+                    errors.append(prefix + ":neural_source_mode_mismatch")
 
         leaked = sorted(FORBIDDEN_GAZE_KEYS.intersection(_walk_keys(record)))
         if leaked:
