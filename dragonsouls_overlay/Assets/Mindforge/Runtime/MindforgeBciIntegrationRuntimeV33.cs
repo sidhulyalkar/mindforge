@@ -4,9 +4,10 @@ namespace Mindforge.Chassis
 {
     /// <summary>
     /// Installs the V0.33 BCI integration spine on top of the native-qualified V0.31
-    /// Dragon Souls slice. It owns neural presentation/transport/semantics plus a
-    /// presentation-only third-person framing correction. Player movement, sword combat,
-    /// enemy AI, health and inherited camera switching remain Dragon Souls-authoritative.
+    /// Dragon Souls slice. It owns neural presentation/transport/semantics plus narrow
+    /// presentation/input adaptations for the Mindforge playthrough. Player movement,
+    /// sword combat, enemy AI, health and inherited camera switching remain Dragon
+    /// Souls-authoritative; the keyboard profile only augments the existing InputActions.
     /// </summary>
     [DefaultExecutionOrder(1200)]
     [DisallowMultipleComponent]
@@ -19,6 +20,7 @@ namespace Mindforge.Chassis
         private void Start()
         {
             Install<MindforgeNativeProvenanceV33>();
+            Install<MindforgeKeyboardControlProfileV33>();
             Install<MindforgeThirdPersonCameraPresentationV33>();
             Install<MindforgeDisplayTimingMonitorV33>();
             Install<MindforgeBciMarkerSenderV33>();
