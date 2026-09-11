@@ -8,8 +8,8 @@ MARKERS = ROOT / "neuro" / "mindforge_neuro" / "markers.py"
 
 def test_game_marker_parser_preserves_layout_identity():
     text = MARKERS.read_text(encoding="utf-8")
-    assert "trial_id: Optional[str]" in text
-    assert 'trial_id=(str(payload["trial_id"]) if payload.get("trial_id") is not None else None)' in text
+    assert "trial_id: str | None = None" in text
+    assert 'trial_id=_optional_str(payload.get("trial_id"))' in text
 
 
 def test_calibrated_decoder_binds_training_and_runtime_epochs_to_one_layout():
