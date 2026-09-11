@@ -49,6 +49,8 @@ namespace Mindforge.Chassis.Editor
 
                 if (calibration != null && !calibration.RequireFrozenStimulusLayout)
                     failures.Add("calibration_layout_freeze_gate_disabled");
+                if (calibration != null && !calibration.AdaptiveRepeatedBlocks)
+                    failures.Add("adaptive_repeated_blocks_disabled");
                 if (invariant != null && invariant.ViolationCount > 0)
                     failures.Add("adaptive_runtime_invariant_violation");
 
