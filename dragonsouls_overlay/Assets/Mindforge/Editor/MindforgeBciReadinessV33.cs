@@ -21,6 +21,8 @@ namespace Mindforge.Chassis.Editor
             MindforgeBciIntegrationRuntimeV33 runtime = Object.FindObjectOfType<MindforgeBciIntegrationRuntimeV33>(true);
             if (runtime == null) failures.Add("integration_runtime_missing");
 
+            MindforgeKeyboardControlProfileV33 keyboardProfile =
+                Object.FindObjectOfType<MindforgeKeyboardControlProfileV33>(true);
             MindforgeThirdPersonCameraPresentationV33 cameraPresentation =
                 Object.FindObjectOfType<MindforgeThirdPersonCameraPresentationV33>(true);
             MindforgeBciStimulusV33 stimulus = Object.FindObjectOfType<MindforgeBciStimulusV33>(true);
@@ -36,6 +38,12 @@ namespace Mindforge.Chassis.Editor
 
             if (EditorApplication.isPlaying)
             {
+                if (keyboardProfile == null || !keyboardProfile.Installed ||
+                    !keyboardProfile.WasdMovementBound || !keyboardProfile.ArrowCameraBound ||
+                    !keyboardProfile.SpaceAttackBound || !keyboardProfile.UpstreamJumpSpaceRemoved)
+                {
+                    failures.Add("laptop_keyboard_profile_runtime");
+                }
                 if (cameraPresentation == null || !cameraPresentation.Installed || cameraPresentation.CandidateCameraCount < 1)
                     failures.Add("third_person_camera_presentation_runtime");
                 if (stimulus == null || !stimulus.Installed || stimulus.NodeCount != 2) failures.Add("two_class_stimulus_runtime");
@@ -68,6 +76,7 @@ namespace Mindforge.Chassis.Editor
             else
             {
                 deferred.Add("runtime_components_install_on_play");
+                deferred.Add("laptop_keyboard_profile_requires_play_mode");
                 deferred.Add("third_person_camera_presentation_requires_play_mode");
                 deferred.Add("controller_only_b0_requires_play_mode");
                 deferred.Add("calibration_and_selection_require_play_mode");
@@ -84,8 +93,15 @@ namespace Mindforge.Chassis.Editor
                 Mathf.Approximately(MindforgeThirdPersonCameraPresentationV33.MinimumFollowDistance, 5.6f);
             if (!cameraContract) failures.Add("third_person_camera_static_contract");
 
+            bool keyboardContract =
+                MindforgeKeyboardControlProfileV33.MovementContract == "WASD" &&
+                MindforgeKeyboardControlProfileV33.CameraContract == "ARROW_KEYS" &&
+                MindforgeKeyboardControlProfileV33.AttackContract == "SPACE_LIGHT_ATTACK";
+            if (!keyboardContract) failures.Add("laptop_keyboard_static_contract");
+
             string source = provenance != null && provenance.IsAvailable ? provenance.ShortCommit : "unknown";
             string b0 = qualification == null ? "unavailable" : qualification.StatusLabel;
+            string keyboard = keyboardProfile == null ? "unavailable" : keyboardProfile.Status;
             string camera = cameraPresentation == null
                 ? "unavailable"
                 : $"{cameraPresentation.CandidateCameraCount}/{cameraPresentation.AdjustedCameraCount}";
@@ -96,7 +112,7 @@ namespace Mindforge.Chassis.Editor
             string summary =
                 $"[Mindforge:V33:AUDIT] {(failures.Count == 0 ? "PASS" : "FAIL")} " +
                 $"failures={failures.Count} deferred={deferred.Count} " +
-                $"freq=Sight10/Guard12 camera={camera} source={source} b0={b0} " +
+                $"freq=Sight10/Guard12 input=[{keyboard}] camera={camera} source={source} b0={b0} " +
                 $"raw_eeg_in_unity=false physical_timing_observed=false receipt={receipt}";
 
             if (failures.Count == 0) Debug.Log(summary);
