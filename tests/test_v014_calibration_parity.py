@@ -36,6 +36,10 @@ def test_python_preserves_counterbalanced_segments_without_crossing_neutral_gap(
     runner = RUNNER.read_text(encoding="utf-8")
     assert "epochs: dict[str, list[np.ndarray]]" in runner
     assert "epochs.setdefault(stage, []).append(segment)" in runner
-    assert "for segment in epochs[stage]:" in runner
-    assert "split_windows(" in runner
-    assert "segment, cfg.window_samples, hop" in runner
+    assert "segments = epochs[stage_name]" in runner
+    assert "train_segments = segments" in runner
+    assert "for segment in train_segments:" in runner
+    assert "split_windows(segment, cfg.window_samples, hop)" in runner
+    assert "heldout_segments = segments[-1:]" in runner
+    assert "for segment in heldout_segments:" in runner
+    assert "cfg.window_samples," in runner
