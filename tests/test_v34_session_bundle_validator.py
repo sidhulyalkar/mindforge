@@ -137,3 +137,42 @@ def test_bundle_rejects_raw_gaze_coordinates_in_aggregate_evidence():
             tools_dir=TOOLS,
         )
     )
+
+
+def test_bundle_requires_join_keys_on_every_gaze_record():
+    validate = validate_bundle()
+    records = gaze_records()
+    records[0].pop("session_id")
+    records[0].pop("layout_id")
+    records[0].pop("calibration_id")
+    errors = validate(
+        tutorial_payload(),
+        calibration_payload(),
+        gaze_records=records,
+        tools_dir=TOOLS,
+    )
+    assert "gaze[0]:session_id_missing" in errors
+    assert "gaze[0]:layout_id_missing" in errors
+    assert "gaze[0]:calibration_id_missing" in errors
+
+
+def test_bundle_binds_accepted_gaze_neural_evidence_to_decoder_source():
+    validate = validate_bundle()
+    records = gaze_records()
+    records[0]["outcome"] = "accepted"
+    records[0]["neural_source_mode"] = "live"
+    errors = validate(
+        tutorial_payload(),
+        calibration_payload(),
+        gaze_records=records,
+        tools_dir=TOOLS,
+    )
+    assert "gaze[0]:neural_source_mode_mismatch" in errors
+
+    records[0]["neural_source_mode"] = "synthetic_eeg"
+    assert "gaze[0]:neural_source_mode_mismatch" not in validate(
+        tutorial_payload(),
+        calibration_payload(),
+        gaze_records=records,
+        tools_dir=TOOLS,
+    )
