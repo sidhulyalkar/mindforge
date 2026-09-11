@@ -28,6 +28,7 @@ namespace Mindforge.Chassis
             Install<MindforgeUdpGazeReceiverV34>();
             Install<MindforgeGazeProfilerV34>();
             Install<MindforgeAdaptiveStimulusLayoutV34>();
+            Install<MindforgeGazeBciEvidenceV34>();
             Install<MindforgeAdaptiveBciTutorialV34>();
             Install<MindforgeAdaptiveBciInvariantV34>();
 
@@ -37,7 +38,7 @@ namespace Mindforge.Chassis
             Installed = true;
             Debug.Log(
                 "[Mindforge:V34] Adaptive BCI tutorial ready: gaze UDP 19746 -> profile -> " +
-                "frozen layout -> V0.33 calibration -> Sight/Guard practice."
+                "frozen layout -> V0.33 calibration -> Sight/Guard practice; aggregate gaze/BCI evidence enabled."
             );
         }
 
