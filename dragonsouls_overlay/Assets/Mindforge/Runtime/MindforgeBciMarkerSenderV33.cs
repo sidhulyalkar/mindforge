@@ -9,9 +9,9 @@ namespace Mindforge.Chassis
     /// Unity-to-Python marker lane. It reports presentation/calibration/window facts
     /// only. Raw EEG and decoder internals never travel on this channel.
     ///
-    /// V0.34 binds every calibration/window marker to the currently frozen stimulus
-    /// layout through the existing trial_id field. This preserves the v1 transport
-    /// schema while preventing calibration evidence from becoming detached from the
+    /// V0.34 binds every calibration/window/tutorial marker to the currently frozen
+    /// stimulus layout through the existing trial_id field. This preserves the v1
+    /// transport schema while preventing evidence from becoming detached from the
     /// visual geometry that produced it.
     /// </summary>
     [DisallowMultipleComponent]
@@ -82,6 +82,25 @@ namespace Mindforge.Chassis
                 action = action,
                 trial_id = CurrentLayoutId,
                 planned_duration_s = plannedDurationSeconds,
+            });
+        }
+
+        public void SendTutorialStage(string stage, string action, string reason = null, float value = 0f)
+        {
+            Send(new MarkerPayload
+            {
+                seq = ++_seq,
+                session_id = SessionId,
+                @event = "TUTORIAL_STAGE",
+                category = "tutorial",
+                unity_realtime_s = Time.realtimeSinceStartupAsDouble,
+                game_time_s = Time.time,
+                frame = Time.frameCount,
+                stage = stage,
+                action = action,
+                reason = reason,
+                value = value,
+                trial_id = CurrentLayoutId,
             });
         }
 
