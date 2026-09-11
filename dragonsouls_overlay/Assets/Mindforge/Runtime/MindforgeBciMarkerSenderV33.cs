@@ -8,6 +8,11 @@ namespace Mindforge.Chassis
     /// <summary>
     /// Unity-to-Python marker lane. It reports presentation/calibration/window facts
     /// only. Raw EEG and decoder internals never travel on this channel.
+    ///
+    /// V0.34 binds every calibration/window marker to the currently frozen stimulus
+    /// layout through the existing trial_id field. This preserves the v1 transport
+    /// schema while preventing calibration evidence from becoming detached from the
+    /// visual geometry that produced it.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class MindforgeBciMarkerSenderV33 : MonoBehaviour
@@ -46,6 +51,14 @@ namespace Mindforge.Chassis
 
         public string SessionId { get; private set; }
         public long LastSequence => _seq;
+        public string CurrentLayoutId
+        {
+            get
+            {
+                MindforgeBciStimulusV33 stimulus = GetComponent<MindforgeBciStimulusV33>();
+                return stimulus != null ? stimulus.LayoutId : null;
+            }
+        }
 
         private void Awake()
         {
@@ -67,6 +80,7 @@ namespace Mindforge.Chassis
                 frame = Time.frameCount,
                 stage = stage,
                 action = action,
+                trial_id = CurrentLayoutId,
                 planned_duration_s = plannedDurationSeconds,
             });
         }
@@ -84,6 +98,7 @@ namespace Mindforge.Chassis
                 frame = Time.frameCount,
                 stimulus_epoch = epoch,
                 reason = reason,
+                trial_id = CurrentLayoutId,
             });
         }
 
@@ -102,6 +117,7 @@ namespace Mindforge.Chassis
                 value = Mathf.Clamp01(confidence),
                 reason = source,
                 stimulus_epoch = epoch,
+                trial_id = CurrentLayoutId,
             });
         }
 
