@@ -33,7 +33,8 @@ V0.34 adaptive onboarding
   gaze interaction profile
   bounded presentation recommendation
   FROZEN stimulus layout
-  tutorial stages + receipt
+  repeated-block held-out calibration
+  tutorial stages + evidence receipts
 ```
 
 Raw EEG stays in the Python/acquisition process. Raw eye images, scene video, pupil
@@ -56,8 +57,8 @@ can later invoke the same state machine from the Awakening/Memory Forge chapter.
    recommendation. The visual geometry becomes immutable before EEG calibration.
 7. **Waiting For Neural Service** — ordinary gameplay remains safe while Unity waits for
    the Python decoder's service-ready fact.
-8. **Calibration** — the unchanged V0.33 authority protocol performs baseline, Sight and
-   Guard presentation; only a matching Python `CALIBRATION_READY` can declare success.
+8. **Calibration** — V0.34 opts V0.33 into a repeated-block protocol. Only a matching
+   Python `CALIBRATION_READY` backed by held-out evidence can declare success.
 9. **Sight Practice** — production causal window opens until Sight is demonstrated or a
    bounded retry count is exhausted.
 10. **Guard Practice** — same for Guard.
@@ -69,17 +70,9 @@ can later invoke the same state machine from the Awakening/Memory Forge chapter.
 ## Gaze profile
 
 `mindforge.gaze_profile.v1` describes interaction geometry, not cognition or personality.
-The first profile contains:
-
-- total and usable gaze sample counts;
-- usable fraction;
-- prompt count and stable-prompt count;
-- mean screen-space bias across prompted targets;
-- median and p90 within-prompt dispersion;
-- median and p90 stable acquisition latency;
-- median target occupancy;
-- recommended gaze AOI radius;
-- recommended pre-stimulus acquisition lead.
+The profile contains total/usable sample counts, usable fraction, prompt stability, screen
+bias, dispersion, acquisition latency, target occupancy, recommended AOI radius and a
+recommended pre-stimulus acquisition lead.
 
 A target is considered stably acquired only when a recent local-time window contains a
 minimum number of usable samples, enough samples lie inside the active AOI, the median
@@ -98,17 +91,14 @@ If the profile is usable, V0.34 may increase the symmetric left/right target sep
 within a narrow bound when measured dispersion is larger. It also stores a recommended
 AOI radius and acquisition lead for gaze analytics.
 
-V0.34 does **not**:
-
-- change Sight/Guard frequencies;
-- reorder semantic labels;
-- move targets continuously during a calibrated session;
-- feed gaze into the SSVEP decoder;
-- grant gaze attack, movement, damage or target-lock authority;
-- infer psychological traits from gaze behavior.
+V0.34 does **not** change Sight/Guard frequencies, reorder semantic labels, move targets
+continuously during a calibrated session, feed gaze into the SSVEP decoder, grant gaze
+combat/movement authority, or infer psychological traits from gaze behavior.
 
 After layout freeze, `MindforgeBciStimulusV33.LayoutFrozen` prevents geometry changes
-while calibration or listening is active.
+while calibration or listening is active. V0.34 also enables a runtime invariant sentry
+that hides pre-freeze coded presentation and aborts calibration if that boundary is
+violated.
 
 ## Calibration-layout identity
 
@@ -126,24 +116,78 @@ Unity session_id
   + neural source_mode
 ```
 
-This prevents a calibration recorded under one visual geometry from silently becoming
-evidence for another geometry.
+The Python decoder service requires one immutable layout identity through calibration and
+subsequent causal neural windows. A mismatch cancels the epoch instead of silently
+reusing authority from another visual geometry.
+
+## Repeated-block calibration and held-out promotion
+
+V0.34 enables an adaptive repeated-block ceremony while standalone V0.33 keeps its
+legacy protocol. The target order is intentionally not a single Sight-then-Guard block:
+
+```text
+baseline
+Sight
+Guard
+Guard
+Sight
+Sight
+Guard
+```
+
+Neutral settling separates target blocks. Each semantic class therefore contributes
+three independent presentation blocks. Python reserves the final complete Sight block
+and the final complete Guard block as held-out validation data. Earlier blocks fit the
+participant-specific decoder thresholds.
+
+Promotion uses the unseen blocks rather than training accuracy alone. Current engineering
+gates are:
+
+- training accuracy >= 0.70;
+- training accepted-correct fraction >= 0.50;
+- at least two clean held-out windows per target;
+- held-out balanced accuracy >= 0.75;
+- held-out accepted-correct fraction >= 0.50.
+
+These values are starting qualification gates, not claims of universal scientific
+optimality. The held-out windows are non-overlapping within the unseen blocks.
+
+The decoder writes `mindforge.calibration_report.v1`, including the frozen layout ID,
+protocol identity, training metrics, held-out metrics and the exact values used for
+promotion. Validate that artifact independently with:
+
+```bash
+python tools/validate_v34_calibration_report.py \
+  experiments/reports/calibration-<id>.json \
+  --expected-layout <layout-id> \
+  --expected-calibration <calibration-id>
+```
+
+The independent validator rejects legacy protocol evidence for V0.34 promotion,
+insufficient per-target held-out evidence, promotion metrics that do not equal the
+held-out metrics, layout/calibration drift and raw-EEG-shaped fields.
+
+## Passive gaze/BCI evidence
+
+`MindforgeGazeBciEvidenceV34` observes the derived gaze stream and the production neural
+ceremony without acquiring gameplay authority. It records aggregate evidence for
+calibration blocks and causal neural windows, including Sight/Guard occupancy, off-target
+fraction, selected-target occupancy, selected-target distance summaries, semantic source
+mode and outcome.
+
+Individual gaze coordinates are not persisted. The correlator cannot publish an intent,
+move the player, attack, change health, open neural windows or calibrate the decoder. Its
+purpose is diagnostic separation between visual-attention failure and neural-decoder
+failure.
 
 ## Gaze transport
 
-The production overlay now has a dedicated `MindforgeUdpGazeReceiverV34` on loopback UDP
-19746. It mirrors the existing gaze-platform discipline:
+The production overlay has a dedicated `MindforgeUdpGazeReceiverV34` on loopback UDP
+19746 with a background socket thread, bounded queue, oldest-packet backpressure,
+local receive-age gating, monotonic sequence filtering, newest-valid-sample publication
+and stale-connection expiry.
 
-- background socket thread;
-- loopback-only bind;
-- bounded packet queue;
-- oldest-packet backpressure dropping;
-- local `Stopwatch` receive-age gating;
-- monotonic sequence filtering;
-- newest-valid-sample publication;
-- stale connection expiry.
-
-The existing Python bridge remains the source:
+The Python bridge remains the source:
 
 ```bash
 python tools/mindforge_gaze.py mouse
@@ -155,21 +199,18 @@ python tools/mindforge_gaze.py neon-screen
 ## Tutorial receipt
 
 A finished tutorial writes `mindforge.tutorial_receipt.v1` under
-`Application.persistentDataPath/mindforge-bci` and includes:
+`Application.persistentDataPath/mindforge-bci` and includes exact Mindforge source
+provenance, Unity/session identity, complete/partial status, gaze profile/source, frozen
+layout identity, calibration state, Sight/Guard practice outcomes, abstentions,
+mismatches, movement-stress outcome, latest accepted neural source and explicit scientific
+claim boundaries.
 
-- exact Mindforge source commit and clean/dirty provenance;
-- Unity version and game session identity;
-- complete/partial tutorial status;
-- gaze source mode and derived gaze profile;
-- frozen layout identity and whether the default layout was used;
-- calibration identity/state;
-- Sight and Guard practice results and attempt counts;
-- abstentions/mismatches;
-- movement-stress outcome;
-- latest accepted neural source mode;
-- V0.33 session-log path;
-- explicit `raw_eeg_in_unity=false`;
-- explicit `physical_display_timing_observed=false`.
+In particular it retains:
+
+```text
+raw_eeg_in_unity = false
+physical_display_timing_observed = false
+```
 
 Validate independently with:
 
@@ -185,13 +226,15 @@ evidence.
 
 ## Native bring-up
 
-V0.34 is isolated from the V0.33 native branch so Mac verification can continue without
-moving its exact head.
-
-After V0.33 B0 is green, switch to V0.34:
+V0.34 is isolated from the frozen V0.33 native branch so Mac verification can continue
+without moving its exact head. After V0.33 B0 is green:
 
 ```bash
+git fetch origin
 git switch feat/v34-adaptive-bci-tutorial
+git pull --ff-only origin feat/v34-adaptive-bci-tutorial
+git status --short
+git rev-parse HEAD
 bash tools/bootstrap_dragonsouls_chassis.sh --refresh
 ```
 
@@ -205,9 +248,7 @@ For zero-hardware gaze bring-up, start in another terminal:
 python tools/mindforge_gaze.py mouse
 ```
 
-Then press F9. The mouse pointer is only a simulated gaze source and the receipt must keep
-that source label. Once gaze profiling/layout freeze reaches the neural-service stage,
-start the synthetic EEG path:
+Start the synthetic EEG service before the tutorial reaches neural calibration:
 
 ```bash
 python tools/run_unity_calibrated_decoder.py \
@@ -215,7 +256,11 @@ python tools/run_unity_calibrated_decoder.py \
   --source-mode synthetic_eeg
 ```
 
-Run **Mindforge -> World V0.34 -> Audit Adaptive Tutorial** after the session.
+Then press F9 and progress through the tutorial. After the session run:
+
+**Mindforge -> World V0.34 -> Audit Adaptive Tutorial**
+
+Independently validate both the tutorial receipt and the generated calibration report.
 
 ## Promotion ladder
 
@@ -224,13 +269,13 @@ The intended evidence ladder is:
 - **A0 software:** CI/source contracts only;
 - **A1 native tutorial shell:** V0.34 scene builds, F9 stages progress, no unexpected red Console entries;
 - **A2 simulated gaze:** mouse/replay produces a gaze profile and frozen layout;
-- **A3 synthetic closed loop:** synthetic EEG completes calibration and Sight/Guard practice through the production decoder;
+- **A3 synthetic closed loop:** synthetic EEG completes repeated-block held-out calibration and Sight/Guard practice through the production decoder;
 - **A4 movement stress:** at least one neural outcome/abstention while ordinary keyboard/camera input is active;
 - **A5 live gaze:** hardware-mapped gaze profile on the target display;
 - **A6 live EEG stationary:** real acquisition metadata plus held-out Sight/Guard performance;
 - **A7 live multimodal playthrough:** tutorial + authored Sight puzzle + Guard encounter;
 - **A8 physical timing:** external display timing measurement under representative gameplay load.
 
-A later gaze+EEG fusion model should be evaluated against the EEG-only baseline as a new
-experimental gate. V0.34 intentionally does not smuggle that future result into today's
-architecture.
+Unity frame cadence remains only a software guardrail. A later gaze+EEG fusion model should
+be evaluated against the EEG-only baseline as a new experimental gate, not silently
+introduced into the V0.34 authority path.
