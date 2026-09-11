@@ -33,12 +33,17 @@ namespace Mindforge.Chassis
             Install<MindforgeAdaptiveBciInvariantV34>();
 
             MindforgeBciCalibrationDirectorV33 calibration = GetComponent<MindforgeBciCalibrationDirectorV33>();
-            if (calibration != null) calibration.SetRequireFrozenStimulusLayout(true);
+            if (calibration != null)
+            {
+                calibration.SetRequireFrozenStimulusLayout(true);
+                calibration.SetAdaptiveRepeatedBlocks(true);
+            }
 
             Installed = true;
             Debug.Log(
                 "[Mindforge:V34] Adaptive BCI tutorial ready: gaze UDP 19746 -> profile -> " +
-                "frozen layout -> V0.33 calibration -> Sight/Guard practice; aggregate gaze/BCI evidence enabled."
+                "frozen layout -> repeated-block V0.33 calibration -> held-out Python validation -> " +
+                "Sight/Guard practice; aggregate gaze/BCI evidence enabled."
             );
         }
 
