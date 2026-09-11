@@ -12,6 +12,10 @@ namespace Mindforge.Chassis
     /// Sight is requested at 10 Hz and Guard at 12 Hz, matching the Python decoder.
     /// Concord remains a game semantic but is intentionally not presented as a
     /// selectable EEG target in V0.33.
+    ///
+    /// V0.34 may conservatively configure and then freeze the two target anchors before
+    /// neural calibration begins. Once frozen, target geometry is immutable for the
+    /// calibration/session so gaze adaptation cannot silently change the visual stimulus.
     /// </summary>
     [DefaultExecutionOrder(930)]
     [DisallowMultipleComponent]
@@ -20,6 +24,8 @@ namespace Mindforge.Chassis
         public const float SightFrequencyHz = 10f;
         public const float GuardFrequencyHz = 12f;
         public const int ProductionTargetCount = 2;
+        public static readonly Vector3 DefaultSightLocalPosition = new Vector3(-0.105f, 0f, -0.025f);
+        public static readonly Vector3 DefaultGuardLocalPosition = new Vector3(0.105f, 0f, -0.025f);
 
         public enum PresentationMode
         {
@@ -53,6 +59,7 @@ namespace Mindforge.Chassis
             public Color color;
             public Material material;
             public Transform transform;
+            public TextMeshPro label;
         }
 
         private readonly List<StimulusNode> _nodes = new List<StimulusNode>(ProductionTargetCount);
@@ -60,6 +67,8 @@ namespace Mindforge.Chassis
         private Material _shellMaterial;
         private TextMeshPro _header;
         private Camera _camera;
+        private StimulusNode _sightNode;
+        private StimulusNode _guardNode;
         private MindforgeIntentV29 _selected = MindforgeIntentV29.None;
         private float _selectedUntil;
         private bool _participantPaused;
@@ -77,6 +86,14 @@ namespace Mindforge.Chassis
         public long ActiveEpoch => _activeEpoch;
         public PresentationMode Mode { get; private set; } = PresentationMode.Hidden;
         public string FrequencyLabel => "Sight 10 Hz | Guard 12 Hz";
+        public string LayoutId { get; private set; } = "v33-default";
+        public bool LayoutFrozen { get; private set; }
+        public Vector3 SightLocalPosition => _sightNode != null && _sightNode.transform != null
+            ? _sightNode.transform.localPosition
+            : DefaultSightLocalPosition;
+        public Vector3 GuardLocalPosition => _guardNode != null && _guardNode.transform != null
+            ? _guardNode.transform.localPosition
+            : DefaultGuardLocalPosition;
 
         private void Start()
         {
@@ -160,6 +177,46 @@ namespace Mindforge.Chassis
             else if (Mode == PresentationMode.Hidden) SetMode(PresentationMode.Idle);
         }
 
+        /// <summary>
+        /// Configures target anchors before calibration/listening begins. The operation is
+        /// deliberately bounded and one-way when freeze=true. It does not alter frequency,
+        /// contrast, timing, gameplay authority, or the camera hierarchy.
+        /// </summary>
+        public bool TryConfigureLayout(Vector3 sightLocalPosition, Vector3 guardLocalPosition, string layoutId, bool freeze)
+        {
+            if (!Installed || LayoutFrozen || ModulationActive || Mode == PresentationMode.Listening)
+                return false;
+            if (_sightNode == null || _guardNode == null || _sightNode.transform == null || _guardNode.transform == null)
+                return false;
+
+            sightLocalPosition = ClampAnchor(sightLocalPosition);
+            guardLocalPosition = ClampAnchor(guardLocalPosition);
+            if (Vector2.Distance(
+                    new Vector2(sightLocalPosition.x, sightLocalPosition.y),
+                    new Vector2(guardLocalPosition.x, guardLocalPosition.y)) < 0.16f)
+                return false;
+
+            ApplyNodeAnchor(_sightNode, sightLocalPosition);
+            ApplyNodeAnchor(_guardNode, guardLocalPosition);
+            LayoutId = string.IsNullOrEmpty(layoutId) ? "v34-configured" : layoutId;
+            LayoutFrozen = freeze;
+            Debug.Log(
+                $"[Mindforge:V33] BCI layout {(LayoutFrozen ? "frozen" : "configured")} " +
+                $"id={LayoutId} sight={SightLocalPosition} guard={GuardLocalPosition}."
+            );
+            return true;
+        }
+
+        public bool FreezeCurrentLayout(string layoutId = null)
+        {
+            if (!Installed || LayoutFrozen || ModulationActive || Mode == PresentationMode.Listening)
+                return false;
+            if (!string.IsNullOrEmpty(layoutId)) LayoutId = layoutId;
+            LayoutFrozen = true;
+            Debug.Log($"[Mindforge:V33] BCI layout frozen id={LayoutId}.");
+            return true;
+        }
+
         public void BeginCalibrationBaseline()
         {
             _activeEpoch = -1;
@@ -220,16 +277,16 @@ namespace Mindforge.Chassis
                 shellRenderer.receiveShadows = false;
             }
 
-            CreateStimulus(MindforgeIntentV29.Sight, SightFrequencyHz, sightColor,
-                new Vector3(-0.105f, 0f, -0.025f), "SIGHT\n10 Hz");
-            CreateStimulus(MindforgeIntentV29.Guard, GuardFrequencyHz, guardColor,
-                new Vector3(0.105f, 0f, -0.025f), "GUARD\n12 Hz");
+            _sightNode = CreateStimulus(MindforgeIntentV29.Sight, SightFrequencyHz, sightColor,
+                DefaultSightLocalPosition, "SIGHT\n10 Hz");
+            _guardNode = CreateStimulus(MindforgeIntentV29.Guard, GuardFrequencyHz, guardColor,
+                DefaultGuardLocalPosition, "GUARD\n12 Hz");
 
             _header = CreateLabel("Header", new Vector3(0f, 0.145f, 0.002f), string.Empty,
                 new Color(0.80f, 0.88f, 0.96f, 1f), 0.58f);
         }
 
-        private void CreateStimulus(
+        private StimulusNode CreateStimulus(
             MindforgeIntentV29 intent,
             float frequency,
             Color color,
@@ -244,15 +301,41 @@ namespace Mindforge.Chassis
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
             }
-            CreateLabel(intent + "Label", localPosition + new Vector3(0f, -0.085f, 0.002f), label, color, 0.65f);
-            _nodes.Add(new StimulusNode
+            TextMeshPro labelComponent = CreateLabel(
+                intent + "Label",
+                localPosition + new Vector3(0f, -0.085f, 0.002f),
+                label,
+                color,
+                0.65f
+            );
+            StimulusNode result = new StimulusNode
             {
                 intent = intent,
                 frequencyHz = frequency,
                 color = color,
                 material = material,
                 transform = node.transform,
-            });
+                label = labelComponent,
+            };
+            _nodes.Add(result);
+            return result;
+        }
+
+        private static Vector3 ClampAnchor(Vector3 value)
+        {
+            return new Vector3(
+                Mathf.Clamp(value.x, -0.18f, 0.18f),
+                Mathf.Clamp(value.y, -0.08f, 0.08f),
+                -0.025f
+            );
+        }
+
+        private static void ApplyNodeAnchor(StimulusNode node, Vector3 localPosition)
+        {
+            if (node == null) return;
+            if (node.transform != null) node.transform.localPosition = localPosition;
+            if (node.label != null)
+                node.label.transform.localPosition = localPosition + new Vector3(0f, -0.085f, 0.002f);
         }
 
         private void UpdateHeader()
