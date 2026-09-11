@@ -10,6 +10,10 @@ namespace Mindforge.Chassis
     /// Python remains decoder authority. Unity only controls presentation and sends
     /// stage markers; calibration is considered ready only after a matching
     /// CALIBRATION_READY event returns from the decoder service.
+    ///
+    /// V0.34 can opt into two additional safeguards without changing standalone V0.33:
+    /// the visual layout must be frozen before calibration, and repeated balanced target
+    /// blocks are presented so Python can reserve an independent block for validation.
     /// </summary>
     [DefaultExecutionOrder(960)]
     [DisallowMultipleComponent]
@@ -36,12 +40,17 @@ namespace Mindforge.Chassis
         [SerializeField] private float neutralSettleSeconds = 0.35f;
         [SerializeField] private bool requireHealthySoftwareTiming = true;
 
+        [Header("Adaptive repeated-block protocol")]
+        [SerializeField] private float adaptiveBlockSeconds = 2.75f;
+
         private MindforgeUdpNeuralReceiverV33 _receiver;
         private MindforgeBciStimulusV33 _stimulus;
         private MindforgeBciMarkerSenderV33 _markers;
         private MindforgeDisplayTimingMonitorV33 _timing;
         private Coroutine _protocol;
         private bool _serviceReady;
+        private bool _requireFrozenStimulusLayout;
+        private bool _adaptiveRepeatedBlocks;
         private string _calibrationId;
 
         public event Action<CalibrationState> StateChanged;
@@ -51,6 +60,8 @@ namespace Mindforge.Chassis
         public CalibrationState State { get; private set; } = CalibrationState.Offline;
         public bool IsCalibrated => State == CalibrationState.Calibrated;
         public bool ServiceReady => _serviceReady;
+        public bool RequireFrozenStimulusLayout => _requireFrozenStimulusLayout;
+        public bool AdaptiveRepeatedBlocks => _adaptiveRepeatedBlocks;
         public bool InProgress => State == CalibrationState.Baseline || State == CalibrationState.Sight ||
                                   State == CalibrationState.Guard || State == CalibrationState.AwaitingDecoder;
         public string CalibrationId => _calibrationId;
@@ -85,12 +96,28 @@ namespace Mindforge.Chassis
                 RefreshIdleState();
         }
 
+        public void SetRequireFrozenStimulusLayout(bool required)
+        {
+            _requireFrozenStimulusLayout = required;
+        }
+
+        public void SetAdaptiveRepeatedBlocks(bool enabled)
+        {
+            _adaptiveRepeatedBlocks = enabled;
+        }
+
         public bool BeginCalibration()
         {
             ResolveDependencies();
             if (_receiver == null || _stimulus == null || _markers == null || !_serviceReady)
             {
                 SetState(CalibrationState.Offline);
+                return false;
+            }
+            if (_requireFrozenStimulusLayout && !_stimulus.LayoutFrozen)
+            {
+                CalibrationRejected?.Invoke("stimulus_layout_not_frozen");
+                Debug.LogWarning("[Mindforge:V33] BCI calibration refused: stimulus_layout_not_frozen");
                 return false;
             }
             if (requireHealthySoftwareTiming && (_timing == null || !_timing.TimingHealthy))
@@ -124,6 +151,12 @@ namespace Mindforge.Chassis
 
         private IEnumerator RunProtocol()
         {
+            if (_adaptiveRepeatedBlocks)
+            {
+                yield return RunAdaptiveProtocol();
+                yield break;
+            }
+
             yield return RunBaseline();
             if (State == CalibrationState.Failed) yield break;
             yield return RunTarget(MindforgeIntentV29.Sight, "sight", sightSeconds);
@@ -132,6 +165,49 @@ namespace Mindforge.Chassis
             yield return RunTarget(MindforgeIntentV29.Guard, "guard", guardSeconds);
             if (State == CalibrationState.Failed) yield break;
 
+            FinishPresentationAndAwaitDecoder();
+        }
+
+        private IEnumerator RunAdaptiveProtocol()
+        {
+            // Interleaved S-G-S-G-S-G blocks reduce simple time/order confounds while
+            // keeping the final block for each class close in time. Python reserves each
+            // class's final block for held-out validation rather than promotion on only
+            // overlapping threshold-fit windows.
+            MindforgeIntentV29[] sequence =
+            {
+                MindforgeIntentV29.Sight,
+                MindforgeIntentV29.Guard,
+                MindforgeIntentV29.Sight,
+                MindforgeIntentV29.Guard,
+                MindforgeIntentV29.Sight,
+                MindforgeIntentV29.Guard,
+            };
+
+            float blockSeconds = Mathf.Max(1.75f, adaptiveBlockSeconds);
+            float plannedSeconds = baselineSeconds + sequence.Length * blockSeconds +
+                                   Mathf.Max(0, sequence.Length - 1) * neutralSettleSeconds;
+            _markers.SendCalibrationStage(_calibrationId, "protocol", "begin", plannedSeconds);
+
+            yield return RunBaseline();
+            if (State == CalibrationState.Failed) yield break;
+
+            for (int i = 0; i < sequence.Length; i++)
+            {
+                MindforgeIntentV29 intent = sequence[i];
+                string stage = intent == MindforgeIntentV29.Sight ? "sight" : "guard";
+                yield return RunTarget(intent, stage, blockSeconds);
+                if (State == CalibrationState.Failed) yield break;
+                if (i + 1 < sequence.Length)
+                    yield return new WaitForSecondsRealtime(neutralSettleSeconds);
+            }
+
+            _markers.SendCalibrationStage(_calibrationId, "protocol", "complete", plannedSeconds);
+            FinishPresentationAndAwaitDecoder();
+        }
+
+        private void FinishPresentationAndAwaitDecoder()
+        {
             _stimulus.EndListening();
             SetState(CalibrationState.AwaitingDecoder);
             _protocol = null;
@@ -143,7 +219,9 @@ namespace Mindforge.Chassis
             _stimulus.BeginCalibrationBaseline();
             _markers.SendCalibrationStage(_calibrationId, "baseline", "begin", baselineSeconds);
             yield return WaitStage(baselineSeconds, "baseline");
+            if (State == CalibrationState.Failed) yield break;
             _markers.SendCalibrationStage(_calibrationId, "baseline", "end", baselineSeconds);
+            _stimulus.EndListening();
         }
 
         private IEnumerator RunTarget(MindforgeIntentV29 intent, string stage, float seconds)
@@ -159,7 +237,9 @@ namespace Mindforge.Chassis
 
             _markers.SendCalibrationStage(_calibrationId, stage, "begin", seconds);
             yield return WaitStage(seconds, stage);
+            if (State == CalibrationState.Failed) yield break;
             _markers.SendCalibrationStage(_calibrationId, stage, "end", seconds);
+            _stimulus.EndListening();
         }
 
         private IEnumerator WaitStage(float seconds, string stage)
@@ -180,6 +260,7 @@ namespace Mindforge.Chassis
         private bool StageCanContinue()
         {
             if (_stimulus == null || _stimulus.ParticipantPaused) return false;
+            if (_requireFrozenStimulusLayout && !_stimulus.LayoutFrozen) return false;
             return !requireHealthySoftwareTiming || (_timing != null && _timing.TimingHealthy);
         }
 

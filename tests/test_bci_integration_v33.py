@@ -120,7 +120,10 @@ def test_v33_unity_markers_match_calibration_and_epoch_runner_contract():
         'STAGES = ("baseline", "sight", "guard")',
         'marker.category != "calibration"',
         'marker.event == "NEURAL_WINDOW_LISTENING"',
-        'terminal_markers = {"NEURAL_WINDOW_ENDED", "NEURAL_WINDOW_ABSTAINED", "NEURAL_WINDOW_RESOLVED"}',
+        "terminal_markers = {",
+        '"NEURAL_WINDOW_ENDED"',
+        '"NEURAL_WINDOW_ABSTAINED"',
+        '"NEURAL_WINDOW_RESOLVED"',
     ):
         assert token in runner
 
