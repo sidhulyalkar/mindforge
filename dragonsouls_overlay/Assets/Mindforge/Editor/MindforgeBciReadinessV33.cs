@@ -21,6 +21,8 @@ namespace Mindforge.Chassis.Editor
             MindforgeBciIntegrationRuntimeV33 runtime = Object.FindObjectOfType<MindforgeBciIntegrationRuntimeV33>(true);
             if (runtime == null) failures.Add("integration_runtime_missing");
 
+            MindforgeThirdPersonCameraPresentationV33 cameraPresentation =
+                Object.FindObjectOfType<MindforgeThirdPersonCameraPresentationV33>(true);
             MindforgeBciStimulusV33 stimulus = Object.FindObjectOfType<MindforgeBciStimulusV33>(true);
             MindforgeUdpNeuralReceiverV33 receiver = Object.FindObjectOfType<MindforgeUdpNeuralReceiverV33>(true);
             MindforgeBciCalibrationDirectorV33 calibration = Object.FindObjectOfType<MindforgeBciCalibrationDirectorV33>(true);
@@ -34,6 +36,8 @@ namespace Mindforge.Chassis.Editor
 
             if (EditorApplication.isPlaying)
             {
+                if (cameraPresentation == null || !cameraPresentation.Installed || cameraPresentation.CandidateCameraCount < 1)
+                    failures.Add("third_person_camera_presentation_runtime");
                 if (stimulus == null || !stimulus.Installed || stimulus.NodeCount != 2) failures.Add("two_class_stimulus_runtime");
                 if (receiver == null) failures.Add("neural_udp_receiver_runtime");
                 if (calibration == null) failures.Add("calibration_director_runtime");
@@ -64,6 +68,7 @@ namespace Mindforge.Chassis.Editor
             else
             {
                 deferred.Add("runtime_components_install_on_play");
+                deferred.Add("third_person_camera_presentation_requires_play_mode");
                 deferred.Add("controller_only_b0_requires_play_mode");
                 deferred.Add("calibration_and_selection_require_play_mode");
             }
@@ -74,8 +79,16 @@ namespace Mindforge.Chassis.Editor
                 MindforgeBciStimulusV33.ProductionTargetCount == 2;
             if (!staticContract) failures.Add("decoder_frequency_contract");
 
+            bool cameraContract =
+                Mathf.Approximately(MindforgeThirdPersonCameraPresentationV33.PreferredFieldOfView, 55f) &&
+                Mathf.Approximately(MindforgeThirdPersonCameraPresentationV33.MinimumFollowDistance, 5.6f);
+            if (!cameraContract) failures.Add("third_person_camera_static_contract");
+
             string source = provenance != null && provenance.IsAvailable ? provenance.ShortCommit : "unknown";
             string b0 = qualification == null ? "unavailable" : qualification.StatusLabel;
+            string camera = cameraPresentation == null
+                ? "unavailable"
+                : $"{cameraPresentation.CandidateCameraCount}/{cameraPresentation.AdjustedCameraCount}";
             string receipt = qualification != null && !string.IsNullOrEmpty(qualification.LastReceiptPath)
                 ? qualification.LastReceiptPath
                 : "unobserved";
@@ -83,7 +96,7 @@ namespace Mindforge.Chassis.Editor
             string summary =
                 $"[Mindforge:V33:AUDIT] {(failures.Count == 0 ? "PASS" : "FAIL")} " +
                 $"failures={failures.Count} deferred={deferred.Count} " +
-                $"freq=Sight10/Guard12 source={source} b0={b0} " +
+                $"freq=Sight10/Guard12 camera={camera} source={source} b0={b0} " +
                 $"raw_eeg_in_unity=false physical_timing_observed=false receipt={receipt}";
 
             if (failures.Count == 0) Debug.Log(summary);
