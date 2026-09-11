@@ -9,6 +9,10 @@ No raw EEG is written to disk.
 When and only when source_mode is an explicit synthetic source, this tool may drive
 the neurOS Phantom Unicorn localhost control port so REST/SIGHT/GUARD calibration
 labels and synthetic EEG state cannot drift apart during a golden-path rehearsal.
+
+V0.34 binds every calibration stage and neural window to the frozen Unity stimulus
+layout through GameMarker.trial_id. A calibration collected under one layout can never
+silently authorize an epoch marked with another layout identity.
 """
 from __future__ import annotations
 
@@ -102,6 +106,14 @@ class PhantomController:
             self.socket = None
 
 
+def marker_layout_id(marker: GameMarker) -> str | None:
+    value = marker.trial_id
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stream-name", default="UnicornMock")
@@ -118,6 +130,12 @@ def main() -> None:
     parser.add_argument("--phantom-control-port", type=int, default=19744)
     parser.add_argument("--disable-phantom-control", action="store_true",
                         help="do not drive neurOS Phantom from Unity calibration markers")
+    parser.add_argument(
+        "--require-layout-id",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="require one immutable GameMarker.trial_id across calibration and neural windows",
+    )
     args = parser.parse_args()
 
     cfg = SsvepConfig()
@@ -156,8 +174,28 @@ def main() -> None:
     active_stage: str | None = None
     active_game_session: str | None = None
     active_calibration: str | None = None
+    active_layout_id: str | None = None
     active_chunks: list[np.ndarray] = []
     epochs: dict[str, list[np.ndarray]] = {}
+
+    def reject_calibration(reason: str) -> None:
+        nonlocal seq, active_stage, active_chunks, epochs
+        if phantom_enabled:
+            phantom.send("0")
+        seq += 1
+        sink.send(status_event(
+            seq,
+            EventType.CALIBRATION_FAILED,
+            model_id,
+            args.source_mode,
+            reason=reason[:240],
+            session_id=active_game_session,
+            calibration_id=active_calibration,
+        ))
+        print(f"Calibration rejected: {reason}. Waiting for Unity retry.")
+        active_stage = None
+        active_chunks = []
+        epochs = {}
 
     try:
         while True:
@@ -175,11 +213,31 @@ def main() -> None:
 
                 game_session = marker.session_id or None
                 calibration_session = marker.calibration_id or marker.session_id
+                layout_id = marker_layout_id(marker)
                 stage = str(marker.stage)
                 action = str(marker.action or "")
+
+                if args.require_layout_id and layout_id is None:
+                    active_game_session = game_session
+                    active_calibration = calibration_session
+                    reject_calibration("stimulus_layout_id_missing")
+                    continue
+
                 if action == "begin":
                     if active_calibration != calibration_session:
                         epochs = {}
+                        active_layout_id = layout_id
+                    elif active_layout_id is None:
+                        active_layout_id = layout_id
+
+                    if active_layout_id != layout_id:
+                        active_game_session = game_session
+                        active_calibration = calibration_session
+                        reject_calibration(
+                            f"stimulus_layout_changed:{active_layout_id or '-'}->{layout_id or '-'}")
+                        active_layout_id = layout_id
+                        continue
+
                     active_game_session = game_session
                     active_calibration = calibration_session
                     active_stage = stage
@@ -189,14 +247,19 @@ def main() -> None:
                         phantom.send(PHANTOM_STAGE_COMMAND[stage])
                     print(
                         f"Calibration BEGIN {stage} game={active_game_session or '-'} "
-                        f"calibration={(active_calibration or '-')[:12]}")
+                        f"calibration={(active_calibration or '-')[:12]} layout={active_layout_id or '-'}")
                 elif action == "end" and active_stage == stage and active_calibration == calibration_session:
+                    if active_layout_id != layout_id:
+                        reject_calibration(
+                            f"stimulus_layout_changed_before_end:{active_layout_id or '-'}->{layout_id or '-'}")
+                        active_layout_id = layout_id
+                        continue
                     segment = (np.concatenate(active_chunks, axis=1)
                                if active_chunks else np.empty((8, 0), dtype=float))
                     epochs.setdefault(stage, []).append(segment)
                     print(
                         f"Calibration END {stage}: segment={len(epochs[stage])} "
-                        f"samples={segment.shape[1]}")
+                        f"samples={segment.shape[1]} layout={active_layout_id or '-'}")
                     active_stage = None
                     active_chunks = []
                     if phantom_enabled and stage == "guard":
@@ -214,7 +277,7 @@ def main() -> None:
                     EventType.CALIBRATION_HEARTBEAT,
                     model_id,
                     args.source_mode,
-                    reason=active_stage or "waiting",
+                    reason=f"{active_stage or 'waiting'};layout={active_layout_id or '-'}",
                     session_id=active_game_session,
                     calibration_id=active_calibration,
                 ))
@@ -222,6 +285,8 @@ def main() -> None:
 
             if all(stage in epochs and epochs[stage] for stage in STAGES):
                 try:
+                    if args.require_layout_id and not active_layout_id:
+                        raise ValueError("stimulus_layout_id_missing_at_fit")
                     hop = max(1, int(round(args.calibration_hop_seconds * cfg.sample_rate_hz)))
                     trials: list[tuple[AuraTarget, np.ndarray]] = []
                     for target, stage in ((AuraTarget.SIGHT, "sight"), (AuraTarget.GUARD, "guard")):
@@ -240,6 +305,7 @@ def main() -> None:
                         "schema": "mindforge.calibration_report.v1",
                         "session_id": active_game_session,
                         "calibration_id": active_calibration,
+                        "stimulus_layout_id": active_layout_id,
                         "model_id": profile.model_id,
                         "source_mode": args.source_mode,
                         "training_accuracy": profile.training_accuracy,
@@ -267,27 +333,15 @@ def main() -> None:
                         confidence=profile.training_accuracy,
                         quality=profile.accepted_fraction,
                         reason=(f"alpha_peak_hz={baseline['alpha_peak_hz']:.2f};"
-                                f"alpha_fraction={baseline['alpha_fraction']:.3f}"),
+                                f"alpha_fraction={baseline['alpha_fraction']:.3f};"
+                                f"layout={active_layout_id or '-'}"),
                         session_id=active_game_session,
                         calibration_id=active_calibration,
                     ))
                     print("Calibration accepted:", json.dumps(report, indent=2))
                     break
                 except Exception as exc:
-                    if phantom_enabled:
-                        phantom.send("0")
-                    seq += 1
-                    sink.send(status_event(
-                        seq,
-                        EventType.CALIBRATION_FAILED,
-                        model_id,
-                        args.source_mode,
-                        reason=str(exc)[:240],
-                        session_id=active_game_session,
-                        calibration_id=active_calibration,
-                    ))
-                    print(f"Calibration rejected: {exc}. Waiting for Unity retry.")
-                    epochs = {}
+                    reject_calibration(str(exc))
 
         runtime = ResonanceEpochRuntime(
             decoder,
@@ -297,7 +351,10 @@ def main() -> None:
             session_id=active_game_session,
             calibration_id=active_calibration,
         )
-        print("Calibrated. Waiting for Unity NEURAL_WINDOW_LISTENING epochs. Ctrl-C to stop.")
+        print(
+            f"Calibrated for layout={active_layout_id or '-'}. "
+            "Waiting for Unity NEURAL_WINDOW_LISTENING epochs. Ctrl-C to stop."
+        )
         if phantom_enabled:
             print("For simulated combat, drive attention/faults with tools/phantom_control.py.")
 
@@ -316,10 +373,23 @@ def main() -> None:
                     continue
                 if marker.category != "neural_window" or marker.stimulus_epoch < 0:
                     continue
+
+                layout_id = marker_layout_id(marker)
+                if args.require_layout_id and layout_id != active_layout_id:
+                    runtime.cancel_epoch(marker.stimulus_epoch)
+                    print(
+                        f"Epoch {marker.stimulus_epoch}: rejected layout mismatch "
+                        f"calibrated={active_layout_id or '-'} marker={layout_id or '-'}"
+                    )
+                    continue
+
                 if marker.event == "NEURAL_WINDOW_LISTENING":
                     source.flush()
                     runtime.begin_epoch(marker.stimulus_epoch, session_id=marker.session_id or active_game_session)
-                    print(f"Epoch {marker.stimulus_epoch}: coded onset; EEG queue flushed")
+                    print(
+                        f"Epoch {marker.stimulus_epoch}: coded onset; EEG queue flushed; "
+                        f"layout={active_layout_id or '-'}"
+                    )
                 elif marker.event in terminal_markers:
                     runtime.cancel_epoch(marker.stimulus_epoch)
 
