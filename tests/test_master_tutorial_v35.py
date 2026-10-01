@@ -183,6 +183,7 @@ def test_v35_camera_manual_input_overrides_sprint_recentering():
     )[0]
     assert "manualRecently" in section
     assert "sprinting" in section
+    assert "moving" in section
     assert 'ActiveMode, "free"' in section
     assert "m_RecenterToTargetHeading.m_enabled = allowed" in section
 
@@ -205,3 +206,16 @@ def test_v35_runtime_installs_character_readability_camera_before_tutorial():
     camera_pos = text.index("AddComponent<MindforgeCharacterReadabilityCameraV35>()")
     tutorial_pos = text.index("AddComponent<MindforgeCombatTutorialV35>()")
     assert camera_pos < tutorial_pos
+
+
+def test_v35_tutorial_receipt_records_camera_readability_evidence():
+    text = read(RUNTIME / "MindforgeCombatTutorialV35.cs")
+    for token in (
+        "camera_readability_installed",
+        "camera_readability_pass",
+        "camera_framing_violation_frames",
+        "camera_persistent_warnings",
+        "camera_last_viewport_height",
+        "MindforgeCharacterReadabilityCameraV35",
+    ):
+        assert token in text
