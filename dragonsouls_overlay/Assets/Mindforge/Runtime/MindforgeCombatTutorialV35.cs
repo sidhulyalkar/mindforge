@@ -60,8 +60,10 @@ namespace Mindforge.Chassis
             public bool camera;
             public bool sprint;
             public int light_swing_windows;
+            public bool light_combo;
             public bool heavy_attack;
             public int sword_hits;
+            public bool damage_contact;
             public bool target_lock;
             public bool target_switch;
             public bool dodge_roll;
@@ -104,19 +106,29 @@ namespace Mindforge.Chassis
         private float _cameraEvidence;
         private int _lightInputs;
         private int _heavyInputs;
+        private bool _sprintObserved;
         private int _targetInputs;
         private int _targetSelectInputs;
         private int _rollInputs;
         private int _aimInputs;
         private int _weaponReturnInputs;
         private int _sheathInputs;
+        private bool _lightComboObserved;
+        private bool _heavyAttackObserved;
+        private bool _damageContactObserved;
+        private bool _targetLockObserved;
+        private bool _targetSwitchObserved;
+        private bool _rollObserved;
         private bool _healObserved;
         private bool _bonfireObserved;
+        private bool _sightFieldObserved;
+        private bool _guardFieldObserved;
         private bool _bossEntered;
         private bool _bossDefeated;
 
         private int _baselineSwingWindows;
         private int _baselineHits;
+        private int _baselineLightInputs;
         private int _baselineHeavyInputs;
         private int _baselineTargetInputs;
         private int _baselineTargetSelectInputs;
@@ -168,8 +180,17 @@ namespace Mindforge.Chassis
             _receiptWritten = false;
             _movementEvidence = 0f;
             _cameraEvidence = 0f;
+            _sprintObserved = false;
+            _lightComboObserved = false;
+            _heavyAttackObserved = false;
+            _damageContactObserved = false;
+            _targetLockObserved = false;
+            _targetSwitchObserved = false;
+            _rollObserved = false;
             _healObserved = false;
             _bonfireObserved = false;
+            _sightFieldObserved = false;
+            _guardFieldObserved = false;
             _bossEntered = false;
             _bossDefeated = false;
             _throwObserved = false;
@@ -419,6 +440,7 @@ namespace Mindforge.Chassis
         {
             _baselineSwingWindows = _swordAssurance != null ? _swordAssurance.SwingWindowsObserved : 0;
             _baselineHits = _swordAssurance != null ? _swordAssurance.HitsObserved : 0;
+            _baselineLightInputs = _lightInputs;
             _baselineHeavyInputs = _heavyInputs;
             _baselineTargetInputs = _targetInputs;
             _baselineTargetSelectInputs = _targetSelectInputs;
@@ -604,19 +626,21 @@ namespace Mindforge.Chassis
                 camera = _cameraEvidence >= cameraEvidenceSeconds,
                 sprint = _sprintObserved,
                 light_swing_windows = _swordAssurance != null ? _swordAssurance.SwingWindowsObserved : 0,
-                heavy_attack = _heavyInputs > 0,
+                light_combo = _lightComboObserved,
+                heavy_attack = _heavyAttackObserved,
                 sword_hits = _swordAssurance != null ? _swordAssurance.HitsObserved : 0,
-                target_lock = _targetInputs > 0,
-                target_switch = _targetSelectInputs > 0,
-                dodge_roll = _rollInputs > 0,
+                damage_contact = _damageContactObserved,
+                target_lock = _targetLockObserved,
+                target_switch = _targetSwitchObserved,
+                dodge_roll = _rollObserved,
                 sword_throw = _throwObserved,
                 sword_recall = _recallObserved,
                 sheath_toggle = _sheathObserved,
                 heal = _healObserved,
                 bonfire_rest = _bonfireObserved,
                 adaptive_bci_status = _adaptiveTutorial != null ? _adaptiveTutorial.StatusLabel : "missing",
-                sight_field_use = _sight != null && _sight.ActivationCount > 0,
-                guard_field_use = _guard != null && _guard.ActivationCount > 0,
+                sight_field_use = _sightFieldObserved,
+                guard_field_use = _guardFieldObserved,
                 boss_entry = _bossEntered,
                 boss_defeat = _bossDefeated,
                 generated_utc = DateTime.UtcNow.ToString("o"),
