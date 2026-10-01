@@ -29,7 +29,7 @@ namespace Mindforge.Chassis
         public bool DesktopCombatReady { get; private set; }
         public int BindingsAdded { get; private set; }
         public string BindingSummary =>
-            "LMB/Space light | RMB heavy | MMB/T target | wheel switch | Q aim | R recall | X sheath | Shift sprint | Alt roll | H heal | E forge | Esc pause";
+            "LMB light | RMB heavy | MMB/T target | wheel switch | Q aim | R recall | X sheath | Shift sprint | Alt roll | H heal | E forge | Esc pause";
 
         private void Start()
         {
