@@ -138,3 +138,70 @@ def test_v35_scope_document_pins_authority_and_promotion_ladder():
         "one canonical tutorial scene",
     ):
         assert token in text
+
+
+def test_v35_character_camera_centers_and_pulls_back_for_motion_readability():
+    text = read(RUNTIME / "MindforgeCharacterReadabilityCameraV35.cs")
+    for token in (
+        "freeLookFov = 52f",
+        "middleRadius = 4.75f",
+        "freeLookScreenX = 0.50f",
+        "freeLookScreenY = 0.56f",
+        "targetFov = 56f",
+        "crowdedTargetFov = 59f",
+        "bossTargetFov = 62f",
+        "targetScreenX = 0.50f",
+        "targetScreenY = 0.54f",
+        "TryMeasureCharacterViewport",
+        "CharacterInsideSafeFrame",
+        "maximumFramingAssistFov = 4.0f",
+    ):
+        assert token in text
+
+
+def test_v35_character_camera_preserves_gameplay_authority_and_aim_bonfire_framing():
+    text = read(RUNTIME / "MindforgeCharacterReadabilityCameraV35.cs")
+    assert 'return "aim"' in text
+    assert 'return "bonfire"' in text
+    assert "Aim and bonfire framing are deliberately left alone." in text
+    for forbidden in (
+        "ChangeState(",
+        "CharacterController.Move",
+        "transform.position =",
+        "TakeDamage(",
+        "StartAttack(",
+        "StopAttack(",
+        "MindforgeIntentBusV29.Publish",
+    ):
+        assert forbidden not in text
+
+
+def test_v35_camera_manual_input_overrides_sprint_recentering():
+    text = read(RUNTIME / "MindforgeCharacterReadabilityCameraV35.cs")
+    section = text.split("private void UpdateSprintRecentering()", 1)[1].split(
+        "private string ResolveActiveMode()", 1
+    )[0]
+    assert "manualRecently" in section
+    assert "sprinting" in section
+    assert 'ActiveMode, "free"' in section
+    assert "m_RecenterToTargetHeading.m_enabled = allowed" in section
+
+
+def test_v35_camera_collision_and_persistent_framing_are_observable():
+    text = read(RUNTIME / "MindforgeCharacterReadabilityCameraV35.cs")
+    for token in (
+        "cameraCollisionRadius = 0.32f",
+        "minimumCameraTargetDistance = 0.55f",
+        "occlusionSmoothingSeconds = 0.10f",
+        "FramingViolationFrames",
+        "PersistentFramingWarnings",
+        "Persistent character framing pressure",
+    ):
+        assert token in text
+
+
+def test_v35_runtime_installs_character_readability_camera_before_tutorial():
+    text = read(RUNTIME / "MindforgeMasterTutorialRuntimeV35.cs")
+    camera_pos = text.index("AddComponent<MindforgeCharacterReadabilityCameraV35>()")
+    tutorial_pos = text.index("AddComponent<MindforgeCombatTutorialV35>()")
+    assert camera_pos < tutorial_pos
