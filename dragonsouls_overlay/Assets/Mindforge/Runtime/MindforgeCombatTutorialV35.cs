@@ -202,30 +202,45 @@ namespace Mindforge.Chassis
                     if (_swordAssurance != null &&
                         _swordAssurance.SwingWindowsObserved - _baselineSwingWindows >= requiredLightSwingWindows &&
                         _lightInputs - _baselineLightInputs >= requiredLightSwingWindows)
+                    {
+                        _lightComboObserved = true;
                         EnterStage(TutorialStage.HeavyAttack, "light_combo_windows_observed");
+                    }
                     break;
                 case TutorialStage.HeavyAttack:
                     if (_heavyInputs > _baselineHeavyInputs &&
                         _swordAssurance != null &&
                         _swordAssurance.SwingWindowsObserved > _baselineSwingWindows)
+                    {
+                        _heavyAttackObserved = true;
                         EnterStage(TutorialStage.DamageContact, "heavy_swing_observed");
+                    }
                     break;
                 case TutorialStage.DamageContact:
                     if (_swordAssurance != null && _swordAssurance.HitsObserved > _baselineHits)
+                    {
+                        _damageContactObserved = true;
                         EnterStage(TutorialStage.TargetLock, "real_sword_contact_observed");
+                    }
                     break;
                 case TutorialStage.TargetLock:
                     if (_targetInputs > _baselineTargetInputs &&
                         _player.targetableCheck != null &&
                         _player.targetableCheck.CurrentTargetTransform != null)
+                    {
+                        _targetLockObserved = true;
                         EnterStage(TutorialStage.TargetSwitch, "target_lock_observed");
+                    }
                     break;
                 case TutorialStage.TargetSwitch:
                     UpdateTargetSwitch();
                     break;
                 case TutorialStage.DodgeRoll:
                     if (_rollInputs > _baselineRollInputs && (_player.isRoll || _player.health.IsInvulnerable))
+                    {
+                        _rollObserved = true;
                         EnterStage(TutorialStage.AimThrow, "roll_state_observed");
+                    }
                     break;
                 case TutorialStage.AimThrow:
                     UpdateAimThrow();
@@ -304,6 +319,7 @@ namespace Mindforge.Chassis
             if (_targetSelectInputs > _baselineTargetSelectInputs &&
                 current != null && _targetAtStageEntry != null && current != _targetAtStageEntry)
             {
+                _targetSwitchObserved = true;
                 EnterStage(TutorialStage.DodgeRoll, "target_switch_observed");
             }
         }
@@ -360,6 +376,8 @@ namespace Mindforge.Chassis
 
             if (activation > baseline)
             {
+                if (expected == MindforgeIntentV29.Sight) _sightFieldObserved = true;
+                else _guardFieldObserved = true;
                 EnterStage(
                     expected == MindforgeIntentV29.Sight ? TutorialStage.GuardFieldUse : TutorialStage.BossEntry,
                     expected == MindforgeIntentV29.Sight ? "sight_field_use_observed" : "guard_field_use_observed"
@@ -386,6 +404,8 @@ namespace Mindforge.Chassis
             if (Stage == next) return;
             Stage = next;
             _stageEnteredAt = Time.unscaledTime;
+            if (Stage == TutorialStage.Heal) _healObserved = false;
+            if (Stage == TutorialStage.BonfireRest) _bonfireObserved = false;
             CaptureStageBaselines();
             StageChanged?.Invoke(Stage);
             _markers?.SendTutorialStage("master_" + Stage.ToString().ToLowerInvariant(), "begin", reason);
