@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Cinemachine;
 using States;
 using UnityEngine;
@@ -366,21 +365,26 @@ namespace Mindforge.Chassis
 
         private string ResolveActiveMode()
         {
-            if (_controller == null) return "unresolved";
-            if (_controller.IsAimCameraActive) return "aim";
-            if (_controller.IsTargetCamActive) return "target";
+            if (_controller == null || _controller._cinemachineStateDrivenCam == null)
+                return "unresolved";
 
-            if (_controller._cinemachineStateDrivenCam != null &&
-                _controller._cinemachineStateDrivenCam.LiveChild != null)
-            {
-                string name = _controller._cinemachineStateDrivenCam.LiveChild.Name ?? string.Empty;
-                if (name.IndexOf("Bonfire", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return "bonfire";
-                if (name.IndexOf("FreeLook", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return "free";
-            }
+            ICinemachineCamera live = _controller._cinemachineStateDrivenCam.LiveChild;
+            if (live == null) return "unresolved";
 
-            return "free";
+            if (_controller._cinemachineAimCam != null &&
+                live.Priority == _controller._cinemachineAimCam.Priority)
+                return "aim";
+            if (_controller._cinemachineTargetCam != null &&
+                live.Priority == _controller._cinemachineTargetCam.Priority)
+                return "target";
+
+            string name = live.Name ?? string.Empty;
+            if (name.IndexOf("Bonfire", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "bonfire";
+            if (name.IndexOf("FreeLook", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "free";
+
+            return "other";
         }
 
         private void UpdateFramingGuardrail(bool safe)
