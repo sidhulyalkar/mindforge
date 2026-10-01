@@ -362,6 +362,76 @@ Only after mechanics are native-green:
 - add spatial/environmental teaching cues instead of relying on text alone;
 - preserve readable player silhouette during combat.
 
+## Character framing and motion-readability contract
+
+V0.35 owns the final ordinary third-person presentation after the older V0.31/V0.33 camera
+layers have initialized. It does not replace Dragon Souls camera switching.
+
+The reason for this pass is concrete: V0.31 free-roam used a relatively close 49 degree view,
+approximately 3.75 m middle orbit radius and a left-biased ScreenX of 0.44, while V0.33 applied a
+separate one-time minimum FOV correction to selected virtual cameras. Target combat was then
+retuned every LateUpdate by V0.31. Those overlapping contracts can make the player feel oddly
+placed and make animation scale change between gameplay modes.
+
+V0.35 replaces that ambiguity with one final presentation contract:
+
+- free-roam baseline FOV: 52 degrees;
+- sprint FOV: 55 degrees;
+- roll FOV: 56 degrees;
+- free-roam middle orbit radius: 4.75 m;
+- character horizontal composition: centered at ScreenX 0.50;
+- ordinary free-roam vertical composition: ScreenY 0.56 with a torso tracking offset;
+- target combat baseline: 56 degrees;
+- crowded encounter target view: 59 degrees;
+- boss-proximity target view: 62 degrees;
+- target composition: centered horizontally at ScreenX 0.50;
+- manual look always wins over automatic sprint recentering;
+- sprint recentering can engage only after a short no-input grace period;
+- aim and bonfire cameras remain inherited and are not retuned by this layer;
+- camera collision uses a larger safety radius plus short smoothing so walls do not cause severe
+  camera snapping or put the camera inside the player.
+
+### Screen-space guardrail
+
+V0.35 measures the combined bounds of the active player SkinnedMeshRenderers in viewport space
+during ordinary FreeLook and target combat.
+
+The intended safe frame keeps the complete rendered body inside approximately:
+
+- 5.5 percent horizontal margins;
+- 6 percent vertical margins.
+
+If an animation, camera collision or transition persistently pushes the character outside that
+frame, the camera may add up to 4 degrees of temporary FOV as a presentation-only safety valve.
+The assist widens quickly and returns slowly to avoid visible zoom pumping.
+
+Persistent violations are counted and logged. They are qualification evidence, not silently
+ignored.
+
+### Native camera acceptance capture
+
+The first V0.35 native run should capture all of the following:
+
+1. idle full-body framing;
+2. forward/back/strafe locomotion;
+3. sustained sprint with no manual camera input;
+4. sustained sprint while actively rotating the camera, confirming auto-recenter yields;
+5. three-hit light combo;
+6. heavy attack;
+7. roll toward, away from and across the camera;
+8. target lock with one enemy;
+9. target switch with two enemies;
+10. crowded target combat;
+11. boss-proximity target combat;
+12. a wall/corner traversal where CinemachineCollider must recover;
+13. aim/throw, confirming the inherited aim composition remains unchanged;
+14. bonfire framing, confirming the inherited cinematic composition remains unchanged.
+
+Reject the camera pass if the character's head or feet are routinely cropped, the camera enters
+the body, the player changes apparent scale abruptly between ordinary combat states, target-lock
+hides footwork, sprint recentering fights manual input, or obstacle recovery produces repeated
+large snaps.
+
 ## Qualification ladder
 
 ### Q0 source contract
