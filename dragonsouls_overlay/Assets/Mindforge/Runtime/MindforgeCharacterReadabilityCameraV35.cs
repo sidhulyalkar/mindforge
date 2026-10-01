@@ -354,9 +354,11 @@ namespace Mindforge.Chassis
             if (_freeLook == null || _player == null) return;
 
             bool sprinting = _player.isSprinting || _player.isSprintHolding;
+            bool moving = _player.movement != null && _player.movement.Velocity.sqrMagnitude > 0.25f;
             bool manualRecently = Time.unscaledTime - _lastManualLookAt < manualLookGraceSeconds;
             bool allowed =
                 sprinting &&
+                moving &&
                 !manualRecently &&
                 string.Equals(ActiveMode, "free", StringComparison.Ordinal);
 
