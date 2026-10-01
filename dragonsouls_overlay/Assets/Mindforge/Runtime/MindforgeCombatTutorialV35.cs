@@ -58,6 +58,11 @@ namespace Mindforge.Chassis
             public string final_stage;
             public bool movement;
             public bool camera;
+            public bool camera_readability_installed;
+            public bool camera_readability_pass;
+            public int camera_framing_violation_frames;
+            public int camera_persistent_warnings;
+            public float camera_last_viewport_height;
             public bool sprint;
             public int light_swing_windows;
             public bool light_combo;
@@ -97,6 +102,7 @@ namespace Mindforge.Chassis
         private MindforgeGuardReceptorV33 _guard;
         private MindforgeBciMarkerSenderV33 _markers;
         private MindforgeNativeProvenanceV33 _provenance;
+        private MindforgeCharacterReadabilityCameraV35 _readabilityCamera;
 
         private bool _bound;
         private bool _started;
@@ -469,6 +475,7 @@ namespace Mindforge.Chassis
             if (_guard == null) _guard = FindObjectOfType<MindforgeGuardReceptorV33>(true);
             if (_markers == null) _markers = FindObjectOfType<MindforgeBciMarkerSenderV33>(true);
             if (_provenance == null) _provenance = FindObjectOfType<MindforgeNativeProvenanceV33>(true);
+            if (_readabilityCamera == null) _readabilityCamera = FindObjectOfType<MindforgeCharacterReadabilityCameraV35>(true);
             if (!_bound) Bind();
         }
 
@@ -624,6 +631,19 @@ namespace Mindforge.Chassis
                 final_stage = Stage.ToString(),
                 movement = _movementEvidence >= movementEvidenceSeconds,
                 camera = _cameraEvidence >= cameraEvidenceSeconds,
+                camera_readability_installed = _readabilityCamera != null && _readabilityCamera.Installed,
+                camera_readability_pass = _readabilityCamera != null &&
+                                          _readabilityCamera.Installed &&
+                                          _readabilityCamera.PersistentFramingWarnings == 0,
+                camera_framing_violation_frames = _readabilityCamera != null
+                    ? _readabilityCamera.FramingViolationFrames
+                    : -1,
+                camera_persistent_warnings = _readabilityCamera != null
+                    ? _readabilityCamera.PersistentFramingWarnings
+                    : -1,
+                camera_last_viewport_height = _readabilityCamera != null
+                    ? _readabilityCamera.CharacterViewportHeight
+                    : 0f,
                 sprint = _sprintObserved,
                 light_swing_windows = _swordAssurance != null ? _swordAssurance.SwingWindowsObserved : 0,
                 light_combo = _lightComboObserved,
