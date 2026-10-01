@@ -193,12 +193,15 @@ namespace Mindforge.Chassis
                     break;
                 case TutorialStage.Sprint:
                     if (_player.isSprinting || _input.SprintHold)
+                    {
+                        _sprintObserved = true;
                         EnterStage(TutorialStage.LightCombo, "sprint_observed");
+                    }
                     break;
                 case TutorialStage.LightCombo:
                     if (_swordAssurance != null &&
                         _swordAssurance.SwingWindowsObserved - _baselineSwingWindows >= requiredLightSwingWindows &&
-                        _lightInputs >= requiredLightSwingWindows)
+                        _lightInputs - _baselineLightInputs >= requiredLightSwingWindows)
                         EnterStage(TutorialStage.HeavyAttack, "light_combo_windows_observed");
                     break;
                 case TutorialStage.HeavyAttack:
@@ -308,7 +311,7 @@ namespace Mindforge.Chassis
         private void UpdateAimThrow()
         {
             if (_player.combatController == null) return;
-            if (_aimInputs > _baselineAimInputs && _input.AimHold)
+            if (_aimInputs > _baselineAimInputs && _aimAttackObserved)
             {
                 if (!_player.combatController.IsSwordReturned)
                 {
@@ -579,7 +582,7 @@ namespace Mindforge.Chassis
                 final_stage = Stage.ToString(),
                 movement = _movementEvidence >= movementEvidenceSeconds,
                 camera = _cameraEvidence >= cameraEvidenceSeconds,
-                sprint = _player != null && (_player.isSprinting || (_input != null && _input.SprintHold)),
+                sprint = _sprintObserved,
                 light_swing_windows = _swordAssurance != null ? _swordAssurance.SwingWindowsObserved : 0,
                 heavy_attack = _heavyInputs > 0,
                 sword_hits = _swordAssurance != null ? _swordAssurance.HitsObserved : 0,
