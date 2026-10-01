@@ -93,8 +93,8 @@ namespace Mindforge.Chassis.Editor
                 throw new UnityEditor.Build.BuildFailedException("V0.35 lost the single authoritative sword.");
             if (Object.FindObjectsOfType<EnemyNightmareDragonController>(true).Length == 0)
                 throw new UnityEditor.Build.BuildFailedException("V0.35 lost the inherited boss pipeline.");
-            if (Object.FindObjectOfType<MindforgeSwordCombatAssuranceV31>(true) == null)
-                throw new UnityEditor.Build.BuildFailedException("V0.35 lost real sword evidence instrumentation.");
+            if (Object.FindObjectOfType<MindforgeVerticalSliceRuntimeV31>(true) == null)
+                throw new UnityEditor.Build.BuildFailedException("V0.35 lost the V0.31 runtime that installs sword evidence.");
         }
     }
 }
