@@ -29,7 +29,7 @@ namespace Mindforge.Chassis
         public bool DesktopCombatReady { get; private set; }
         public int BindingsAdded { get; private set; }
         public string BindingSummary =>
-            "LMB light | RMB heavy | MMB target | Q aim | R recall | X sheath | Shift sprint | Alt roll | H heal | E forge | Esc pause";
+            "LMB/Space light | RMB heavy | MMB/T target | wheel switch | Q aim | R recall | X sheath | Shift sprint | Alt roll | H heal | E forge | Esc pause";
 
         private void Start()
         {
@@ -64,6 +64,8 @@ namespace Mindforge.Chassis
             {
                 AddBinding(player.Camera, "<Mouse>/delta", "scaleVector2(x=0.035,y=0.035)");
                 AddBinding(player.Target, "<Mouse>/middleButton");
+                AddBinding(player.Target, "<Keyboard>/t");
+                AddBinding(player.TargetSelect, "<Mouse>/scroll");
                 AddBinding(player.Sprint, "<Keyboard>/leftShift");
                 AddBinding(player.LightAttack, "<Mouse>/leftButton");
                 AddBinding(player.HeavyAttack, "<Mouse>/rightButton");
@@ -84,6 +86,8 @@ namespace Mindforge.Chassis
                 HasBinding(player.HeavyAttack, "<Mouse>/rightButton") &&
                 HasBinding(player.Camera, "<Mouse>/delta") &&
                 HasBinding(player.Target, "<Mouse>/middleButton") &&
+                HasBinding(player.Target, "<Keyboard>/t") &&
+                HasBinding(player.TargetSelect, "<Mouse>/scroll") &&
                 HasBinding(player.Roll, "<Keyboard>/leftAlt") &&
                 HasBinding(player.WeaponReturn, "<Keyboard>/r");
             Installed = true;
