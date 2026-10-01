@@ -87,6 +87,7 @@ def test_v35_target_switch_requires_actual_target_change_not_just_input():
 def test_v35_melee_gates_require_real_sword_windows_and_contacts():
     text = read(RUNTIME / "MindforgeCombatTutorialV35.cs")
     assert "_swordAssurance.SwingWindowsObserved - _baselineSwingWindows >= requiredLightSwingWindows" in text
+    assert "_lightInputs - _baselineLightInputs >= requiredLightSwingWindows" in text
     assert "_heavyInputs > _baselineHeavyInputs" in text
     assert "_swordAssurance.SwingWindowsObserved > _baselineSwingWindows" in text
     assert "_swordAssurance.HitsObserved > _baselineHits" in text
@@ -101,7 +102,7 @@ def test_v35_builder_derives_from_v34_and_preserves_single_authorities():
         "FindObjectsOfType<PlayerStateMachine>(true).Length != 1",
         "FindObjectsOfType<Sword>(true).Length != 1",
         "EnemyNightmareDragonController",
-        "MindforgeSwordCombatAssuranceV31",
+        "MindforgeVerticalSliceRuntimeV31",
     ):
         assert token in text
     assert "root.GetComponentsInChildren<Collider>(true).Length != 0" in text
