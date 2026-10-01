@@ -25,13 +25,16 @@ namespace Mindforge.Chassis
                 return;
             }
 
+            if (GetComponent<MindforgeCharacterReadabilityCameraV35>() == null)
+                gameObject.AddComponent<MindforgeCharacterReadabilityCameraV35>();
             if (GetComponent<MindforgeCombatTutorialV35>() == null)
                 gameObject.AddComponent<MindforgeCombatTutorialV35>();
 
             Installed = true;
             Debug.Log(
                 "[Mindforge:V35] Master tutorial installed. Combat remains Dragon Souls-authoritative; " +
-                "BCI remains V0.33/V0.34-authoritative; V0.35 observes and sequences evidence only."
+                "BCI remains V0.33/V0.34-authoritative; V0.35 owns final ordinary third-person presentation " +
+                "and observes/sequences tutorial evidence only."
             );
         }
     }
