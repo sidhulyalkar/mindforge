@@ -33,7 +33,7 @@ def test_selects_central_sensors_on_unseen_session_without_changing_ssvep():
     assert r.chosen_group == "central"
     assert "C3" in r.chosen_electrodes
     assert r.holdout_balanced_accuracy >= 0.85
-    assert r.eligible_for_live_pilot
+    assert r.passes_offline_screen
     assert "SCALP_SENSOR_SELECTION_NOT_SPEECH_SOURCE_LOCALIZATION" in r.warnings
     assert "raw_eeg" not in r.to_dict()
 
@@ -50,13 +50,13 @@ def test_high_frequency_class_confounds_prohibit_pilot_eligibility():
     r = evaluate_electrode_groups(*fixture(add_emg=True))
     assert r.holdout_balanced_accuracy > 0.7
     assert r.high_frequency_proxy_validation_accuracy > 0.7
-    assert not r.eligible_for_live_pilot
+    assert not r.passes_offline_screen
     assert any(w.startswith("HIGH_FREQUENCY_CLASS_PREDICTIVE") for w in r.warnings)
 
 
 def test_random_noise_not_promoted():
     r = evaluate_electrode_groups(*fixture(noise_only=True))
-    assert not r.eligible_for_live_pilot
+    assert not r.passes_offline_screen
 
 
 def test_independent_sessions_and_class_coverage_required():
