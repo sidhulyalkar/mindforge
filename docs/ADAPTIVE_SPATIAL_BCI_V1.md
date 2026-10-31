@@ -46,7 +46,7 @@ The output stores electrode names, chosen group, candidate validation accuracy, 
 
 The 35–60 Hz predictive proxy is a crude warning, not a validated EMG detector. Its output gates research pilot eligibility but cannot prove the absence of jaw, tongue, facial, eye, head, or motion confounds. The next study must add synchronized facial EMG and ideally gaze/IMU, compare actual imagined speech with mouthing, overt speech, silent reading, and idle conditions, include randomized cues, and use a prerecorded/blinded held-out protocol.
 
-A successful synthetic test only establishes correct software behavior. A positive held-out EEG score does not demonstrate imagined-speech decoding, and the `eligible_for_live_pilot` field is **not** an instruction to switch on automatic gameplay. Human research requires consent, secure local data handling, session-level evaluation, explicit abstention and stop conditions.
+A successful synthetic test only establishes correct software behavior. A positive held-out EEG score does not demonstrate imagined-speech decoding, and the `passes_offline_screen` field is **not** an instruction to switch on automatic gameplay. Human research requires consent, secure local data handling, session-level evaluation, explicit abstention and stop conditions.
 
 ## Follow-on platform integration
 
