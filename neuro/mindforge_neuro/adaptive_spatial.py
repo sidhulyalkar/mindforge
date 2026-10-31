@@ -48,7 +48,7 @@ class SpatialSelectionReport:
     holdout_session: str
     class_labels: tuple[str, ...]
     warnings: tuple[str, ...]
-    eligible_for_live_pilot: bool
+    passes_offline_screen: bool
 
     def to_dict(self) -> dict:
         """Derived metrics and electrode names only; no sample-level EEG leaves this report."""
@@ -191,5 +191,5 @@ def evaluate_electrode_groups(
         high_frequency_proxy_holdout_accuracy=proxy_test,
         train_sessions=tuple(train_sessions), validation_session=val_session,
         holdout_session=test_session, class_labels=tuple(classes.tolist()),
-        warnings=tuple(warnings), eligible_for_live_pilot=bool(eligible),
+        warnings=tuple(warnings), passes_offline_screen=bool(eligible),
     )
