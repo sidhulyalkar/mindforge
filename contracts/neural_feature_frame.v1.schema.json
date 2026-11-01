@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindforge.dev/contracts/neural_feature_frame.v1.schema.json",
+  "title": "Mindforge Passive NeuralFeatureFrame v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "seq", "source_session_id", "source_mode", "calibration_id", "feature",
+    "unit", "value", "quality", "artifact", "passive_only", "ttl_ms",
+    "sample_start", "sample_end", "producer_monotonic_ns"],
+  "properties": {
+    "schema": {"const": "mindforge.neural_feature_frame.v1"},
+    "seq": {"type": "integer", "minimum": 0},
+    "source_session_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "source_mode": {"enum": ["simulated_feature", "feature_replay", "eeg_replay", "live"]},
+    "calibration_id": {"type": ["string", "null"]},
+    "feature": {"const": "posterior_alpha_relative_power"},
+    "unit": {"const": "ratio"},
+    "value": {"type": "number", "minimum": 0, "maximum": 1},
+    "quality": {"type": "number", "minimum": 0, "maximum": 1},
+    "artifact": {"type": "boolean"},
+    "passive_only": {"const": true},
+    "ttl_ms": {"type": "integer", "minimum": 100, "maximum": 5000},
+    "sample_start": {"type": "integer", "minimum": -1},
+    "sample_end": {"type": "integer", "minimum": -1},
+    "producer_monotonic_ns": {"type": "integer", "minimum": 0}
+  }
+}
