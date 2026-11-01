@@ -87,8 +87,7 @@ namespace Mindforge.LivingWorld
 
         public bool TryAccept(PassiveFeatureFrame frame, double now, double packetAgeSeconds)
         {
-            if (frame == null || !frame.Valid || frame.artifact ||
-                frame.quality < QualityFloor || double.IsNaN(now) ||
+            if (frame == null || !frame.Valid || double.IsNaN(now) ||
                 double.IsInfinity(now) || double.IsNaN(packetAgeSeconds) ||
                 packetAgeSeconds < 0.0 || packetAgeSeconds > 0.75)
                 return Reject();
@@ -96,7 +95,7 @@ namespace Mindforge.LivingWorld
             double remaining = frame.ttl_ms / 1000.0 - packetAgeSeconds;
             if (remaining <= 0.0) return Reject();
             if (_session != null && frame.source_session_id != _session && Fresh(now))
-                return Reject(); // cross-session conflict, not silent producer swap
+                return Reject(); // Do not silently switch producers while current data is fresh.
             if (frame.source_session_id != _session)
             {
                 _session = frame.source_session_id;
@@ -104,6 +103,14 @@ namespace Mindforge.LivingWorld
             }
             if (frame.seq <= _sequence) return Reject();
             _sequence = frame.seq;
+            // A newer artifact/low-quality packet explicitly withdraws the previous
+            // target, rather than leaving a misleading old value until TTL expiry.
+            if (frame.artifact || frame.quality < QualityFloor)
+            {
+                _expiry = double.NegativeInfinity;
+                _target = NeutralValue;
+                return Reject();
+            }
             _target = frame.value;
             _expiry = now + remaining;
             LastSourceMode = frame.source_mode;
