@@ -59,6 +59,19 @@ namespace Mindforge.Tests.Editor
         }
 
         [Test]
+        public void NewArtifactWithdrawsPreviouslyValidVisualTarget()
+        {
+            var policy = new PassiveFeaturePolicy();
+            Assert.That(policy.TryAccept(Frame(1, 1f, ttlMs: 3000), 10., 0.), Is.True);
+            policy.Advance(.1f, 10.1);
+            Assert.That(policy.Fresh(10.1), Is.True);
+            Assert.That(policy.TryAccept(Frame(2, 0f, artifact: true), 10.2, 0.), Is.False);
+            Assert.That(policy.Fresh(10.2), Is.False);
+            float before = policy.CurrentValue;
+            Assert.That(policy.Advance(.1f, 10.3), Is.LessThan(before));
+        }
+
+        [Test]
         public void PolicyRejectsStaleAndOutOfOrderAndPreventsSessionSteal()
         {
             var policy = new PassiveFeaturePolicy();
