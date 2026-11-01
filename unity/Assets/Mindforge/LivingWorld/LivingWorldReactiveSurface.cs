@@ -1,6 +1,7 @@
 using UnityEngine;
 using Mindforge.Calibration;
 using Mindforge.SoulWisp;
+using UnityEngine.SceneManagement;
 
 namespace Mindforge.LivingWorld
 {
@@ -22,6 +23,7 @@ namespace Mindforge.LivingWorld
         private SoulWispController _wisp;
         private AwakeningCalibrationDirector _calibration;
         private bool _originalEnabled;
+        private float _nextResolveTime;
         private int _colorProperty;
         private bool _ready;
 
@@ -58,8 +60,16 @@ namespace Mindforge.LivingWorld
 
         private bool NeuralEvidenceQuiet()
         {
-            if (_wisp == null) _wisp = FindObjectOfType<SoulWispController>(true);
-            if (_calibration == null) _calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            if (Time.unscaledTime >= _nextResolveTime && (_wisp == null || _calibration == null))
+            {
+                _nextResolveTime = Time.unscaledTime + 1f;
+                if (_wisp == null) _wisp = FindObjectOfType<SoulWispController>(true);
+                if (_calibration == null) _calibration = FindObjectOfType<AwakeningCalibrationDirector>(true);
+            }
+            // In the competition scene, hide until both owners have been found:
+            // an asynchronously assembled VEP source must not receive ambient effects.
+            if (SceneManager.GetActiveScene().name == "Mindforge_Competition" &&
+                (_wisp == null || _calibration == null)) return true;
             if (_calibration != null && _calibration.CalibrationInProgress) return true;
             if (_wisp != null && (_wisp.CalibrationStimuliActive || _wisp.ResonanceWindowActive)) return true;
             return false;
