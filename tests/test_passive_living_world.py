@@ -113,6 +113,7 @@ def test_cli_roundtrip_replay_downgrades_provenance(tmp_path):
     assert len(one.read_text().splitlines()) == 5
     subprocess.run([sys.executable, str(script), "--replay", str(one), "--dry-run",
                     "--output-tape", str(two)], check=True, capture_output=True)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
     from mindforge_living_world import read_tape
     original, replay = read_tape(one), read_tape(two)
     assert len(original) == len(replay)
