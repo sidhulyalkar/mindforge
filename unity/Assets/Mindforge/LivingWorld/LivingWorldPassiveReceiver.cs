@@ -98,8 +98,9 @@ namespace Mindforge.LivingWorld
         private void Update()
         {
             int pulled = 0;
-            PassiveFeatureFrame newest = null;
-            double newestAge = 0.0;
+            double now = Time.realtimeSinceStartupAsDouble;
+            // Respect packet arrival order so another producer cannot displace a
+            // still-valid packet in the batch. The policy enforces session/seq.
             while (pulled++ < maxPerFrame && _messages.TryDequeue(out Packet packet))
             {
                 Interlocked.Decrement(ref _queued);
@@ -111,19 +112,8 @@ namespace Mindforge.LivingWorld
                     continue;
                 }
                 if (PassiveFeatureFrame.TryParse(packet.Json, out PassiveFeatureFrame frame))
-                {
-                    // Select most recent sequenced packet from current drain.
-                    // The policy handles session changes, duplicate/out-of-order inputs.
-                    if (newest == null || frame.source_session_id != newest.source_session_id ||
-                        frame.seq > newest.seq)
-                    {
-                        newest = frame;
-                        newestAge = age;
-                    }
-                }
+                    _policy.TryAccept(frame, now, age);
             }
-            if (newest != null)
-                _policy.TryAccept(newest, Time.realtimeSinceStartupAsDouble, newestAge);
             _policy.Advance(Time.unscaledDeltaTime, Time.realtimeSinceStartupAsDouble);
         }
 
