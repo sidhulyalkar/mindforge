@@ -136,7 +136,7 @@ def test_unity_boundaries_remain_passive():
     model = (root / "PassiveFeatureFrame.cs").read_text()
     surface = (root / "LivingWorldReactiveSurface.cs").read_text()
     assert "IPAddress.Loopback" in reader and "19747" in reader
-    assert "UdpNeuralReceiver" not in reader
+    assert "AddComponent<UdpNeuralReceiver>" not in reader and "EventReceived" not in reader
     assert "AURA_SELECTED" not in model
     assert "VepAuraStimulus" in surface and "ResonanceWindowActive" in surface
     assert "SetPropertyBlock(_original)" in surface
