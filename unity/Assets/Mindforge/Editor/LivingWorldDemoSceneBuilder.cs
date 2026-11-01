@@ -62,13 +62,18 @@ namespace Mindforge.Editor
             floor.transform.localScale = new Vector3(20f, 0.5f, 13f);
             RemoveCollider(floor);
             MeshRenderer floorRenderer = floor.GetComponent<MeshRenderer>();
-            Material floorMaterial = new Material(material);
-            floorMaterial.name = "LivingWorldStaticFloor";
+            const string floorPath = "Assets/Mindforge/Generated/LivingWorldDemo/StaticFloor.mat";
+            Material floorMaterial = AssetDatabase.LoadAssetAtPath<Material>(floorPath);
+            if (floorMaterial == null)
+            {
+                floorMaterial = new Material(material) { name = "LivingWorldStaticFloor" };
+                AssetDatabase.CreateAsset(floorMaterial, floorPath);
+            }
             if (floorMaterial.HasProperty("_BaseColor"))
                 floorMaterial.SetColor("_BaseColor", new Color(0.095f, 0.15f, 0.2f));
             else if (floorMaterial.HasProperty("_Color"))
                 floorMaterial.SetColor("_Color", new Color(0.095f, 0.15f, 0.2f));
-            AssetDatabase.CreateAsset(floorMaterial, "Assets/Mindforge/Generated/LivingWorldDemo/StaticFloor.mat");
+            EditorUtility.SetDirty(floorMaterial);
             floorRenderer.sharedMaterial = floorMaterial;
 
             for (int i = 0; i < 14; i++)
