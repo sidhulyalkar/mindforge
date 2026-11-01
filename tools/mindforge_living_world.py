@@ -9,11 +9,13 @@ import sys
 import time
 import uuid
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "neuro"))
 
 from mindforge_neuro.passive_features import (  # noqa: E402
-    DEFAULT_PORT, NeuralFeatureFrame, PassiveUdpEmitter, demo_frames,
+    DEFAULT_PORT, NeuralFeatureFrame, PassiveUdpEmitter, demo_frames, offline_eeg_feature_frames,
 )
 
 
@@ -51,6 +53,7 @@ def run(argv: list[str] | None = None) -> int:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--demo", action="store_true", help="Synthetic derived features, not EEG")
     source.add_argument("--replay", type=Path, help="Replay a previous derived-only JSONL tape")
+    source.add_argument("--eeg-archive", type=Path, help="Extract passive features from offline NPZ EEG epochs")
     parser.add_argument("--seconds", type=float, default=20.)
     parser.add_argument("--hz", type=float, default=5.)
     parser.add_argument("--seed", type=int, default=17)
@@ -65,6 +68,19 @@ def run(argv: list[str] | None = None) -> int:
         steps = max(1, int(args.seconds * args.hz))
         generated = demo_frames(steps=steps, hz=args.hz, seed=args.seed)
         records = [(round(i / args.hz, 6), frame) for i, frame in enumerate(generated)]
+    elif args.eeg_archive is not None:
+        with np.load(args.eeg_archive, allow_pickle=False) as archive:
+            required = ("eeg_uv", "channel_names", "sample_rate_hz")
+            if any(name not in archive for name in required):
+                parser.error("EEG archive needs eeg_uv, channel_names, sample_rate_hz")
+            rate = np.asarray(archive["sample_rate_hz"])
+            if rate.size != 1:
+                parser.error("sample_rate_hz must be one scalar")
+            frames = offline_eeg_feature_frames(
+                archive["eeg_uv"], archive["channel_names"].astype(str).tolist(),
+                float(rate.item()), source_session_id="offline-" + uuid.uuid4().hex)
+        # EEG epochs are not assumed continuous; these offsets are purely replay pacing.
+        records = [(round(i / args.hz, 6), frame) for i, frame in enumerate(frames)]
     else:
         loaded = read_tape(args.replay)
         new_session = "replay-" + uuid.uuid4().hex
@@ -77,7 +93,9 @@ def run(argv: list[str] | None = None) -> int:
     if args.output_tape:
         write_tape(args.output_tape, records)
     print(f"PASSIVE ONLY · {len(records)} frames · {'dry run' if args.dry_run else 'UDP 127.0.0.1:'+str(args.port)}")
-    print("No EEG recordings, gameplay actions, imagined-speech labels, or emotional states are transmitted.")
+    print("Only derived scalars go over UDP, never EEG recordings or gameplay actions.")
+    if args.eeg_archive is not None:
+        print("WARNING: Offline epochs may be discontinuous; --hz sets display pacing, NOT EEG acquisition timing.")
     if not args.dry_run:
         with PassiveUdpEmitter(port=args.port) as emitter:
             start = time.monotonic()
