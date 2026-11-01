@@ -62,6 +62,29 @@ python tools/mindforge_living_world.py --demo --seconds 2 --dry-run \
 python -m pytest -q tests/test_passive_living_world.py
 ```
 
+
+## Offline recorded EEG feature replay (optional)
+
+If you have a local NPZ containing `eeg_uv` (epochs × channels × samples,
+microvolts), `channel_names` (verified electrode labels) and scalar
+`sample_rate_hz`, you can extract posterior spectral ratios, pass each epoch
+through the Mindforge engineering artifact screen, and replay only derived
+features into the Unity demo:
+
+```bash
+python tools/mindforge_living_world.py \
+  --eeg-archive sessions.npz --hz 2 \
+  --output-tape experiments/tapes/eeg-passive-features.jsonl
+```
+
+**Timing limitation:** epochs can be discontinuous. The `--hz` setting is a
+*demonstration replay rate*, not evidence of the original EEG acquisition
+interval, source chronology, or measured BCI latency. Unknown sample
+indices stay `-1`. Quality-rejected epochs emit a neutral artifact frame so
+Unity withdraws the previous target. Output tapes contain only derived,
+bounded features, never EEG samples. Using a file called `recorded EEG` does
+not authenticate the signal's provenance or prove a psychological construct.
+
 ## Qualify before using with human EEG
 
 1. Compare measured monitor luminance/SSVEP accuracy with/without passive visuals. No assumptions about flicker or photic safety based on code alone.
@@ -75,4 +98,4 @@ python -m pytest -q tests/test_passive_living_world.py
 
 ## Next iteration
 
-Add a quality-controlled prerecorded-EEG replay adapter and telemetry comparing passive-on/off render performance; then optionally integrate into dedicated ambient material surfaces in the real scene. V4 imagined-speech study stays offline until independently validated.
+Add measured render-performance and gameplay-parity telemetry for passive on/off, then optionally integrate into dedicated ambient material surfaces in the real scene. V4 imagined-speech study stays offline until independently validated.
