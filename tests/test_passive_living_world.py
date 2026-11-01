@@ -11,7 +11,7 @@ import pytest
 
 from mindforge_neuro.passive_features import (
     DEFAULT_PORT, NeuralFeatureFrame, PassiveUdpEmitter, demo_frames,
-    posterior_alpha_relative_power,
+    posterior_alpha_relative_power, offline_eeg_feature_frames,
 )
 
 
@@ -128,6 +128,43 @@ def test_cli_rejects_corrupted_tape(tmp_path):
     file.write_text('{"offset_s": 0, "frame": {"schema": "game_command"}}\n')
     with pytest.raises(ValueError):
         read_tape(file)
+
+
+
+def test_offline_eeg_replay_is_derived_only_and_fails_closed_for_artifact():
+    rng = np.random.default_rng(42)
+    epochs = rng.normal(0, .7, (3, 8, 500))
+    t = np.arange(500) / 250.
+    epochs[0, 4] += 5 * np.sin(2 * np.pi * 10 * t)
+    epochs[1, :, :] = 0.  # impossible EEG window -> quality rejection
+    channels = ("FZ", "C3", "CZ", "C4", "PZ", "PO7", "OZ", "PO8")
+    frames = offline_eeg_feature_frames(epochs, channels, 250.)
+    assert len(frames) == 3
+    assert all(f.source_mode == "eeg_replay" and f.passive_only for f in frames)
+    assert all(f.sample_start == -1 and f.sample_end == -1 for f in frames)
+    assert frames[1].artifact and frames[1].quality == 0
+    assert not frames[0].artifact
+    assert "eeg_uv" not in frames[0].to_json()
+
+
+def test_cli_offline_eeg_archive_uses_presentation_pacing_not_source_clock(tmp_path):
+    rng = np.random.default_rng(4)
+    epochs = rng.normal(0, .7, (2, 8, 500))
+    archive, tape = tmp_path / "input.npz", tmp_path / "features.jsonl"
+    np.savez_compressed(
+        archive, eeg_uv=epochs,
+        channel_names=np.asarray(("FZ", "C3", "CZ", "C4", "PZ", "PO7", "OZ", "PO8")),
+        sample_rate_hz=np.asarray(250.),
+    )
+    script = Path(__file__).resolve().parents[1] / "tools" / "mindforge_living_world.py"
+    p = subprocess.run([sys.executable, str(script), "--eeg-archive", str(archive),
+                        "--dry-run", "--hz", "5", "--output-tape", str(tape)],
+                       check=True, capture_output=True, text=True)
+    assert "NOT EEG acquisition timing" in p.stdout
+    rows = [json.loads(s) for s in tape.read_text().splitlines()]
+    assert [r["offset_s"] for r in rows] == [0, .2]
+    assert rows[0]["frame"]["source_mode"] == "eeg_replay"
+    assert "eeg_uv" not in tape.read_text()
 
 
 def test_unity_boundaries_remain_passive():
