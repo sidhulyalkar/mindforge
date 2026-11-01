@@ -159,6 +159,36 @@ def demo_frames(*, steps: int = 80, hz: float = 5., seed: int = 17,
     return values
 
 
+def offline_eeg_feature_frames(
+    epochs_uv: np.ndarray, channel_names: Sequence[str], sample_rate_hz: float,
+    *, source_session_id: str = "offline-eeg-archive", quality_floor: float = 0.65,
+) -> list[NeuralFeatureFrame]:
+    """Extract only derived ratios from prerecorded EEG epochs.
+
+    Epochs may be discontinuous. Their order is preserved but their real capture
+    timing and source sample indices are UNKNOWN and must not be invented.
+    Caller supplies *presentation pacing*, not claimed acquisition timing.
+    A rejected epoch emits an artifact/neutral frame to withdraw old colors.
+    Archive identity makes no assertion about human vs synthetic EEG.
+    """
+    epochs = np.asarray(epochs_uv, dtype=float)
+    if epochs.ndim != 3 or not 1 <= len(epochs) <= 100000:
+        raise ValueError("expected 1–100000 prerecorded EEG epochs")
+    frames: list[NeuralFeatureFrame] = []
+    for index, epoch in enumerate(epochs):
+        result = posterior_alpha_relative_power(
+            epoch, channel_names, sample_rate_hz, quality_floor=quality_floor)
+        ratio, quality = result if result is not None else (0.5, 0.)
+        frames.append(NeuralFeatureFrame.create(
+            seq=index, value=ratio, quality=quality,
+            artifact=result is None, source_mode="eeg_replay",
+            source_session_id=source_session_id, ttl_ms=1200,
+            sample_start=-1, sample_end=-1,
+            producer_monotonic_ns=index,
+        ))
+    return frames
+
+
 class PassiveUdpEmitter:
     """Explicit loopback-only UDP transport; no game action port is ever opened."""
 
