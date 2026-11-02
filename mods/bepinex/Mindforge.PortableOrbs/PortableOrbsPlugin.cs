@@ -93,6 +93,10 @@ namespace Mindforge.PortableOrbs
                     if (!string.IsNullOrEmpty(sessionId) && next.session_id != sessionId &&
                         now - receivedAt < 0.75f)
                         continue;
+                    // A restarted bridge starts its own output sequence again.
+                    // Only accept a reset after the old packet has expired locally.
+                    if (now - receivedAt >= 0.75f)
+                        lastSeq = -1;
                     if (next.session_id != sessionId)
                     {
                         sessionId = next.session_id;
@@ -140,10 +144,12 @@ namespace Mindforge.PortableOrbs
             GUI.DrawTexture(new Rect(cx + 8f, y, diameter, diameter), greenOrb);
             GUI.color = previous;
             if (captionStyle == null)
-                captionStyle = new GUIStyle(GUI.skin.label) {
-                    alignment = TextAnchor.MiddleCenter, fontSize = 11,
-                    normal = { textColor = Color.white }
-                };
+            {
+                captionStyle = new GUIStyle(GUI.skin.label);
+                captionStyle.alignment = TextAnchor.MiddleCenter;
+                captionStyle.fontSize = 11;
+                captionStyle.normal.textColor = Color.white;
+            }
             string status = !fresh ? "BCI OFFLINE" :
                 !linked ? "BCI " + latest.link.ToUpperInvariant() :
                 latest.source_mode == "simulated_decision" ? "BCI SIMULATION" :
