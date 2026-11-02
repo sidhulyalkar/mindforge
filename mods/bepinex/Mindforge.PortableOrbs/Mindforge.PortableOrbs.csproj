@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build with the game owner's installed BepInEx and Unity assemblies.
+       No copyrighted game DLLs or mod-loader binaries are checked into git. -->
+  <PropertyGroup>
+    <TargetFramework>net46</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>Mindforge.PortableOrbs</AssemblyName>
+    <GameManagedDir Condition="'$(GameManagedDir)' == ''">$(MSBuildProjectDirectory)/unconfigured-game-managed</GameManagedDir>
+    <BepInExDir Condition="'$(BepInExDir)' == ''">$(MSBuildProjectDirectory)/unconfigured-bepinex-core</BepInExDir>
+  </PropertyGroup>
+
+  <Target Name="ValidateLocalGameReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(BepInExDir)/BepInEx.dll')"
+           Text="Set BepInExDir to the installed game's BepInEx/core directory." />
+    <Error Condition="!Exists('$(GameManagedDir)/UnityEngine.dll') And !Exists('$(GameManagedDir)/UnityEngine.CoreModule.dll')"
+           Text="Set GameManagedDir to the installed game's *_Data/Managed directory." />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExDir)/BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine" Condition="Exists('$(GameManagedDir)/UnityEngine.dll')">
+      <HintPath>$(GameManagedDir)/UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule" Condition="Exists('$(GameManagedDir)/UnityEngine.CoreModule.dll')">
+      <HintPath>$(GameManagedDir)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule" Condition="Exists('$(GameManagedDir)/UnityEngine.IMGUIModule.dll')">
+      <HintPath>$(GameManagedDir)/UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule" Condition="Exists('$(GameManagedDir)/UnityEngine.TextRenderingModule.dll')">
+      <HintPath>$(GameManagedDir)/UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
