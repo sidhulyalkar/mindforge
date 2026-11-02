@@ -29,6 +29,10 @@ namespace Mindforge.PortableOrbs
         }
 
         private UdpClient receiver;
+        private ContextPresentationReceiver combatContext;
+        private ConfigEntry<bool> requireCombatContext;
+        private Vector2 uiPosition;
+        private bool positionInitialized;
         private ModFrame latest;
         private string gameId;
         private string sessionId;
@@ -44,7 +48,9 @@ namespace Mindforge.PortableOrbs
         {
             enabledOverlay = Config.Bind("Overlay", "Enabled", true, "Enable the cosmetic Mindforge overlay.");
             showOffline = Config.Bind("Overlay", "ShowWhenOffline", false,
-                "Show faint indicator orbs when the bridge is disconnected.");
+                "Show faint indicator orbs when the neural bridge is disconnected.");
+            requireCombatContext = Config.Bind("Overlay", "RequireCombatContext", true,
+                "Hide cosmetic orbs when no fresh combat-context observation exists.");
             string product = (Application.productName ?? "").ToLowerInvariant();
             gameId = product.Contains("silksong") ? "silksong" :
                      product.Contains("cuphead") ? "cuphead" : "";
@@ -68,10 +74,22 @@ namespace Mindforge.PortableOrbs
                 Logger.LogWarning("Cannot bind bridge UDP port 19753: " + ex.SocketErrorCode);
                 receiver = null;
             }
+            try
+            {
+                combatContext = new ContextPresentationReceiver();
+            }
+            catch (SocketException ex)
+            {
+                Logger.LogWarning("Context UDP port 19755 unavailable: " + ex.SocketErrorCode);
+                combatContext = null;
+            }
         }
 
         private void Update()
         {
+            if (combatContext != null)
+                combatContext.Poll(gameId);
+            UpdatePresentationPosition();
             if (receiver == null)
                 return;
             // Never hold the render thread waiting for a packet.
@@ -123,25 +141,57 @@ namespace Mindforge.PortableOrbs
             }
         }
 
+        private void UpdatePresentationPosition()
+        {
+            bool following = combatContext != null && combatContext.HasPlayerAnchor;
+            Vector2 target = following ? combatContext.ScreenAnchor :
+                new Vector2(gameId == "cuphead" ? 0.91f : 0.86f, 0.78f);
+            if (following)
+                target += new Vector2(0.07f, -0.08f);
+            target.x = Mathf.Clamp(target.x, 0.12f, 0.94f);
+            target.y = Mathf.Clamp(target.y, 0.12f, 0.86f);
+            if (!positionInitialized)
+            {
+                uiPosition = target;
+                positionInitialized = true;
+            }
+            else
+            {
+                // Update once per render frame, never once per OnGUI pass.
+                float blend = 1f - Mathf.Exp(-7f * Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.1f));
+                uiPosition = Vector2.Lerp(uiPosition, target, blend);
+            }
+        }
+
         private void OnGUI()
         {
             if (gameId == null || gameId.Length == 0 || enabledOverlay == null ||
                 !enabledOverlay.Value || blueOrb == null || greenOrb == null)
                 return;
+            string mode = combatContext != null ? combatContext.Mode : "hidden";
+            bool contextRequired = requireCombatContext != null && requireCombatContext.Value;
+            if (contextRequired && mode == "hidden")
+                return;
             bool fresh = latest != null &&
                 Time.realtimeSinceStartup - receivedAt < Mathf.Min(0.75f, latest.ttl_ms / 1000f);
             bool linked = fresh && latest.link == "connected";
-            if (!fresh && !showOffline.Value)
+            // A contextual, dimmed orb is permitted even with no BCI link.
+            // It must never imply that an active neural ability was selected.
+            if (!fresh && !showOffline.Value && !contextRequired)
                 return;
 
-            float cx = Screen.width * 0.5f;
-            float y = Screen.height * 0.80f;
-            const float diameter = 28f;
+            float cx = uiPosition.x * Screen.width;
+            float y = uiPosition.y * Screen.height;
+            float diameter = mode == "docked" ? 20f : mode == "primed" ? 22f : 28f;
+            float intensity = mode == "resting" ? 0.20f :
+                              mode == "primed" ? 0.42f : mode == "docked" ? 0.62f : 1f;
             Color previous = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, linked && latest.sight_active ? 1f : 0.22f);
-            GUI.DrawTexture(new Rect(cx - 36f, y, diameter, diameter), blueOrb);
-            GUI.color = new Color(1f, 1f, 1f, linked && latest.guard_active ? 1f : 0.22f);
-            GUI.DrawTexture(new Rect(cx + 8f, y, diameter, diameter), greenOrb);
+            GUI.color = new Color(1f, 1f, 1f,
+                intensity * (linked && latest.sight_active ? 1f : 0.20f));
+            GUI.DrawTexture(new Rect(cx - diameter - 4f, y, diameter, diameter), blueOrb);
+            GUI.color = new Color(1f, 1f, 1f,
+                intensity * (linked && latest.guard_active ? 1f : 0.20f));
+            GUI.DrawTexture(new Rect(cx + 4f, y, diameter, diameter), greenOrb);
             GUI.color = previous;
             if (captionStyle == null)
             {
@@ -154,7 +204,10 @@ namespace Mindforge.PortableOrbs
                 !linked ? "BCI " + latest.link.ToUpperInvariant() :
                 latest.source_mode == "simulated_decision" ? "BCI SIMULATION" :
                 latest.source_mode == "decision_replay" ? "BCI REPLAY" : "BCI CONNECTED";
-            GUI.Label(new Rect(cx - 96f, y + 29f, 192f, 20f), status, captionStyle);
+            if (combatContext != null && combatContext.Source == "synthetic_game_context")
+                status = "SIM CONTEXT / " + status;
+            GUI.Label(new Rect(cx - 110f, y + diameter + 1f, 220f, 18f),
+                status, captionStyle);
         }
 
         private static Texture2D MakeOrb(Color32 tint)
@@ -179,6 +232,8 @@ namespace Mindforge.PortableOrbs
 
         private void OnDestroy()
         {
+            if (combatContext != null)
+                combatContext.Dispose();
             if (receiver != null)
                 receiver.Close();
             if (blueOrb != null)
