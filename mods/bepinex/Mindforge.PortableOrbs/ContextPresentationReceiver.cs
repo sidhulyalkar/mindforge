@@ -94,6 +94,12 @@ namespace Mindforge.PortableOrbs
                         next.ttl_ms < 100 || next.ttl_ms > 500 ||
                         !ValidMode(next.mode) || !ValidPlacement(next.placement))
                         continue;
+                    if ((next.mode == "hidden") != (next.placement == "none"))
+                        continue;
+                    if (next.mode != "hidden" &&
+                        (next.source != "synthetic_game_context" &&
+                         next.source != "verified_game_hook"))
+                        continue;
                     if (next.mode != "hidden" && String.IsNullOrEmpty(next.session_id))
                         continue;
                     if (next.placement == "player_anchor" &&
