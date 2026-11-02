@@ -128,6 +128,36 @@ but the BepInEx plugin deliberately does not claim Hollow Knight
 compatibility. Boss stagger/phase and safe heal windows need explicit
 version-qualified native hooks.
 
+### Public source audit: concrete hook candidates (not yet qualified)
+
+A current third-party Silksong BepInEx project provides source examples of
+Harmony patches targeting `HeroController.Attack`, `Die`, `HeroDamaged`,
+`HeroDash`, `OnHeroJumped`, `DoDoubleJump`, and `Start`:
+https://github.com/Bergbok/Silksong-Mods/blob/main/Voicelines/Voicelines.cs
+
+These are *candidate method symbols* seen in that repository, NOT proof
+that the same signatures resolve in the user's installed game build. Start
+with read-only post-event telemetry, verify Harmony signature/overloads
+locally, and log callback invocation counts in both combat and exploration.
+An attack hook proves the **player attacked**, not that an enemy is engaged
+or a boss can be safely ignored. Never infer a boss stagger from a dash,
+an ordinary attack, or the presence of a hit sound. For a real follow anchor,
+capture a verified player Transform from the hook, project it through the
+correct gameplay camera, check behind-camera and screen bounds, and send
+normalized top-left screen coordinates. Disable the anchor if the camera
+cannot be disambiguated.
+
+The Hollow Knight Modding API provides its own documented
+`ModHooks.AttackHook` and explicit unsubscribe lifecycle; it should be
+implemented in a separate mod project:
+https://github.com/hk-modding/api/blob/master/Examples/SimpleHooks/SimpleHooks.cs
+
+Cuphead BepInEx projects exist, but their source should be evaluated
+against the exact purchased game build before selecting player/boss types.
+In particular, distinguish run-and-gun levels, platformer boss fights,
+and plane/shmup sections before advertising any safe attention window:
+https://github.com/Germanized/CupHeads
+
 Game-specific engine code must be isolated from Mindforge's Python
 decoders. Expected project seam:
 
