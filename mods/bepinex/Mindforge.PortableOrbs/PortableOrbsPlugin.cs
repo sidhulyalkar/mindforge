@@ -168,6 +168,10 @@ namespace Mindforge.PortableOrbs
             if (gameId == null || gameId.Length == 0 || enabledOverlay == null ||
                 !enabledOverlay.Value || blueOrb == null || greenOrb == null)
                 return;
+            // Native app focus and stopped gameplay override externally reported
+            // context, even if a synthetic producer incorrectly claims focus.
+            if (!Application.isFocused || Time.timeScale <= 0.0001f)
+                return;
             string mode = combatContext != null ? combatContext.Mode : "hidden";
             bool contextRequired = requireCombatContext != null && requireCombatContext.Value;
             if (contextRequired && mode == "hidden")
