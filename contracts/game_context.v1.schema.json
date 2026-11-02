@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mindforge GameContext v1: cosmetic-only semantic observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "game_id",
+    "session_id",
+    "seq",
+    "source",
+    "ttl_ms",
+    "context",
+    "anchor_x",
+    "anchor_y"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mindforge.game_context.v1"
+    },
+    "game_id": {
+      "enum": [
+        "hollow_knight",
+        "silksong",
+        "cuphead"
+      ]
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source": {
+      "enum": [
+        "synthetic_game_context",
+        "verified_game_hook"
+      ]
+    },
+    "ttl_ms": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 750
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "in_game",
+        "app_focused",
+        "paused",
+        "menu_open",
+        "cutscene",
+        "scene_transition",
+        "player_alive",
+        "enemy_nearby",
+        "enemy_engaged",
+        "boss_encounter",
+        "incoming_attack",
+        "precision_window",
+        "platforming_hazard",
+        "recovery_opening",
+        "opening_duration_s"
+      ],
+      "properties": {
+        "in_game": {
+          "type": "boolean"
+        },
+        "app_focused": {
+          "type": "boolean"
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "menu_open": {
+          "type": "boolean"
+        },
+        "cutscene": {
+          "type": "boolean"
+        },
+        "scene_transition": {
+          "type": "boolean"
+        },
+        "player_alive": {
+          "type": "boolean"
+        },
+        "enemy_nearby": {
+          "type": "boolean"
+        },
+        "enemy_engaged": {
+          "type": "boolean"
+        },
+        "boss_encounter": {
+          "type": "boolean"
+        },
+        "incoming_attack": {
+          "type": "boolean"
+        },
+        "precision_window": {
+          "type": "boolean"
+        },
+        "platforming_hazard": {
+          "type": "boolean"
+        },
+        "recovery_opening": {
+          "type": "boolean"
+        },
+        "opening_duration_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 60
+        }
+      }
+    },
+    "anchor_x": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "anchor_y": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "anchor_x": {
+          "type": "null"
+        },
+        "anchor_y": {
+          "type": "null"
+        }
+      }
+    },
+    {
+      "properties": {
+        "anchor_x": {
+          "type": "number"
+        },
+        "anchor_y": {
+          "type": "number"
+        }
+      }
+    }
+  ]
+}
