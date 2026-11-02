@@ -95,6 +95,7 @@ class PassiveAmbientPolicy:
                 and (mode != "live" or bool(frame.get("calibration_id")))
             )
         except (KeyError, TypeError, ValueError, OverflowError):
+            self.withdraw()
             return False
         if not good:
             # Unreliable or artifact-tainted data withdraws the existing target.
@@ -118,6 +119,12 @@ class PassiveAmbientPolicy:
     def step(self, now_s: float, context: AmbientContext) -> float:
         if not math.isfinite(now_s):
             raise ValueError("step time must be finite")
+        # When a coded stimulus or calibration starts, the passive renderer
+        # must go completely neutral now, not merely ease toward neutral.
+        if context.active_ssvep_window or context.calibration_window:
+            self.value = 0.0
+            self.last_tick = now_s
+            return 0.0
         if self.last_tick is None:
             self.last_tick = now_s
             return self.value
