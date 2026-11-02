@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mindforge GameObservation v1: unqualified read-only native events",
+  "description": "These events cannot infer combat engagement or safe EEG selection windows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "game_id",
+    "source_mode",
+    "session_id",
+    "seq",
+    "event",
+    "game_version",
+    "hook_target",
+    "in_game",
+    "app_focused",
+    "paused",
+    "hero_x",
+    "hero_y",
+    "source_time_s"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mindforge.game_observation.v1"
+    },
+    "game_id": {
+      "enum": [
+        "silksong",
+        "cuphead",
+        "hollow_knight"
+      ]
+    },
+    "source_mode": {
+      "enum": [
+        "observed_game_hook_unqualified",
+        "synthetic_game_observation"
+      ]
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event": {
+      "enum": [
+        "hero_ready",
+        "hero_attack",
+        "hero_dash",
+        "hero_jump",
+        "hero_damaged",
+        "hero_die",
+        "scene_changed",
+        "heartbeat"
+      ]
+    },
+    "game_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "hook_target": {
+      "enum": [
+        "HeroController.Start",
+        "HeroController.Attack",
+        "HeroController.HeroDash",
+        "HeroController.OnHeroJumped",
+        "HeroController.HeroDamaged",
+        "HeroController.Die",
+        "SceneManager.activeSceneChanged",
+        "GameTelemetryPlugin.Update"
+      ]
+    },
+    "in_game": {
+      "type": "boolean"
+    },
+    "app_focused": {
+      "type": "boolean"
+    },
+    "paused": {
+      "type": "boolean"
+    },
+    "hero_x": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "hero_y": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "source_time_s": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "enum": [
+              "scene_changed",
+              "hero_die"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hero_x": {
+            "type": "null"
+          },
+          "hero_y": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "hero_x": {
+              "type": "null"
+            },
+            "hero_y": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "hero_x": {
+              "type": "number"
+            },
+            "hero_y": {
+              "type": "number"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
