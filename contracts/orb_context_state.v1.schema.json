@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mindforge OrbContextState v1: cosmetic only",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "game_id",
+    "session_id",
+    "seq",
+    "source",
+    "mode",
+    "placement",
+    "anchor_x",
+    "anchor_y",
+    "selection_opportunity_only",
+    "stimulus_enabled",
+    "presentation_only",
+    "reason",
+    "ttl_ms"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mindforge.orb_context_state.v1"
+    },
+    "game_id": {
+      "enum": [
+        "hollow_knight",
+        "silksong",
+        "cuphead"
+      ]
+    },
+    "session_id": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source": {
+      "enum": [
+        "none",
+        "synthetic_game_context",
+        "verified_game_hook"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "hidden",
+        "primed",
+        "present",
+        "docked",
+        "resting"
+      ]
+    },
+    "placement": {
+      "enum": [
+        "none",
+        "edge_compact",
+        "player_anchor"
+      ]
+    },
+    "anchor_x": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "anchor_y": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "selection_opportunity_only": {
+      "type": "boolean"
+    },
+    "stimulus_enabled": {
+      "const": false
+    },
+    "presentation_only": {
+      "const": true
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ttl_ms": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 500
+    }
+  }
+}
