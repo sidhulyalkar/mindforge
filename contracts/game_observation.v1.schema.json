@@ -27,7 +27,6 @@
     "game_id": {
       "enum": [
         "silksong",
-        "cuphead",
         "hollow_knight"
       ]
     },
