@@ -84,8 +84,7 @@ namespace Mindforge.LivingWorld
         {
             // No speculative integration with the competition/calibration-only
             // scene or arbitrary playable worlds. V11 is the explicit, authored target.
-            GameObject authoredWorld = GameObject.Find(AuthoredWorldRootName);
-            if (authoredWorld == null)
+            if (!HasAuthoredV11World())
             {
                 Debug.LogWarning("[LivingWorld:V31] V11 authored world missing; integration off.");
                 enabled = false;
@@ -141,6 +140,22 @@ namespace Mindforge.LivingWorld
             _intensity = Mathf.Clamp(PlayerPrefs.GetFloat(IntensityKey, .16f), 0f, MaximumIntensity);
             _reducedVisuals = PlayerPrefs.GetInt(ReducedKey, 1) != 0;
             SetOptIn(PlayerPrefs.GetInt(EnabledKey, 0) == 1, save: false);
+        }
+
+        private bool HasAuthoredV11World()
+        {
+            // The systems kernel leaves the arena inactive until calibration.
+            // GameObject.Find would miss its authored children at scene startup.
+            UnityEngine.SceneManagement.Scene scene = gameObject.scene;
+            if (!scene.IsValid()) return false;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                Transform[] all = root.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < all.Length; i++)
+                    if (all[i] != null && all[i].name == AuthoredWorldRootName)
+                        return true;
+            }
+            return false;
         }
 
         private void Update()
