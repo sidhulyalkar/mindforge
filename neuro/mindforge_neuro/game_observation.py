@@ -123,10 +123,13 @@ class GameObservation:
              in_game: bool = True, app_focused: bool = True,
              paused: bool = False, anchor: tuple[float, float] | None = None,
              source_time_s: float = 0.) -> "GameObservation":
+        hook = GAME_EVENT_HOOKS.get(game_id, {}).get(event)
+        if hook is None:
+            raise ValueError("unsupported event for game-specific observer")
         x, y = anchor if anchor else (None, None)
         instance = cls(
             SCHEMA, game_id, source_mode, session_id, seq, event,
-            game_version, GAME_EVENT_HOOKS[game_id][event],
+            game_version, hook,
             in_game, app_focused,
             paused, x, y, source_time_s,
         )
