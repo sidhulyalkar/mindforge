@@ -72,7 +72,9 @@
         "HeroController.HeroDamaged",
         "HeroController.Die",
         "SceneManager.activeSceneChanged",
-        "GameTelemetryPlugin.Update"
+        "GameTelemetryPlugin.Update",
+        "ModHooks.HeroUpdateHook",
+        "ModHooks.AttackHook"
       ]
     },
     "in_game": {
@@ -151,6 +153,78 @@
           }
         }
       ]
+    },
+    {
+      "if": {
+        "properties": {
+          "game_id": {
+            "const": "hollow_knight"
+          }
+        },
+        "required": [
+          "game_id"
+        ]
+      },
+      "then": {
+        "oneOf": [
+          {
+            "required": [
+              "event",
+              "hook_target"
+            ],
+            "properties": {
+              "event": {
+                "const": "hero_ready"
+              },
+              "hook_target": {
+                "const": "ModHooks.HeroUpdateHook"
+              }
+            }
+          },
+          {
+            "required": [
+              "event",
+              "hook_target"
+            ],
+            "properties": {
+              "event": {
+                "const": "heartbeat"
+              },
+              "hook_target": {
+                "const": "ModHooks.HeroUpdateHook"
+              }
+            }
+          },
+          {
+            "required": [
+              "event",
+              "hook_target"
+            ],
+            "properties": {
+              "event": {
+                "const": "hero_attack"
+              },
+              "hook_target": {
+                "const": "ModHooks.AttackHook"
+              }
+            }
+          },
+          {
+            "required": [
+              "event",
+              "hook_target"
+            ],
+            "properties": {
+              "event": {
+                "const": "scene_changed"
+              },
+              "hook_target": {
+                "const": "SceneManager.activeSceneChanged"
+              }
+            }
+          }
+        ]
+      }
     }
   ]
 }
