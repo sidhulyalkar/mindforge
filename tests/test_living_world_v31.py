@@ -119,3 +119,4 @@ def test_receiver_and_dedicated_visuals_stay_within_existing_passive_software():
     assert "GetComponentsInChildren<Transform>(true)" in integration
     assert "_visualRoot.transform.SetParent(authoredWorld, false);" in integration
     assert "GameObject.Find(AuthoredWorldRootName)" not in integration
+    assert 'authoredWorld.Find("Mindforge_White_Cathedral_V24")' in integration
