@@ -42,7 +42,8 @@
       "enum": [
         "none",
         "synthetic_game_context",
-        "verified_game_hook"
+        "verified_game_hook",
+        "observed_game_hook_unqualified"
       ]
     },
     "mode": {
@@ -95,5 +96,44 @@
       "minimum": 100,
       "maximum": 500
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "const": "observed_game_hook_unqualified"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "hidden",
+              "primed"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "none",
+              "edge_compact"
+            ]
+          },
+          "anchor_x": {
+            "type": "null"
+          },
+          "anchor_y": {
+            "type": "null"
+          },
+          "selection_opportunity_only": {
+            "const": false
+          }
+        }
+      }
+    }
+  ]
 }
