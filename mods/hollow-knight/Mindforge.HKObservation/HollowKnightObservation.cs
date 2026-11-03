@@ -26,6 +26,8 @@ namespace Mindforge.HollowKnightObservation
         private const string Consent = "ENABLE_READ_ONLY_GAME_TELEMETRY_V1";
         private readonly Queue<string> pending = new Queue<string>();
         private UdpClient sender;
+        private GameObject overlayHost;
+        private HKActivityOverlay overlay;
         private bool subscribed;
         private bool heroReady;
         private string session = "";
@@ -63,12 +65,21 @@ namespace Mindforge.HollowKnightObservation
                 nextHeartbeat = startAt;
                 heroReady = false;
 
+                // Set before registration so a partial failure still gets
+                // a full unsubscribe and clean unload.
+                subscribed = true;
                 // Confirmed from hk-modding/api ModHooks implementation and
                 // SimpleHooks sample. Both events are observational.
                 ModHooks.AttackHook += OnAttack;
                 ModHooks.HeroUpdateHook += OnHeroUpdate;
                 SceneManager.activeSceneChanged += OnSceneChanged;
-                subscribed = true;
+
+                // An entirely cosmetic companion; this is never a coded EEG
+                // stimulus and is off until the opt-in marker is present.
+                overlayHost = new GameObject("MindforgeHKReadOnlyDiagnostic");
+                UnityEngine.Object.DontDestroyOnLoad(overlayHost);
+                overlay = overlayHost.AddComponent<HKActivityOverlay>();
+                overlay.GameplayAllowed = false;
                 Log("Mindforge read-only observation enabled (unqualified), build " + build);
             }
             catch (Exception e)
@@ -97,6 +108,7 @@ namespace Mindforge.HollowKnightObservation
             {
                 heroReady = false;
             }
+            if (overlay != null) overlay.GameplayAllowed = heroReady;
             if (now >= nextHeartbeat)
             {
                 nextHeartbeat = now + 0.5f;
@@ -108,6 +120,7 @@ namespace Mindforge.HollowKnightObservation
         private void OnSceneChanged(Scene prior, Scene current)
         {
             heroReady = false;
+            if (overlay != null) overlay.GameplayAllowed = false;
             Enqueue("scene_changed", "SceneManager.activeSceneChanged", false);
             Flush();
         }
@@ -185,6 +198,13 @@ namespace Mindforge.HollowKnightObservation
             }
             pending.Clear();
             heroReady = false;
+            if (overlay != null) overlay.GameplayAllowed = false;
+            overlay = null;
+            if (overlayHost != null)
+            {
+                UnityEngine.Object.Destroy(overlayHost);
+                overlayHost = null;
+            }
             if (sender != null)
             {
                 sender.Close();
