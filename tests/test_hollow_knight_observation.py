@@ -138,3 +138,14 @@ def test_hk_synthetic_audit_does_not_fabricate_hooks_or_boss_phases():
     assert data["counts"]["hero_attack"] == 2
     assert data["boss_phase_verified"] is False
     assert data["safe_ssvep_window_verified"] is False
+
+
+def test_cuphead_native_observations_are_unavailable_until_own_api_is_qualified():
+    # Cuphead's cosmetic context bridge is separate; never fake its observed
+    # hook provenance by emitting Silksong HeroController methods.
+    with pytest.raises(ValueError):
+        GameObservation.make("cuphead", "hero_attack", 1)
+    with pytest.raises(ValueError):
+        ObservationMonitor("cuphead")
+    schema = json.loads((ROOT / "contracts/game_observation.v1.schema.json").read_text())
+    assert "cuphead" not in schema["properties"]["game_id"]["enum"]
