@@ -21,7 +21,7 @@ from mindforge_neuro.activity_preview import ActivityPreviewBridge
 from mindforge_neuro.game_observation import GameObservation
 
 
-DEMO_EVENTS = (
+SILKSONG_DEMO_EVENTS = (
     (0.00, "hero_ready"),
     (0.25, "hero_attack"),
     (0.50, "hero_attack"),
@@ -36,10 +36,22 @@ DEMO_EVENTS = (
     (3.40, "hero_die"),
 )
 
+HK_DEMO_EVENTS = (
+    (0.00, "hero_ready"),
+    (0.25, "hero_attack"),
+    (0.50, "hero_attack"),
+    (0.90, "heartbeat"),
+    (1.40, "scene_changed"),
+    (2.10, "hero_ready"),
+    (2.40, "hero_attack"),
+    (2.65, "hero_attack"),
+)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--game", choices=("silksong",), required=True)
+    parser.add_argument("--game", choices=("silksong", "hollow_knight"),
+                        required=True)
     parser.add_argument("--input-port", type=int, default=19756)
     parser.add_argument("--context-port", type=int, default=19754)
     parser.add_argument("--expected-build", help="Exact locally observed Application.version for native mode")
@@ -71,18 +83,20 @@ def main() -> None:
             listener.setblocking(False)
         print("SYNTHETIC GAME ACTIVITY: no game, EEG or combat-state inference"
               if args.demo else
-              f"UNQUALIFIED Silksong hook observations on 127.0.0.1:{args.input_port}",
+              f"UNQUALIFIED {args.game} hook observations on 127.0.0.1:{args.input_port}",
               flush=True)
         start = time.monotonic()
         demo_seq = 0
         demo_index = 0
+        demo_events = (SILKSONG_DEMO_EVENTS if args.game == "silksong"
+                       else HK_DEMO_EVENTS)
         previous = None
         while time.monotonic() - start <= args.seconds:
             tick = time.monotonic()
             elapsed = tick - start
             if args.demo:
-                while demo_index < len(DEMO_EVENTS) and elapsed >= DEMO_EVENTS[demo_index][0]:
-                    time_offset, name = DEMO_EVENTS[demo_index]
+                while demo_index < len(demo_events) and elapsed >= demo_events[demo_index][0]:
+                    time_offset, name = demo_events[demo_index]
                     demo_index += 1
                     demo_seq += 1
                     sample = GameObservation.make(

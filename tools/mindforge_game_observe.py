@@ -22,19 +22,25 @@ from mindforge_neuro.game_observation import GameObservation, ObservationMonitor
 
 
 def example_events(game: str) -> list[GameObservation]:
-    seq = ("hero_ready", "heartbeat", "hero_jump", "hero_attack",
-           "hero_dash", "hero_damaged", "hero_die", "scene_changed")
+    seq = (("hero_ready", "heartbeat", "hero_jump", "hero_attack",
+            "hero_dash", "hero_damaged", "hero_die", "scene_changed")
+           if game == "silksong" else
+           ("hero_ready", "heartbeat", "hero_attack", "hero_attack",
+            "scene_changed"))
     return [
         GameObservation.make(game, event, i + 1, source_time_s=i * 0.25,
                              in_game=event not in ("hero_die", "scene_changed"),
-                             anchor=(0.5, 0.5) if event not in ("hero_die", "scene_changed") else None)
+                             anchor=(0.5, 0.5) if (
+                                 game == "silksong" and
+                                 event not in ("hero_die", "scene_changed")
+                             ) else None)
         for i, event in enumerate(seq)
     ]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--game", choices=("silksong",), required=True)
+    parser.add_argument("--game", choices=("silksong", "hollow_knight"), required=True)
     parser.add_argument("--listen-port", type=int, default=19756)
     parser.add_argument("--seconds", type=float, default=90.0)
     parser.add_argument("--demo", action="store_true")

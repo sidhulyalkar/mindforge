@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Hollow Knight uses its native Modding API, not the Silksong BepInEx plugin.
+       Compile against DLLs in the game owner's *modded* Managed folder.
+       No game assemblies are checked into Mindforge. -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>Mindforge.HKObservation</AssemblyName>
+    <HollowKnightManagedDir Condition="'$(HollowKnightManagedDir)' == ''">$(MSBuildProjectDirectory)/unconfigured-managed</HollowKnightManagedDir>
+  </PropertyGroup>
+  <Target Name="ValidateHKApiReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(HollowKnightManagedDir)/Assembly-CSharp.dll')"
+           Text="Set HollowKnightManagedDir to the locally installed, modded Hollow Knight *_Data/Managed directory with the Modding API." />
+    <Error Condition="!Exists('$(HollowKnightManagedDir)/UnityEngine.dll') And !Exists('$(HollowKnightManagedDir)/UnityEngine.CoreModule.dll')"
+           Text="The installed Hollow Knight Managed folder needs UnityEngine.dll or UnityEngine.CoreModule.dll." />
+  </Target>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(HollowKnightManagedDir)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine" Condition="Exists('$(HollowKnightManagedDir)/UnityEngine.dll')">
+      <HintPath>$(HollowKnightManagedDir)/UnityEngine.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule" Condition="Exists('$(HollowKnightManagedDir)/UnityEngine.CoreModule.dll')">
+      <HintPath>$(HollowKnightManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule" Condition="Exists('$(HollowKnightManagedDir)/UnityEngine.IMGUIModule.dll')">
+      <HintPath>$(HollowKnightManagedDir)/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule" Condition="Exists('$(HollowKnightManagedDir)/UnityEngine.TextRenderingModule.dll')">
+      <HintPath>$(HollowKnightManagedDir)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
