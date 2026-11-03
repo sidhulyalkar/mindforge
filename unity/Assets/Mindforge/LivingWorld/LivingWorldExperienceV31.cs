@@ -91,6 +91,15 @@ namespace Mindforge.LivingWorld
                 enabled = false;
                 return;
             }
+            // Latest V0.28 retains the V11 marker, but installs a completely
+            // different V24 cathedral with its own world/rendering ownership.
+            // Never inject the legacy sanctuary accents into that newer route.
+            if (authoredWorld.Find("Mindforge_White_Cathedral_V24") != null)
+            {
+                Debug.Log("[LivingWorld:V31] Latest cathedral detected: legacy preview intentionally disabled.");
+                enabled = false;
+                return;
+            }
 
             // Create an inactive receiver so component OnEnable cannot bind UDP
             // before the user's saved or explicit opt-in is applied.
