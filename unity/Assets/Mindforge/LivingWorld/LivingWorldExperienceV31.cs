@@ -270,6 +270,11 @@ namespace Mindforge.LivingWorld
 
         private void OnDestroy()
         {
+            // The ornament root is parented under the authored world to inherit
+            // its activation state, not under this controller. Explicit cleanup
+            // prevents stale renderers on scene/component reloads.
+            if (_visualRoot != null) Destroy(_visualRoot);
+            if (_connectionRoot != null) Destroy(_connectionRoot);
             if (_decorativeMaterial != null) Destroy(_decorativeMaterial);
         }
     }
