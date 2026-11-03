@@ -11,7 +11,7 @@ namespace Mindforge.HollowKnightObservation
     /// no flash, no controls, no game objects except this isolated overlay.
     /// The native Modding API observer owns this component's lifecycle.
     /// </summary>
-    internal sealed class HKActivityOverlay : MonoBehaviour
+    public sealed class HKActivityOverlay : MonoBehaviour
     {
         [Serializable]
         private sealed class ContextFrame
