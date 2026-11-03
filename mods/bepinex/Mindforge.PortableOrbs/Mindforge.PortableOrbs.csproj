@@ -2,7 +2,11 @@
   <!-- Build with the game owner's installed BepInEx and Unity assemblies.
        No copyrighted game DLLs or mod-loader binaries are checked into git. -->
   <PropertyGroup>
-    <TargetFramework>net46</TargetFramework>
+    <!-- Cuphead's 2017.4 legacy Mono runtime requires net35, while
+         the Silksong prototype retains its existing net46 target. -->
+    <MindforgeGame Condition="'$(MindforgeGame)' == ''">silksong</MindforgeGame>
+    <TargetFramework Condition="'$(MindforgeGame)' == 'cuphead'">net35</TargetFramework>
+    <TargetFramework Condition="'$(MindforgeGame)' != 'cuphead'">net46</TargetFramework>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AssemblyName>Mindforge.PortableOrbs</AssemblyName>
@@ -11,6 +15,8 @@
   </PropertyGroup>
 
   <Target Name="ValidateLocalGameReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(MindforgeGame)' != 'cuphead' And '$(MindforgeGame)' != 'silksong'"
+           Text="MindforgeGame must be cuphead or silksong." />
     <Error Condition="!Exists('$(BepInExDir)/BepInEx.dll')"
            Text="Set BepInExDir to the installed game's BepInEx/core directory." />
     <Error Condition="!Exists('$(GameManagedDir)/UnityEngine.dll') And !Exists('$(GameManagedDir)/UnityEngine.CoreModule.dll')"
@@ -18,6 +24,9 @@
   </Target>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies"
+                      Version="1.0.3" PrivateAssets="all"
+                      Condition="'$(MindforgeGame)' == 'cuphead'" />
     <Reference Include="BepInEx">
       <HintPath>$(BepInExDir)/BepInEx.dll</HintPath>
       <Private>false</Private>
