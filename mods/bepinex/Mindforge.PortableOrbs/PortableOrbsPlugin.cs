@@ -210,6 +210,9 @@ namespace Mindforge.PortableOrbs
                 latest.source_mode == "decision_replay" ? "BCI REPLAY" : "BCI CONNECTED";
             if (combatContext != null && combatContext.Source == "synthetic_game_context")
                 status = "SIM CONTEXT / " + status;
+            else if (combatContext != null &&
+                     combatContext.Source == "observed_game_hook_unqualified")
+                status = "PLAYER ACTIVITY ONLY / " + (linked ? "BCI STATUS" : "NO BCI");
             GUI.Label(new Rect(cx - 110f, y + diameter + 1f, 220f, 18f),
                 status, captionStyle);
         }
