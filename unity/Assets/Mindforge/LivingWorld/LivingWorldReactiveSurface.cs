@@ -14,6 +14,7 @@ namespace Mindforge.LivingWorld
     public sealed class LivingWorldReactiveSurface : MonoBehaviour
     {
         [SerializeField] private LivingWorldPassiveReceiver receiver;
+        [SerializeField] private LivingWorldExperienceV31 experience;
         [SerializeField] private Color lowAlphaTint = new Color(0.11f, 0.23f, 0.33f, 1f);
         [SerializeField] private Color highAlphaTint = new Color(0.28f, 0.45f, 0.48f, 1f);
 
@@ -27,9 +28,10 @@ namespace Mindforge.LivingWorld
         private int _colorProperty;
         private bool _ready;
 
-        public void Configure(LivingWorldPassiveReceiver source)
+        public void Configure(LivingWorldPassiveReceiver source, LivingWorldExperienceV31 visualOwner = null)
         {
             receiver = source;
+            experience = visualOwner;
         }
 
         private void OnEnable()
@@ -89,6 +91,10 @@ namespace Mindforge.LivingWorld
 
             if (receiver == null) receiver = FindObjectOfType<LivingWorldPassiveReceiver>();
             float value = receiver != null ? receiver.CurrentValue : PassiveFeaturePolicy.NeutralValue;
+            // Existing isolated v3 demo retains its original full-range palette.
+            // The in-game v3.1 path is deliberately constrained by user opt-in.
+            if (experience != null)
+                value = LivingWorldExperienceV31.MapFeature(value, experience.EffectiveIntensity);
             Color tint = Color.Lerp(lowAlphaTint, highAlphaTint, Mathf.Clamp01(value));
             _renderer.GetPropertyBlock(_current);
             _current.SetColor(_colorProperty, tint);
