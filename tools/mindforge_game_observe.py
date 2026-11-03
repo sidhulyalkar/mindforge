@@ -30,7 +30,10 @@ def example_events(game: str) -> list[GameObservation]:
     return [
         GameObservation.make(game, event, i + 1, source_time_s=i * 0.25,
                              in_game=event not in ("hero_die", "scene_changed"),
-                             anchor=(0.5, 0.5) if event not in ("hero_die", "scene_changed") else None)
+                             anchor=(0.5, 0.5) if (
+                                 game == "silksong" and
+                                 event not in ("hero_die", "scene_changed")
+                             ) else None)
         for i, event in enumerate(seq)
     ]
 
