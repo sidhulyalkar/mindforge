@@ -16,12 +16,13 @@ from .mod_bridge import SUPPORTED_GAMES
 
 CONTEXT_INPUT_V1 = "mindforge.game_context.v1"
 CONTEXT_OUTPUT_V1 = "mindforge.orb_context_state.v1"
-SOURCES = frozenset({"synthetic_game_context", "verified_game_hook"})
+SOURCES = frozenset({"synthetic_game_context", "verified_game_hook",
+                     "observed_game_hook_unqualified"})
 CONTEXT_FLAGS = (
     "in_game", "app_focused", "paused", "menu_open", "cutscene",
     "scene_transition", "player_alive", "enemy_nearby", "enemy_engaged",
     "boss_encounter", "incoming_attack", "precision_window",
-    "platforming_hazard", "recovery_opening",
+    "platforming_hazard", "recovery_opening", "player_activity_recent",
 )
 INPUT_KEYS = frozenset({
     "schema", "game_id", "session_id", "seq", "source", "ttl_ms",
@@ -66,6 +67,14 @@ class GameContextPacket:
                               or not math.isfinite(x) or not math.isfinite(y)
                               or not 0.0 <= x <= 1.0 or not 0.0 <= y <= 1.0):
             raise ValueError("player anchor must be normalized and finite")
+        if obj["source"] == "observed_game_hook_unqualified":
+            # A raw player action never verifies combat semantics or a
+            # screen-space player anchor suitable for following orbs.
+            if x is not None or any(ctx[name] for name in (
+                "enemy_nearby", "enemy_engaged", "boss_encounter",
+                "incoming_attack", "precision_window", "platforming_hazard",
+                "recovery_opening")) or seconds != 0:
+                raise ValueError("unqualified game observation cannot assert combat")
         context = CombatContext(
             game_id=obj["game_id"], session_id=obj["session_id"],
             seq=obj["seq"], source=obj["source"],
