@@ -37,6 +37,7 @@ namespace Mindforge.CupheadStageObservation
 
         private ConfigEntry<bool> enabledCapture;
         private UdpClient sender;
+        private UdpClient overlaySender; // independent read-only stage veto output
         private string sessionId;
         private string build;
         private float startedAt;
@@ -75,6 +76,19 @@ namespace Mindforge.CupheadStageObservation
                 sender = new UdpClient();
                 sender.Connect(IPAddress.Loopback, 19757);
                 sender.Client.Blocking = false;
+                // The UI listens independently; audit and UI must never
+                // compete for datagrams on the same UDP port.
+                try
+                {
+                    overlaySender = new UdpClient();
+                    overlaySender.Connect(IPAddress.Loopback, 19758);
+                    overlaySender.Client.Blocking = false;
+                }
+                catch (SocketException)
+                {
+                    if (overlaySender != null) overlaySender.Close();
+                    overlaySender = null;  // fail hidden in cosmetic UI
+                }
                 SceneManager.activeSceneChanged += OnSceneChanged;
                 Logger.LogInfo("Read-only Cuphead stage observer started (unqualified), "
                                + build);
@@ -217,7 +231,19 @@ namespace Mindforge.CupheadStageObservation
                 frame.paused = Time.timeScale <= 0.0001f;
                 frame.source_time_s = Mathf.Max(0f, Time.realtimeSinceStartup - startedAt);
                 byte[] raw = System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(frame));
-                if (raw.Length <= 4096) sender.Send(raw, raw.Length);
+                if (raw.Length <= 4096)
+                {
+                    sender.Send(raw, raw.Length);
+                    if (overlaySender != null)
+                    {
+                        try { overlaySender.Send(raw, raw.Length); }
+                        catch (SocketException)
+                        {
+                            // Only cosmetic stage vetoes are lost; they expire
+                            // locally and can NEVER authorize an orb.
+                        }
+                    }
+                }
             }
             catch (SocketException)
             {
@@ -239,6 +265,11 @@ namespace Mindforge.CupheadStageObservation
             {
                 sender.Close();
                 sender = null;
+            }
+            if (overlaySender != null)
+            {
+                overlaySender.Close();
+                overlaySender = null;
             }
         }
 
