@@ -210,12 +210,12 @@ namespace Mindforge.CupheadStageObservation
             frame.game_version = build;
             frame.stage = stage;
             frame.@event = kind;
-            frame.scene_name = SafeAscii(SceneManager.GetActiveScene().name);
-            frame.app_focused = Application.isFocused;
-            frame.paused = Time.timeScale <= 0.0001f;
-            frame.source_time_s = Mathf.Max(0f, Time.realtimeSinceStartup - startedAt);
             try
             {
+                frame.scene_name = SafeAscii(SceneManager.GetActiveScene().name);
+                frame.app_focused = Application.isFocused;
+                frame.paused = Time.timeScale <= 0.0001f;
+                frame.source_time_s = Mathf.Max(0f, Time.realtimeSinceStartup - startedAt);
                 byte[] raw = System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(frame));
                 if (raw.Length <= 4096) sender.Send(raw, raw.Length);
             }
