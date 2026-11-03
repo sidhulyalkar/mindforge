@@ -116,3 +116,6 @@ def test_receiver_and_dedicated_visuals_stay_within_existing_passive_software():
     assert "new Material(shader)" in integration
     assert 'Mindforge_Demo_World_V11' in integration
     assert "KeyCode.F10" in integration
+    assert "GetComponentsInChildren<Transform>(true)" in integration
+    assert "_visualRoot.transform.SetParent(authoredWorld, false);" in integration
+    assert "GameObject.Find(AuthoredWorldRootName)" not in integration
