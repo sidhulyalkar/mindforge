@@ -94,7 +94,7 @@ software wiring only, **not live game compatibility**.
    compatibility:
 
 ```powershell
-python tools/mindforge_native_preflight.py --game-root "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Knight Silksong" --report silksong-preflight.json
+python tools/mindforge_native_preflight.py --game-root "C:\Program Files (x86)\Steam\steamapps\common\Hollow Knight Silksong" --report silksong-preflight.json
 ```
 
 2a. Build the two distinct projects against that **same game's own**
