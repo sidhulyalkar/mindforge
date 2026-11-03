@@ -14,9 +14,16 @@ The signal is posterior alpha relative spectral power, **not** a validated estim
 
 ## Run on your Mac
 
-1. Fetch and switch to branch feat/living-world-v31-production-optin.
-2. Open the unity/ project using **Unity 2022.3.62f3**.
-3. Choose **Mindforge → Legacy → V0.11 Demo → Build + Play Presentable Demo**.
+**Important:** The Legacy V0.11 builder writes the same scene asset used by the canonical Latest route. Run this preview in a **separate Git worktree or clone**, not your primary Latest working tree. Never commit the legacy-generated scene over the current Latest build.
+
+From your existing Mindforge checkout:
+
+    git fetch origin feat/living-world-v31-production-optin
+    git worktree add -b v31-local-preview ../mindforge-v31       origin/feat/living-world-v31-production-optin
+    cd ../mindforge-v31
+
+1. Open this worktree's unity/ project using **Unity 2022.3.62f3**.
+2. Choose **Mindforge → Legacy → V0.11 Demo → Build + Play Presentable Demo** in this isolated copy.
 4. Choose **Mindforge → Living World → V3.1 → Enable Opt-in Preview** (or open in-game F10, sometimes Fn+F10 on a Mac). To turn off: **Disable and Restore Baseline** or the F10 menu.
 5. From the repo root run:
 
