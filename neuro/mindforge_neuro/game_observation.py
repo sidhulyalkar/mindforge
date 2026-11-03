@@ -24,7 +24,7 @@ FIELDS = frozenset((
     "event", "game_version", "hook_target", "in_game",
     "app_focused", "paused", "hero_x", "hero_y", "source_time_s",
 ))
-EVENT_HOOKS = {
+SILKSONG_EVENT_HOOKS = {
     "hero_ready": "HeroController.Start",
     "hero_attack": "HeroController.Attack",
     "hero_dash": "HeroController.HeroDash",
@@ -34,6 +34,22 @@ EVENT_HOOKS = {
     "scene_changed": "SceneManager.activeSceneChanged",
     "heartbeat": "GameTelemetryPlugin.Update",
 }
+
+# Read-only event provenance must identify the *actual* game-specific API.
+# Do not disguise Hollow Knight's ModHooks callback as Silksong Harmony.
+HOLLOW_KNIGHT_EVENT_HOOKS = {
+    "hero_ready": "ModHooks.HeroUpdateHook",
+    "hero_attack": "ModHooks.AttackHook",
+    "scene_changed": "SceneManager.activeSceneChanged",
+    "heartbeat": "ModHooks.HeroUpdateHook",
+}
+GAME_EVENT_HOOKS = {
+    "silksong": SILKSONG_EVENT_HOOKS,
+    "hollow_knight": HOLLOW_KNIGHT_EVENT_HOOKS,
+    # Cuphead is still simulation/protocol-only, no native game adapter.
+    "cuphead": SILKSONG_EVENT_HOOKS,
+}
+EVENT_HOOKS = SILKSONG_EVENT_HOOKS  # Existing Silksong API compatibility
 
 
 @dataclass(frozen=True)
@@ -68,8 +84,9 @@ class GameObservation:
             or any(type(value[f]) is not bool
                    for f in ("in_game", "app_focused", "paused"))):
             raise ValueError("invalid observation identity, provenance or flags")
-        if value["hook_target"] != EVENT_HOOKS[value["event"]]:
-            raise ValueError("event name and hook target disagree")
+        expected_hook = GAME_EVENT_HOOKS[value["game_id"]].get(value["event"])
+        if expected_hook is None or value["hook_target"] != expected_hook:
+            raise ValueError("event name and game-specific hook target disagree")
         t = value["source_time_s"]
         if type(t) not in (int, float) or not math.isfinite(t) or t < 0:
             raise ValueError("invalid local source timestamp")
@@ -109,7 +126,8 @@ class GameObservation:
         x, y = anchor if anchor else (None, None)
         instance = cls(
             SCHEMA, game_id, source_mode, session_id, seq, event,
-            game_version, EVENT_HOOKS[event], in_game, app_focused,
+            game_version, GAME_EVENT_HOOKS[game_id][event],
+            in_game, app_focused,
             paused, x, y, source_time_s,
         )
         return cls.from_dict(asdict(instance))
