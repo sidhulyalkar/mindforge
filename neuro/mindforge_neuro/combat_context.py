@@ -39,6 +39,7 @@ class CombatContext:
     precision_window: bool = False
     platforming_hazard: bool = False
     recovery_opening: bool = False
+    player_activity_recent: bool = False  # Direct action observation, NOT enemy engagement
     opening_duration_s: float = 0.0
     # The hook is advisory and NEVER asserts physical stimulus validation.
     source: str = "synthetic_game_context"
@@ -80,7 +81,17 @@ class ContextOrbPolicy:
                 or context.seq < 0 or not math.isfinite(now_s)
                 or not math.isfinite(context.opening_duration_s)
                 or context.opening_duration_s < 0
-                or context.source not in ("synthetic_game_context", "verified_game_hook")):
+                or context.source not in (
+                    "synthetic_game_context", "verified_game_hook",
+                    "observed_game_hook_unqualified")):
+            return False
+        if (context.source == "observed_game_hook_unqualified"
+                and (context.enemy_nearby or context.enemy_engaged
+                     or context.boss_encounter or context.incoming_attack
+                     or context.precision_window or context.platforming_hazard
+                     or context.recovery_opening or context.opening_duration_s != 0)):
+            # Unqualified action telemetry must never masquerade as verified
+            # combat, incoming danger, boss recovery, or a safe SSVEP window.
             return False
         if self.context is not None:
             if context.session_id != self.context.session_id:
@@ -119,6 +130,9 @@ class ContextOrbPolicy:
                          and not ctx.precision_window
                          and not ctx.platforming_hazard)
             return OrbDecision(OrbMode.PRESENT, placement, "engaged", candidate)
+        if ctx.player_activity_recent:
+            return OrbDecision(OrbMode.PRIMED, "edge_compact",
+                               "observed_player_activity_not_combat", False)
         if ctx.enemy_nearby:
             return OrbDecision(OrbMode.PRIMED, "edge_compact", "nearby_unengaged", False)
         if now_s - self.last_fight_at <= self.postcombat_hold_s:
