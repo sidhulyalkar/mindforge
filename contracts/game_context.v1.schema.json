@@ -37,7 +37,8 @@
     "source": {
       "enum": [
         "synthetic_game_context",
-        "verified_game_hook"
+        "verified_game_hook",
+        "observed_game_hook_unqualified"
       ]
     },
     "ttl_ms": {
@@ -63,7 +64,8 @@
         "precision_window",
         "platforming_hazard",
         "recovery_opening",
-        "opening_duration_s"
+        "opening_duration_s",
+        "player_activity_recent"
       ],
       "properties": {
         "in_game": {
@@ -112,6 +114,9 @@
           "type": "number",
           "minimum": 0,
           "maximum": 60
+        },
+        "player_activity_recent": {
+          "type": "boolean"
         }
       }
     },
@@ -150,6 +155,58 @@
         },
         "anchor_y": {
           "type": "number"
+        }
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "const": "observed_game_hook_unqualified"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "properties": {
+          "anchor_x": {
+            "type": "null"
+          },
+          "anchor_y": {
+            "type": "null"
+          },
+          "context": {
+            "properties": {
+              "enemy_nearby": {
+                "const": false
+              },
+              "enemy_engaged": {
+                "const": false
+              },
+              "boss_encounter": {
+                "const": false
+              },
+              "incoming_attack": {
+                "const": false
+              },
+              "precision_window": {
+                "const": false
+              },
+              "platforming_hazard": {
+                "const": false
+              },
+              "recovery_opening": {
+                "const": false
+              },
+              "opening_duration_s": {
+                "const": 0
+              }
+            }
+          }
         }
       }
     }
