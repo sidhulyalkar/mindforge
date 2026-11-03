@@ -98,6 +98,8 @@ class CupheadStageMonitor:
         self.counts: Counter[str] = Counter()
         self.rejections: Counter[str] = Counter()
         self.missing_seq = 0
+        self.stable_level_samples = 0
+        self.last_transition_s: float | None = None
 
     def accept(self, packet: CupheadStageObservation, now_s: float) -> bool:
         if not math.isfinite(now_s):
@@ -111,6 +113,8 @@ class CupheadStageMonitor:
             self.session_id = packet.session_id
             self.last_seq = -1
             self.last_source_time_s = None
+            self.stable_level_samples = 0
+            self.last_transition_s = now_s
         if packet.seq <= self.last_seq:
             self.rejections["replay_or_reorder"] += 1
             return False
@@ -125,6 +129,14 @@ class CupheadStageMonitor:
         self.last_source_time_s = packet.source_time_s
         self.latest = packet
         self.counts[packet.stage] += 1
+        if packet.event == "scene_changed":
+            self.stable_level_samples = 0
+            self.last_transition_s = now_s
+        elif (packet.event == "sample" and packet.stage == "level"
+              and packet.app_focused and not packet.paused):
+            self.stable_level_samples = min(2, self.stable_level_samples + 1)
+        else:
+            self.stable_level_samples = 0
         return True
 
     def stage_at(self, now_s: float) -> str:
@@ -135,6 +147,22 @@ class CupheadStageMonitor:
         if self.latest.paused or not self.latest.app_focused:
             return "unknown"
         return self.latest.stage
+
+    def cosmetic_level_permitted_at(self, now_s: float) -> bool:
+        """Conservative mirror of native UI veto, NOT permission to show BCI.
+
+        At least two consistent, verified-source stage samples and a 750ms
+        transition quarantine are necessary. Still requires an entirely
+        separate contextual policy to be displayed in the game.
+        """
+        return bool(
+            self.stage_at(now_s) == "level"
+            and self.latest is not None
+            and self.latest.source == SOURCE
+            and self.stable_level_samples >= 2
+            and self.last_transition_s is not None
+            and now_s - self.last_transition_s >= 0.75
+        )
 
     def report(self, now_s: float) -> dict[str, Any]:
         return {
