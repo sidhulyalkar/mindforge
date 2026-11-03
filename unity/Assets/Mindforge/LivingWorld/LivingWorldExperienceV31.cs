@@ -84,7 +84,8 @@ namespace Mindforge.LivingWorld
         {
             // No speculative integration with the competition/calibration-only
             // scene or arbitrary playable worlds. V11 is the explicit, authored target.
-            if (!HasAuthoredV11World())
+            Transform authoredWorld = FindAuthoredV11World();
+            if (authoredWorld == null)
             {
                 Debug.LogWarning("[LivingWorld:V31] V11 authored world missing; integration off.");
                 enabled = false;
@@ -102,7 +103,9 @@ namespace Mindforge.LivingWorld
             // or alter existing arena, Guardian, boss or SSVEP renderers.
             _visualRoot = new GameObject("LivingWorld_V31_Ornament_Only");
             _visualRoot.SetActive(false);
-            _visualRoot.transform.SetParent(transform, false);
+            // Inherit the authored world's active state, including pre-calibration
+            // arena deactivation, so decorative pieces cannot float by themselves.
+            _visualRoot.transform.SetParent(authoredWorld, false);
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Unlit/Color");
             if (shader == null)
@@ -142,20 +145,20 @@ namespace Mindforge.LivingWorld
             SetOptIn(PlayerPrefs.GetInt(EnabledKey, 0) == 1, save: false);
         }
 
-        private bool HasAuthoredV11World()
+        private Transform FindAuthoredV11World()
         {
             // The systems kernel leaves the arena inactive until calibration.
             // GameObject.Find would miss its authored children at scene startup.
             UnityEngine.SceneManagement.Scene scene = gameObject.scene;
-            if (!scene.IsValid()) return false;
+            if (!scene.IsValid()) return null;
             foreach (GameObject root in scene.GetRootGameObjects())
             {
                 Transform[] all = root.GetComponentsInChildren<Transform>(true);
                 for (int i = 0; i < all.Length; i++)
                     if (all[i] != null && all[i].name == AuthoredWorldRootName)
-                        return true;
+                        return all[i];
             }
-            return false;
+            return null;
         }
 
         private void Update()
