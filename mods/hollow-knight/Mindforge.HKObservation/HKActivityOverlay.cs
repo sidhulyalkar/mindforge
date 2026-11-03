@@ -89,7 +89,8 @@ namespace Mindforge.HollowKnightObservation
                          next.source != "synthetic_game_context" &&
                          next.source != "none"))
                         continue;
-                    if (next.mode == "primed" && String.IsNullOrEmpty(next.session_id))
+                    if (next.mode == "primed" &&
+                        (String.IsNullOrEmpty(next.session_id) || next.source == "none"))
                         continue;
                     float now = Time.realtimeSinceStartup;
                     bool expired = !IsFresh;
