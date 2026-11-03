@@ -43,10 +43,19 @@ namespace Mindforge.HollowKnightObservation
         {
             if (subscribed) return;
 
-            string folder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            string optin = Path.Combine(folder ?? ".", OptInName);
-            if (!File.Exists(optin) ||
-                File.ReadAllText(optin).Trim() != Consent)
+            bool optedIn = false;
+            try
+            {
+                string folder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string optin = Path.Combine(folder ?? ".", OptInName);
+                optedIn = File.Exists(optin) && File.ReadAllText(optin).Trim() == Consent;
+            }
+            catch (Exception ex)
+            {
+                Log("Observation opt-in check failed: " + ex.GetType().Name);
+                return;
+            }
+            if (!optedIn)
             {
                 Log("Read-only observer is OFF. A separate exact opt-in token is required.");
                 return;
