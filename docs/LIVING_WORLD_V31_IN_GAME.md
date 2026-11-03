@@ -2,7 +2,7 @@
 
 ## Scope
 
-This is the first in-game integration of the passive neural-feature channel, scoped specifically to the **authored Legacy V0.11** route. The runtime installer requires both a MindforgeDemoV11Marker and the Mindforge_Demo_World_V11 world root. It does **not** claim to integrate the newer Latest/cathedral routes.
+This is the first in-game integration of the passive neural-feature channel, scoped specifically to the **authored Legacy V0.11** route. The runtime installer requires both a MindforgeDemoV11Marker and the Mindforge_Demo_World_V11 world root. It does **not** claim to integrate the newer Latest/cathedral routes. The canonical Latest scene reuses the V11 marker and root, so the integration additionally checks for the Mindforge_White_Cathedral_V24 child and **disables itself explicitly** there, preventing misplaced legacy accents.
 
 Passive visual effects are **OFF by default**. No packet receiver is bound and no ornament is visible until explicit user opt-in (or a previously saved opt-in). The existing Sight/Guard combat and 10/12 Hz SSVEP systems are untouched.
 
