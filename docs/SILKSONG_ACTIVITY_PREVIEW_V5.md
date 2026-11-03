@@ -87,7 +87,17 @@ software wiring only, **not live game compatibility**.
 1. Pin the installed Silksong build and compatible BepInEx **5 Mono**
    loader. This code is not an IL2CPP mod and has not been tested on an
    unknown version. Copy and back up your save data first.
-2. Build the two distinct projects against that **same game's own**
+2. Run the filesystem-only prerequisite check **before** attempting a
+   native build. It prints assembly SHA-256 fingerprints without modifying or
+   copying the game's files, so we can record which exact local dependencies
+   were tested. A passing report does not prove plugin compilation or runtime
+   compatibility:
+
+```powershell
+python tools/mindforge_native_preflight.py --game-root "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Knight Silksong" --report silksong-preflight.json
+```
+
+2a. Build the two distinct projects against that **same game's own**
    managed assemblies. Set `BepInExDir` and `GameManagedDir` on your
    machine, not inside the repository:
 
