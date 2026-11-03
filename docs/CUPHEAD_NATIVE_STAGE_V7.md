@@ -43,22 +43,35 @@ Cuphead game (owned, mod loader manually installed)
      Level.Current / Map.Current (read by reflection at 2Hz)
        |
        v
-  127.0.0.1:19757
-  mindforge.cuphead_stage_observation.v1
-  [source=observed_stage_reflection_unqualified]
-       |
-       v
-  tools/mindforge_cuphead_stage.py --expected-build <pinned build>
-  validates source/session/sequence/time and writes optional JSONL
-       |
-       v
-  mindforge.cuphead_stage_audit.v1
-  unknown / map / level only, with provenance limitations
+  127.0.0.1:19757       127.0.0.1:19758
+    | audit                      | cosmetic veto only
+    v                            v
+  tools/mindforge_            PortableOrbs' CupheadStageReceiver
+  cuphead_stage.py            strict sequence/session/TTL checks
+    |                            |
+    v                            v
+  JSONL audit                  IsPlayableLevel only if fresh,
+  reports                      Level.Current and no pause/focus loss
+                                    |
+                              AND independent contextual policy
+                                    |
+                              static, cosmetic UI only
 ```
 
-**Nothing from this stream currently unlocks the orb UI.** Stage is a
-precondition for later safe presentation, not authority to create a
-target, trigger Sight/Guard, change damage or alter Cuphead physics.
+**Cuphead stage observations can only veto the orb UI.** The optional
+overlay's `[Overlay] RequireCupheadPlayableStage=true` default
+requires a fresh observed `level` stage *and* the existing independent
+orb-context policy. Overworld, transitions, missing stage source, an
+offline observer or focus/pause changes hide the visual. A level being
+loaded NEVER independently creates an orb, triggers Sight/Guard, changes
+damage or alters Cuphead physics.
+
+Audit and UI receive separate local ports (19757 and 19758) to avoid two
+subscribers stealing each other's UDP datagrams. No raw EEG enters the
+Cuphead stage observer. If the native plugin fails to load, the default
+UI gate remains closed. Disable the stage prerequisite only for an
+explicitly labeled cosmetic-simulation development session, never as
+evidence of native game compatibility.
 
 The native plugin reads `Level.Current` and `Map.Current` at most
 twice per second. It caches reflection members and maps conflicting,
@@ -128,9 +141,31 @@ $env:BepInExDir = $env:CupheadBepInExCore
 dotnet build mods/bepinex/Mindforge.PortableOrbs/Mindforge.PortableOrbs.csproj -c Release -p:MindforgeGame=cuphead
 ```
 
-Do **not** install or enable PortableOrbs as part of the v7 stage
-qualification. The context renderer's gameplay semantics still need
-independent Cuphead HUD/visual-interference testing.
+Do **not** install or enable PortableOrbs during the *first*
+stage-only qualification. The context renderer's gameplay semantics
+still need independent Cuphead HUD/visual-interference testing.
+
+For a **second, explicitly synthetic and cosmetic-only integration test**
+after the native stage stream is confirmed, install the Cuphead-built
+PortableOrbs DLL separately and leave
+`RequireCupheadPlayableStage=true` and `RequireCombatContext=true`.
+Then run:
+
+```powershell
+# Terminal 1: synthetic combat-context decisions only, no EEG
+python tools/mindforge_orb_context_bridge.py --game cuphead --demo --seconds 24
+# The native stage observer sends its real unqualified stage state on :19758.
+```
+
+The overlay should stay hidden on Cuphead's map and through transitions
+despite synthetic combat context. It may display a dim labeled **SIM
+CONTEXT** orb in an observed active level, but that is not a safe
+selection window and does not prove a physical visual stimulus or actual
+neural control. Return to the map, pause, close the native observer and
+verify it withdraws within its 1.25s local source TTL.
+
+If the game version requires an incompatible .NET or Unity assembly,
+stop here. Do not force-load the net46 Silksong binary into Cuphead.
 
 5. Install ONLY the compiled
    `Mindforge.CupheadStageObservation.dll` into the BepInEx plugins
