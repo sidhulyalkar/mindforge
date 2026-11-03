@@ -36,6 +36,8 @@ namespace Mindforge.PortableOrbs
         private int lastSeq = -1;
         private float receivedAt = float.NegativeInfinity;
         private float lastSourceS = float.NegativeInfinity;
+        private float lastTransitionAt = float.NegativeInfinity;
+        private int consistentLevelSamples;
 
         public CupheadStageReceiver()
         {
@@ -56,9 +58,14 @@ namespace Mindforge.PortableOrbs
         {
             get
             {
+                // A single Level.Current != null read may be stale during
+                // a scene change. Two consecutive samples and a transition
+                // quarantine are required even for a cosmetic indicator.
                 return IsFresh && latest.stage == "level" &&
                     latest.@event == "sample" &&
                     latest.app_focused && !latest.paused &&
+                    consistentLevelSamples >= 2 &&
+                    Time.realtimeSinceStartup - lastTransitionAt >= 0.75f &&
                     latest.source == "observed_stage_reflection_unqualified";
             }
         }
@@ -99,12 +106,31 @@ namespace Mindforge.PortableOrbs
                         session = next.session_id;
                         lastSeq = -1;
                         lastSourceS = float.NegativeInfinity;
+                        consistentLevelSamples = 0;
+                        lastTransitionAt = Time.realtimeSinceStartup;
                     }
                     if (next.seq <= lastSeq || next.source_time_s < lastSourceS)
                         continue;
                     lastSeq = next.seq;
                     lastSourceS = next.source_time_s;
                     receivedAt = Time.realtimeSinceStartup;
+                    if (next.@event == "scene_changed")
+                    {
+                        lastTransitionAt = receivedAt;
+                        consistentLevelSamples = 0;
+                    }
+                    else if (next.stage == "level" &&
+                             next.app_focused && !next.paused)
+                    {
+                        // Don't reset the game-state requirement just because
+                        // the source is active; count exact, consecutive
+                        // verified *stage samples*, not combat actions.
+                        consistentLevelSamples = Math.Min(2, consistentLevelSamples + 1);
+                    }
+                    else
+                    {
+                        consistentLevelSamples = 0;
+                    }
                     latest = next;
                 }
                 catch (SocketException ex)
@@ -127,6 +153,7 @@ namespace Mindforge.PortableOrbs
             if (receiver != null) receiver.Close();
             receiver = null;
             latest = null;
+            consistentLevelSamples = 0;
         }
     }
 }
