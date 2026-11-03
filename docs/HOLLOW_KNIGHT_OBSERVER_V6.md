@@ -195,6 +195,12 @@ Python CI passing does not prove the native assembly runs.
 
 ## Next expansion: Cuphead
 
+The native `mindforge.game_observation.v1` contract explicitly excludes
+Cuphead until a real Cuphead API callback is inspected, compiled and verified.
+Its cosmetic `game_context` simulation remains supported independently.
+This prevents accidentally presenting a Silksong Harmony callback as Cuphead
+evidence.
+
 Cuphead needs **another genuine native observer**, not Hollow Knight
 ModHooks. Plan three categories of scenes: grounded boss phases,
 airplane/shmup phases and run-and-gun traversal. Restrict to read-only
