@@ -98,7 +98,15 @@ namespace Mindforge.PortableOrbs
                         continue;
                     if (next.mode != "hidden" &&
                         (next.source != "synthetic_game_context" &&
-                         next.source != "verified_game_hook"))
+                         next.source != "verified_game_hook" &&
+                         next.source != "observed_game_hook_unqualified"))
+                        continue;
+                    // A player-action hook never certifies enemy engagement,
+                    // boss danger, player-follow calibration or safe selection.
+                    if (next.source == "observed_game_hook_unqualified" &&
+                        (next.mode != "primed" && next.mode != "hidden" ||
+                         next.placement == "player_anchor" ||
+                         next.selection_opportunity_only))
                         continue;
                     if (next.mode != "hidden" && String.IsNullOrEmpty(next.session_id))
                         continue;
