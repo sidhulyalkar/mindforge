@@ -13,7 +13,7 @@ import math
 from typing import Any, Mapping
 
 SCHEMA = "mindforge.game_observation.v1"
-GAMES = frozenset(("silksong", "cuphead", "hollow_knight"))
+GAMES = frozenset(("silksong", "hollow_knight"))  # Cuphead has no qualified native observer yet
 SOURCES = frozenset(("observed_game_hook_unqualified", "synthetic_game_observation"))
 EVENTS = frozenset((
     "hero_ready", "hero_attack", "hero_dash", "hero_jump",
@@ -46,8 +46,6 @@ HOLLOW_KNIGHT_EVENT_HOOKS = {
 GAME_EVENT_HOOKS = {
     "silksong": SILKSONG_EVENT_HOOKS,
     "hollow_knight": HOLLOW_KNIGHT_EVENT_HOOKS,
-    # Cuphead is still simulation/protocol-only, no native game adapter.
-    "cuphead": SILKSONG_EVENT_HOOKS,
 }
 EVENT_HOOKS = SILKSONG_EVENT_HOOKS  # Existing Silksong API compatibility
 
