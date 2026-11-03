@@ -55,3 +55,8 @@ experiments/reports/*.xml
 experiments/reports/*.log
 experiments/reports/display-timing-*.csv
 experiments/reports/visual-captures/
+
+# Local native builds, compiler logs and private installed-game fingerprints.
+# DO NOT commit these artifacts; they can contain absolute user paths.
+experiments/local-native/
+experiments/native-qualification/

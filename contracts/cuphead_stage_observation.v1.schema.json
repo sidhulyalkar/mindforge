@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mindforge Cuphead stage observation v1, distinct from combat hooks",
+  "description": "Read-only, unqualified Level.Current / Map.Current observations. Cannot authorize combat, parry, SSVEP, or game effects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "game_id",
+    "session_id",
+    "seq",
+    "source",
+    "game_version",
+    "stage",
+    "event",
+    "scene_name",
+    "app_focused",
+    "paused",
+    "source_time_s"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mindforge.cuphead_stage_observation.v1"
+    },
+    "game_id": {
+      "const": "cuphead"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source": {
+      "enum": [
+        "observed_stage_reflection_unqualified",
+        "synthetic_stage_observation"
+      ]
+    },
+    "game_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "stage": {
+      "enum": [
+        "unknown",
+        "map",
+        "level"
+      ]
+    },
+    "event": {
+      "enum": [
+        "sample",
+        "scene_changed"
+      ]
+    },
+    "scene_name": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "app_focused": {
+      "type": "boolean"
+    },
+    "paused": {
+      "type": "boolean"
+    },
+    "source_time_s": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "scene_changed"
+          }
+        },
+        "required": [
+          "event"
+        ]
+      },
+      "then": {
+        "properties": {
+          "stage": {
+            "const": "unknown"
+          }
+        }
+      }
+    }
+  ]
+}

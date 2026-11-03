@@ -30,7 +30,9 @@ namespace Mindforge.PortableOrbs
 
         private UdpClient receiver;
         private ContextPresentationReceiver combatContext;
+        private CupheadStageReceiver cupheadStage;
         private ConfigEntry<bool> requireCombatContext;
+        private ConfigEntry<bool> requireCupheadStage;
         private Vector2 uiPosition;
         private bool positionInitialized;
         private ModFrame latest;
@@ -51,6 +53,8 @@ namespace Mindforge.PortableOrbs
                 "Show faint indicator orbs when the neural bridge is disconnected.");
             requireCombatContext = Config.Bind("Overlay", "RequireCombatContext", true,
                 "Hide cosmetic orbs when no fresh combat-context observation exists.");
+            requireCupheadStage = Config.Bind("Overlay", "RequireCupheadPlayableStage", true,
+                "Cuphead only: require a fresh, locally observed playable level state. A stage never authorizes an orb by itself.");
             string product = (Application.productName ?? "").ToLowerInvariant();
             gameId = product.Contains("silksong") ? "silksong" :
                      product.Contains("cuphead") ? "cuphead" : "";
@@ -83,12 +87,27 @@ namespace Mindforge.PortableOrbs
                 Logger.LogWarning("Context UDP port 19755 unavailable: " + ex.SocketErrorCode);
                 combatContext = null;
             }
+            if (gameId == "cuphead")
+            {
+                try
+                {
+                    cupheadStage = new CupheadStageReceiver();
+                }
+                catch (SocketException ex)
+                {
+                    Logger.LogWarning("Cuphead stage veto port 19758 unavailable: " +
+                                      ex.SocketErrorCode);
+                    cupheadStage = null; // conservative: hide Cuphead orbs
+                }
+            }
         }
 
         private void Update()
         {
             if (combatContext != null)
                 combatContext.Poll(gameId);
+            if (cupheadStage != null)
+                cupheadStage.Poll();
             UpdatePresentationPosition();
             if (receiver == null)
                 return;
@@ -172,6 +191,12 @@ namespace Mindforge.PortableOrbs
             // context, even if a synthetic producer incorrectly claims focus.
             if (!Application.isFocused || Time.timeScale <= 0.0001f)
                 return;
+            // Level.Current is only a prerequisite, NEVER a positive
+            // combat or neural-selection decision.
+            if (gameId == "cuphead" && requireCupheadStage != null &&
+                requireCupheadStage.Value &&
+                (cupheadStage == null || !cupheadStage.IsPlayableLevel))
+                return;
             string mode = combatContext != null ? combatContext.Mode : "hidden";
             bool contextRequired = requireCombatContext != null && requireCombatContext.Value;
             if (contextRequired && mode == "hidden")
@@ -241,6 +266,8 @@ namespace Mindforge.PortableOrbs
         {
             if (combatContext != null)
                 combatContext.Dispose();
+            if (cupheadStage != null)
+                cupheadStage.Dispose();
             if (receiver != null)
                 receiver.Close();
             if (blueOrb != null)

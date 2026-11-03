@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The legacy Cuphead runtime needs a different .NET target than Silksong.
+       A passing Python test never certifies this native DLL. -->
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>Mindforge.CupheadStageObservation</AssemblyName>
+    <CupheadManagedDir Condition="'$(CupheadManagedDir)' == ''">$(MSBuildProjectDirectory)/unconfigured-managed</CupheadManagedDir>
+    <CupheadBepInExCore Condition="'$(CupheadBepInExCore)' == ''">$(MSBuildProjectDirectory)/unconfigured-bepinex-core</CupheadBepInExCore>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="BepInEx">
+      <HintPath>$(CupheadBepInExCore)/BepInEx.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine" Condition="Exists('$(CupheadManagedDir)/UnityEngine.dll')">
+      <HintPath>$(CupheadManagedDir)/UnityEngine.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule" Condition="Exists('$(CupheadManagedDir)/UnityEngine.CoreModule.dll')">
+      <HintPath>$(CupheadManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="ValidateCupheadLegacyReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(CupheadBepInExCore)/BepInEx.dll')" Text="CupheadBepInExCore must point to the locally installed Cuphead BepInEx/core directory." />
+    <Error Condition="!Exists('$(CupheadManagedDir)/Assembly-CSharp.dll')" Text="CupheadManagedDir must point to the locally installed Cuphead_Data/Managed directory." />
+    <Error Condition="!Exists('$(CupheadManagedDir)/UnityEngine.dll') And !Exists('$(CupheadManagedDir)/UnityEngine.CoreModule.dll')" Text="Missing compatible local Cuphead UnityEngine reference." />
+  </Target>
+  <!-- Deliberately NO deploy-to-game post-build target. -->
+</Project>
