@@ -104,7 +104,8 @@ namespace Mindforge.LivingWorld
             _visualRoot = new GameObject("LivingWorld_V31_Ornament_Only");
             _visualRoot.SetActive(false);
             _visualRoot.transform.SetParent(transform, false);
-            Shader shader = Shader.Find("Unlit/Color");
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
             if (shader == null)
             {
                 Debug.LogWarning("[LivingWorld:V31] Unlit/Color unavailable; feature disabled.");
