@@ -42,41 +42,47 @@ def test_real_udp_unqualified_game_event_to_contextual_orb_then_death_withdrawal
              "--game", "silksong",
              "--expected-build", "exact-test-build",
              "--input-port", str(obs_port),
-             "--context-port", str(context_port), "--seconds", "4", "--hz", "20"],
+             "--context-port", str(context_port), "--seconds", "8", "--hz", "20"],
             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         try:
-            time.sleep(.55)
-            for seq, name in enumerate(("hero_ready", "hero_attack", "hero_attack"), 1):
-                packet = GameObservation.make(
-                    "silksong", name, seq,
-                    source_mode="observed_game_hook_unqualified",
-                    session_id="native-test-session",
-                    game_version="exact-test-build",
-                    source_time_s=seq * .1)
-                sender.sendto(packet.to_json().encode(),
-                              ("127.0.0.1", obs_port))
-                time.sleep(.12)
-
+            # CI runners may take longer than 550ms to start both Python
+            # processes. Repeatedly send whole, ordered action bursts until
+            # a real receiver acknowledgement (primed state) arrives.
             seen_primed = False
-            deadline = time.monotonic() + 1.1
-            while time.monotonic() < deadline:
-                try:
-                    raw, _ = receiver.recvfrom(4096)
-                except socket.timeout:
-                    continue
-                frame = json.loads(raw)
-                assert frame["presentation_only"] is True
-                assert frame["stimulus_enabled"] is False
-                assert frame["placement"] != "player_anchor"
-                if frame["mode"] == "primed":
-                    assert frame["source"] == "observed_game_hook_unqualified"
-                    assert frame["selection_opportunity_only"] is False
-                    seen_primed = True
-                    break
+            sequence = 0
+            deadline = time.monotonic() + 4.0
+            while time.monotonic() < deadline and not seen_primed:
+                for name in ("hero_ready", "hero_attack", "hero_attack"):
+                    sequence += 1
+                    packet = GameObservation.make(
+                        "silksong", name, sequence,
+                        source_mode="observed_game_hook_unqualified",
+                        session_id="native-test-session",
+                        game_version="exact-test-build",
+                        source_time_s=sequence * .1)
+                    sender.sendto(packet.to_json().encode(),
+                                  ("127.0.0.1", obs_port))
+                    time.sleep(.075)
+
+                next_burst = min(deadline, time.monotonic() + .48)
+                while time.monotonic() < next_burst:
+                    try:
+                        raw, _ = receiver.recvfrom(4096)
+                    except socket.timeout:
+                        continue
+                    frame = json.loads(raw)
+                    assert frame["presentation_only"] is True
+                    assert frame["stimulus_enabled"] is False
+                    assert frame["placement"] != "player_anchor"
+                    if frame["mode"] == "primed":
+                        assert frame["source"] == "observed_game_hook_unqualified"
+                        assert frame["selection_opportunity_only"] is False
+                        seen_primed = True
+                        break
             assert seen_primed, "the live UDP chain never produced a primed orb"
 
             death = GameObservation.make(
-                "silksong", "hero_die", 4,
+                "silksong", "hero_die", sequence + 1,
                 source_mode="observed_game_hook_unqualified",
                 session_id="native-test-session", game_version="exact-test-build",
                 in_game=False, source_time_s=.8)
