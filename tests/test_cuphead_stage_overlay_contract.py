@@ -18,7 +18,11 @@ def test_cuphead_stage_is_veto_only_and_requires_independent_context():
     assert 'combatContext.Mode' in overlay
     assert "cupheadStage.Poll()" in overlay
     assert "cupheadStage.Dispose()" in overlay
-    assert 'next.stage == "level"' not in receiver  # never read gameplay by guessing
+    # A received level sample may contribute to a conservative count,
+    # but cannot alone authorize an orb or a boss state.
+    assert 'next.stage == "level"' in receiver
+    assert "consistentLevelSamples >= 2" in receiver
+    assert "lastTransitionAt >= 0.75f" in receiver
     assert 'latest.stage == "level"' in receiver
     assert 'latest.app_focused && !latest.paused' in receiver
     assert "Time.realtimeSinceStartup - receivedAt < 1.25f" in receiver
