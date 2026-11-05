@@ -248,6 +248,13 @@ namespace Mindforge.SoulWisp
         /// </summary>
         public bool CanAcceptSelection(NeuralEvent evt)
         {
+            // Network messages never receive the editor keyboard bypass, even if they spoof
+            // its source_mode. The private editor-only call site opts in explicitly.
+            return CanAcceptSelectionInternal(evt, false);
+        }
+
+        private bool CanAcceptSelectionInternal(NeuralEvent evt, bool trustedEditorKeyboard)
+        {
             if (State != WispResonanceState.Listening || evt == null || !evt.IsSelection) return false;
             if (evt.Target == AuraTarget.None || evt.artifact || !evt.IsV2) return false;
             if (evt.seq <= _minimumSelectionSeq) return false;
@@ -255,10 +262,14 @@ namespace Mindforge.SoulWisp
             if (evt.evidence_ms < Mathf.Max(0, minimumEvidenceMs)) return false;
             if (motionQualification == null || !motionQualification.EvidenceQualified) return false;
 #if UNITY_EDITOR
-            bool editorSimulation = string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
+            bool editorSimulation = trustedEditorKeyboard &&
+                string.Equals(evt.source_mode, "unity_editor_resonance_sim", StringComparison.Ordinal);
 #else
             bool editorSimulation = false;
 #endif
+            if (!editorSimulation &&
+                !NeuralSelectionIdentityV24.IsBoundToGameSession(evt, MindforgeSessionContext.GameSessionId))
+                return false;
             if (!editorSimulation && requireHealthyDisplayTimingForNeuralAuthority &&
                 (displayTiming == null || !displayTiming.HasMeasurement || !displayTiming.TimingHealthy))
                 return false;
@@ -364,7 +375,7 @@ namespace Mindforge.SoulWisp
                 evidence_ms = 750,
             };
 
-            if (CanAcceptSelection(simulated) && editorBuffs.TryApply(simulated))
+            if (CanAcceptSelectionInternal(simulated, true) && editorBuffs.TryApply(simulated))
                 MarkResolved(target);
         }
 #endif
