@@ -81,7 +81,14 @@ def test_resonance_state_machine_abstains_instead_of_guessing():
 def test_neural_director_requires_open_window_before_buff():
     src = read("unity/Assets/Mindforge/Combat/DualAuraCombatDirector.cs")
     assert "WispResonanceWindow resonanceWindow" in src
-    assert "if (resonanceWindow == null || !resonanceWindow.CanAcceptSelection(evt)) return" in src
+    assert "if (resonanceWindow == null || !resonanceWindow.CanAcceptSelection(evt))" in src
+    # V0.24 emits an explicit denial before returning, but may never continue
+    # into TryApply after a closed or unqualified decision window.
+    denied = src.index('EmitSelectionEvidence("NEURAL_SELECTION_DENIED"')
+    gate = src.index("CanAcceptSelection(evt)")
+    apply = src.index("buffs.TryApply(evt)")
+    assert gate < denied < apply
+    assert "return;" in src[denied:apply]
     gate = src.index("CanAcceptSelection(evt)")
     apply = src.index("buffs.TryApply(evt)")
     resolve = src.index("resonanceWindow.MarkResolved(evt.Target)")
