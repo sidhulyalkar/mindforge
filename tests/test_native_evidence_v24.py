@@ -143,3 +143,39 @@ def test_unity_authorization_source_does_not_trust_udp_editor_mode():
     assert "NeuralSelectionIdentityV24.IsBoundToGameSession" in window
     assert "NEURAL_EFFECT_OBSERVED" in director
     assert "trialId: trialId" in director
+
+
+def test_foreign_session_correlation_id_is_not_accepted_as_grounded():
+    rows = good()
+    rows[0] = marker(1, "NEURAL_SELECTION_OBSERVED", trial="selection-v24:foreign:7:44")
+    assert "INVALID_SELECTION_CORRELATION_ID" in codes(rows)
+
+
+def test_cross_epoch_correlation_id_is_rejected():
+    rows = good()
+    rows[0] = marker(1, "NEURAL_SELECTION_OBSERVED", trial="selection-v24:game-a:8:44")
+    assert "INVALID_SELECTION_CORRELATION_ID" in codes(rows)
+
+
+def test_loader_rejects_numeric_string_sequence_and_boolean_timestamp(tmp_path):
+    p = tmp_path / "coercion.jsonl"
+    valid = marker(1, "NEURAL_SELECTION_OBSERVED").to_dict()
+    valid["seq"] = "1"
+    p.write_text(json.dumps(valid) + "\n")
+    with pytest.raises(ValueError, match="invalid strict marker wire types"):
+        load_markers(p)
+
+    valid["seq"] = 1
+    valid["unity_realtime_s"] = True
+    p.write_text(json.dumps(valid) + "\n")
+    with pytest.raises(ValueError, match="invalid strict marker wire types"):
+        load_markers(p)
+
+
+def test_loader_rejects_nested_trial_identity(tmp_path):
+    p = tmp_path / "bad.jsonl"
+    valid = marker(1, "NEURAL_SELECTION_OBSERVED").to_dict()
+    valid["trial_id"] = {"untrusted": True}
+    p.write_text(json.dumps(valid) + "\n")
+    with pytest.raises(ValueError, match="invalid strict marker wire field"):
+        load_markers(p)
