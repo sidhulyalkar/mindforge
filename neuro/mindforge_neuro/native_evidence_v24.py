@@ -50,6 +50,21 @@ def load_markers(path: str | Path) -> list[GameMarker]:
             )
             if not isinstance(obj, dict) or set(obj) - allowed:
                 raise ValueError("unknown marker fields or non-object row")
+            # GameMarker.from_dict retains backward compatibility by coercing numeric
+            # values. Scientific ingest must reject such coercion at the wire boundary.
+            if (type(obj.get("seq")) is not int or obj["seq"] <= 0 or
+                    type(obj.get("stimulus_epoch", -1)) is not int or
+                    type(obj.get("unity_realtime_s")) not in (int, float) or
+                    not math.isfinite(obj["unity_realtime_s"]) or
+                    not isinstance(obj.get("session_id"), str) or
+                    not (0 < len(obj["session_id"]) <= 512) or
+                    not isinstance(obj.get("event"), str) or
+                    not (0 < len(obj["event"]) <= 128)):
+                raise ValueError("invalid strict marker wire types")
+            for field in ("trial_id", "target", "reason"):
+                value = obj.get(field)
+                if value is not None and (not isinstance(value, str) or len(value) > 512):
+                    raise ValueError("invalid strict marker wire field: " + field)
             marker = GameMarker.from_dict(obj)
             if marker.schema != "mindforge.game_marker.v1":
                 raise ValueError("legacy marker not eligible for causal audit")
@@ -97,6 +112,10 @@ def audit_selection_markers(rows: Iterable[GameMarker]) -> dict[str, Any]:
                 marker.stimulus_epoch < 0 or marker.target not in {"sight", "guard"}):
             issue("INVALID_SELECTION_IDENTITY", session=sid, seq=marker.seq)
             continue
+        prefix = f"selection-v24:{sid}:{marker.stimulus_epoch}:"
+        suffix = trial_id[len(prefix):] if trial_id.startswith(prefix) else ""
+        if not suffix.isascii() or not suffix.isdecimal() or int(suffix or 0) <= 0:
+            issue("INVALID_SELECTION_CORRELATION_ID", session=sid, seq=marker.seq)
         key = (sid, trial_id)
         if key not in trials:
             trials[key] = {"target": marker.target, "epoch": marker.stimulus_epoch,
