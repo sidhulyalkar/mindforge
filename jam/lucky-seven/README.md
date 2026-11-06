@@ -9,7 +9,8 @@
 1. Open this directory itself as a **separate project** in Unity 2022.3.62f3 (the version currently pinned by Mindforge), not the parent `unity/` directory.
 2. Choose **Tools > Lucky Seven > Create Playable Prototype Scene**.
 3. Open `Assets/Scenes/LuckySeven.unity`, then press **Play**.
-4. Move with **A/D** or arrow keys, **Space** to jump or hold to glide on descent, **1** for Wind and **2** for Root, **R** to restart after winning. The seven golden dots are collectible; the glowing nest at the far right opens on 7/7.
+4. Install **WebGL Build Support** in Unity Hub, then use **Tools > Lucky Seven > Build WebGL Demo** and test `Build/WebGL` via a local HTTP server before packaging for itch.io.
+5. Move with **A/D** or arrow keys, **Space** to jump or hold to glide on descent, **1** for Wind and **2** for Root, **R** to restart after winning. The seven golden dots are collectible; the glowing nest at the far right opens on 7/7.
 
 The project generates colored geometric placeholder art at runtime, intentionally avoiding pre-jam game content. Its current goal is a testable gameplay foundation, not final art, sound, or tuning.
 
