@@ -15,6 +15,7 @@ namespace LuckySeven
             public SpriteRenderer Renderer;
             public Collider2D Collider;
             public AnimalSense Required;
+            public bool Retained;
         }
         private sealed class Seed
         {
@@ -105,8 +106,9 @@ namespace LuckySeven
         {
             var obj = Shape("Lucky seed " + (seeds.Count + 1), new Vector2(x, y),
                 new Vector2(0.52f, 0.52f), new Color(1f, 0.81f, 0.38f), true, 9);
-            Shape("Seed shine", new Vector2(x, y), new Vector2(0.85f, 0.85f),
+            var glow = Shape("Seed shine", new Vector2(x, y), new Vector2(0.85f, 0.85f),
                 new Color(1f, 0.8f, 0.4f, 0.22f), true, 5);
+            glow.transform.SetParent(obj.transform, true);
             seeds.Add(new Seed { Object = obj, Required = required });
         }
 
@@ -202,11 +204,16 @@ namespace LuckySeven
                     && Mathf.Abs(squirrel.transform.position.x - at.x) < 3.35f
                     && squirrel.transform.position.y > at.y
                     && squirrel.transform.position.y < at.y + 1.5f;
-                bridge.Collider.enabled = active || supporting;
+                // A new selection may not erase an existing floor under the player.
+                // Never create a floor on approach unless its sense was selected.
+                if (active) bridge.Retained = false;
+                else if (supporting && bridge.Collider.enabled) bridge.Retained = true;
+                else if (!supporting) bridge.Retained = false;
+                bridge.Collider.enabled = active || bridge.Retained;
                 Color c = bridge.Required == AnimalSense.Wind
                     ? new Color(0.21f, 0.76f, 0.85f)
                     : new Color(0.68f, 0.53f, 0.94f);
-                c.a = active ? 1f : supporting ? 0.55f : 0.17f;
+                c.a = active ? 1f : bridge.Retained ? 0.55f : 0.17f;
                 bridge.Renderer.color = c;
             }
         }
